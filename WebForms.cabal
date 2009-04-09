@@ -1,0 +1,25 @@
+Name:             WebForms
+Version:          0.0.1
+Synopsis:     	  Simplified Proxima Framework for web applications
+Category:         Network, Web
+License:          AllRightsReserved
+Author:           Martijn Schrage
+Maintainer:       martijn@oblomov.biz
+Stability:        experimental
+Build-Type:       Simple
+Build-Depends:    base,
+                  network,
+		  mtl,
+                  base64-string,
+		  containers,
+		  bytestring,
+		  html,
+		  happstack-server,
+		  happstack-helpers
+                 
+
+Executable:       WFServer
+Main-is:	  Main.hs
+GHC-Options:      -fglasgow-exts -threaded -Wall
+HS-Source-Dirs:   src
+

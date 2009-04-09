@@ -1,0 +1,143 @@
+<!DOCTYPE HTML PUBLIC "-//IETF//DTD HTML//EN">
+<html> <head>
+<title>Test</title>
+</head>
+<script type="text/javascript">
+<!--
+var xmlhttp;
+
+var commandQueue = "";
+
+
+function init()
+{
+  queueCommand('Init;');
+}
+
+function debug(message)
+{
+    document.getElementById('debugMessage').innerHTML=message;
+}
+
+function debugAdd(message)
+{
+    debug (message + '<br></br>' + document.getElementById('debugMessage').innerHTML);
+}
+
+function textFieldChanged(textFieldId)
+{
+  value = document.getElementById(textFieldId).value;
+   queueCommand('Set('+textFieldId+','+value+');');
+}
+
+function queueCommand(url)
+{ commandQueue = commandQueue + url;
+ if ( xmlhttp && xmlhttp.readyState != 0 && xmlhttp.readyState != 4)
+    return; // if xmlhttp exists and was initialized and not ready, we return
+            // TODO: can readyState == 0 happen?  
+             
+xmlhttp=null;
+if (window.XMLHttpRequest)
+  { // code for Firefox, Opera, IE7, etc.
+    xmlhttp=new XMLHttpRequest();
+  }
+else if (window.ActiveXObject)
+  { // code for IE6, IE5
+    xmlhttp=new ActiveXObject("Microsoft.XMLHTTP");
+  }
+if (xmlhttp!=null)
+  { 
+    { xmlhttp.onreadystatechange=state_Change;
+      xmlhttp.open("GET",'handle?commands='+commandQueue,true);
+      xmlhttp.send(null);     // commands are terminated by semicolons
+      commandQueue = '';
+    }
+  }
+else
+  { alert("Your browser does not support XMLHTTP.");
+  }
+}
+
+function state_Change()
+{
+if (xmlhttp.readyState==4)
+  {// 4 = "loaded"
+  if (xmlhttp.status==200)
+    {// 200 = "OK"
+
+    debugAdd("received");
+    var receivedUpdates = document.getElementById('receivedUpdates');
+    receivedUpdates.innerHTML=xmlhttp.responseText;
+    
+    
+    if (commandQueue != '')
+    { debugAdd('sending queue');
+      queueCommand('');
+    }
+    
+   
+    
+    var updates = document.getElementById('updates');
+    // getElementById seems to trigger parsing the responseText
+    // after this, firstChild has a value, while it is null before
+    // newRendering.firstChild;
+    
+    
+   while (updates.firstChild)
+    { updateTree( updates.firstChild );
+    ; updates.removeChild(updates.firstChild);
+    }
+    
+
+    
+   }
+  else
+    {
+    debug("Problem retrieving data:" + xmlhttp.statusText);
+//    document.getElementById('status').innerHTML='Server not available.';
+    }
+  }
+}
+
+function updateTree(update)
+{ var op = update.getAttribute('op');
+ 
+ if (op === 'replace')
+  { var targetId = update.getAttribute('targetId');
+    var newChild = update.childNodes[0];
+    debugAdd("replace");
+    
+    var oldChild = document.getElementById(targetId);
+    
+    var parent = oldChild.parentNode;
+    
+    parent.replaceChild(newChild,oldChild);
+      
+ } 
+  else alert ('Unknown command: '+op); 
+}
+
+function select(path, node)
+{ var step = path.firstChild;
+  if (!step)
+    return node;
+  else
+    { path.removeChild(step);
+      var childNr = parseInt( step.getAttribute('childNr') ); 
+      var child = node.childNodes[childNr];
+      return (select (path, child));
+    }
+}
+
+-->
+</script>
+
+<body onload="init()">
+<h1>Test</h1>
+
+<body>
+<div id="root">initial root</div>
+Debug:
+<div style="border:solid; border-width:1px; padding:4px;" id="debugMessage"></div>
+<div id="receivedUpdates" style="visibility:hidden; border:solid; border-width:1px; padding:4px; border-color:red;" ></div>
+</body> </html>
