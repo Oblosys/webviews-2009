@@ -205,7 +205,7 @@ handleCommand docRef event =
       ; let doc' = replace (Map.fromList [(Id (read id), value)]) (assignIds doc)
       ; putStrLn $ "Updated doc:\n" ++ show doc'
       ; writeIORef docRef doc'
-      ; threadDelay 200000
+--      ; threadDelay 200000
 --      ; return $ toHtml ""
       ; return $ updateReplace "root" $ presentTestDoc (assignIds doc') -- presentRoot doc
       }
@@ -229,7 +229,7 @@ noId = Id (-1)
 data EditableString = EditableString {getStrId :: Id, getStrVal :: String} deriving (Show, Data, Typeable)
 data EditableInt = EditableInt {getIntId :: Id, getIntVal :: Int} deriving (Show, Data, Typeable)
 
-
+{-
 testDoc = TestDoc (EditableInt noId 2) 
             [EditableString noId "Martijn",EditableString noId "Tommy",EditableString noId "Pino"]
 
@@ -237,6 +237,7 @@ presentTestDoc (TestDoc i strs) =
   mkDiv "root" $
         presentRadioBox ["een", "twee", "drie"] i
     +++ presentTextfield (strs!!getIntVal i)
+-}
 
 presentRadioBox :: [String] -> EditableInt -> [Html]
 presentRadioBox items (EditableInt (Id id) i) = radioBox id items i
@@ -245,7 +246,7 @@ presentTextfield :: EditableString -> Html
 presentTextfield (EditableString (Id id) str) =
   textfield "" ! [identifier (show id), strAttr "VALUE" str
                  , strAttr "onChange" $ "textFieldChanged('"++show id++"')"]
-
+{-
 presentRoot (Root vet) = htmlPage "Piglet 2.0" $
   presentVet vet
 
@@ -270,7 +271,7 @@ presentSymptoms [a,b,c] =
    +++ p << "Fase cyclus: "
    +++ p << "Haren overeind: "
    +++ radioBox "q1" ["Ja", "Nee"] 0
-
+-}
 radioBox id items selectedIx =
   [ radio (show id) (show i) ! ( [strAttr "onChange" ("debugAdd('boing');queueCommand('Set("++show id++","++show i++");')") ]
                           ++ if i == selectedIx then [strAttr "checked" ""] else []) 
@@ -285,13 +286,20 @@ htmlPage title bdy =
 
 
 
-type Updates = Map Id String  
 -- Generics
---uniqueID = everywhereAccum number (0::Int)
 
+
+-- number all Id's in the argument data structure uniquely
 assignIds :: Data d => d -> d
 assignIds x = snd $ everywhereAccum assignId 0 x
 
+assignId :: Data d => Int -> d -> (Int,d)
+assignId = mkAccT $ \i (Id _) -> (i+1, Id i)
+
+
+type Updates = Map Id String  -- maps id's to the string representation of the new value
+
+-- update the datastructure at the id's in Updates 
 replace :: Data d => Updates -> d -> d
 replace updates = everywhere $ extT (mkT (replaceEditableString updates))  (replaceEditableInt updates)
 
@@ -307,8 +315,6 @@ replaceEditableInt updates x@(EditableInt i _) =
     Just str -> (EditableInt i (read str))
     Nothing -> x
 
-assignId :: Data d => Int -> d -> (Int,d)
-assignId = mkAccT $ \i (Id _) -> (i+1, Id i)
 
 everywhereAccum :: Data d => (forall b . Data b => a -> b -> (a,b)) -> a -> d -> (a,d)
 everywhereAccum f acc a =
@@ -331,4 +337,20 @@ mkAccT f = case cast f  of -- can we do this without requiring Typeable acc?
                   Nothing -> \acc b -> (acc,b)
 
 
+-- classes
+{-
+class Presentable v where
+  present :: v -> Html
 
+class Storable v where
+  store :: v -> (Data -> Data)
+
+-}
+-- for now, we put all of them in one class. Every view is editable
+
+class WebView v where
+  load :: Data -> v
+  present :: v -> Html
+  save :: v -> (Data -> Data)
+
+  

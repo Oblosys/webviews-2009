@@ -5,7 +5,7 @@ data Root = Root Vet deriving Show
 data Vet = Vet { name :: String, visits :: [Visit]} deriving Show
 
 --data Visit = Visit { zipCode :: String, date :: String, sties :: [Sty] } deriving Show
-data Visit = Visit { zipCode :: String, date :: String, sties :: [Sty] } deriving Show
+data Visit = Visit { zipCode :: String, date :: String, sties :: [Pig] } deriving Show
 
 data Sty = Sty { pigs :: [Pig] } deriving Show
 
