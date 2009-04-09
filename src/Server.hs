@@ -35,7 +35,7 @@ Header modifications must therefore be applied to out rather than be fmapped to 
 -}
 
 server =
- do { docRef <- newIORef testDoc
+ do { docRef <- newIORef database
     ; simpleHTTP (Conf 8080 Nothing) $ debugFilter $ msum (handlers docRef)
     }
 
@@ -112,7 +112,7 @@ withAgentIsMIE f = withRequest $ \rq ->
                      -- cannot handle large queries with GET
   
 -}                   
-handlers :: IORef TestDoc -> [ServerPartT IO Response]
+handlers :: IORef Database -> [ServerPartT IO Response]
 handlers docRef = 
   [ {-
    withAgentIsMIE $ \agentIsMIE ->
@@ -184,7 +184,7 @@ handleCommand docRef event =
   then 
    do { doc <- readIORef docRef
       ; putStrLn "Init"
-      ; return $ updateReplace "root" $ presentTestDoc (assignIds doc) -- presentRoot doc
+      ; return $ updateReplace "root" $ present database (assignIds doc) -- presentRoot doc
       }
   else if "Test" `isPrefixOf` event
   then 
@@ -207,7 +207,7 @@ handleCommand docRef event =
       ; writeIORef docRef doc'
 --      ; threadDelay 200000
 --      ; return $ toHtml ""
-      ; return $ updateReplace "root" $ presentTestDoc (assignIds doc') -- presentRoot doc
+      ; return $ updateReplace "root" $ present database (assignIds doc') -- presentRoot doc
       }
   else return $ toHtml ""
  
@@ -346,11 +346,36 @@ class Storable v where
   store :: v -> (Data -> Data)
 
 -}
--- for now, we put all of them in one class. Every view is editable
 
-class WebView v where
-  load :: Data -> v
+class Presentable v where
   present :: v -> Html
-  save :: v -> (Data -> Data)
 
-  
+class Presentable v => WebView v where
+  load :: Database -> v
+  save :: v -> (Database -> Database)
+
+
+-- instead of explicitly declaring views, we first try to make the database type instance of WebView
+
+instance Presentable Visit where
+  present visit = htmlPage "Piglet 2.0" << "bla"
+
+{- presentRoot (Root vet) = htmlPage "Piglet 2.0" $
+  presentVet vet
+
+presentVet (Vet name visits) =
+      h1 << name 
+  +++ map presentVisit visits
+
+-- presentVisit :: Visit -> [Html] 
+presentVisit (Visit zipCode date sties) = 
+        h2 << ("Visit at "++zipCode ++" on " ++date)
+    +++ map presentSty (zip [0..] sties)
+
+presentSty (i,Sty pigs) =
+        h3 << ("Sty nr "++show i)
+    +++ map presentPig (zip [0..] pigs)
+
+presentPig (i, Pig symptoms diagnosis) = p <<
+  ("Pig nr. "++show i++"Symptoms: "+++presentSymptoms symptoms+++" diagnosis "++show diagnosis)
+-}
