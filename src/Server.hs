@@ -2,17 +2,17 @@ module Server where
 
 import Happstack.Server
 import Happstack.Helpers hiding (HtmlString)
-import Control.Monad
-import Control.Monad.Trans
 import System.IO
 import Data.List
 import Data.IORef
+import Control.Concurrent
+import Control.Monad
+import Control.Monad.Trans
 import Data.Map (Map)
 import qualified Data.Map as Map 
 import Text.Html
-import Data.Generics
-import Control.Concurrent
 
+import Types
 import Generics
 import Database
 import Views
@@ -141,12 +141,13 @@ handlers stateRef =
                           do { lputStrLn $ "Received data" ++ take 20 (show cmds)
                       
                              ; liftIO $ handleCommands stateRef cmds
-                             ; (_, rootView) <- liftIO $ readIORef stateRef
+                             ; (db, rootView) <- liftIO $ readIORef stateRef
                              ; let responseHtml = thediv ! [identifier "updates"] <<
                                                     updateReplaceHtml "root" 
                                                       (mkDiv "root" $ present $ assignIds rootView)
                              ; lputStrLn $ "\n\n\n\ncmds = "++show cmds
                              ; lputStrLn $ "rootView:\n" ++ show (assignIds rootView)
+                             ; lputStrLn $ "database:\n" ++ show db
                              --; lputStrLn $ "\n\n\nresponse = \n" ++ show responseHtml
                              --; lputStrLn $ "Sending response sent to client: " ++
                              --              take 10 responseHTML ++ "..."
@@ -186,18 +187,19 @@ handleCommands stateRef (Commands commandStr) =
 handleCommand stateRef event =
   if "Init" `isPrefixOf` event
   then 
-   do { doc <- readIORef stateRef
+   do { (db, rootView) <- readIORef stateRef
       ; putStrLn "Init"
+      ; return ()
       }
   else if "Test" `isPrefixOf` event
   then 
-   do { doc <- readIORef stateRef
+   do { (db, rootView) <- readIORef stateRef
       ; return ()
       }
   else if "Set" `isPrefixOf` event
   then 
    do { (db, rootView) <- readIORef stateRef
-{-
+
       ; putStr "Set "
       ; let (id,value) =
               case break (==',') $ drop 4 event of
@@ -205,10 +207,12 @@ handleCommand stateRef event =
                 (id, _:rest) -> (id,takeWhile (/=')') rest) 
       
       ; putStrLn $ id ++ "value is " ++ value
-      ; let doc' = replace (Map.fromList [(Id (read id), value)]) (assignIds doc)
-      ; putStrLn $ "Updated doc:\n" ++ show doc'
--}
-      ; writeIORef stateRef (db,rootView)
+
+      ; let rootView' = replace (Map.fromList [(Id (read id), value)]) (assignIds rootView)
+      ; putStrLn $ "Updated rootView:\n" ++ show rootView'
+
+      ; let db' = saveUpdates rootView' db
+      ; writeIORef stateRef (db',rootView')
 --      ; threadDelay 200000
 
       ; return ()    

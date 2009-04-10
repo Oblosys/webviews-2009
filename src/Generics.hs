@@ -36,6 +36,7 @@ replaceEInt updates x@(EInt i _) =
     Nothing -> x
 
 
+
 everywhereAccum :: Data d => (forall b . Data b => a -> b -> (a,b)) -> a -> d -> (a,d)
 everywhereAccum f acc a =
  let (acc'',r) = gfoldl k z a

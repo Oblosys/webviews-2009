@@ -23,15 +23,27 @@ class Storable v where
 class Presentable v where
   present :: v -> Html
 
+{-
 class Presentable v => Viewable v where
   load :: Database -> v
   save :: v -> (Database -> Database)
+-}
+
+class Storeable v where
+  save :: v -> Database -> Database
+
+-- For now, Storeable on root view must save its subviews explicitly. 
+-- Maybe SYB can handle this (gives an ambiguous type var now)
+-- otherwise template haskell can do this
 
 newtype ViewId = ViewId Int deriving (Typeable, Data)
 
-data WebView = forall view . (Presentable view, Show view, Data view) => WebView ViewId view
-       deriving Typeable
+-- no class viewable, because mkView has parameters
+data WebView = forall view . (Presentable view, Storeable view, Show view, Data view) => 
+                             WebView ViewId view deriving Typeable
 
+-- no gunfold yet! (maybe we don't need it)
+-- recipe from this instance is from Data.Generics documentation
 instance Data WebView where
   gfoldl k z (WebView i v) = z WebView `k` i `k` v
      
@@ -45,29 +57,6 @@ ty_WebView = mkDataType "Views.WebView" [con_WebView]
 con_WebView = mkConstr ty_WebView "WebView" [] Prefix
 
 
-{-
-data T a b = C1 a b | C2 deriving (Typeable, Data)
-
-GHC will generate an instance that is equivalent to
-
- instance (Data a, Data b) => Data (T a b) where
-     gfoldl k z (C1 a b) = z C1 `k` a `k` b
-     gfoldl k z C2       = z C2
-
-     gunfold k z c = case constrIndex c of
-                         1 -> k (k (z C1))
-                         2 -> z C2
-
-     toConstr (C1 _ _) = con_C1
-     toConstr C2       = con_C2
-
-     dataTypeOf _ = ty_T
-
- con_C1 = mkConstr ty_T "C1" [] Prefix
- con_C2 = mkConstr ty_T "C2" [] Prefix
- ty_T   = mkDataType "Module.T" [con_C1, con_C2]
-
--}
 
 instance Show WebView where
   show (WebView (ViewId i) v) = "<" ++ show i ++ ":" ++ show v ++ ">"
@@ -75,7 +64,8 @@ instance Show WebView where
 instance Presentable WebView where
   present (WebView _ v) = present v
 
-
+instance Storeable WebView where
+  save (WebView _ v) = save v
 
 
 -- don't use Presentable, because we might present strings in different ways.
@@ -94,31 +84,41 @@ mkRootView db =
   WebView (ViewId 0) $ mkVisitView db (VisitId 1)
 
 
+
+data VisitView = VisitView VisitId EString EString EString [PigId] [String] (Maybe WebView) deriving (Show, Typeable, Data)
+
 mkVisitView db i = 
   let (Visit vid zipcode date pigIds) = unsafeLookup (allVisits db) i
       pignames = map (pigName . unsafeLookup (allPigs db)) pigIds
-  in  VisitView i (estr zipcode) (estr date) pigIds pignames $
+  in  VisitView i (estr zipcode) (estr date) (estr "0") pigIds pignames $
                 case pigIds of
                   [] -> Nothing
                   (pigId:_) -> Just $ WebView (ViewId 1) $ mkPigView db 33 pigId
 
-data VisitView = VisitView VisitId EString EString [PigId] [String] (Maybe WebView) deriving (Show, Typeable, Data)
-
 instance Presentable VisitView where
-  present (VisitView vid zipCode date pigs pignames mSubview) =
+  present (VisitView vid zipCode date viewedPig pigs pignames mSubview) =
         h2 << ("Visit at "+++ presentTextField zipCode +++" on " +++ presentTextField date)
     +++ ("Visited "++ show (length pigs) ++" pigs:")
     +++ show pignames
+    +++ ("Viewing pig nr. " +++ presentTextField viewedPig)
     +++ case mSubview of
           Nothing -> stringToHtml "no pig"
           Just pv -> present pv
 
-
-data PigView = PigView PigId Int EString [Int] (Either Int String) deriving (Show, Typeable, Data)
+instance Storeable VisitView where
+  save (VisitView vid zipCode date _ pigs pignames mSubView) db =
+    let (Visit _ _ _ pigIds) = unsafeLookup (allVisits db) vid
+        db' = case mSubView of
+                Just v  -> save v db 
+                Nothing -> db
+    in  db' { allVisits = Map.insert vid (Visit vid (getStrVal zipCode) (getStrVal date) pigIds)
+                                     (allVisits db')
+            }
+data PigView = PigView PigId Int EString [EInt] (Either Int String) deriving (Show, Typeable, Data)
 
 mkPigView db pignr i =
   let (Pig pid name symptoms diagnosis) = unsafeLookup (allPigs db) i
-  in  PigView pid pignr (estr name) symptoms diagnosis
+  in  PigView pid pignr (estr name) (map eint symptoms) diagnosis
 
 instance Presentable PigView where
   present (PigView pid pignr name symptoms diagnosis) =
@@ -129,12 +129,33 @@ instance Presentable PigView where
 
 presentSymptoms [a,b,c] = 
        p << "Type varken: " 
-   +++ radioBox "q1" ["Roze", "Grijs"] a
+   +++ presentRadioBox ["Roze", "Grijs"] a
    +++ p << "Fase cyclus: "
-   +++ radioBox "q2" ["1", "2", "3"] b
+   +++ presentRadioBox ["1", "2", "3"] b
    +++ p << "Haren overeind: "
-   +++ radioBox "q3" ["Ja", "Nee"] c
+   +++ presentRadioBox ["Ja", "Nee"] c
  
+instance Storeable PigView where
+  save (PigView pid _ name symptoms diagnosis) db =
+    let (Pig _ _ _ diagnosis) = unsafeLookup (allPigs db) pid
+    in  db { allPigs = Map.insert pid (Pig pid (getStrVal name) (map getIntVal symptoms) diagnosis)
+                                     (allPigs db)
+           }
+
+
+saveUpdates :: WebView -> Database -> Database
+saveUpdates rootView db = save rootView db
+
+{-
+getAllWebViews view = listify (\(_::WebView) -> True)
+
+saveUpdate (WebView i v) db = save v db
+
+saveUpdates :: WebView -> Database -> Database
+saveUpdates rootView db =
+  let webViews = getAllWebViews rootView
+  in  db
+-}
 -- HTML utils
 
 updateReplaceHtml :: String -> Html -> Html
@@ -148,7 +169,7 @@ boxed html = thediv![thestyle "border:solid; border-width:1px; padding:4px;"] <<
 
 --radioBox :: String -> [String] -> Int -> Html
 radioBox id items selectedIx =
-  [ radio id (show i) ! ( [strAttr "onChange" ("debugAdd('boing');queueCommand('Set("++show id++","++show i++");')") ]
+  [ radio id (show i) ! ( [strAttr "onChange" ("debugAdd('boing');queueCommand('Set("++id++","++show i++");')") ]
                           ++ if i == selectedIx then [strAttr "checked" ""] else []) 
                           +++ item +++ br 
                         | (i, item) <- zip [0..] items ]
