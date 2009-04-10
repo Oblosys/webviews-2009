@@ -29,17 +29,17 @@ class Presentable v => Viewable v where
 
 newtype ViewId = ViewId Int
 
-data WebView = forall view . WebView ViewId (view -> Html) (view -> String) view
+data WebView = forall view . (Presentable view, Show view) => WebView ViewId view
        deriving Typeable
 
 instance Data WebView where
-  
+ -- toConstr (WebView _ _ _ _) = mkConstr "WebView" [] Prefix 
 
 instance Show WebView where
-  show (WebView (ViewId i) _ s v) = "<" ++ show i ++ ":" ++ s v ++ ">"
+  show (WebView (ViewId i) v) = "<" ++ show i ++ ":" ++ show v ++ ">"
 
 instance Presentable WebView where
-  present (WebView _ pres _ v) = pres v
+  present (WebView _ v) = present v
 
 
 
@@ -58,7 +58,8 @@ presentTextField (EString (Id id) str) =
 
 
 mkWebView :: (Presentable v, Show v) => Int -> (Database -> v) -> Database -> WebView
-mkWebView i mkV db = WebView (ViewId i) present show $ mkV db 
+mkWebView i mkV db = WebView (ViewId i) $ mkV db 
+-- kind of obsolete, now pres and show are in existential context
 
 mkRootView db = mkWebView 0 (mkVisitView $ VisitId 1) db
 -- WebView (ViewId 0) present show $ mkVisitView db (VisitId 1)
@@ -70,7 +71,7 @@ mkVisitView i db =
   in  VisitView i (estr zipcode) (estr date) pigIds pignames $
                 case pigIds of
                   [] -> Nothing
-                  (pigId:_) -> Just $ WebView (ViewId 1) present show $ mkPigView 33 pigId db
+                  (pigId:_) -> Just $ WebView (ViewId 1) $ mkPigView 33 pigId db
 
 data VisitView = VisitView VisitId EString EString [PigId] [String] (Maybe WebView) deriving Show
 
