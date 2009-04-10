@@ -1,10 +1,11 @@
 module Database where
 
+import Data.Generics
 import Data.Map (Map)
 import qualified Data.Map as Map 
 
-newtype VisitId = VisitId Int deriving (Show, Eq, Ord)
-newtype PigId = PigId Int deriving (Show, Eq, Ord)
+newtype VisitId = VisitId Int deriving (Show, Eq, Ord, Typeable, Data)
+newtype PigId = PigId Int deriving (Show, Eq, Ord, Typeable, Data)
 
 data Database = Database { allVisits :: Map VisitId Visit, allPigs :: Map PigId Pig } deriving Show
 

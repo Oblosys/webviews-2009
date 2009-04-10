@@ -27,13 +27,47 @@ class Presentable v => Viewable v where
   load :: Database -> v
   save :: v -> (Database -> Database)
 
-newtype ViewId = ViewId Int
+newtype ViewId = ViewId Int deriving (Typeable, Data)
 
-data WebView = forall view . (Presentable view, Show view) => WebView ViewId view
+data WebView = forall view . (Presentable view, Show view, Data view) => WebView ViewId view
        deriving Typeable
 
 instance Data WebView where
- -- toConstr (WebView _ _ _ _) = mkConstr "WebView" [] Prefix 
+  gfoldl k z (WebView i v) = z WebView `k` i `k` v
+     
+  --gunfold k z c = case constrIndex c of
+  --                  1 -> k (k (z WebView))
+     
+  toConstr (WebView _ _) = con_WebView 
+  dataTypeOf _ = ty_WebView
+
+ty_WebView = mkDataType "Views.WebView" [con_WebView]
+con_WebView = mkConstr ty_WebView "WebView" [] Prefix
+
+
+{-
+data T a b = C1 a b | C2 deriving (Typeable, Data)
+
+GHC will generate an instance that is equivalent to
+
+ instance (Data a, Data b) => Data (T a b) where
+     gfoldl k z (C1 a b) = z C1 `k` a `k` b
+     gfoldl k z C2       = z C2
+
+     gunfold k z c = case constrIndex c of
+                         1 -> k (k (z C1))
+                         2 -> z C2
+
+     toConstr (C1 _ _) = con_C1
+     toConstr C2       = con_C2
+
+     dataTypeOf _ = ty_T
+
+ con_C1 = mkConstr ty_T "C1" [] Prefix
+ con_C2 = mkConstr ty_T "C2" [] Prefix
+ ty_T   = mkDataType "Module.T" [con_C1, con_C2]
+
+-}
 
 instance Show WebView where
   show (WebView (ViewId i) v) = "<" ++ show i ++ ":" ++ show v ++ ">"
@@ -56,24 +90,19 @@ presentTextField (EString (Id id) str) =
                  , strAttr "onChange" $ "textFieldChanged('"++show id++"')"]
 
 
-
-mkWebView :: (Presentable v, Show v) => Int -> (Database -> v) -> Database -> WebView
-mkWebView i mkV db = WebView (ViewId i) $ mkV db 
--- kind of obsolete, now pres and show are in existential context
-
-mkRootView db = mkWebView 0 (mkVisitView $ VisitId 1) db
--- WebView (ViewId 0) present show $ mkVisitView db (VisitId 1)
+mkRootView db = 
+  WebView (ViewId 0) $ mkVisitView db (VisitId 1)
 
 
-mkVisitView i db = 
+mkVisitView db i = 
   let (Visit vid zipcode date pigIds) = unsafeLookup (allVisits db) i
       pignames = map (pigName . unsafeLookup (allPigs db)) pigIds
   in  VisitView i (estr zipcode) (estr date) pigIds pignames $
                 case pigIds of
                   [] -> Nothing
-                  (pigId:_) -> Just $ WebView (ViewId 1) $ mkPigView 33 pigId db
+                  (pigId:_) -> Just $ WebView (ViewId 1) $ mkPigView db 33 pigId
 
-data VisitView = VisitView VisitId EString EString [PigId] [String] (Maybe WebView) deriving Show
+data VisitView = VisitView VisitId EString EString [PigId] [String] (Maybe WebView) deriving (Show, Typeable, Data)
 
 instance Presentable VisitView where
   present (VisitView vid zipCode date pigs pignames mSubview) =
@@ -85,9 +114,9 @@ instance Presentable VisitView where
           Just pv -> present pv
 
 
-data PigView = PigView PigId Int EString [Int] (Either Int String) deriving Show
+data PigView = PigView PigId Int EString [Int] (Either Int String) deriving (Show, Typeable, Data)
 
-mkPigView pignr i db =
+mkPigView db pignr i =
   let (Pig pid name symptoms diagnosis) = unsafeLookup (allPigs db) i
   in  PigView pid pignr (estr name) symptoms diagnosis
 
