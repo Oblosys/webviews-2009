@@ -10,14 +10,15 @@ data Database = Database { allVisits :: Map VisitId Visit, allPigs :: Map PigId 
 
 data Visit = Visit { visitId :: VisitId, zipCode :: String, date :: String, pigs :: [PigId] } deriving Show
 
-data Pig = Pig { pigId :: PigId, symptoms :: [Int], diagnose :: Either Int String } deriving Show
+data Pig = Pig { pigId :: PigId, pigName :: String, symptoms :: [Int], diagnose :: Either Int String } deriving Show
 
 -- put id in element? It is also in the map.
 
-database = Database (Map.fromList [ (VisitId 1, Visit (VisitId 1) "3581" "27-3-2009" [])])
-                    (Map.fromList [ (PigId 1, Pig (PigId 1) [0,0,0] (Left 2))
-                                  , (PigId 2, Pig (PigId 2) [0,1,1] (Right "Malaria"))
-                                  , (PigId 3, Pig (PigId 3) [1,1,1] (Left 3)) ])
+theDatabase = Database (Map.fromList [ (VisitId 1, Visit (VisitId 1) "3581" "27-3-2009" 
+                                                  [ PigId 1, PigId 2, PigId 3 ])])
+                    (Map.fromList [ (PigId 1, Pig (PigId 1) "Knir" [0,2,1] (Left 2))
+                                  , (PigId 2, Pig (PigId 2) "Knar" [0,1,1] (Right "Malaria"))
+                                  , (PigId 3, Pig (PigId 3) "Knor" [1,1,1] (Left 3)) ])
 --                    ]
   
 {-

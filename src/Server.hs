@@ -11,8 +11,11 @@ import Data.Map (Map)
 import qualified Data.Map as Map 
 import Text.Html
 import Data.Generics
-import Database
 import Control.Concurrent
+
+import Generics
+import Database
+import Views
 
 {- authorization demo 
 import qualified Data.Map as M
@@ -35,8 +38,8 @@ Header modifications must therefore be applied to out rather than be fmapped to 
 -}
 
 server =
- do { docRef <- newIORef database
-    ; simpleHTTP (Conf 8080 Nothing) $ debugFilter $ msum (handlers docRef)
+ do { stateRef <- newIORef (theDatabase, mkRootView theDatabase) 
+    ; simpleHTTP (Conf 8080 Nothing) $ debugFilter $ msum (handlers stateRef)
     }
 
 {-
@@ -112,8 +115,8 @@ withAgentIsMIE f = withRequest $ \rq ->
                      -- cannot handle large queries with GET
   
 -}                   
-handlers :: IORef Database -> [ServerPartT IO Response]
-handlers docRef = 
+handlers :: IORef (Database, WebView) -> [ServerPartT IO Response]
+handlers stateRef = 
   [ {-
    withAgentIsMIE $ \agentIsMIE ->
       (methodSP GET $ do { -- liftIO $ putStrLn $ "############# page request"
@@ -128,23 +131,28 @@ handlers docRef =
 -}
     exactdir "/" $
       do { liftIO $ putStrLn "Root requested"
-         ; fileServe ["WebForms.html"] "."
+         ; fileServe ["WebViews.html"] "."
          }
   , dir "favicon.ico"
         (methodSP GET $ fileServe ["favicon.ico"] ".")
 
   , dir "handle" $
      withData (\cmds -> methodSP GET $ 
-                          do { liftIO $ putStrLn $ "Received data" ++ take 20 (show cmds)
+                          do { lputStrLn $ "Received data" ++ take 20 (show cmds)
                       
-                             ; responseHTML <- liftIO $ handleCommands docRef cmds
-                             ; liftIO $ putStrLn $ "\n\n\n\ncmds = "++show cmds
-                             ; liftIO $ putStrLn $ "\n\n\nresponse = \n" ++ show responseHTML
-                        --       ; liftIO $ putStrLn $ "Sending response sent to client: " ++
-                        --                             take 10 responseHTML ++ "..."
-                         --    ; modifyResponseW noCache $
+                             ; liftIO $ handleCommands stateRef cmds
+                             ; (_, rootView) <- liftIO $ readIORef stateRef
+                             ; let responseHtml = thediv ! [identifier "updates"] <<
+                                                    updateReplaceHtml "root" 
+                                                      (mkDiv "root" $ present $ assignIds rootView)
+                             ; lputStrLn $ "\n\n\n\ncmds = "++show cmds
+                             ; lputStrLn $ "rootView:\n" ++ show (assignIds rootView)
+                             --; lputStrLn $ "\n\n\nresponse = \n" ++ show responseHtml
+                             --; lputStrLn $ "Sending response sent to client: " ++
+                             --              take 10 responseHTML ++ "..."
+                             --; modifyResponseW noCache $
                              
-                             ; ok $ toResponse $ responseHTML
+                             ; ok $ toResponse $ responseHtml
                              }
                         )
     
@@ -154,6 +162,7 @@ handlers docRef =
    TODO: fix syntax error in command
 -}
 
+
 data Commands = Commands String deriving Show
 
 instance FromData Commands where
@@ -162,39 +171,33 @@ instance FromData Commands where
 splitCommands commandStr =
   case break (==';') commandStr of
     ([],[])             -> []
-    (_, [])              -> error "Syntax error in commands"
+    (_, [])             -> error "Syntax error in commands"
     (command, (_:commandStr')) -> command : splitCommands commandStr'
         
 -- handle each command in commands and send the updates back
-handleCommands docRef (Commands commandStr) =
+handleCommands stateRef (Commands commandStr) =
  do { let commands = splitCommands commandStr
     ; putStrLn $ "Received commands:"++ show commands
     
-    ; updates <-
-        mapM (handleCommand docRef) commands
- 
-
-
-    ; return $ thediv ! [identifier "updates"] << head updates            
+    ; mapM (handleCommand stateRef) commands
     }
     
     
-handleCommand docRef event =
+handleCommand stateRef event =
   if "Init" `isPrefixOf` event
   then 
-   do { doc <- readIORef docRef
+   do { doc <- readIORef stateRef
       ; putStrLn "Init"
-      ; return $ updateReplace "root" $ present database (assignIds doc) -- presentRoot doc
       }
   else if "Test" `isPrefixOf` event
   then 
-   do { doc <- readIORef docRef
-      ; putStrLn "Test"
-      ; return $ updateReplace "somewhere" $ thediv![identifier "root"] << p << "tralalie" 
+   do { doc <- readIORef stateRef
+      ; return ()
       }
   else if "Set" `isPrefixOf` event
   then 
-   do { doc <- readIORef docRef
+   do { (db, rootView) <- readIORef stateRef
+{-
       ; putStr "Set "
       ; let (id,value) =
               case break (==',') $ drop 4 event of
@@ -204,178 +207,15 @@ handleCommand docRef event =
       ; putStrLn $ id ++ "value is " ++ value
       ; let doc' = replace (Map.fromList [(Id (read id), value)]) (assignIds doc)
       ; putStrLn $ "Updated doc:\n" ++ show doc'
-      ; writeIORef docRef doc'
+-}
+      ; writeIORef stateRef (db,rootView)
 --      ; threadDelay 200000
---      ; return $ toHtml ""
-      ; return $ updateReplace "root" $ present database (assignIds doc') -- presentRoot doc
+
+      ; return ()    
       }
-  else return $ toHtml ""
+  else return ()
  
-testElt = thediv![identifier "root"] << (
-              p << "bla bla bla"
-          +++ p << "bla bloe bla"
-          +++ thediv![identifier "somewhere"] << p << "za za za")
-updateReplace targetId newElement =
-  thediv![strAttr "op" "replace", strAttr "targetId" targetId ] 
-    << newElement
-
-mkDiv str elt = thediv![identifier str] << elt
-
-data TestDoc = TestDoc (EditableInt) [EditableString] deriving (Show, Data, Typeable)
-
-newtype Id = Id Int deriving (Show, Eq, Ord, Data, Typeable)
-noId = Id (-1)
-
-data EditableString = EditableString {getStrId :: Id, getStrVal :: String} deriving (Show, Data, Typeable)
-data EditableInt = EditableInt {getIntId :: Id, getIntVal :: Int} deriving (Show, Data, Typeable)
-
-{-
-testDoc = TestDoc (EditableInt noId 2) 
-            [EditableString noId "Martijn",EditableString noId "Tommy",EditableString noId "Pino"]
-
-presentTestDoc (TestDoc i strs) =
-  mkDiv "root" $
-        presentRadioBox ["een", "twee", "drie"] i
-    +++ presentTextfield (strs!!getIntVal i)
--}
-
-presentRadioBox :: [String] -> EditableInt -> [Html]
-presentRadioBox items (EditableInt (Id id) i) = radioBox id items i
-
-presentTextfield :: EditableString -> Html
-presentTextfield (EditableString (Id id) str) =
-  textfield "" ! [identifier (show id), strAttr "VALUE" str
-                 , strAttr "onChange" $ "textFieldChanged('"++show id++"')"]
-{-
-presentRoot (Root vet) = htmlPage "Piglet 2.0" $
-  presentVet vet
-
-presentVet (Vet name visits) =
-      h1 << name 
-  +++ map presentVisit visits
-
--- presentVisit :: Visit -> [Html] 
-presentVisit (Visit zipCode date sties) = 
-        h2 << ("Visit at "++zipCode ++" on " ++date)
-    +++ map presentSty (zip [0..] sties)
-
-presentSty (i,Sty pigs) =
-        h3 << ("Sty nr "++show i)
-    +++ map presentPig (zip [0..] pigs)
-
-presentPig (i, Pig symptoms diagnosis) = p <<
-  ("Pig nr. "++show i++"Symptoms: "+++presentSymptoms symptoms+++" diagnosis "++show diagnosis)
-
-presentSymptoms [a,b,c] = 
-       p << "Type varken: " 
-   +++ p << "Fase cyclus: "
-   +++ p << "Haren overeind: "
-   +++ radioBox "q1" ["Ja", "Nee"] 0
--}
-radioBox id items selectedIx =
-  [ radio (show id) (show i) ! ( [strAttr "onChange" ("debugAdd('boing');queueCommand('Set("++show id++","++show i++");')") ]
-                          ++ if i == selectedIx then [strAttr "checked" ""] else []) 
-                          +++ item +++ br 
-                        | (i, item) <- zip [0..] items ]
-
-
-htmlPage title bdy = 
-  thehtml $ concatHtml [ header $ thetitle $ toHtml title
-                       , body bdy 
-                       ]
 
 
 
--- Generics
 
-
--- number all Id's in the argument data structure uniquely
-assignIds :: Data d => d -> d
-assignIds x = snd $ everywhereAccum assignId 0 x
-
-assignId :: Data d => Int -> d -> (Int,d)
-assignId = mkAccT $ \i (Id _) -> (i+1, Id i)
-
-
-type Updates = Map Id String  -- maps id's to the string representation of the new value
-
--- update the datastructure at the id's in Updates 
-replace :: Data d => Updates -> d -> d
-replace updates = everywhere $ extT (mkT (replaceEditableString updates))  (replaceEditableInt updates)
-
-replaceEditableString :: Updates -> EditableString -> EditableString
-replaceEditableString updates x@(EditableString i _) =
-  case Map.lookup i updates of
-    Just str -> (EditableString i str)
-    Nothing -> x
-
-replaceEditableInt :: Updates -> EditableInt -> EditableInt
-replaceEditableInt updates x@(EditableInt i _) =
-  case Map.lookup i updates of
-    Just str -> (EditableInt i (read str))
-    Nothing -> x
-
-
-everywhereAccum :: Data d => (forall b . Data b => a -> b -> (a,b)) -> a -> d -> (a,d)
-everywhereAccum f acc a =
- let (acc'',r) = gfoldl k z a
- in  f acc'' r  
- where k (acc',a2b) a = let (acc'',a') = everywhereAccum f acc' a
-                            b = a2b a'
-                        in  (acc'', b)
-       z e = (acc, e)
-
-gReplace :: forall a d . (Typeable a, Data d) => [a] -> d -> ([a],d)
-gReplace = mkAccT $ \(i:is) _ -> (is,i)
-
-number :: Data d => Int -> d -> (Int,d)
-number  = mkAccT $ \acc _ -> (acc+1, acc)
-
-mkAccT :: forall a b acc . (Typeable acc, Typeable a, Data b) => (acc -> a -> (acc,a)) -> (acc -> b -> (acc,b))
-mkAccT f = case cast f  of -- can we do this without requiring Typeable acc?
-                  Just g  -> g 
-                  Nothing -> \acc b -> (acc,b)
-
-
--- classes
-{-
-class Presentable v where
-  present :: v -> Html
-
-class Storable v where
-  store :: v -> (Data -> Data)
-
--}
-
-class Presentable v where
-  present :: v -> Html
-
-class Presentable v => WebView v where
-  load :: Database -> v
-  save :: v -> (Database -> Database)
-
-
--- instead of explicitly declaring views, we first try to make the database type instance of WebView
-
-instance Presentable Visit where
-  present visit = htmlPage "Piglet 2.0" << "bla"
-
-{- presentRoot (Root vet) = htmlPage "Piglet 2.0" $
-  presentVet vet
-
-presentVet (Vet name visits) =
-      h1 << name 
-  +++ map presentVisit visits
-
--- presentVisit :: Visit -> [Html] 
-presentVisit (Visit zipCode date sties) = 
-        h2 << ("Visit at "++zipCode ++" on " ++date)
-    +++ map presentSty (zip [0..] sties)
-
-presentSty (i,Sty pigs) =
-        h3 << ("Sty nr "++show i)
-    +++ map presentPig (zip [0..] pigs)
-
-presentPig (i, Pig symptoms diagnosis) = p <<
-  ("Pig nr. "++show i++"Symptoms: "+++presentSymptoms symptoms+++" diagnosis "++show diagnosis)
--}
