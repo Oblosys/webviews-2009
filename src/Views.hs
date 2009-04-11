@@ -20,6 +20,9 @@ class Storable v where
 
 -}
 
+class Init v where
+  init :: v
+
 class Presentable v where
   present :: v -> Html
 
@@ -89,42 +92,38 @@ mkRootView db =
 
 
 
-data VisitView = VisitView VisitId EString EString EString Button [PigId] [String] (Maybe WebView) deriving (Show, Typeable, Data)
+data VisitView = VisitView VisitId EString EString EString Button Button [PigId] [String] (Maybe WebView) deriving (Show, Typeable, Data)
 
 mkVisitView db i = 
-  let (Visit vid zipcode date pigIds) = unsafeLookup (allVisits db) i
+  let (Visit vid zipcode date vp pigIds) = unsafeLookup (allVisits db) i
       pignames = map (pigName . unsafeLookup (allPigs db)) pigIds
-  in  VisitView i (estr zipcode) (estr date) (estr "0") (Button noId (next vid)) pigIds pignames $
-                case pigIds of
-                  [] -> Nothing
-                  (pigId:_) -> Just $ WebView (ViewId 1) $ mkPigView db 33 pigId
- where next vid = \db ->
-         let visit = unsafeLookup (allVisits db) vid
-         in  db  { allVisits = Map.insert vid (visit {zipCode = "pressed"}) 
-                                     (allVisits db)
-                 }
+  in  VisitView i (estr zipcode) (estr date) (estr $ show vp) 
+                (Button noId (previous vid)) (Button noId (next vid)) pigIds pignames $
+                (Just $ WebView (ViewId 1) $ mkPigView db 33 (pigIds !! vp))
+ where next vid     = updateVisit vid (\v -> v {viewedPig = viewedPig v + 1})
+       previous vid = updateVisit vid (\v -> v {viewedPig = viewedPig v - 1})
 
 instance Presentable VisitView where
-  present (VisitView vid zipCode date viewedPig b pigs pignames mSubview) =
+  present (VisitView vid zipCode date viewedPig b1 b2 pigs pignames mSubview) =
         h2 << ("Visit at "+++ presentTextField zipCode +++" on " +++ presentTextField date)
     +++ ("Visited "++ show (length pigs) ++" pigs:")
     +++ show pignames
     +++ ("Viewing pig nr. " +++ presentTextField viewedPig)
     -- "debugAdd('boing');queueCommand('Set("++id++","++show i++");')"
-    +++ presentButton "next" b
+    +++ presentButton "previous" b1
+    +++ presentButton "next" b2
     +++ case mSubview of
           Nothing -> stringToHtml "no pig"
           Just pv -> present pv
 
 instance Storeable VisitView where
-  save (VisitView vid zipCode date _ _ pigs pignames mSubView) db =
-    let (Visit _ _ _ pigIds) = unsafeLookup (allVisits db) vid
-        db' = case mSubView of
+  save (VisitView vid zipCode date _ _ _ pigs pignames mSubView) db =
+    let db' = case mSubView of
                 Just v  -> save v db 
                 Nothing -> db
-    in  db' { allVisits = Map.insert vid (Visit vid (getStrVal zipCode) (getStrVal date) pigIds)
-                                     (allVisits db')
-            }
+    in  updateVisit vid (\(Visit _ _ _ vp pigIds) ->
+                          Visit vid (getStrVal zipCode) (getStrVal date) vp pigIds)
+                    db'
 data PigView = PigView PigId Int EString [EInt] (Either Int String) deriving (Show, Typeable, Data)
 
 mkPigView db pignr i =
@@ -132,26 +131,23 @@ mkPigView db pignr i =
   in  PigView pid pignr (estr name) (map eint symptoms) diagnosis
 
 instance Presentable PigView where
-  present (PigView pid pignr name symptoms diagnosis) =
+  present (PigView pid pignr name [tv, kl, ho] diagnosis) =
     boxed $
         p << ("Pig nr. " +++ show pignr)
     +++ p << ("Name:" +++ presentTextField name)
-    +++ p << ("Symptoms: "+++presentSymptoms symptoms+++" diagnosis "++show diagnosis)
-
-presentSymptoms [a,b,c] = 
-       p << "Type varken: " 
-   +++ presentRadioBox ["Roze", "Grijs"] a
-   +++ p << "Fase cyclus: "
-   +++ presentRadioBox ["1", "2", "3"] b
-   +++ p << "Haren overeind: "
-   +++ presentRadioBox ["Ja", "Nee"] c
+    +++ p << "Symptoms: "
+    +++ p << "Type varken: " 
+    +++ presentRadioBox ["Roze", "Grijs"] tv
+    +++ p << "Fase cyclus: "
+    +++ presentRadioBox ["1", "2", "3"] kl
+    +++ p << "Haren overeind: "
+    +++ presentRadioBox ["Ja", "Nee"] ho
+    +++ p << ("diagnosis " ++ show diagnosis)
  
 instance Storeable PigView where
-  save (PigView pid _ name symptoms diagnosis) db =
-    let (Pig _ _ _ diagnosis) = unsafeLookup (allPigs db) pid
-    in  db { allPigs = Map.insert pid (Pig pid (getStrVal name) (map getIntVal symptoms) diagnosis)
-                                     (allPigs db)
-           }
+  save (PigView pid _ name symptoms diagnosis) =
+    updatePig pid (\(Pig _ _ _ diagnosis) -> 
+                    (Pig pid (getStrVal name) (map getIntVal symptoms) diagnosis)) 
 
 
 
@@ -205,12 +201,4 @@ lputStr = liftIO . putStr
 
 lputStrLn :: MonadIO m => String -> m ()
 lputStrLn = liftIO . putStrLn
-
-unsafeLookup map key = 
-  Map.findWithDefault
-    (error $ "element "++ show key ++ " not found in " ++ show map) key map
--- do we want extra params such as pig nrs in sub views?
--- error handling database access
--- Unclear: we need both pig ids and subview ids?
--- make clear why we need an explicit view, and the html rep is not enough.
 

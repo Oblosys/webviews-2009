@@ -235,7 +235,7 @@ handleCommand stateRef event =
       ; Control.Exception.catch (lputStrLn $ "database after:\n" ++ show db') $
           \(ErrorCall str) -> putStrLn $ "something went wrong"++show str
 
-      ; writeIORef stateRef (db',rootView)
+      ; writeIORef stateRef (db',mkRootView db')
 
       ; return ()
       }
