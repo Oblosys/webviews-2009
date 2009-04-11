@@ -1,3 +1,4 @@
+{-# OPTIONS -fglasgow-exts #-}
 module Views where
 
 import Control.Monad
@@ -9,6 +10,7 @@ import Data.Generics
 
 import Types
 import Database
+import Generics
 
 -- classes
 {-
@@ -20,8 +22,8 @@ class Storable v where
 
 -}
 
-class Init v where
-  init :: v
+class Initial v where
+  initial :: v
 
 class Presentable v where
   present :: v -> Html
@@ -39,10 +41,10 @@ class Storeable v where
 -- Maybe SYB can handle this (gives an ambiguous type var now)
 -- otherwise template haskell can do this
 
-newtype ViewId = ViewId Int deriving (Typeable, Data)
+newtype ViewId = ViewId Int deriving (Show, Eq, Typeable, Data)
 
 -- no class viewable, because mkView has parameters
-data WebView = forall view . (Presentable view, Storeable view, Show view, Data view) => 
+data WebView = forall view . (Initial view, Presentable view, Storeable view, Show view, Data view) => 
                              WebView ViewId view deriving Typeable
 
 -- no gunfold yet! (maybe we don't need it)
@@ -64,12 +66,40 @@ con_WebView = mkConstr ty_WebView "WebView" [] Prefix
 instance Show WebView where
   show (WebView (ViewId i) v) = "<" ++ show i ++ ":" ++ show v ++ ">"
 
+{- this one is not possible
+instance Initial WebView where
+  initial = WebView (ViewId (-1)) initial
+-}
+
 instance Presentable WebView where
   present (WebView _ v) = present v
 
 instance Storeable WebView where
   save (WebView _ v) = save v
 
+instance Initial [a] where
+  initial = []
+
+instance Initial (Maybe a) where
+  initial = Nothing
+
+instance Initial a => Initial (Either a b) where
+  initial = Left initial
+
+instance Initial String where
+  initial = ""
+
+instance Initial Int where
+  initial = 0
+
+instance Initial EString where
+  initial = estr ""
+
+instance Initial EInt where
+  initial = eint 0
+
+instance Initial Button where
+  initial = Button noId id
 
 -- don't use Presentable, because we might present strings in different ways.
 
@@ -103,6 +133,9 @@ mkVisitView db i =
  where next vid     = updateVisit vid (\v -> v {viewedPig = viewedPig v + 1})
        previous vid = updateVisit vid (\v -> v {viewedPig = viewedPig v - 1})
 
+instance Initial VisitView where
+  initial = VisitView (VisitId (-1)) initial initial initial initial initial initial initial initial
+
 instance Presentable VisitView where
   present (VisitView vid zipCode date viewedPig b1 b2 pigs pignames mSubview) =
         h2 << ("Visit at "+++ presentTextField zipCode +++" on " +++ presentTextField date)
@@ -125,6 +158,9 @@ instance Storeable VisitView where
                           Visit vid (getStrVal zipCode) (getStrVal date) vp pigIds)
                     db'
 data PigView = PigView PigId Int EString [EInt] (Either Int String) deriving (Show, Typeable, Data)
+
+instance Initial PigView where
+  initial = PigView (PigId (-1)) initial initial initial initial
 
 mkPigView db pignr i =
   let (Pig pid name symptoms diagnosis) = unsafeLookup (allPigs db) i
@@ -153,21 +189,26 @@ instance Storeable PigView where
 
 -- where do these belong:
 
-saveUpdates :: WebView -> Database -> Database
-saveUpdates rootView db = save rootView db
+saveAllViews :: WebView -> Database -> Database
+saveAllViews rootView db = save rootView db
+-- save is recursive now
 
+getWebViewById i view = 
+  case listify (\(WebView i' _) -> i==i') view of
+    [b] -> b
+    []  -> error $ "internal error: no button with id "
+    _   -> error $ "internal error: multiple buttons with id "
 
+getWebViewByViewId i vw =
+  bla (\(Id i') -> i==i') (\(WebView i _) -> Just (\_ -> Just i)) Nothing vw
 
-
+getAllWebViews view = listify (\(_::WebView) -> True) view
+--saveViewById = save v db
 {-
-getAllWebViews view = listify (\(_::WebView) -> True)
-
-saveUpdate (WebView i v) db = save v db
-
-saveUpdates :: WebView -> Database -> Database
-saveUpdates rootView db =
-  let webViews = getAllWebViews rootView
-  in  db
+saveUpdatess :: WebView -> Database -> Database
+saveUpdatess rootView db =
+  let (webView : _) = getAllWebViews rootView
+  in  saveAllUpdates webView db
 -}
 -- HTML utils
 
