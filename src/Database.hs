@@ -7,11 +7,12 @@ import qualified Data.Map as Map
 newtype VisitId = VisitId Int deriving (Show, Eq, Ord, Typeable, Data)
 newtype PigId = PigId Int deriving (Show, Eq, Ord, Typeable, Data)
 
-data Database = Database { allVisits :: Map VisitId Visit, allPigs :: Map PigId Pig } deriving Show
+-- must be Typeable and Data, because update functions in views (which must be Data etc.) are Database->Database
+data Database = Database { allVisits :: Map VisitId Visit, allPigs :: Map PigId Pig } deriving (Show, Typeable,Data)
 
-data Visit = Visit { visitId :: VisitId, zipCode :: String, date :: String, pigs :: [PigId] } deriving Show
+data Visit = Visit { visitId :: VisitId, zipCode :: String, date :: String, pigs :: [PigId] } deriving (Show, Typeable, Data)
 
-data Pig = Pig { pigId :: PigId, pigName :: String, symptoms :: [Int], diagnose :: Either Int String } deriving Show
+data Pig = Pig { pigId :: PigId, pigName :: String, symptoms :: [Int], diagnose :: Either Int String } deriving (Show, Typeable,Data)
 
 -- put id in element? It is also in the map.
 

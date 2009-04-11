@@ -11,6 +11,7 @@ import Control.Monad.Trans
 import Data.Map (Map)
 import qualified Data.Map as Map 
 import Text.Html
+import Control.Exception
 
 import Types
 import Generics
@@ -141,6 +142,7 @@ handlers stateRef =
                           do { lputStrLn $ "Received data" ++ take 20 (show cmds)
                       
                              ; liftIO $ handleCommands stateRef cmds
+                             
                              ; (db, rootView) <- liftIO $ readIORef stateRef
                              ; let responseHtml = thediv ! [identifier "updates"] <<
                                                     updateReplaceHtml "root" 
@@ -161,6 +163,9 @@ handlers stateRef =
   ]
 {- TODO: why does exactdir "/handle" not work?
    TODO: fix syntax error in command
+Database {allVisits = fromList [(VisitId 1,Visit {visitId = VisitId 1, zipCode = "3581", date = "27-3-2009", pigs = [PigId 1,PigId 2,PigId 3]})], allPigs = fromList [(PigId 1,Pig {pigId = PigId 1, pigName = "Knir", symptoms = [0,2,1], diagnose = Left 2}),(PigId 2,Pig {pigId = PigId 2, pigName = "Knar", symptoms = [0,1,1], diagnose = Right "Malaria"}),(PigId 3,Pig {pigId = PigId 3, pigName = "Knor", symptoms = [1,1,1], diagnose = Left 3})]}
+Database {allVisits = fromList [(VisitId 1,Visit {visitId = VisitId 1, zipCode = "3581", date = "27-3-2009", pigs = [PigId 1,PigId 2,PigId 3]})], allPigs = fromList [(PigId 1,Pig {pigId = PigId 1, pigName = "Knir", symptoms = [1,2,1], diagnose = Left 2}),(PigId 2,Pig {pigId = PigId 2, pigName = "Knar", symptoms = [0,1,1], diagnose = Right "Malaria"}),(PigId 3,Pig {pigId = PigId 3, pigName = "Knor", symptoms = [1,1,1], diagnose = Left 3})]}
+
 -}
 
 
@@ -216,6 +221,23 @@ handleCommand stateRef event =
 --      ; threadDelay 200000
 
       ; return ()    
+      }
+  else if "Button" `isPrefixOf` event
+  then 
+   do { (db, rootView) <- readIORef stateRef
+      ; let id = takeWhile (/=')') $ drop 7 event
+
+      ; putStrLn $ "Button " ++ show id ++ " was clicked"
+      ; let Button _ act = getButtonById (Id $ read id) (assignIds rootView)
+
+      ; let db' = act db
+      ; lputStrLn $ "database before:\n" ++ show act
+      ; Control.Exception.catch (lputStrLn $ "database after:\n" ++ show db') $
+          \(ErrorCall str) -> putStrLn $ "something went wrong"++show str
+
+      ; writeIORef stateRef (db',rootView)
+
+      ; return ()
       }
   else return ()
  

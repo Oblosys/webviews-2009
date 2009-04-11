@@ -35,7 +35,14 @@ replaceEInt updates x@(EInt i _) =
     Just str -> (EInt i (read str))
     Nothing -> x
 
+getButtonById :: Data d => Id -> d -> Button
+getButtonById i view = 
+  case listify (\(Button i' _) -> i==i') view of
+    [b] -> b
+    []  -> error $ "internal error: no button with id "++show i
+    _   -> error $ "internal error: multiple buttons with id "++show i
 
+--
 
 everywhereAccum :: Data d => (forall b . Data b => a -> b -> (a,b)) -> a -> d -> (a,d)
 everywhereAccum f acc a =

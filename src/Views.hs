@@ -79,34 +79,45 @@ presentTextField (EString (Id id) str) =
   textfield "" ! [identifier (show id), strAttr "VALUE" str
                  , strAttr "onChange" $ "textFieldChanged('"++show id++"')"]
 
+-- seems like this one could be in Present
+presentButton :: String -> Button -> Html
+presentButton text (Button (Id id) _) =
+   primHtml $ "<button onclick=\"queueCommand('Button("++show id++");')\">"++text++"</button>"
 
 mkRootView db = 
   WebView (ViewId 0) $ mkVisitView db (VisitId 1)
 
 
 
-data VisitView = VisitView VisitId EString EString EString [PigId] [String] (Maybe WebView) deriving (Show, Typeable, Data)
+data VisitView = VisitView VisitId EString EString EString Button [PigId] [String] (Maybe WebView) deriving (Show, Typeable, Data)
 
 mkVisitView db i = 
   let (Visit vid zipcode date pigIds) = unsafeLookup (allVisits db) i
       pignames = map (pigName . unsafeLookup (allPigs db)) pigIds
-  in  VisitView i (estr zipcode) (estr date) (estr "0") pigIds pignames $
+  in  VisitView i (estr zipcode) (estr date) (estr "0") (Button noId (next vid)) pigIds pignames $
                 case pigIds of
                   [] -> Nothing
                   (pigId:_) -> Just $ WebView (ViewId 1) $ mkPigView db 33 pigId
+ where next vid = \db ->
+         let visit = unsafeLookup (allVisits db) vid
+         in  db  { allVisits = Map.insert vid (visit {zipCode = "pressed"}) 
+                                     (allVisits db)
+                 }
 
 instance Presentable VisitView where
-  present (VisitView vid zipCode date viewedPig pigs pignames mSubview) =
+  present (VisitView vid zipCode date viewedPig b pigs pignames mSubview) =
         h2 << ("Visit at "+++ presentTextField zipCode +++" on " +++ presentTextField date)
     +++ ("Visited "++ show (length pigs) ++" pigs:")
     +++ show pignames
     +++ ("Viewing pig nr. " +++ presentTextField viewedPig)
+    -- "debugAdd('boing');queueCommand('Set("++id++","++show i++");')"
+    +++ presentButton "next" b
     +++ case mSubview of
           Nothing -> stringToHtml "no pig"
           Just pv -> present pv
 
 instance Storeable VisitView where
-  save (VisitView vid zipCode date _ pigs pignames mSubView) db =
+  save (VisitView vid zipCode date _ _ pigs pignames mSubView) db =
     let (Visit _ _ _ pigIds) = unsafeLookup (allVisits db) vid
         db' = case mSubView of
                 Just v  -> save v db 
@@ -143,8 +154,14 @@ instance Storeable PigView where
            }
 
 
+
+-- where do these belong:
+
 saveUpdates :: WebView -> Database -> Database
 saveUpdates rootView db = save rootView db
+
+
+
 
 {-
 getAllWebViews view = listify (\(_::WebView) -> True)
