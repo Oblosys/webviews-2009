@@ -1,3 +1,4 @@
+{-# OPTIONS -fglasgow-exts #-}
 module Generics where
 
 import Types
@@ -35,6 +36,8 @@ replaceEInt updates x@(EInt i _) =
     Just str -> (EInt i (read str))
     Nothing -> x
 
+--getWebViews x = listify (\(WebView i' :: WebView) -> True) x 
+
 getButtonById :: Data d => Id -> d -> Button
 getButtonById i view = 
   case listify (\(Button i' _) -> i==i') view of
@@ -63,4 +66,15 @@ mkAccT :: forall a b acc . (Typeable acc, Typeable a, Data b) => (acc -> a -> (a
 mkAccT f = case cast f  of -- can we do this without requiring Typeable acc?
                   Just g  -> g 
                   Nothing -> \acc b -> (acc,b)
+
+
+bla :: (Typeable r, Typeable s) => (r -> Bool) -> (s -> Maybe (a -> a)) -> a ->
+       GenericQ (Maybe a)
+bla p f i x = 
+  if (False `mkQ` p) x 
+  then Just i
+  else let myf = case (Nothing `mkQ` f) x of
+                   Nothing -> id
+                   Just ff -> ff
+       in  foldl orElse Nothing (gmapQ (bla p f (myf i)) x)
 

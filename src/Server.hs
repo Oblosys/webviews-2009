@@ -1,3 +1,4 @@
+{-# OPTIONS -fglasgow-exts #-}
 module Server where
 
 import Happstack.Server
@@ -216,7 +217,8 @@ handleCommand stateRef event =
       ; let rootView' = replace (Map.fromList [(Id (read id), value)]) (assignIds rootView)
       ; putStrLn $ "Updated rootView:\n" ++ show rootView'
 
-      ; let db' = saveUpdates rootView' db
+      ; let db' = saveAllViews rootView' db
+      -- TODO: instead of updating all, just update the one that was changed
       ; writeIORef stateRef (db',rootView')
 --      ; threadDelay 200000
 

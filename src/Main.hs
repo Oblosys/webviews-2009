@@ -1,3 +1,4 @@
+{-# OPTIONS -fglasgow-exts #-}
 module Main where
 
 import Database

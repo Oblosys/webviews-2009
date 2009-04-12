@@ -1,3 +1,4 @@
+{-# OPTIONS -fglasgow-exts #-}
 module Types where
 
 import Data.Generics
