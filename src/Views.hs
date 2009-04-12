@@ -45,17 +45,21 @@ newtype ViewId = ViewId Int deriving (Show, Eq, Typeable, Data)
 
 -- no class viewable, because mkView has parameters
 data WebView = forall view . (Initial view, Presentable view, Storeable view, Show view, Data view) => 
-                             WebView ViewId view deriving Typeable
+                             WebView ViewId (Database -> view -> view) view deriving Typeable
+-- (view->view) is the load view function. It is not in a class because we want to parameterize it
+-- view is the actual view (which is 'updated')
 
--- no gunfold yet! (maybe we don't need it)
+-- why was this one existential again?
+
+
+-- gunfold seems impossible! (maybe we don't need it)
 -- recipe from this instance is from Data.Generics documentation
 instance Data WebView where
-  gfoldl k z (WebView i v) = z WebView `k` i `k` v
+  gfoldl k z (WebView i f v) = z WebView `k` i `k` f `k` v
      
-  --gunfold k z c = case constrIndex c of
-  --                  1 -> k (k (z WebView))
+  gunfold k z c = error "gunfold not defined for WebView"
      
-  toConstr (WebView _ _) = con_WebView 
+  toConstr (WebView _ _ _) = con_WebView 
   dataTypeOf _ = ty_WebView
 
 ty_WebView = mkDataType "Views.WebView" [con_WebView]
@@ -64,7 +68,7 @@ con_WebView = mkConstr ty_WebView "WebView" [] Prefix
 
 
 instance Show WebView where
-  show (WebView (ViewId i) v) = "<" ++ show i ++ ":" ++ show v ++ ">"
+  show (WebView (ViewId i) _ v) = "<" ++ show i ++ ":" ++ show v ++ ">"
 
 {- this one is not possible
 instance Initial WebView where
@@ -72,10 +76,10 @@ instance Initial WebView where
 -}
 
 instance Presentable WebView where
-  present (WebView _ v) = present v
+  present (WebView _ _ v) = present v
 
 instance Storeable WebView where
-  save (WebView _ v) = save v
+  save (WebView _ _ v) = save v
 
 instance Initial [a] where
   initial = []
@@ -117,21 +121,31 @@ presentButton :: String -> Button -> Html
 presentButton text (Button (Id id) _) =
    primHtml $ "<button onclick=\"queueCommand('Button("++show id++");')\">"++text++"</button>"
 
-mkRootView db = 
-  WebView (ViewId 0) $ mkVisitView db (VisitId 1)
+mkRootView db = loadView db $
+  WebView (ViewId 0) (mkVisitView (VisitId 1)) initial
+  
+loadView db (WebView i f v) = (WebView i f (f db v))
 
+data VisitView = VisitView VisitId EString EString EInt Button Button [PigId] [String] (Maybe WebView) deriving (Show, Typeable, Data)
 
-
-data VisitView = VisitView VisitId EString EString EString Button Button [PigId] [String] (Maybe WebView) deriving (Show, Typeable, Data)
-
-mkVisitView db i = 
-  let (Visit vid zipcode date vp pigIds) = unsafeLookup (allVisits db) i
+mkVisitView i db (VisitView _ _ _ oldViewedPig _ _ _ _ mpigv) = 
+  let (Visit vid zipcode date pigIds) = unsafeLookup (allVisits db) i
       pignames = map (pigName . unsafeLookup (allPigs db)) pigIds
-  in  VisitView i (estr zipcode) (estr date) (estr $ show vp) 
+  in  VisitView i (estr zipcode) (estr date) oldViewedPig 
                 (Button noId (previous vid)) (Button noId (next vid)) pigIds pignames $
-                (Just $ WebView (ViewId 1) $ mkPigView db 33 (pigIds !! vp))
- where next vid     = updateVisit vid (\v -> v {viewedPig = viewedPig v + 1})
-       previous vid = updateVisit vid (\v -> v {viewedPig = viewedPig v - 1})
+                let oldpigv = case mpigv of
+                                  Nothing -> initial
+                                  Just (WebView _ _ pigv) -> 
+--                                    (initial `mkQ` (\pv -> pv::PigView)) pigv
+                                    (initial `mkQ` (\pv@(PigView pid _ _ _ _) -> pv)) pigv
+-- todo: check id's
+                in (Just $ loadView db (WebView (ViewId 1)
+                                            (mkPigView 33 (pigIds !! getIntVal oldViewedPig)) 
+                                            oldpigv)
+                   )
+ where next vid     = updateVisit vid (\v -> v) -- {viewedPig = viewedPig v + 1})
+       previous vid = updateVisit vid (\v -> v) -- {viewedPig = viewedPig v - 1})
+-- todo handle view update specification
 
 instance Initial VisitView where
   initial = VisitView (VisitId (-1)) initial initial initial initial initial initial initial initial
@@ -141,7 +155,7 @@ instance Presentable VisitView where
         h2 << ("Visit at "+++ presentTextField zipCode +++" on " +++ presentTextField date)
     +++ ("Visited "++ show (length pigs) ++" pigs:")
     +++ show pignames
-    +++ ("Viewing pig nr. " +++ presentTextField viewedPig)
+    +++ ("Viewing pig nr. " +++ presentRadioBox ["0","1","2","3","4"] viewedPig)
     -- "debugAdd('boing');queueCommand('Set("++id++","++show i++");')"
     +++ presentButton "previous" b1
     +++ presentButton "next" b2
@@ -154,19 +168,20 @@ instance Storeable VisitView where
     let db' = case mSubView of
                 Just v  -> save v db 
                 Nothing -> db
-    in  updateVisit vid (\(Visit _ _ _ vp pigIds) ->
-                          Visit vid (getStrVal zipCode) (getStrVal date) vp pigIds)
+    in  updateVisit vid (\(Visit _ _ _ pigIds) ->
+                          Visit vid (getStrVal zipCode) (getStrVal date) pigIds)
                     db'
 data PigView = PigView PigId Int EString [EInt] (Either Int String) deriving (Show, Typeable, Data)
 
 instance Initial PigView where
   initial = PigView (PigId (-1)) initial initial initial initial
 
-mkPigView db pignr i =
+mkPigView pignr i db oldPigView =
   let (Pig pid name symptoms diagnosis) = unsafeLookup (allPigs db) i
   in  PigView pid pignr (estr name) (map eint symptoms) diagnosis
 
 instance Presentable PigView where
+  present (PigView pid pignr name [] diagnosis) = stringToHtml "initial pig"
   present (PigView pid pignr name [tv, kl, ho] diagnosis) =
     boxed $
         p << ("Pig nr. " +++ show pignr)
@@ -194,13 +209,13 @@ saveAllViews rootView db = save rootView db
 -- save is recursive now
 
 getWebViewById i view = 
-  case listify (\(WebView i' _) -> i==i') view of
+  case listify (\(WebView i' _ _) -> i==i') view of
     [b] -> b
     []  -> error $ "internal error: no button with id "
     _   -> error $ "internal error: multiple buttons with id "
 
 getWebViewByViewId i vw =
-  bla (\(Id i') -> i==i') (\(WebView i _) -> Just (\_ -> Just i)) Nothing vw
+  bla (\(Id i') -> i==i') (\(WebView i _ _) -> Just (\_ -> Just i)) Nothing vw
 
 getAllWebViews view = listify (\(_::WebView) -> True) view
 --saveViewById = save v db

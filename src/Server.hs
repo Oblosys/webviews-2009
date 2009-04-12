@@ -218,8 +218,9 @@ handleCommand stateRef event =
       ; putStrLn $ "Updated rootView:\n" ++ show rootView'
 
       ; let db' = saveAllViews rootView' db
+      ; let rootView'' = loadView db' rootView'
       -- TODO: instead of updating all, just update the one that was changed
-      ; writeIORef stateRef (db',rootView')
+      ; writeIORef stateRef (db',rootView'')
 --      ; threadDelay 200000
 
       ; return ()    

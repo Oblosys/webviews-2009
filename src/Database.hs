@@ -14,7 +14,7 @@ data Database = Database { allVisits :: Map VisitId Visit, allPigs :: Map PigId 
 
 data Visit = 
   Visit { visitId :: VisitId, zipCode :: String
-        , date :: String, viewedPig::Int, pigs :: [PigId]
+        , date :: String, pigs :: [PigId]
         } deriving (Show, Typeable, Data)
 
 updateVisit :: VisitId -> (Visit -> Visit) -> Database -> Database
@@ -38,7 +38,7 @@ updatePig i f db =
           }
 
 
-theDatabase = Database (Map.fromList [ (VisitId 1, Visit (VisitId 1) "3581" "27-3-2009" 0
+theDatabase = Database (Map.fromList [ (VisitId 1, Visit (VisitId 1) "3581" "27-3-2009"
                                                   [ PigId 1, PigId 2, PigId 3 ])])
                     (Map.fromList [ (PigId 1, Pig (PigId 1) "Knir" [0,2,1] (Left 2))
                                   , (PigId 2, Pig (PigId 2) "Knar" [0,1,1] (Right "Malaria"))
