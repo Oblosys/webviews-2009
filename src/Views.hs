@@ -12,98 +12,6 @@ import Types
 import Database
 import Generics
 
--- classes
-{-
-class Presentable v where
-  present :: v -> Html
-
-class Storable v where
-  store :: v -> (Data -> Data)
-
--}
-
-class Initial v where
-  initial :: v
-
-class Presentable v where
-  present :: v -> Html
-
-{-
-class Presentable v => Viewable v where
-  load :: Database -> v
-  save :: v -> (Database -> Database)
--}
-
-class Storeable v where
-  save :: v -> Database -> Database
-
--- For now, Storeable on root view must save its subviews explicitly. 
--- Maybe SYB can handle this (gives an ambiguous type var now)
--- otherwise template haskell can do this
-
-newtype ViewId = ViewId Int deriving (Show, Eq, Typeable, Data)
-
--- no class viewable, because mkView has parameters
-data WebView = forall view . (Initial view, Presentable view, Storeable view, Show view, Data view) => 
-                             WebView ViewId (Database -> view -> view) view deriving Typeable
--- (view->view) is the load view function. It is not in a class because we want to parameterize it
--- view is the actual view (which is 'updated')
-
--- why was this one existential again?
-
-
--- gunfold seems impossible! (maybe we don't need it)
--- recipe from this instance is from Data.Generics documentation
-instance Data WebView where
-  gfoldl k z (WebView i f v) = z WebView `k` i `k` f `k` v
-     
-  gunfold k z c = error "gunfold not defined for WebView"
-     
-  toConstr (WebView _ _ _) = con_WebView 
-  dataTypeOf _ = ty_WebView
-
-ty_WebView = mkDataType "Views.WebView" [con_WebView]
-con_WebView = mkConstr ty_WebView "WebView" [] Prefix
-
-
-
-instance Show WebView where
-  show (WebView (ViewId i) _ v) = "<" ++ show i ++ ":" ++ show v ++ ">"
-
-{- this one is not possible
-instance Initial WebView where
-  initial = WebView (ViewId (-1)) initial
--}
-
-instance Presentable WebView where
-  present (WebView _ _ v) = present v
-
-instance Storeable WebView where
-  save (WebView _ _ v) = save v
-
-instance Initial [a] where
-  initial = []
-
-instance Initial (Maybe a) where
-  initial = Nothing
-
-instance Initial a => Initial (Either a b) where
-  initial = Left initial
-
-instance Initial String where
-  initial = ""
-
-instance Initial Int where
-  initial = 0
-
-instance Initial EString where
-  initial = estr ""
-
-instance Initial EInt where
-  initial = eint 0
-
-instance Initial Button where
-  initial = Button noId id
 
 -- don't use Presentable, because we might present strings in different ways.
 
@@ -132,7 +40,7 @@ mkVisitView i db (VisitView _ _ _ oldViewedPig _ _ _ _ mpigv) =
   let (Visit vid zipcode date pigIds) = unsafeLookup (allVisits db) i
       pignames = map (pigName . unsafeLookup (allPigs db)) pigIds
   in  VisitView i (estr zipcode) (estr date) oldViewedPig 
-                (Button noId (previous vid)) (Button noId (next vid)) pigIds pignames $
+                (Button noId (previous (ViewId 0))) (Button noId (next (ViewId 0))) pigIds pignames $
                 let oldpigv = case mpigv of
                                   Nothing -> initial
                                   Just (WebView _ _ pigv) -> 
@@ -143,9 +51,26 @@ mkVisitView i db (VisitView _ _ _ oldViewedPig _ _ _ _ mpigv) =
                                             (mkPigView 33 (pigIds !! getIntVal oldViewedPig)) 
                                             oldpigv)
                    )
- where next vid     = updateVisit vid (\v -> v) -- {viewedPig = viewedPig v + 1})
-       previous vid = updateVisit vid (\v -> v) -- {viewedPig = viewedPig v - 1})
--- todo handle view update specification
+ where previous i = mkViewEdit i $
+         \(VisitView vid zipCode date viewedPig b1 b2 pigs pignames mSubview) ->
+         VisitView vid zipCode date (eint $ getIntVal viewedPig-1) b1 b2 pigs pignames mSubview
+
+       next i = mkViewEdit i $
+         \(VisitView vid zipCode date viewedPig b1 b2 pigs pignames mSubview) ->
+         VisitView vid zipCode date (eint $ getIntVal viewedPig+1) b1 b2 pigs pignames mSubview
+
+
+
+mkViewEdit i f = 
+  ViewEdit i $ \(WebView i lv v) -> WebView i lv $ applyIfCorrectType f v
+
+
+
+
+applyIfCorrectType :: (Typeable y, Typeable x) => (y -> y) -> x -> x
+applyIfCorrectType f x = case cast f of 
+                           Just fx -> fx x
+                           Nothing -> x
 
 instance Initial VisitView where
   initial = VisitView (VisitId (-1)) initial initial initial initial initial initial initial initial

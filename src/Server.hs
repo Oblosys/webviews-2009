@@ -233,12 +233,25 @@ handleCommand stateRef event =
       ; putStrLn $ "Button " ++ show id ++ " was clicked"
       ; let Button _ act = getButtonById (Id $ read id) (assignIds rootView)
 
-      ; let db' = act db
-      ; lputStrLn $ "database before:\n" ++ show act
-      ; Control.Exception.catch (lputStrLn $ "database after:\n" ++ show db') $
-          \(ErrorCall str) -> putStrLn $ "something went wrong"++show str
+      ; case act of
+          ViewEdit i _ -> putStrLn $ "View edit on "++show i
+      ; let (db', rootView') =
+              case act of
+                DocEdit docedit -> 
+                  let db' = docedit db
+                  in  (db', mkRootView db')
+                ViewEdit i viewedit -> 
+                  let wv = getWebViewById i rootView
+                      wv' = viewedit wv
+                      rootView' = replaceWebViewById i wv' rootView 
+                      rootView'' = loadView db rootView'
+                  in  (db, rootView'')
 
-      ; writeIORef stateRef (db',mkRootView db')
+--      ; lputStrLn $ "database before:\n" ++ show act
+--      ; Control.Exception.catch (lputStrLn $ "database after:\n" ++ show db') $
+--          \(ErrorCall str) -> putStrLn $ "something went wrong"++show str
+
+      ; writeIORef stateRef (db', rootView')
 
       ; return ()
       }

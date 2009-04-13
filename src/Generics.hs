@@ -22,7 +22,7 @@ type Updates = Map Id String  -- maps id's to the string representation of the n
 
 -- update the datastructure at the id's in Updates 
 replace :: Data d => Updates -> d -> d
-replace updates = everywhere $ extT (mkT (replaceEString updates))  (replaceEInt updates)
+replace updates v = (everywhere $ extT (mkT (replaceEString updates))  (replaceEInt updates)) v
 
 replaceEString :: Updates -> EString -> EString
 replaceEString updates x@(EString i _) =
@@ -36,6 +36,10 @@ replaceEInt updates x@(EInt i _) =
     Just str -> (EInt i (read str))
     Nothing -> x
 
+replaceWebViewById :: (ViewId) -> WebView -> WebView -> WebView
+replaceWebViewById i wv rootView =
+ (everywhere $ mkT replaceWebView) rootView
+ where replaceWebView wv'@(WebView i' _ _) = if i == i' then wv else wv' 
 --getWebViews x = listify (\(WebView i' :: WebView) -> True) x 
 
 getButtonById :: Data d => Id -> d -> Button
