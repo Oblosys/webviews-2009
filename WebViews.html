@@ -34,7 +34,9 @@ function textFieldChanged(textFieldId)
    the radiobutton event to get lost. Better would be to remember the exact mouse position and
    generate the event again after the text edit has been handled. Now, if the text edit causes
    disabling and or restructuring of the interface, edit events will be sent which make no
-   sense. 
+   sense. By checking if the element that receives the event is still in the view structure
+   after the text edit has been handled, and that it has not been disabled, we can cover for
+   most problematic situations.
 */
 function queueCommand(url)
 { commandQueue = commandQueue + url;
