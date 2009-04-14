@@ -43,7 +43,7 @@ removePig i db = db { allPigs = Map.delete i (allPigs db) }
 newPig :: VisitId -> Database -> (Pig, Database)
 newPig vid db =
   let ids = [ i | PigId i <- map fst (Map.toList $ allPigs db) ]
-      newId = PigId (maximum ids + 1)
+      newId = PigId $ if null ids then 0 else (maximum ids + 1)
       newPig = Pig newId vid "<new>" [0,0,0] (Left 0)
   in  ( newPig, db { allPigs = Map.insert newId newPig (allPigs db) } )
 -- this -1 is not so nice
