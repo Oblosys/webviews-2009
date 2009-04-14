@@ -142,8 +142,9 @@ handlers stateRef =
      withData (\cmds -> methodSP GET $ 
                           do { lputStrLn $ "Received data" ++ take 20 (show cmds)
                       
-                             ; liftIO $ handleCommands stateRef cmds
-                             
+
+                             ; liftIO $ showExceptions $ handleCommands stateRef cmds
+                             ; liftIO $ putStrLn "check"
                              ; (db, rootView) <- liftIO $ readIORef stateRef
                              ; let responseHtml = thediv ! [identifier "updates"] <<
                                                     updateReplaceHtml "root" 
@@ -168,6 +169,12 @@ Database {allVisits = fromList [(VisitId 1,Visit {visitId = VisitId 1, zipCode =
 Database {allVisits = fromList [(VisitId 1,Visit {visitId = VisitId 1, zipCode = "3581", date = "27-3-2009", pigs = [PigId 1,PigId 2,PigId 3]})], allPigs = fromList [(PigId 1,Pig {pigId = PigId 1, pigName = "Knir", symptoms = [1,2,1], diagnose = Left 2}),(PigId 2,Pig {pigId = PigId 2, pigName = "Knar", symptoms = [0,1,1], diagnose = Right "Malaria"}),(PigId 3,Pig {pigId = PigId 3, pigName = "Knor", symptoms = [1,1,1], diagnose = Left 3})]}
 
 -}
+showExceptions io = 
+  Control.Exception.catch io $
+    \(PatternMatchFail str) -> do { putStrLn $ "something went wrong"++show str
+                           ; return undefined
+                           }
+
 
 
 data Commands = Commands String deriving Show
@@ -221,7 +228,7 @@ handleCommand stateRef event =
       ; let rootView'' = loadView db' rootView'
       -- TODO: instead of updating all, just update the one that was changed
       ; writeIORef stateRef (db',rootView'')
---      ; threadDelay 200000
+      --; threadDelay 200000
 
       ; return ()    
       }
@@ -233,8 +240,8 @@ handleCommand stateRef event =
       ; putStrLn $ "Button " ++ show id ++ " was clicked"
       ; let Button _ act = getButtonById (Id $ read id) (assignIds rootView)
 
-      ; case act of
-          ViewEdit i _ -> putStrLn $ "View edit on "++show i
+ --     ; case act of
+ --         ViewEdit i _ -> putStrLn $ "View edit on "++show i
       ; let (db', rootView') =
               case act of
                 DocEdit docedit -> 
@@ -247,9 +254,6 @@ handleCommand stateRef event =
                       rootView'' = loadView db rootView'
                   in  (db, rootView'')
 
---      ; lputStrLn $ "database before:\n" ++ show act
---      ; Control.Exception.catch (lputStrLn $ "database after:\n" ++ show db') $
---          \(ErrorCall str) -> putStrLn $ "something went wrong"++show str
 
       ; writeIORef stateRef (db', rootView')
 
