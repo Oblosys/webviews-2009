@@ -3,6 +3,7 @@ module Views where
 
 import Control.Monad
 import Control.Monad.Trans
+import Data.List
 import Data.Map (Map)
 import qualified Data.Map as Map 
 import Text.Html
@@ -50,6 +51,7 @@ loadView db (WebView i f v) = (WebView i f (f db v))
 
 data VisitView = VisitView VisitId EString EString EInt Button Button Button [PigId] [String] (Maybe WebView) deriving (Show, Typeable, Data)
 
+-- todo: doc edits seem to reset viewed pig nr.
 mkVisitView i db (VisitView _ _ _ oldViewedPig _ _ _ _ _ mpigv) = 
   let (Visit vid zipcode date pigIds) = unsafeLookup (allVisits db) i
       pignames = map (pigName . unsafeLookup (allPigs db)) pigIds
@@ -77,7 +79,7 @@ mkVisitView i db (VisitView _ _ _ oldViewedPig _ _ _ _ _ mpigv) =
        addPig i = DocEdit $ addNewPig i 
 
 addNewPig vid db =
-  let ((Pig newPigId _ _ _), db') = newPig db
+  let ((Pig newPigId _ _ _ _), db') = newPig vid db      
   in  (updateVisit vid $ \v -> v { pigs = pigs v ++ [newPigId] }) db'
 
 instance Initial VisitView where
@@ -111,8 +113,11 @@ instance Initial PigView where
   initial = PigView (PigId (-1)) initial initial initial initial initial
 
 mkPigView pignr i db oldPigView =
-  let (Pig pid name symptoms diagnosis) = unsafeLookup (allPigs db) i
-  in  PigView pid (Button noId (removePig pid)) pignr (estr name) (map eint symptoms) diagnosis
+  let (Pig pid vid name symptoms diagnosis) = unsafeLookup (allPigs db) i
+  in  PigView pid (Button noId (removePigAlsoFromVisit pid vid)) pignr (estr name) (map eint symptoms) diagnosis
+ where -- need db support for removal and we need parent
+       removePigAlsoFromVisit pid vid = 
+         DocEdit $ removePig pid . updateVisit vid (\v -> v { pigs = delete pid $ pigs v } )  
 
 instance Presentable PigView where
   present (PigView pid b pignr name [] diagnosis) = stringToHtml "initial pig"
@@ -131,11 +136,9 @@ instance Presentable PigView where
  
 instance Storeable PigView where
   save (PigView pid _ _ name symptoms diagnosis) =
-    updatePig pid (\(Pig _ _ _ diagnosis) -> 
-                    (Pig pid (getStrVal name) (map getIntVal symptoms) diagnosis)) 
+    updatePig pid (\(Pig _ vid _ _ diagnosis) -> 
+                    (Pig pid vid (getStrVal name) (map getIntVal symptoms) diagnosis)) 
 
--- need db support for removal and we need parent
-removePig pid = DocEdit $ id
 
 -- where do these belong:
 

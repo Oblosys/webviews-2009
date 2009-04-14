@@ -25,7 +25,7 @@ updateVisit i f db =
 -- add error
 
 data Pig = 
-  Pig { pigId :: PigId, pigName :: String, symptoms :: [Int]
+  Pig { pigId :: PigId, parentVisit :: VisitId, pigName :: String, symptoms :: [Int]
       , diagnose :: Either Int String 
       } deriving (Show, Typeable,Data)
 
@@ -37,18 +37,22 @@ updatePig i f db =
   in  db  { allPigs = Map.insert i (f visit) (allPigs db)
           }
 
-newPig :: Database -> (Pig, Database)
-newPig db =
+removePig :: PigId -> Database -> Database
+removePig i db = db { allPigs = Map.delete i (allPigs db) }
+
+newPig :: VisitId -> Database -> (Pig, Database)
+newPig vid db =
   let ids = [ i | PigId i <- map fst (Map.toList $ allPigs db) ]
       newId = PigId (maximum ids + 1)
-      newPig = Pig newId "<new>" [0,0,0] (Left 0)
+      newPig = Pig newId vid "<new>" [0,0,0] (Left 0)
   in  ( newPig, db { allPigs = Map.insert newId newPig (allPigs db) } )
-      
+-- this -1 is not so nice
+
 theDatabase = Database (Map.fromList [ (VisitId 1, Visit (VisitId 1) "3581" "27-3-2009"
                                                   [ PigId 1, PigId 2, PigId 3 ])])
-                    (Map.fromList [ (PigId 1, Pig (PigId 1) "Knirr" [0,2,1] (Left 2))
-                                  , (PigId 2, Pig (PigId 2) "Knar" [0,1,1] (Right "Malaria"))
-                                  , (PigId 3, Pig (PigId 3) "Knor" [1,1,1] (Left 3)) ])
+                    (Map.fromList [ (PigId 1, Pig (PigId 1) (VisitId 1) "Knirr" [0,2,1] (Left 2))
+                                  , (PigId 2, Pig (PigId 2) (VisitId 1) "Knar" [0,1,1] (Right "Malaria"))
+                                  , (PigId 3, Pig (PigId 3) (VisitId 1) "Knor" [1,1,1] (Left 3)) ])
 --                    ]
   
 {-
