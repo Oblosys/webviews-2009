@@ -182,7 +182,7 @@ boxed html = thediv![thestyle "border:solid; border-width:1px; padding:4px;"] <<
 
 --radioBox :: String -> [String] -> Int -> Html
 radioBox id items selectedIx =
-  [ radio id (show i) ! ( [strAttr "onChange" ("debugAdd('boing');queueCommand('Set("++id++","++show i++");')") ]
+  [ radio id (show i) ! ( [strAttr "onChange" ("queueCommand('Set("++id++","++show i++");')") ]
                           ++ if i == selectedIx then [strAttr "checked" ""] else []) 
                           +++ item +++ br 
                         | (i, item) <- zip [0..] items ]
