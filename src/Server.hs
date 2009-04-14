@@ -236,7 +236,7 @@ handleCommand stateRef event =
       ; let rootView'' = loadView db' rootView'
       -- TODO: instead of updating all, just update the one that was changed
       ; writeIORef stateRef (db',rootView'')
-      --; threadDelay 200000
+     -- ; threadDelay 100000
       ; return ()    
       }
   else if "Button" `isPrefixOf` event

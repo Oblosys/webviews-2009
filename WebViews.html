@@ -8,6 +8,7 @@ var xmlhttp;
 
 var commandQueue = "";
 
+var changedTextFieldId = "";
 
 function init()
 {
@@ -25,14 +26,27 @@ function debugAdd(message)
 }
 
 function textFieldChanged(textFieldId)
-{
-  value = document.getElementById(textFieldId).value;
-   queueCommand('Set('+textFieldId+','+value+');');
+{ changedTextFieldId = textFieldId;
 }
-
+/* For text fields, we just register that they have changed and send them with
+   the queue after the first editing operation. Otherwise, when editing a text field and then
+   clicking on eg. a radio button generates a server event for the text edit, which causes
+   the radiobutton event to get lost. Better would be to remember the exact mouse position and
+   generate the event again after the text edit has been handled. Now, if the text edit causes
+   disabling and or restructuring of the interface, edit events will be sent which make no
+   sense. 
+*/
 function queueCommand(url)
 { commandQueue = commandQueue + url;
- if ( xmlhttp && xmlhttp.readyState != 0 && xmlhttp.readyState != 4)
+  if (changedTextFieldId != "")
+  { debugAdd(changedTextFieldId+" has changed");
+    value = document.getElementById(changedTextFieldId).value;
+    commandQueue = 'Set('+changedTextFieldId+','+value+');' + commandQueue;
+
+    changedTextField = "";
+  }
+
+  if ( xmlhttp && xmlhttp.readyState != 0 && xmlhttp.readyState != 4)
     return; // if xmlhttp exists and was initialized and not ready, we return
             // TODO: can readyState == 0 happen?  
              
