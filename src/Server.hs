@@ -139,24 +139,35 @@ handlers stateRef =
         (methodSP GET $ fileServe ["favicon.ico"] ".")
 
   , dir "handle" $
-     withData (\cmds -> methodSP GET $ 
-                          do { lputStrLn $ "Received data" ++ take 20 (show cmds)
+     withData (\cmds -> methodSP GET $
+                          do { responseHtml <- liftIO $ Control.Exception.catch 
+                               (do { putStrLn $ "Received data" ++ take 20 (show cmds)
                       
 
-                             ; liftIO $ showExceptions $ handleCommands stateRef cmds
-                             ; liftIO $ putStrLn "check"
-                             ; (db, rootView) <- liftIO $ readIORef stateRef
-                             ; let responseHtml = thediv ! [identifier "updates"] <<
+                                   ; handleCommands stateRef cmds
+                                   ; (db, rootView) <- readIORef stateRef
+                                   ; let responseHtml = thediv ! [identifier "updates"] <<
                                                     updateReplaceHtml "root" 
                                                       (mkDiv "root" $ present $ assignIds rootView)
-                             ; lputStrLn $ "\n\n\n\ncmds = "++show cmds
-                             ; lputStrLn $ "rootView:\n" ++ show (assignIds rootView)
-                             ; lputStrLn $ "database:\n" ++ show db
+                                   ; putStrLn $ "\n\n\n\ncmds = "++show cmds
+                                   ; putStrLn $ "rootView:\n" ++ show (assignIds rootView)
+                                   ; putStrLn $ "database:\n" ++ show db
                              --; lputStrLn $ "\n\n\nresponse = \n" ++ show responseHtml
                              --; lputStrLn $ "Sending response sent to client: " ++
                              --              take 10 responseHTML ++ "..."
                              --; modifyResponseW noCache $
-                             
+                                   ; seq (length (show responseHtml)) $ return ()
+                                   ; return responseHtml
+                                   }) $ \(exc :: SomeException) ->
+                                do { let exceptionTxt = 
+                                           "\n\n\n\n###########################################\n\n\n" ++
+                                           "Exception: "++ show exc ++ "\n\n\n" ++
+                                           "###########################################" 
+                                   ; putStrLn exceptionTxt
+                                   ; return $ thediv ! [identifier "updates"] <<
+                                                updateReplaceHtml "root" 
+                                                  (mkDiv "root" $ map (p . stringToHtml) $ lines exceptionTxt)
+                                   }
                              ; ok $ toResponse $ responseHtml
                              }
                         )
@@ -165,17 +176,14 @@ handlers stateRef =
   ]
 {- TODO: why does exactdir "/handle" not work?
    TODO: fix syntax error in command
-Database {allVisits = fromList [(VisitId 1,Visit {visitId = VisitId 1, zipCode = "3581", date = "27-3-2009", pigs = [PigId 1,PigId 2,PigId 3]})], allPigs = fromList [(PigId 1,Pig {pigId = PigId 1, pigName = "Knir", symptoms = [0,2,1], diagnose = Left 2}),(PigId 2,Pig {pigId = PigId 2, pigName = "Knar", symptoms = [0,1,1], diagnose = Right "Malaria"}),(PigId 3,Pig {pigId = PigId 3, pigName = "Knor", symptoms = [1,1,1], diagnose = Left 3})]}
-Database {allVisits = fromList [(VisitId 1,Visit {visitId = VisitId 1, zipCode = "3581", date = "27-3-2009", pigs = [PigId 1,PigId 2,PigId 3]})], allPigs = fromList [(PigId 1,Pig {pigId = PigId 1, pigName = "Knir", symptoms = [1,2,1], diagnose = Left 2}),(PigId 2,Pig {pigId = PigId 2, pigName = "Knar", symptoms = [0,1,1], diagnose = Right "Malaria"}),(PigId 3,Pig {pigId = PigId 3, pigName = "Knor", symptoms = [1,1,1], diagnose = Left 3})]}
 
 -}
-showExceptions io = 
-  Control.Exception.catch io $
-    \(PatternMatchFail str) -> do { putStrLn $ "something went wrong"++show str
-                           ; return undefined
-                           }
 
 
+evaluateDbAndRootView stateRef =
+ do { dbRootView <- liftIO $ readIORef stateRef
+    ; seq (length $ show dbRootView) $ return ()
+    }
 
 data Commands = Commands String deriving Show
 
@@ -223,13 +231,11 @@ handleCommand stateRef event =
 
       ; let rootView' = replace (Map.fromList [(Id (read id), value)]) (assignIds rootView)
       ; putStrLn $ "Updated rootView:\n" ++ show rootView'
-
       ; let db' = saveAllViews rootView' db
       ; let rootView'' = loadView db' rootView'
       -- TODO: instead of updating all, just update the one that was changed
-      ; writeIORef stateRef (db',rootView'')
+      ; writeIORef stateRef (error "db'",rootView'')
       --; threadDelay 200000
-
       ; return ()    
       }
   else if "Button" `isPrefixOf` event

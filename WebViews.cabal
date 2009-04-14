@@ -7,7 +7,8 @@ Author:           Martijn Schrage
 Maintainer:       martijn@oblomov.biz
 Stability:        experimental
 Build-Type:       Simple
-Build-Depends:    base,
+Build-Depends:    base >= 4.0,
+                  syb,
                   network,
 		  mtl,
                   base64-string,
