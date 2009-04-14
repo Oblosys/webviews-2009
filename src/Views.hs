@@ -13,7 +13,6 @@ import Types
 import Database
 import Generics
 
-
 -- don't use Presentable, because we might present strings in different ways.
 
 
@@ -49,13 +48,16 @@ mkRootView db = loadView db $
   
 loadView db (WebView i f v) = (WebView i f (f db v))
 
-data VisitView = VisitView VisitId EString EString EInt Button Button Button [PigId] [String] (Maybe WebView) deriving (Show, Typeable, Data)
+data VisitView = 
+  VisitView VisitId EString EString EInt Button Button Button [PigId] [String] (Maybe WebView)
+  deriving (Show, Typeable, Data)
 
 -- todo: doc edits seem to reset viewed pig nr.
 mkVisitView i db (VisitView _ _ _ oldViewedPig _ _ _ _ _ mpigv) = 
   let (Visit vid zipcode date pigIds) = unsafeLookup (allVisits db) i
+      viewedPig = constrain 0 (length pigIds - 1) $ getIntVal oldViewedPig
       pignames = map (pigName . unsafeLookup (allPigs db)) pigIds
-  in  VisitView i (estr zipcode) (estr date) oldViewedPig 
+  in  VisitView i (estr zipcode) (estr date) (eint viewedPig) 
                 (Button noId (previous (ViewId 0))) (Button noId (next (ViewId 0)))
                 (Button noId (addPig vid)) pigIds pignames $
                 let oldpigv = case mpigv of
@@ -64,11 +66,14 @@ mkVisitView i db (VisitView _ _ _ oldViewedPig _ _ _ _ _ mpigv) =
 --                                    (initial `mkQ` (\pv -> pv::PigView)) pigv
                                     (initial `mkQ` (\pv@(PigView pid _ _ _ _ _) -> pv)) pigv
 -- todo: check id's
-                in (Just $ loadView db (WebView (ViewId 1)
-                                            (mkPigView 33 (pigIds !! getIntVal oldViewedPig)) 
+                in (if null pigIds -- remove guard for weird hanging exception (after removing last pig)
+                    then Nothing
+                    else Just $ loadView db (WebView (ViewId 1)
+                                            (mkPigView 33 (pigIds !! viewedPig)) 
                                             oldpigv)
                    )
- where previous i = mkViewEdit i $
+ where -- next and previous may cause out of bounds, but on reload, this is constrained
+       previous i = mkViewEdit i $
          \(VisitView vid zipCode date viewedPig b1 b2 b3 pigs pignames mSubview) ->
          VisitView vid zipCode date (eint $ getIntVal viewedPig-1) b1 b2 b3 pigs pignames mSubview
 
@@ -90,11 +95,12 @@ instance Presentable VisitView where
         h2 << ("Visit at "+++ presentTextField zipCode +++" on " +++ presentTextField date)
     +++ ("Visited "++ show (length pigs) ++" pigs:")
     +++ show pignames
-    +++ p << ("Viewing pig nr. " +++ show (getIntVal viewedPig)
+    +++ p << ((if null pigs then stringToHtml $ "Not viewing any pigs" 
+               else "Viewing pig nr. " +++ show (getIntVal viewedPig))
     -- "debugAdd('boing');queueCommand('Set("++id++","++show i++");')"
               +++ presentButton "previous" b1 +++ presentButton "next" b2 +++ presentButton "add" b3)
     +++ p << (case mSubview of
-               Nothing -> stringToHtml "no pig"
+               Nothing -> stringToHtml "no pigs"
                Just pv -> present pv)
 
 instance Storeable VisitView where
@@ -196,3 +202,4 @@ lputStr = liftIO . putStr
 lputStrLn :: MonadIO m => String -> m ()
 lputStrLn = liftIO . putStrLn
 
+constrain mn mx x = (mn `max` x) `min` mx

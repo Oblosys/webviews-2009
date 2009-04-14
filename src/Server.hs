@@ -161,8 +161,9 @@ handlers stateRef =
                                    }) $ \(exc :: SomeException) ->
                                 do { let exceptionTxt = 
                                            "\n\n\n\n###########################################\n\n\n" ++
-                                           "Exception: "++ show exc ++ "\n\n\n" ++
+                                           "Exception: " ++ show exc ++ "\n\n\n" ++
                                            "###########################################" 
+                                           -- TODO: some exceptions cause program to hang when printed!
                                    ; putStrLn exceptionTxt
                                    ; return $ thediv ! [identifier "updates"] <<
                                                 updateReplaceHtml "root" 
@@ -234,7 +235,7 @@ handleCommand stateRef event =
       ; let db' = saveAllViews rootView' db
       ; let rootView'' = loadView db' rootView'
       -- TODO: instead of updating all, just update the one that was changed
-      ; writeIORef stateRef (error "db'",rootView'')
+      ; writeIORef stateRef (db',rootView'')
       --; threadDelay 200000
       ; return ()    
       }
@@ -252,7 +253,7 @@ handleCommand stateRef event =
               case act of
                 DocEdit docedit -> 
                   let db' = docedit db
-                  in  (db', mkRootView db')
+                  in  (db', loadView db' rootView)
                 ViewEdit i viewedit -> 
                   let wv = getWebViewById i rootView
                       wv' = viewedit wv
