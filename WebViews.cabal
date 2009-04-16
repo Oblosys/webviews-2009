@@ -19,7 +19,7 @@ Build-Depends:    base >= 4.0,
 		  happstack-helpers
                  
 
-Executable:       WFServer
+Executable:       WebViews
 Main-is:	  Main.hs
 GHC-Options:      -fglasgow-exts -threaded -Wall
 HS-Source-Dirs:   src
