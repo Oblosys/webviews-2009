@@ -97,7 +97,7 @@ instance Initial VisitView where
 instance Presentable VisitView where
   present (VisitView vid zipCode date viewedPig b1 b2 b3 pigs pignames mSubview) =
         h2 << ("Visit at "+++ presentTextField zipCode +++" on " +++ presentTextField date)
-    +++ ("Visited "++ show (length pigs) ++" pigs:")
+    +++ ("Visited "++ show (length pigs) ++" pig" ++ (if (length pigs == 1) then "" else "s") ++":")
     +++ show pignames
     +++ p << ((if null pigs then stringToHtml $ "Not viewing any pigs" 
                else "Viewing pig nr. " +++ show (getIntVal viewedPig))
