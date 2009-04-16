@@ -1,1 +1,2 @@
+ssh pooh.zoo.cs.uu.nl "killall WebViews"
 ssh pooh.zoo.cs.uu.nl "cd WebViews; ../.cabal/bin/cabal build"
