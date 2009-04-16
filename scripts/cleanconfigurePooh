@@ -1,0 +1,3 @@
+ssh pooh.zoo.cs.uu.nl "cd WebViews; ../.cabal/bin/cabal clean"
+ssh pooh.zoo.cs.uu.nl "cd WebViews; ../.cabal/bin/cabal configure"
+# does not seem to work.
