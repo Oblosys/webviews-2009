@@ -1,0 +1,2 @@
+ssh pooh.zoo.cs.uu.nl "killall WebViews"
+ssh pooh.zoo.cs.uu.nl "cd WebViews; nohup dist/build/WewViews/WebViews  < /dev/null > WebViewsOut.txt 2>&1 &"
