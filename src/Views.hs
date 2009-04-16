@@ -13,6 +13,10 @@ import Types
 import Database
 import Generics
 
+
+-- TODO: automaticly supplying old views
+--       figure out load stuff
+--       use a monad for auto handling listeners to database
 -- don't use Presentable, because we might present strings in different ways.
 
 
