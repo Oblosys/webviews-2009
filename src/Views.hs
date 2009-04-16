@@ -135,7 +135,6 @@ instance Presentable PigView where
     boxed $
         p << ("Pig nr. " +++ show pignr +++ presentButton "remove" b)
     +++ p << ("Name:" +++ presentTextField name)
-    +++ p << "Symptoms: "
     +++ p << "Type varken: " 
     +++ presentRadioBox ["Roze", "Grijs"] tv
     +++ p << "Fase cyclus: "
