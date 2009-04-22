@@ -9,6 +9,32 @@ import qualified Data.Map as Map
 
 -- Generics
 
+data Tree = Bin Tree Tree | Leaf Char deriving (Show, Data, Typeable)
+
+mytree = Bin (Bin (Leaf 'a') (Leaf 'b')) (Leaf 'c')
+
+getImmediateSubWebViews :: Tree -> [Tree]
+getImmediateSubWebViews wv = everythingBelow (Nothing `mkQ` isTree) wv
+
+-- get all non-nested descendents of a type
+-- Eg. everythingBelow () (T_1 .. (T_2 .. (T_3 ..) ..) (T_4)) = [T_1,T_2,T_4]
+everythingBelow :: Data r => GenericQ (Maybe r) -> GenericQ [r]
+everythingBelow f x = foldl (++) [] (gmapQ (everythingBut f) x)
+
+everythingBut :: Data r => GenericQ (Maybe r) -> GenericQ [r]
+everythingBut f x = case f x of
+                      Just x -> [x]
+                      Nothing -> foldl (++) [] (gmapQ (everythingBut f) x)
+
+{-
+everythingBut :: Data a 
+ => GenericQ Bool
+ -> (forall a. Data a => a -> r) 
+ -> a -> r 
+everythingBut q f x = {- if q x then [x] else -} foldl (++) [] (gmapQ (everythingBut q f) x)
+-}
+isTree :: Tree -> Maybe Tree
+isTree tr = Just tr
 
 -- number all Id's in the argument data structure uniquely
 assignIds :: Data d => d -> d
