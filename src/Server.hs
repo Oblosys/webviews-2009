@@ -41,7 +41,7 @@ Header modifications must therefore be applied to out rather than be fmapped to 
 
 server =
  do { stateRef <- newIORef (theDatabase, mkRootView theDatabase) 
-    ; simpleHTTP (Conf 8080 Nothing) $ debugFilter $ msum (handlers stateRef)
+    ; simpleHTTP (Conf 8085 Nothing) $ debugFilter $ msum (handlers stateRef)
     }
 
 {-
