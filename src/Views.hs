@@ -55,9 +55,11 @@ applyIfCorrectType f x = case cast f of
 -- the view matching on load can be done explicitly, following structure and checking ids, or
 -- maybe automatically, based on id. Maybe extra state can be in a separate data structure even,
 -- like in Proxima
-mkRootView db = loadView db $
-  WebView (ViewId 0) (mkVisitView (VisitId 1)) initial
-  
+mkRootView db = mkVisitView (VisitId 1) 
+
+mkWebView vid wvcnstr db = loadView db $
+  WebView vid wvcnstr initial
+
 loadView db (WebView i f v) = (WebView i f (f db v))
 
 data VisitView = 
@@ -65,7 +67,8 @@ data VisitView =
   deriving (Eq, Show, Typeable, Data)
 
 -- todo: doc edits seem to reset viewed pig nr.
-mkVisitView i db (VisitView _ _ _ oldViewedPig _ _ _ _ _ mpigv) = 
+mkVisitView i = mkWebView (ViewId 0) $
+  \db (VisitView _ _ _ oldViewedPig _ _ _ _ _ mpigv) -> 
   let (Visit vid zipcode date pigIds) = unsafeLookup (allVisits db) i
       viewedPig = constrain 0 (length pigIds - 1) $ getIntVal oldViewedPig
       pignames = map (pigName . unsafeLookup (allPigs db)) pigIds
