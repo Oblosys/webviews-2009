@@ -7,21 +7,27 @@ import Database
 import Text.Html
 import Text.Show.Functions
 
+import Control.Monad.State
+import Control.Monad.Identity
+
 newtype Id = Id Int deriving (Show, Eq, Ord, Data, Typeable)
 noId = Id (-1)
 
-data EString = EString { getStrId :: Id, getStrVal :: String } deriving (Show, Typeable, Data)
+data EString = EString { getStrId :: Id, getStrVal :: String } deriving (Show, Eq, Typeable, Data)
 
 estr str = EString noId str
 
-data EInt = EInt { getIntId :: Id, getIntVal :: Int } deriving (Show, Typeable, Data)
+data EInt = EInt { getIntId :: Id, getIntVal :: Int } deriving (Show, Eq, Typeable, Data)
 
 eint i = EInt noId i
 
-data Button = Button { getButtonId :: Id, getCommand :: EditCommand } deriving (Show, Typeable, Data)
+data Button = Button { getButtonId :: Id, getCommand :: EditCommand } deriving (Show, Eq, Typeable, Data)
 
 data EditCommand = DocEdit (Database -> Database)
                  | ViewEdit (ViewId) (WebView -> WebView) deriving (Show, Typeable, Data)
+
+instance Eq EditCommand where -- only changing the edit command does not
+  c1 == c2 = True
 
 --instance Show (a->a) where
 --  show f = "<function>"
@@ -63,7 +69,8 @@ class Storeable v where
 newtype ViewId = ViewId Int deriving (Show, Eq, Typeable, Data)
 
 -- no class viewable, because mkView has parameters
-data WebView = forall view . (Initial view, Presentable view, Storeable view, Show view, Data view) => 
+data WebView = forall view . ( Initial view, Presentable view, Storeable view
+                             , Show view, Eq view, Data view) => 
                              WebView ViewId (Database -> view -> view) view deriving Typeable
 -- (view->view) is the load view function. It is not in a class because we want to parameterize it
 -- view is the actual view (which is 'updated')
@@ -100,6 +107,11 @@ instance Presentable WebView where
 instance Storeable WebView where
   save (WebView _ _ v) = save v
 
+instance Eq WebView where
+  (WebView _ _ v1) == (WebView _ _ mv2) = case cast mv2 of 
+                                           Just v2 -> v1 == v2
+                                           Nothing -> False
+
 instance Initial [a] where
   initial = []
 
@@ -123,3 +135,45 @@ instance Initial EInt where
 
 instance Initial Button where
   initial = Button noId (DocEdit id)
+
+
+
+
+type MkViewState v = [v->v]
+
+-- Identity will be IO
+type ViewM v a = StateT (MkViewState v) Identity a
+
+
+mkAction :: (v->v) -> ViewM v Int
+mkAction f = 
+ do { actions <- get
+    ; put $ actions ++ [f]
+    ; return $ length actions + 1
+    }
+
+
+testMonad = print $ "bla" {- runMonad [1,2,3] $
+ do { l <- getList
+    ; return l
+    } -}
+
+
+-- hide this constructor, so user needs to use mkView
+data AView v = AView { editActions :: [v->v], makeView :: v -> v }
+
+mkView :: (ViewM v (v->v)) -> (AView v)
+mkView mv = runIdentity $ 
+ do { (mkview, state) <- runStateT mv []
+    ; return $ AView state mkview
+    }
+
+
+
+data TestView = TestView Int String
+
+--mkTestView
+mkTestView v = mkView $ 
+ do { i <- mkAction $ \(TestView x s) -> TestView x s
+    ; return $ \v -> TestView i "bla"
+    } 
