@@ -17,6 +17,17 @@ import Generics
 -- don't use Presentable, because we might present strings in different ways.
 
 
+instance Storeable WebView where
+  save (WebView _ _ v) =
+    let topLevelWebViews = getTopLevelWebViews v
+    in  foldl (.) id $ save v : map save topLevelWebViews
+
+-- first save self, then children
+-- TODO: does this order matter?
+
+
+
+
 presentRadioBox :: [String] -> EInt -> [Html]
 presentRadioBox items (EInt (Id i) ei) = radioBox (show i) items ei
 
@@ -106,12 +117,9 @@ instance Presentable VisitView where
 
 instance Storeable VisitView where
   save (VisitView vid zipCode date _ _ _ _ pigs pignames mSubView) db =
-    let db' = case mSubView of
-                Just v  -> save v db 
-                Nothing -> db
-    in  updateVisit vid (\(Visit _ _ _ pigIds) ->
-                          Visit vid (getStrVal zipCode) (getStrVal date) pigIds)
-                    db'
+    updateVisit vid (\(Visit _ _ _ pigIds) ->
+                      Visit vid (getStrVal zipCode) (getStrVal date) pigIds)
+                    db
 
 
 data PigView = PigView PigId Button Int EString [EInt] (Either Int String) 
@@ -149,9 +157,6 @@ instance Storeable PigView where
 
 -- where do these belong:
 
-saveAllViews :: WebView -> Database -> Database
-saveAllViews rootView db = save rootView db
--- save is recursive now
 
 getWebViewById i view = 
   case listify (\(WebView i' _ _) -> i==i') view of
