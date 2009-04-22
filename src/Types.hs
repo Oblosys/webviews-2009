@@ -110,8 +110,6 @@ instance Initial WebView where
 instance Presentable WebView where
   present (WebView _ _ v) = present v
 
-instance Storeable WebView where
-  save (WebView _ _ v) = save v
 
 instance Eq WebView where
   (WebView _ _ v1) == (WebView _ _ mv2) = case cast mv2 of 
