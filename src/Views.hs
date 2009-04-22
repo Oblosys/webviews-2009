@@ -1,11 +1,8 @@
 {-# OPTIONS -fglasgow-exts #-}
 module Views where
 
-import Control.Monad
 import Control.Monad.Trans
 import Data.List
-import Data.Map (Map)
-import qualified Data.Map as Map 
 import Text.Html
 import Data.Generics
 
@@ -21,17 +18,17 @@ import Generics
 
 
 presentRadioBox :: [String] -> EInt -> [Html]
-presentRadioBox items (EInt (Id id) i) = radioBox (show id) items i
+presentRadioBox items (EInt (Id i) ei) = radioBox (show i) items ei
 
 presentTextField :: EString -> Html
-presentTextField (EString (Id id) str) =
-  textfield "" ! [identifier (show id), strAttr "VALUE" str
-                 , strAttr "onChange" $ "textFieldChanged('"++show id++"')"]
+presentTextField (EString (Id i) str) =
+  textfield "" ! [identifier (show i), strAttr "VALUE" str
+                 , strAttr "onChange" $ "textFieldChanged('"++show i++"')"]
 
 -- seems like this one could be in Present
 presentButton :: String -> Button -> Html
-presentButton text (Button (Id id) _) =
-   primHtml $ "<button onclick=\"queueCommand('Button("++show id++");')\">"++text++"</button>"
+presentButton txt (Button (Id id) _) =
+   primHtml $ "<button onclick=\"queueCommand('Button("++show id++");')\">"++txt++"</button>"
 
 
 mkViewEdit i f = 
@@ -54,7 +51,7 @@ loadView db (WebView i f v) = (WebView i f (f db v))
 
 data VisitView = 
   VisitView VisitId EString EString EInt Button Button Button [PigId] [String] (Maybe WebView)
-  deriving (Show, Typeable, Data)
+  deriving (Eq, Show, Typeable, Data)
 
 -- todo: doc edits seem to reset viewed pig nr.
 mkVisitView i db (VisitView _ _ _ oldViewedPig _ _ _ _ _ mpigv) = 
@@ -117,7 +114,8 @@ instance Storeable VisitView where
                     db'
 
 
-data PigView = PigView PigId Button Int EString [EInt] (Either Int String) deriving (Show, Typeable, Data)
+data PigView = PigView PigId Button Int EString [EInt] (Either Int String) 
+               deriving (Eq, Show, Typeable, Data)
 
 instance Initial PigView where
   initial = PigView (PigId (-1)) initial initial initial initial initial
