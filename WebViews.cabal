@@ -21,6 +21,6 @@ Build-Depends:    base >= 4.0,
 
 Executable:       WebViews
 Main-is:	  Main.hs
-GHC-Options:      -fglasgow-exts -threaded -Wall
+GHC-Options:      -fglasgow-exts
 HS-Source-Dirs:   src
 
