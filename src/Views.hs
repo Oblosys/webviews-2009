@@ -28,7 +28,7 @@ presentTextField (EString (Id i) str) =
 -- seems like this one could be in Present
 presentButton :: String -> Button -> Html
 presentButton txt (Button (Id id) _) =
-   primHtml $ "<button onclick=\"queueCommand('Button("++show id++");')\">"++txt++"</button>"
+   primHtml $ "<button onclick=\"queueCommand('ButtonC "++show id++"')\">"++txt++"</button>"
 
 
 mkViewEdit i f = 
@@ -183,7 +183,7 @@ boxed html = thediv![thestyle "border:solid; border-width:1px; padding:4px;"] <<
 
 --radioBox :: String -> [String] -> Int -> Html
 radioBox id items selectedIx =
-  [ radio id (show i) ! ( [strAttr "onChange" ("queueCommand('Set("++id++","++show i++");')") ]
+  [ radio id (show i) ! ( [strAttr "onChange" ("queueCommand('SetC "++id++" %22"++show i++"%22   ')") ]
                           ++ if i == selectedIx then [strAttr "checked" ""] else []) 
                           +++ item +++ br 
                         | (i, item) <- zip [0..] items ]

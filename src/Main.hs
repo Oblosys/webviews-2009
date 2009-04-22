@@ -5,5 +5,6 @@ import Database
 import Server
 import Types (testMonad)
 
+
 main :: IO ()
-main = testMonad -- server                                                                        
+main = server                                                                        

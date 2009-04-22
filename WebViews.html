@@ -6,13 +6,13 @@
 <!--
 var xmlhttp;
 
-var commandQueue = "";
+var commandQueue = '';
 
-var changedTextFieldId = "";
+var changedTextFieldId = '';
 
 function init()
 {
-  queueCommand('Init;');
+  queueCommand('Init');
 }
 
 function debug(message)
@@ -24,6 +24,10 @@ function debugAdd(message)
 {
     debug (message + '<br></br>' + document.getElementById('debugMessage').innerHTML);
 }
+
+function addCommand(command)
+{ commandQueue = commandQueue + (commandQueue != '' ? ',' : '') + command;
+} // add command to queue, and if queue was not empty, put a comma in front
 
 function textFieldChanged(textFieldId)
 { changedTextFieldId = textFieldId;
@@ -38,15 +42,15 @@ function textFieldChanged(textFieldId)
    after the text edit has been handled, and that it has not been disabled, we can cover for
    most problematic situations.
 */
-function queueCommand(url)
-{ commandQueue = commandQueue + url;
+function queueCommand(command)
+{ 
   if (changedTextFieldId != "")
   { debugAdd(changedTextFieldId+" has changed");
     value = document.getElementById(changedTextFieldId).value;
-    commandQueue = 'Set('+changedTextFieldId+','+value+');' + commandQueue;
-
+    addCommand ('SetC '+changedTextFieldId+' "'+value+'"');
     changedTextField = "";
-  }
+ }
+  addCommand(command);
 
   if ( xmlhttp && xmlhttp.readyState != 0 && xmlhttp.readyState != 4)
     return; // if xmlhttp exists and was initialized and not ready, we return
@@ -64,8 +68,8 @@ else if (window.ActiveXObject)
 if (xmlhttp!=null)
   { 
     { xmlhttp.onreadystatechange=state_Change;
-      xmlhttp.open("GET",'handle?commands='+commandQueue,true);
-      xmlhttp.send(null);     // commands are terminated by semicolons
+      xmlhttp.open("GET",'handle?commands=Commands ['+commandQueue+']',true);
+      xmlhttp.send(null); // commands in commandQueue are already separated by commmas
       commandQueue = '';
     }
   }

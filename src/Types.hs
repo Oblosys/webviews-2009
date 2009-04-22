@@ -10,6 +10,12 @@ import Text.Show.Functions
 import Control.Monad.State
 import Control.Monad.Identity
 
+data Commands = Commands [Command] 
+              | SyntaxError String -- for debugging post from client, replace read by Str in FromData instance
+                  deriving (Show, Read)
+data Command = Init | Test | SetC Int String | ButtonC Int deriving (Show, Read) 
+
+
 newtype Id = Id Int deriving (Show, Eq, Ord, Data, Typeable)
 noId = Id (-1)
 

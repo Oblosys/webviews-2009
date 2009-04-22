@@ -19,6 +19,8 @@ import Generics
 import Database
 import Views
 
+webViewsPort = 8085
+
 {- authorization demo 
 import qualified Data.Map as M
 import qualified Data.ByteString.Char8 as B
@@ -26,9 +28,11 @@ import qualified Codec.Binary.Base64.String as Base64
  -}
 
 {-
-HAPPS
+Happstack notes
 Server error: Prelude.last: empty list
 is the error you get when fileServe cannot find a file
+
+check caching in case of problems
 
 ServerPart is basically a Reader monad for requests
 
@@ -41,97 +45,19 @@ Header modifications must therefore be applied to out rather than be fmapped to 
 
 server =
  do { stateRef <- newIORef (theDatabase, mkRootView theDatabase) 
-    ; simpleHTTP (Conf 8085 Nothing) $ debugFilter $ msum (handlers stateRef)
+    ; simpleHTTP (Conf webViewsPort Nothing) $ debugFilter $ msum (handlers stateRef)
     }
-
-{-
-server = simpleHTTP (Conf 8080 Nothing) $ myAuth `mplus` return "<html><head><title>blaa</title></head></html>"
-     where
-         myAuth = basicAuth' "Test"
-             (M.fromList [("hello", "world")]) (return "Login Failed")
-
-basicAuth' realmName authMap unauthorizedPart =
-    do
-        let validLogin name pass = M.lookup name authMap == Just pass
-        let parseHeader :: B.ByteString -> (String,String)
-            parseHeader = break (':'==) . Base64.decode . B.unpack . B.drop 6
-        authHeader <- getHeaderM "authorization"
-        case authHeader of
-            Nothing -> err
-            Just x  -> case parseHeader x of 
-                (name, ':':pass) | validLogin name pass -> mzero
-                                   | otherwise -> err
-                _                                       -> err
-    where
-        err = do
-            unauthorized ()
-            setHeaderM headerName headerValue
-            unauthorizedPart
-        headerValue = "Basic realm=\"" ++ realmName ++ "\""
-        headerName  = "WWW-Authenticate"
--}
-
 
 {-
 handle:
-http://<server url>/                    response: <proxima executable dir>/../proxima/scripts/Editor.xml
-http://<server url>/favicon.ico         response: <proxima executable dir>/img/favicon.ico
-http://<server url>/img/<filename>      response: <proxima executable dir>/img/<filename>
-http://<server url>/handle?commands=<commands separated by ;>                    
+http://<server url>/                    response: <executable dir>/WebViews.html
+http://<server url>/favicon.ico         response: <executable dir>/favicon.icome>
+http://<server url>/handle?commands=Commands ..                    
                                         response: from handleCommands
-
-TODO: The proxima server requires that the proxima directory is present for favicon and 
-      Editor.xml, these files should be part of a binary distribution.
 -}
-{-
-overrideHeaders :: [(String,String)] -> ServerPart a -> ServerPart a
-overrideHeaders headers s =
- do { response <- s
-    ; modifyResponse (setHeader "Content-Type" "text/xml")
-    ; return s
-    } 
--}
-{-
-modifyResponseSP :: (Response -> Response) -> ServerPart a -> ServerPart a
-modifyResponseSP modResp (ServerPartT f) =
-  withRequest $ \rq -> modifyResponseW modResp $ f rq
-    
-modifyResponseW modResp w =
- do { a <- w
-    ; modifyResponse modResp
-    ; return a
-    }
--}    
-noCache :: Response -> Response  
-noCache = addHeader "Expires" "Mon, 28 Jul 2000 11:24:47 GMT"
--- TODO: figure out if noCache is really necessary, both for editor.xml and handle
--- It does not work for IE
-{-
-withAgentIsMIE f = withRequest $ \rq -> 
-                     (unServerPartT $ f ("MSIE" `isInfixOf` (show $ getHeader "user-agent" rq))) rq
-                     -- not the most elegant method of checking for Internet explorer
-
-                     -- IE does not support SVG and XHTML
-                     -- XHTML is not a big problem, but for SVG we need an alternative
-                     -- Maybe we also need to switch to POST for IE, since it
-                     -- cannot handle large queries with GET
-  
--}                   
 handlers :: IORef (Database, WebView) -> [ServerPartT IO Response]
 handlers stateRef = 
-  [ {-
-   withAgentIsMIE $ \agentIsMIE ->
-      (methodSP GET $ do { -- liftIO $ putStrLn $ "############# page request"
-                           let setTypeToHTML = if agentIsMIE 
-                                               then setHeader "Content-Type" "text/html"
-                                               else id
-                                           
-                         ; modifyResponseSP (noCache. setTypeToHTML) $
-                              fileServe [] "../proxima/scripts/Editor.xml" 
-                         })
-                 
--}
-    exactdir "/" $
+  [ exactdir "/" $
       do { liftIO $ putStrLn "Root requested"
          ; fileServe ["WebViews.html"] "."
          }
@@ -141,7 +67,7 @@ handlers stateRef =
   , dir "handle" $
      withData (\cmds -> methodSP GET $
                           do { responseHtml <- liftIO $ Control.Exception.catch 
-                               (do { putStrLn $ "Received data" ++ take 20 (show cmds)
+                               (do { putStrLn $ "Received data" ++ show cmds
                       
 
                                    ; handleCommands stateRef cmds
@@ -152,7 +78,7 @@ handlers stateRef =
                                    ; putStrLn $ "\n\n\n\ncmds = "++show cmds
                                    ; putStrLn $ "rootView:\n" ++ show (assignIds rootView)
                                    ; putStrLn $ "database:\n" ++ show db
-                             --; lputStrLn $ "\n\n\nresponse = \n" ++ show responseHtml
+                                   ; lputStrLn $ "\n\n\nresponse = \n" ++ show responseHtml
                              --; lputStrLn $ "Sending response sent to client: " ++
                              --              take 10 responseHTML ++ "..."
                              --; modifyResponseW noCache $
@@ -186,51 +112,33 @@ evaluateDbAndRootView stateRef =
     ; seq (length $ show dbRootView) $ return ()
     }
 
-data Commands = Commands String deriving Show
-
 instance FromData Commands where
-  fromData = liftM Commands (look "commands")
+  fromData = liftM readCommand (look "commands")
 
-splitCommands commandStr =
-  case break (==';') commandStr of
-    ([],[])             -> []
-    (_, [])             -> error "Syntax error in commands"
-    (command, (_:commandStr')) -> command : splitCommands commandStr'
-        
+readCommand s = case reads s of
+                  [(cmds, "")] -> cmds
+                  _            -> SyntaxError s
+ 
 -- handle each command in commands and send the updates back
-handleCommands stateRef (Commands commandStr) =
- do { let commands = splitCommands commandStr
-    ; putStrLn $ "Received commands:"++ show commands
-    
-    ; mapM (handleCommand stateRef) commands
-    }
-    
-    
-handleCommand stateRef event =
-  if "Init" `isPrefixOf` event
-  then 
+handleCommands stateRef (Commands commands) = mapM (handleCommand stateRef) commands
+handleCommands stateRef (SyntaxError cmdStr) =
+  error $ "Syntax error in commands from client: "++cmdStr 
+
+        
+handleCommand stateRef Init =
    do { (db, rootView) <- readIORef stateRef
       ; putStrLn "Init"
       ; return ()
       }
-  else if "Test" `isPrefixOf` event
-  then 
+handleCommand stateRef Test =
    do { (db, rootView) <- readIORef stateRef
       ; return ()
       }
-  else if "Set" `isPrefixOf` event
-  then 
-   do { (db, rootView) <- readIORef stateRef
+handleCommand stateRef (SetC id value) =
+   do { (db, rootView) <- readIORef stateRef      
+      ; putStrLn $ show id ++ " value is " ++ show value
 
-      ; putStr "Set "
-      ; let (id,value) =
-              case break (==',') $ drop 4 event of
-                (id, [])       -> (id, "something is very wrong")
-                (id, _:rest) -> (id,takeWhile (/=')') rest) 
-      
-      ; putStrLn $ id ++ "value is " ++ value
-
-      ; let rootView' = replace (Map.fromList [(Id (read id), value)]) (assignIds rootView)
+      ; let rootView' = replace (Map.fromList [(Id id, value)]) (assignIds rootView)
       ; putStrLn $ "Updated rootView:\n" ++ show rootView'
       ; let db' = saveAllViews rootView' db
       ; let rootView'' = loadView db' rootView'
@@ -239,13 +147,11 @@ handleCommand stateRef event =
      -- ; threadDelay 100000
       ; return ()    
       }
-  else if "Button" `isPrefixOf` event
-  then 
+handleCommand stateRef (ButtonC id) =
    do { (db, rootView) <- readIORef stateRef
-      ; let id = takeWhile (/=')') $ drop 7 event
 
       ; putStrLn $ "Button " ++ show id ++ " was clicked"
-      ; let Button _ act = getButtonById (Id $ read id) (assignIds rootView)
+      ; let Button _ act = getButtonById (Id id) (assignIds rootView)
 
  --     ; case act of
  --         ViewEdit i _ -> putStrLn $ "View edit on "++show i
@@ -266,7 +172,6 @@ handleCommand stateRef event =
 
       ; return ()
       }
-  else return ()
  
 
 
