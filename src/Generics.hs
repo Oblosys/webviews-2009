@@ -9,22 +9,42 @@ import qualified Data.Map as Map
 
 -- Generics
 
+
 data Tree = Bin Tree Tree | Leaf Char deriving (Show, Data, Typeable)
 
 mytree = Bin (Bin (Leaf 'a') (Leaf 'b')) (Leaf 'c')
 
-getImmediateSubWebViews :: Tree -> [Tree]
-getImmediateSubWebViews wv = everythingBelow (Nothing `mkQ` isTree) wv
 
--- get all non-nested descendents of a type
--- Eg. everythingBelow () (T_1 .. (T_2 .. (T_3 ..) ..) (T_4)) = [T_1,T_2,T_4]
+getTopLevelWebViews :: Data a => a -> [WebView]
+getTopLevelWebViews wv = everythingBut (Nothing `mkQ` Just) wv
+-- the type sig specifies the term type
+
+-- is everythingBut, but not on the root (not used now)
 everythingBelow :: Data r => GenericQ (Maybe r) -> GenericQ [r]
 everythingBelow f x = foldl (++) [] (gmapQ (everythingBut f) x)
 
+-- get all non-nested descendents of a type
+-- Eg. everythingBelow () (X (T_1 .. (T_2 .. (T_3 ..) ..)) (T_4)) = [T_1,T_2,T_4]
 everythingBut :: Data r => GenericQ (Maybe r) -> GenericQ [r]
 everythingBut f x = case f x of
-                      Just x -> [x]
+                      Just x  -> [x]
                       Nothing -> foldl (++) [] (gmapQ (everythingBut f) x)
+
+getWebViewContainingId :: Id -> WebView -> Maybe WebView
+getWebViewContainingId (Id i) wv = 
+  case somethingAcc Nothing (Nothing `mkQ` Just) (Nothing `mkQ` isId) wv of
+    Just (_, Just wv') -> Just wv'
+    Just (_, Nothing)  -> Nothing -- not called on a webview
+    Nothing -> Nothing -- id not found
+  where isId (Id i') = if i == i' then Just i' else Nothing
+
+somethingAcc :: (Data a, Data r) => a -> GenericQ (Maybe a) -> GenericQ (Maybe r) -> GenericQ (Maybe (r,a))
+somethingAcc a fa f x = let a' = case fa x of 
+                                   Nothing -> a
+                                   Just a' -> a'
+                        in  case f x of
+                              Just x  -> Just (x,a')
+                              Nothing -> foldl orElse Nothing (gmapQ (somethingAcc a' fa f) x)
 
 {-
 everythingBut :: Data a 
@@ -33,8 +53,6 @@ everythingBut :: Data a
  -> a -> r 
 everythingBut q f x = {- if q x then [x] else -} foldl (++) [] (gmapQ (everythingBut q f) x)
 -}
-isTree :: Tree -> Maybe Tree
-isTree tr = Just tr
 
 -- number all Id's in the argument data structure uniquely
 assignIds :: Data d => d -> d
