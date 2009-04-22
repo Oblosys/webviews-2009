@@ -140,11 +140,10 @@ handleCommand stateRef (SetC id value) =
 
       ; let rootView' = replace (Map.fromList [(Id id, value)]) (assignIds rootView)
       ; putStrLn $ "Updated rootView:\n" ++ show rootView'
-      ; let db' = saveAllViews rootView' db
+      ; let db' = save rootView' db
       ; let rootView'' = loadView db' rootView'
       -- TODO: instead of updating all, just update the one that was changed
       ; writeIORef stateRef (db',rootView'')
-     -- ; threadDelay 100000
       ; return ()    
       }
 handleCommand stateRef (ButtonC id) =
@@ -155,17 +154,17 @@ handleCommand stateRef (ButtonC id) =
 
  --     ; case act of
  --         ViewEdit i _ -> putStrLn $ "View edit on "++show i
-      ; let (db', rootView') =
+      ; (db', rootView') <-
               case act of
                 DocEdit docedit -> 
                   let db' = docedit db
-                  in  (db', loadView db' rootView)
+                  in  return (db', loadView db' rootView)
                 ViewEdit i viewedit -> 
                   let wv = getWebViewById i rootView
                       wv' = viewedit wv
                       rootView' = replaceWebViewById i wv' rootView 
                       rootView'' = loadView db rootView'
-                  in  (db, rootView'')
+                  in  return (db, rootView'')
 
 
       ; writeIORef stateRef (db', rootView')
