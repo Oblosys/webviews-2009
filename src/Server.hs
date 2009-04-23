@@ -63,43 +63,51 @@ handlers stateRef =
          }
   , dir "favicon.ico"
         (methodSP GET $ fileServe ["favicon.ico"] ".")
-
-  , dir "handle" $
-     withData (\cmds -> methodSP GET $
-                          do { responseHtml <- liftIO $ Control.Exception.catch 
-                               (do { putStrLn $ "Received data" ++ show cmds
-                      
-
-                                   ; handleCommands stateRef cmds
-                                   ; (db, rootView) <- readIORef stateRef
-                                   ; let responseHtml = thediv ! [identifier "updates"] <<
-                                                    updateReplaceHtml "root" 
-                                                      (mkDiv "root" $ present $ assignIds rootView)
-                                   ; putStrLn $ "\n\n\n\ncmds = "++show cmds
-                                   ; putStrLn $ "rootView:\n" ++ show (assignIds rootView)
-                                   ; putStrLn $ "database:\n" ++ show db
-                                   --; lputStrLn $ "\n\n\nresponse = \n" ++ show responseHtml
-                                   --; lputStrLn $ "Sending response sent to client: " ++
-                                   --              take 10 responseHTML ++ "..."
-                                   --; modifyResponseW noCache $
-                                   ; seq (length (show responseHtml)) $ return ()
-                                   ; return responseHtml
-                                   }) $ \(exc :: SomeException) ->
-                                do { let exceptionTxt = 
-                                           "\n\n\n\n###########################################\n\n\n" ++
-                                           "Exception: " ++ show exc ++ "\n\n\n" ++
-                                           "###########################################" 
-                                           -- TODO: some exceptions cause program to hang when printed!
-                                   ; putStrLn exceptionTxt
-                                   ; return $ thediv ! [identifier "updates"] <<
-                                                updateReplaceHtml "root" 
-                                                  (mkDiv "root" $ map (p . stringToHtml) $ lines exceptionTxt)
-                                   }
-                             ; ok $ toResponse $ responseHtml
-                             }
-                        )
+  , dir "img" $
+        fileServe [] "img"  
+  , dir "handle" $ withData (\cmds -> methodSP GET $
+     do { responseHtml <- liftIO $ Control.Exception.catch 
+          (do { putStrLn $ "Received data" ++ show cmds
     
 
+              ; response <- handleCommands stateRef cmds
+              ; responseHtml <- case response of
+                  ViewUpdate ->
+                   do { (db, rootView) <- readIORef stateRef
+                      ; let responseHtml = thediv ! [identifier "updates"] <<
+                                       updateReplaceHtml "root" 
+                                         (mkDiv "root" $ present $ assignIds rootView)
+                      ; putStrLn $ "\n\n\n\ncmds = "++show cmds
+                      ; putStrLn $ "rootView:\n" ++ show (assignIds rootView)
+                      ; putStrLn $ "database:\n" ++ show db
+                      ; lputStrLn $ "\n\n\nresponse = \n" ++ show responseHtml
+                      --; lputStrLn $ "Sending response sent to client: " ++
+                      --              take 10 responseHTML ++ "..."
+                      --; modifyResponseW noCache $
+                      ; seq (length (show responseHtml)) $ return ()
+                      ; return responseHtml
+                      }
+                  Alert str -> 
+                    return $ thediv ! [identifier "updates"] <<
+                               (thediv![ strAttr "op" "alert"
+                                       , strAttr "text" str
+                                       ] << "") 
+                  
+              ; return responseHtml
+              }) $ \(exc :: SomeException) ->
+           do { let exceptionTxt = 
+                              "\n\n\n\n###########################################\n\n\n" ++
+                              "Exception: " ++ show exc ++ "\n\n\n" ++
+                              "###########################################" 
+                              -- TODO: some exceptions cause program to hang when printed!
+              ; putStrLn exceptionTxt
+              ; return $ thediv ! [identifier "updates"] <<
+                           updateReplaceHtml "root" 
+                             (mkDiv "root" $ map (p . stringToHtml) $ lines exceptionTxt)
+              }
+              
+        ; ok $ toResponse $ responseHtml
+        })
   ]
 {- TODO: why does exactdir "/handle" not work?
    TODO: fix syntax error in command
@@ -120,20 +128,26 @@ readCommand s = case reads s of
                   _            -> SyntaxError s
  
 -- handle each command in commands and send the updates back
-handleCommands stateRef (Commands commands) = mapM (handleCommand stateRef) commands
 handleCommands stateRef (SyntaxError cmdStr) =
   error $ "Syntax error in commands from client: "++cmdStr 
+handleCommands stateRef (Commands [command]) = handleCommand stateRef command
+handleCommands stateRef (Commands commands) = 
+ do { responses <- mapM (handleCommand stateRef) commands
+    ;  if all (== ViewUpdate) responses
+       then return ViewUpdate
+       else error "Multiple commands must all result in ViewUpdate at the moment"
+    } -- TODO: think of a way to handle multiple commands and dialogs etc.
+data ServerResponse = ViewUpdate | Alert String deriving (Show, Eq)
 
-        
-handleCommand :: IORef (Database, WebView) -> Command -> IO ()
+handleCommand :: IORef (Database, WebView) -> Command -> IO ServerResponse
 handleCommand stateRef Init =
    do { (db, rootView) <- readIORef stateRef
       ; putStrLn "Init"
-      ; return ()
+      ; return ViewUpdate
       }
 handleCommand stateRef Test =
    do { (db, rootView) <- readIORef stateRef
-      ; return ()
+      ; return ViewUpdate
       }
 handleCommand stateRef (SetC id value) =
    do { (db, rootView) <- readIORef stateRef      
@@ -146,7 +160,7 @@ handleCommand stateRef (SetC id value) =
             rootView'' = loadView db' (mkViewMap rootView') rootView'
       -- TODO: instead of updating all, just update the one that was changed
       ; writeIORef stateRef (db',rootView'')
-      ; return ()    
+      ; return ViewUpdate
       }
 handleCommand stateRef (ButtonC id) =
    do { (db, rootView) <- readIORef stateRef
@@ -155,25 +169,29 @@ handleCommand stateRef (ButtonC id) =
 
  --     ; case act of
  --         ViewEdit i _ -> putStrLn $ "View edit on "++show i
-      ; (db', rootView') <-
-              case act of
-                DocEdit docedit -> 
-                  let db' = docedit db
-                  in  return (db', loadView db' (mkViewMap rootView) rootView)
-                ViewEdit i viewedit -> 
-                  let wv = getWebViewById i rootView
-                      wv' = viewedit wv
-                      rootView' = replaceWebViewById i wv' rootView 
-                      rootView'' = loadView db (mkViewMap rootView') rootView'
-                                   -- TODO: check if mkViewMap has correct arg
-                                   --       make function for loading rootView
-                  in   do { return (db, rootView'')
-                          }
+      ; response <- 
+          case act of
+            AlertEdit str -> return $ Alert str
+            _ ->
+             do { (db', rootView') <-
+                  case act of
+                    DocEdit docedit -> 
+                      let db' = docedit db
+                      in  return (db', loadView db' (mkViewMap rootView) rootView)
+                    ViewEdit i viewedit -> 
+                      let wv = getWebViewById i rootView
+                          wv' = viewedit wv
+                          rootView' = replaceWebViewById i wv' rootView 
+                          rootView'' = loadView db (mkViewMap rootView') rootView'
+                                       -- TODO: check if mkViewMap has correct arg
+                                       --       make function for loading rootView
+                      in   do { return (db, rootView'')
+                              }
+                ; writeIORef stateRef (db', rootView')
 
-
-      ; writeIORef stateRef (db', rootView')
-
-      ; return ()
+                ; return ViewUpdate
+                }
+      ; return response
       }
  
 
