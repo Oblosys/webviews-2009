@@ -4,6 +4,8 @@
 </head>
 <script type="text/javascript">
 <!--
+var debugging = false;
+
 var xmlhttp;
 
 var commandQueue = '';
@@ -17,12 +19,14 @@ function init()
 
 function debug(message)
 {
-//    document.getElementById('debugMessage').innerHTML=message;
+  if (debugging)
+    document.getElementById('debugMessage').innerHTML=message;
 }
 
 function debugAdd(message)
 {
-//    debug (message + '<br></br>' + document.getElementById('debugMessage').innerHTML);
+  if (debugging)
+    debug (message + '<br></br>' + document.getElementById('debugMessage').innerHTML);
 }
 
 function addCommand(command)
@@ -30,8 +34,15 @@ function addCommand(command)
 } // add command to queue, and if queue was not empty, put a comma in front
 
 function textFieldChanged(textFieldId)
-{ changedTextFieldId = textFieldId;
+{  changedTextFieldId = textFieldId;
 }
+
+// send any pending text changes
+function textFieldGotFocus()
+{ debugAdd ('text got focus changed='+changedTextFieldId);
+   if (changedTextFieldId != "")
+     queueCommand('');
+}  
 /* For text fields, we just register that they have changed and send them with
    the queue after the first editing operation. Otherwise, when editing a text field and then
    clicking on eg. a radio button generates a server event for the text edit, which causes
@@ -42,15 +53,16 @@ function textFieldChanged(textFieldId)
    after the text edit has been handled, and that it has not been disabled, we can cover for
    most problematic situations.
 */
+// TODO we don't want empty commands sent to server
 function queueCommand(command)
 { 
   if (changedTextFieldId != "")
   { debugAdd(changedTextFieldId+" has changed");
     value = document.getElementById(changedTextFieldId).value;
     addCommand ('SetC '+changedTextFieldId+' "'+value+'"');
-    changedTextField = "";
+    changedTextFieldId = "";
  }
-  addCommand(command);
+  if (command != '') addCommand(command);
 
   if ( xmlhttp && xmlhttp.readyState != 0 && xmlhttp.readyState != 4)
     return; // if xmlhttp exists and was initialized and not ready, we return
@@ -165,9 +177,8 @@ function select(path, node)
 <!-- <div style="border:solid; border-width:1px; margin:0px"> -->
   <div id="root">initial root</div>
 <!-- </div> -->
-<!--
-Debug: -->
-<div style="visibility: hidden; border:solid; border-width:1px; padding:4px;" id="debugMessage"></div>
+<!-- Debug: -->
+<div style="padding:4px;" id="debugMessage"></div>
 
 <div id="receivedUpdates" style="visibility:hidden; border:solid; border-width:1px; padding:4px; border-color:red;" ></div>
 </body> </html>

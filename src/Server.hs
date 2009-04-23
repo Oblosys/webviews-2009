@@ -82,8 +82,8 @@ handlers stateRef =
                       ; putStrLn $ "\n\n\n\ncmds = "++show cmds
                       ; putStrLn $ "rootView:\n" ++ show (assignIds rootView)
                       ; putStrLn $ "database:\n" ++ show db
-                      ; lputStrLn $ "\n\n\nresponse = \n" ++ show responseHtml
-                      --; lputStrLn $ "Sending response sent to client: " ++
+                      --; putStrLn $ "\n\n\nresponse = \n" ++ show responseHtml
+                      --; putStrLn $ "Sending response sent to client: " ++
                       --              take 10 responseHTML ++ "..."
                       --; modifyResponseW noCache $
                       ; seq (length (show responseHtml)) $ return ()

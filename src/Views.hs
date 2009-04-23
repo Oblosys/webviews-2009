@@ -37,9 +37,13 @@ presentRadioBox :: [String] -> EInt -> [Html]
 presentRadioBox items (EInt (Id i) ei) = radioBox (show i) items ei
 
 presentTextField :: EString -> Html
-presentTextField (EString (Id i) str) =
+presentTextField (EString (Id i) str) = {- form ! 
+                   [] $ -}
   textfield "" ! [identifier (show i), strAttr "VALUE" str
-                 , strAttr "onChange" $ "textFieldChanged('"++show i++"')"]
+                 , strAttr "onChange" $ "textFieldChanged('"++show i++"')"
+                 , strAttr "onFocus" $ "textFieldGotFocus()"
+                 , strAttr "onSubmit" $ "textFieldChanged('"++show i++"'); queueCommand(''); return false" 
+                 ]
 
 -- seems like this one could be in Present
 presentButton :: String -> Button -> Html
