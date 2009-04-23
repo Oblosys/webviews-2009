@@ -43,8 +43,10 @@ the monad, but it will only do something if the header is not set in the out par
 Header modifications must therefore be applied to out rather than be fmapped to the monad.
 -}
 
+initState = (theDatabase, mkRootView theDatabase Map.empty, Nothing)
+
 server =
- do { stateRef <- newIORef (theDatabase, mkRootView theDatabase Map.empty) 
+ do { stateRef <- newIORef initState
     ; simpleHTTP (Conf webViewsPort Nothing) $ debugFilter $ msum (handlers stateRef)
     }
 
@@ -55,7 +57,7 @@ http://<server url>/favicon.ico         response: <executable dir>/favicon.icome
 http://<server url>/handle?commands=Commands ..                    
                                         response: from handleCommands
 -}
-handlers :: IORef (Database, WebView) -> [ServerPartT IO Response]
+handlers :: IORef (Database, WebView, Maybe EditCommand) -> [ServerPartT IO Response]
 handlers stateRef = 
   [ exactdir "/" $
       do { liftIO $ putStrLn "Root requested"
@@ -73,7 +75,7 @@ handlers stateRef =
               ; response <- handleCommands stateRef cmds
               ; responseHtml <- case response of
                   ViewUpdate ->
-                   do { (db, rootView) <- readIORef stateRef
+                   do { (db, rootView, _) <- readIORef stateRef
                       ; let responseHtml = thediv ! [identifier "updates"] <<
                                        updateReplaceHtml "root" 
                                          (mkDiv "root" $ present $ assignIds rootView)
@@ -90,6 +92,11 @@ handlers stateRef =
                   Alert str -> 
                     return $ thediv ! [identifier "updates"] <<
                                (thediv![ strAttr "op" "alert"
+                                       , strAttr "text" str
+                                       ] << "") 
+                  Confirm str  -> 
+                    return $ thediv ! [identifier "updates"] <<
+                               (thediv![ strAttr "op" "confirm"
                                        , strAttr "text" str
                                        ] << "") 
                   
@@ -137,20 +144,20 @@ handleCommands stateRef (Commands commands) =
        then return ViewUpdate
        else error "Multiple commands must all result in ViewUpdate at the moment"
     } -- TODO: think of a way to handle multiple commands and dialogs etc.
-data ServerResponse = ViewUpdate | Alert String deriving (Show, Eq)
+data ServerResponse = ViewUpdate | Alert String | Confirm String deriving (Show, Eq)
 
-handleCommand :: IORef (Database, WebView) -> Command -> IO ServerResponse
+handleCommand :: IORef (Database, WebView, Maybe EditCommand) -> Command -> IO ServerResponse
 handleCommand stateRef Init =
-   do { (db, rootView) <- readIORef stateRef
+   do { (db, rootView,_) <- readIORef stateRef
       ; putStrLn "Init"
       ; return ViewUpdate
       }
 handleCommand stateRef Test =
-   do { (db, rootView) <- readIORef stateRef
+   do { (db, rootView,_) <- readIORef stateRef
       ; return ViewUpdate
       }
 handleCommand stateRef (SetC id value) =
-   do { (db, rootView) <- readIORef stateRef      
+   do { (db, rootView,mc) <- readIORef stateRef      
       ; putStrLn $ show id ++ " value is " ++ show value
 
       ; let rootView' = replace (Map.fromList [(Id id, value)]) (assignIds rootView)
@@ -159,22 +166,40 @@ handleCommand stateRef (SetC id value) =
             -- TODO: check if mkViewMap has correct arg
             rootView'' = loadView db' (mkViewMap rootView') rootView'
       -- TODO: instead of updating all, just update the one that was changed
-      ; writeIORef stateRef (db',rootView'')
+      ; writeIORef stateRef (db',rootView'',mc)
       ; return ViewUpdate
       }
 handleCommand stateRef (ButtonC id) =
-   do { (db, rootView) <- readIORef stateRef
+   do { (db, rootView, mc) <- readIORef stateRef
       ; putStrLn $ "Button " ++ show id ++ " was clicked"
       ; let Button _ act = getButtonById (Id id) (assignIds rootView)
 
  --     ; case act of
  --         ViewEdit i _ -> putStrLn $ "View edit on "++show i
-      ; response <- 
-          case act of
+      ; response <- performEditCommand stateRef act
+          
+      ; return response
+      }
+handleCommand stateRef ConfirmDialogOk =
+   do { (db, rootView,mc) <- readIORef stateRef
+      ; writeIORef stateRef (db, rootView, Nothing) -- clear it, also in case of error
+      ; response <- case mc of
+                      Nothing -> error "ConfirmDialogOk event without active dialog"
+                      Just ec -> performEditCommand stateRef ec
+      ; return response
+      }
+
+performEditCommand stateRef command =
+ do { (db, rootView, mc) <- readIORef stateRef
+    ; case command of  
             AlertEdit str -> return $ Alert str
+            ConfirmEdit str ec -> 
+             do { writeIORef stateRef (db, rootView, Just ec)
+                ; return $ Confirm str
+                }
             _ ->
              do { (db', rootView') <-
-                  case act of
+                  case command of
                     DocEdit docedit -> 
                       let db' = docedit db
                       in  return (db', loadView db' (mkViewMap rootView) rootView)
@@ -187,14 +212,9 @@ handleCommand stateRef (ButtonC id) =
                                        --       make function for loading rootView
                       in   do { return (db, rootView'')
                               }
-                ; writeIORef stateRef (db', rootView')
+                ; writeIORef stateRef (db', rootView', mc)
 
                 ; return ViewUpdate
                 }
-      ; return response
-      }
- 
 
-
-
-
+    }

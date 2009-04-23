@@ -138,11 +138,12 @@ data PigView = PigView PigId Button Int Int EString [EInt] (Either Int String)
 mkPigView pignr i viewedPig = mkWebView (ViewId 33) $ 
       \db viewMap vid ->
   let (Pig pid vid name symptoms diagnosis) = unsafeLookup (allPigs db) i
-  in  PigView pid (Button noId (removePigAlsoFromVisit pid vid)) viewedPig pignr 
-              (estr name) (map eint symptoms) diagnosis
+  in  PigView pid (Button noId ( ConfirmEdit "Weet u het zeker?" $ 
+                                   removePigAlsoFromVisit pid vid)) 
+              viewedPig pignr (estr name) (map eint symptoms) diagnosis
  where -- need db support for removal and we need parent
-       removePigAlsoFromVisit pid vid = AlertEdit "Oeleboele of dood!"
-       --  DocEdit $ removePig pid . updateVisit vid (\v -> v { pigs = delete pid $ pigs v } )  
+       removePigAlsoFromVisit pid vid =
+         DocEdit $ removePig pid . updateVisit vid (\v -> v { pigs = delete pid $ pigs v } )  
 
 instance Presentable PigView where
   present (PigView pid b _ pignr name [] diagnosis) = stringToHtml "initial pig"

@@ -14,7 +14,9 @@ import Control.Monad.Identity
 data Commands = Commands [Command] 
               | SyntaxError String -- for debugging post from client, replace read by Str in FromData instance
                   deriving (Show, Read)
-data Command = Init | Test | SetC Int String | ButtonC Int deriving (Show, Read) 
+data Command = Init | Test | SetC Int String | ButtonC Int 
+             | ConfirmDialogOk 
+               deriving (Show, Read) 
 
 
 newtype Id = Id Int deriving (Show, Eq, Ord, Data, Typeable)
@@ -32,7 +34,9 @@ data Button = Button { getButtonId :: Id, getCommand :: EditCommand } deriving (
 
 data EditCommand = DocEdit (Database -> Database)
                  | ViewEdit (ViewId) (WebView -> WebView)
-                 | AlertEdit String deriving (Show, Typeable, Data)
+                 | AlertEdit String 
+                 | ConfirmEdit String EditCommand
+                 deriving (Show, Typeable, Data)
                  
 instance Eq EditCommand where -- only changing the edit command does not
   c1 == c2 = True

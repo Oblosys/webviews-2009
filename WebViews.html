@@ -138,6 +138,10 @@ function updateTree(update)
   { var text = update.getAttribute('text');
     alert(text);
   } 
+ else if (op === 'confirm')
+  { var text = update.getAttribute('text');
+    if (confirm(text)) queueCommand('ConfirmDialogOk');;
+  } 
  else alert ('Unknown command: '+op); 
 }
 
