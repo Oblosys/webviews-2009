@@ -25,7 +25,10 @@ instance Storeable WebView where
 -- first save self, then children
 -- TODO: does this order matter?
 
+-- should be with TH stuff for Database, like DatabaseUtils or something
+instance Initial VisitId where initial = VisitId (-1)
 
+instance Initial PigId where initial = PigId (-1)
 
 
 presentRadioBox :: [String] -> EInt -> [Html]
@@ -55,12 +58,16 @@ applyIfCorrectType f x = case cast f of
 -- the view matching on load can be done explicitly, following structure and checking ids, or
 -- maybe automatically, based on id. Maybe extra state can be in a separate data structure even,
 -- like in Proxima
-mkRootView db = mkVisitView (VisitId 1) 
+mkRootView db = mkVisitView (VisitId 1) db 
 
-mkWebView vid wvcnstr db = loadView db $
+mkWebView :: (Presentable v, Storeable v, Initial v, Show v, Eq v, Data v) =>
+             ViewId -> (Database -> ViewMap -> ViewId -> v) -> Database -> ViewMap -> WebView
+mkWebView vid wvcnstr db viewMap = loadView db viewMap $
   WebView vid wvcnstr initial
 
-loadView db (WebView i f v) = (WebView i f (f db v))
+loadView db viewMap (WebView vid f _) = (WebView vid f (f db viewMap vid))
+
+
 
 data VisitView = 
   VisitView VisitId EString EString EInt Button Button Button [PigId] [String] (Maybe WebView)
@@ -68,24 +75,18 @@ data VisitView =
 
 -- todo: doc edits seem to reset viewed pig nr.
 mkVisitView i = mkWebView (ViewId 0) $
-  \db (VisitView _ _ _ oldViewedPig _ _ _ _ _ mpigv) -> 
-  let (Visit vid zipcode date pigIds) = unsafeLookup (allVisits db) i
+  \db viewMap vid -> 
+  let (VisitView _ _ _ oldViewedPig _ _ _ _ _ mpigv) = getOldView vid viewMap
+      (Visit visd zipcode date pigIds) = unsafeLookup (allVisits db) i
       viewedPig = constrain 0 (length pigIds - 1) $ getIntVal oldViewedPig
       pignames = map (pigName . unsafeLookup (allPigs db)) pigIds
   in  VisitView i (estr zipcode) (estr date) (eint viewedPig) 
                 (Button noId (previous (ViewId 0))) (Button noId (next (ViewId 0)))
-                (Button noId (addPig vid)) pigIds pignames $
-                let oldpigv = case mpigv of
-                                  Nothing -> initial
-                                  Just (WebView _ _ pigv) -> 
---                                    (initial `mkQ` (\pv -> pv::PigView)) pigv
-                                    (initial `mkQ` (\pv@(PigView pid _ _ _ _ _) -> pv)) pigv
+                (Button noId (addPig visd)) pigIds pignames $
 -- todo: check id's
-                in (if null pigIds -- remove guard for weird hanging exception (after removing last pig)
+                (if null pigIds -- remove guard for weird hanging exception (after removing last pig)
                     then Nothing
-                    else Just $ loadView db (WebView (ViewId 1)
-                                            (mkPigView 33 (pigIds !! viewedPig)) 
-                                            oldpigv)
+                    else Just $ mkPigView viewedPig (pigIds !! viewedPig) db viewMap
                    )
  where -- next and previous may cause out of bounds, but on reload, this is constrained
        previous i = mkViewEdit i $
@@ -101,9 +102,6 @@ mkVisitView i = mkWebView (ViewId 0) $
 addNewPig vid db =
   let ((Pig newPigId _ _ _ _), db') = newPig vid db      
   in  (updateVisit vid $ \v -> v { pigs = pigs v ++ [newPigId] }) db'
-
-instance Initial VisitView where
-  initial = VisitView (VisitId (-1)) initial initial initial initial initial initial initial initial initial
 
 instance Presentable VisitView where
   present (VisitView vid zipCode date viewedPig b1 b2 b3 pigs pignames mSubview) =
@@ -124,14 +122,15 @@ instance Storeable VisitView where
                       Visit vid (getStrVal zipCode) (getStrVal date) pigIds)
                     db
 
+instance Initial VisitView where
+  initial = VisitView initial initial initial initial initial initial initial initial initial initial
+
 
 data PigView = PigView PigId Button Int EString [EInt] (Either Int String) 
                deriving (Eq, Show, Typeable, Data)
 
-instance Initial PigView where
-  initial = PigView (PigId (-1)) initial initial initial initial initial
-
-mkPigView pignr i db oldPigView =
+mkPigView pignr i = mkWebView (ViewId 33) $ 
+      \db viewMap vid ->
   let (Pig pid vid name symptoms diagnosis) = unsafeLookup (allPigs db) i
   in  PigView pid (Button noId (removePigAlsoFromVisit pid vid)) pignr (estr name) (map eint symptoms) diagnosis
  where -- need db support for removal and we need parent
@@ -157,28 +156,11 @@ instance Storeable PigView where
     updatePig pid (\(Pig _ vid _ _ diagnosis) -> 
                     (Pig pid vid (getStrVal name) (map getIntVal symptoms) diagnosis)) 
 
+instance Initial PigView where
+  initial = PigView initial initial initial initial initial initial
 
--- where do these belong:
 
 
-getWebViewById i view = 
-  case listify (\(WebView i' _ _) -> i==i') view of
-    [b] -> b
-    []  -> error $ "internal error: no button with id "
-    _   -> error $ "internal error: multiple buttons with id "
-
-getWebViewByViewId i vw =
-  bla (\(Id i') -> i==i') (\(WebView i _ _) -> Just (\_ -> Just i)) Nothing vw
-
-getAllWebViews view = listify (\(_::WebView) -> True) view
---saveViewById = save v db
-{-
-saveUpdatess :: WebView -> Database -> Database
-saveUpdatess rootView db =
-  let (webView : _) = getAllWebViews rootView
-  in  saveAllUpdates webView db
--}
--- HTML utils
 
 updateReplaceHtml :: String -> Html -> Html
 updateReplaceHtml targetId newElement =

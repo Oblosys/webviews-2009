@@ -44,7 +44,7 @@ Header modifications must therefore be applied to out rather than be fmapped to 
 -}
 
 server =
- do { stateRef <- newIORef (theDatabase, mkRootView theDatabase) 
+ do { stateRef <- newIORef (theDatabase, mkRootView theDatabase Map.empty) 
     ; simpleHTTP (Conf webViewsPort Nothing) $ debugFilter $ msum (handlers stateRef)
     }
 
@@ -78,10 +78,10 @@ handlers stateRef =
                                    ; putStrLn $ "\n\n\n\ncmds = "++show cmds
                                    ; putStrLn $ "rootView:\n" ++ show (assignIds rootView)
                                    ; putStrLn $ "database:\n" ++ show db
-                                   ; lputStrLn $ "\n\n\nresponse = \n" ++ show responseHtml
-                             --; lputStrLn $ "Sending response sent to client: " ++
-                             --              take 10 responseHTML ++ "..."
-                             --; modifyResponseW noCache $
+                                   --; lputStrLn $ "\n\n\nresponse = \n" ++ show responseHtml
+                                   --; lputStrLn $ "Sending response sent to client: " ++
+                                   --              take 10 responseHTML ++ "..."
+                                   --; modifyResponseW noCache $
                                    ; seq (length (show responseHtml)) $ return ()
                                    ; return responseHtml
                                    }) $ \(exc :: SomeException) ->
@@ -125,6 +125,7 @@ handleCommands stateRef (SyntaxError cmdStr) =
   error $ "Syntax error in commands from client: "++cmdStr 
 
         
+handleCommand :: IORef (Database, WebView) -> Command -> IO ()
 handleCommand stateRef Init =
    do { (db, rootView) <- readIORef stateRef
       ; putStrLn "Init"
@@ -141,14 +142,14 @@ handleCommand stateRef (SetC id value) =
       ; let rootView' = replace (Map.fromList [(Id id, value)]) (assignIds rootView)
       ; putStrLn $ "Updated rootView:\n" ++ show rootView'
       ; let db' = save rootView' db
-      ; let rootView'' = loadView db' rootView'
+            -- TODO: check if mkViewMap has correct arg
+            rootView'' = loadView db' (mkViewMap rootView') rootView'
       -- TODO: instead of updating all, just update the one that was changed
       ; writeIORef stateRef (db',rootView'')
       ; return ()    
       }
 handleCommand stateRef (ButtonC id) =
    do { (db, rootView) <- readIORef stateRef
-
       ; putStrLn $ "Button " ++ show id ++ " was clicked"
       ; let Button _ act = getButtonById (Id id) (assignIds rootView)
 
@@ -158,13 +159,16 @@ handleCommand stateRef (ButtonC id) =
               case act of
                 DocEdit docedit -> 
                   let db' = docedit db
-                  in  return (db', loadView db' rootView)
+                  in  return (db', loadView db' (mkViewMap rootView) rootView)
                 ViewEdit i viewedit -> 
                   let wv = getWebViewById i rootView
                       wv' = viewedit wv
                       rootView' = replaceWebViewById i wv' rootView 
-                      rootView'' = loadView db rootView'
-                  in  return (db, rootView'')
+                      rootView'' = loadView db (mkViewMap rootView') rootView'
+                                   -- TODO: check if mkViewMap has correct arg
+                                   --       make function for loading rootView
+                  in   do { return (db, rootView'')
+                          }
 
 
       ; writeIORef stateRef (db', rootView')

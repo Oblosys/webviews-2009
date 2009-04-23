@@ -6,7 +6,8 @@ import Database
 
 import Text.Html
 import Text.Show.Functions
-
+import Data.Map (Map)
+import qualified Data.Map as Map 
 import Control.Monad.State
 import Control.Monad.Identity
 
@@ -72,12 +73,15 @@ class Storeable v where
 -- Maybe SYB can handle this (gives an ambiguous type var now)
 -- otherwise template haskell can do this
 
-newtype ViewId = ViewId Int deriving (Show, Eq, Typeable, Data)
+newtype ViewId = ViewId Int deriving (Show, Eq, Ord, Typeable, Data)
+
+type ViewMap = Map.Map ViewId WebView
 
 -- no class viewable, because mkView has parameters
 data WebView = forall view . ( Initial view, Presentable view, Storeable view
                              , Show view, Eq view, Data view) => 
-                             WebView ViewId (Database -> view -> view) view deriving Typeable
+                             WebView ViewId (Database -> ViewMap -> ViewId -> view) view
+                             deriving Typeable
 -- (view->view) is the load view function. It is not in a class because we want to parameterize it
 -- view is the actual view (which is 'updated')
 

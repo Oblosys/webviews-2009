@@ -6,6 +6,7 @@ import Data.Map (Map)
 import qualified Data.Map as Map 
 
 newtype VisitId = VisitId Int deriving (Show, Eq, Ord, Typeable, Data)
+
 newtype PigId = PigId Int deriving (Show, Eq, Ord, Typeable, Data)
 
 -- must be Typeable and Data, because update functions in views (which must be Data etc.) are Database->Database
@@ -46,7 +47,6 @@ newPig vid db =
       newId = PigId $ if null ids then 0 else (maximum ids + 1)
       newPig = Pig newId vid "<new>" [0,0,0] (Left 0)
   in  ( newPig, db { allPigs = Map.insert newId newPig (allPigs db) } )
--- this -1 is not so nice
 
 theDatabase = Database (Map.fromList [ (VisitId 1, Visit (VisitId 1) "3581" "27-3-2009"
                                                   [ PigId 1, PigId 2, PigId 3 ])])

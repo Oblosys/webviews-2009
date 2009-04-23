@@ -14,6 +14,22 @@ data Tree = Bin Tree Tree | Leaf Char deriving (Show, Data, Typeable)
 
 mytree = Bin (Bin (Leaf 'a') (Leaf 'b')) (Leaf 'c')
 
+mkViewMap :: WebView -> ViewMap
+mkViewMap wv = let wvs = getAll wv
+                    in  Map.fromList [ (i, wv) | wv@(WebView i _ _) <- wvs]
+
+-- lookup the view id and if the associated view is of the desired type, return it. Otherwise
+-- return initial
+getOldView :: (Initial v, Typeable v) => ViewId -> ViewMap -> v
+getOldView vid viewMap = 
+  case Map.lookup vid viewMap of
+    Nothing              -> initial
+    Just (WebView _ _ aView) -> case cast aView of
+                                  Nothing      -> initial
+                                  Just oldView -> oldView
+
+getAll :: (Data a, Data b) => a -> [b]
+getAll = listify (const True)
 
 getTopLevelWebViews :: Data a => a -> [WebView]
 getTopLevelWebViews wv = everythingBut (Nothing `mkQ` Just) wv
@@ -116,13 +132,9 @@ mkAccT f = case cast f  of -- can we do this without requiring Typeable acc?
                   Nothing -> \acc b -> (acc,b)
 
 
-bla :: (Typeable r, Typeable s) => (r -> Bool) -> (s -> Maybe (a -> a)) -> a ->
-       GenericQ (Maybe a)
-bla p f i x = 
-  if (False `mkQ` p) x 
-  then Just i
-  else let myf = case (Nothing `mkQ` f) x of
-                   Nothing -> id
-                   Just ff -> ff
-       in  foldl orElse Nothing (gmapQ (bla p f (myf i)) x)
+getWebViewById i view = 
+  case listify (\(WebView i' _ _) -> i==i') view of
+    [b] -> b
+    []  -> error $ "internal error: no button with id "
+    _   -> error $ "internal error: multiple buttons with id "
 
