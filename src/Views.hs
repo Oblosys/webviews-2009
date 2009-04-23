@@ -3,8 +3,10 @@ module Views where
 
 import Control.Monad.Trans
 import Data.List
-import Text.Html
+import Text.Html hiding (image)
+import qualified Text.Html as Html
 import Data.Generics
+import Data.Char
 
 import Types
 import Database
@@ -70,7 +72,7 @@ loadView db viewMap (WebView vid f _) = (WebView vid f (f db viewMap vid))
 
 
 data VisitView = 
-  VisitView VisitId EString EString EInt Button Button Button [PigId] [String] (Maybe WebView)
+  VisitView VisitId EString EString EInt Button Button Button [PigId] [String] [WebView]
   deriving (Eq, Show, Typeable, Data)
 
 -- todo: doc edits seem to reset viewed pig nr.
@@ -84,10 +86,11 @@ mkVisitView i = mkWebView (ViewId 0) $
                 (Button noId (previous (ViewId 0))) (Button noId (next (ViewId 0)))
                 (Button noId (addPig visd)) pigIds pignames $
 -- todo: check id's
-                (if null pigIds -- remove guard for weird hanging exception (after removing last pig)
+             {-   (if null pigIds -- remove guard for weird hanging exception (after removing last pig)
                     then Nothing
                     else Just $ mkPigView viewedPig (pigIds !! viewedPig) db viewMap
-                   )
+                   )-}
+                [mkPigView i pigId viewedPig db viewMap | (pigId,i) <- zip pigIds [0..]]
  where -- next and previous may cause out of bounds, but on reload, this is constrained
        previous i = mkViewEdit i $
          \(VisitView vid zipCode date viewedPig b1 b2 b3 pigs pignames mSubview) ->
@@ -104,18 +107,21 @@ addNewPig vid db =
   in  (updateVisit vid $ \v -> v { pigs = pigs v ++ [newPigId] }) db'
 
 instance Presentable VisitView where
-  present (VisitView vid zipCode date viewedPig b1 b2 b3 pigs pignames mSubview) =
-        h2 << ("Visit at "+++ presentTextField zipCode +++" on " +++ presentTextField date)
-    +++ ("Visited "++ show (length pigs) ++" pig" ++ (if (length pigs == 1) then "" else "s") ++":")
-    +++ show pignames
+  present (VisitView vid zipCode date viewedPig b1 b2 b3 pigs pignames subviews) =
+        withBgColor (Rgb 235 235 235) $
+        ("Visit at "+++ presentTextField zipCode +++" on " +++ presentTextField date)
+    +++ p << ("Visited "++ show (length pigs) ++ " pig" ++ pluralS (length pigs) ++ ": " ++
+              listCommaAnd pignames)
     +++ p << ((if null pigs then stringToHtml $ "Not viewing any pigs" 
-               else "Viewing pig nr. " +++ show (getIntVal viewedPig))
+               else "Viewing pig nr. " +++ show (getIntVal viewedPig) ++ "   ")
     -- "debugAdd('boing');queueCommand('Set("++id++","++show i++");')"
-              +++ presentButton "previous" b1 +++ presentButton "next" b2 +++ presentButton "add" b3)
-    +++ p << (case mSubview of
+              +++ presentButton "previous" b1 +++ presentButton "next" b2)
+    +++ withPad 15 0 0 0 {- (case mSubview of
                Nothing -> stringToHtml "no pigs"
-               Just pv -> present pv)
-
+               Just pv -> present pv) -}
+            (case subviews of
+               [] -> stringToHtml "no pigs"
+               pvs -> hList $ map present pvs ++ [presentButton "add" b3] )
 instance Storeable VisitView where
   save (VisitView vid zipCode date _ _ _ _ pigs pignames mSubView) db =
     updateVisit vid (\(Visit _ _ _ pigIds) ->
@@ -126,22 +132,26 @@ instance Initial VisitView where
   initial = VisitView initial initial initial initial initial initial initial initial initial initial
 
 
-data PigView = PigView PigId Button Int EString [EInt] (Either Int String) 
+data PigView = PigView PigId Button Int Int EString [EInt] (Either Int String) 
                deriving (Eq, Show, Typeable, Data)
 
-mkPigView pignr i = mkWebView (ViewId 33) $ 
+mkPigView pignr i viewedPig = mkWebView (ViewId 33) $ 
       \db viewMap vid ->
   let (Pig pid vid name symptoms diagnosis) = unsafeLookup (allPigs db) i
-  in  PigView pid (Button noId (removePigAlsoFromVisit pid vid)) pignr (estr name) (map eint symptoms) diagnosis
+  in  PigView pid (Button noId (removePigAlsoFromVisit pid vid)) viewedPig pignr 
+              (estr name) (map eint symptoms) diagnosis
  where -- need db support for removal and we need parent
-       removePigAlsoFromVisit pid vid = 
-         DocEdit $ removePig pid . updateVisit vid (\v -> v { pigs = delete pid $ pigs v } )  
+       removePigAlsoFromVisit pid vid = AlertEdit "Oeleboele of dood!"
+       --  DocEdit $ removePig pid . updateVisit vid (\v -> v { pigs = delete pid $ pigs v } )  
 
 instance Presentable PigView where
-  present (PigView pid b pignr name [] diagnosis) = stringToHtml "initial pig"
-  present (PigView pid b pignr name [tv, kl, ho] diagnosis) =
+  present (PigView pid b _ pignr name [] diagnosis) = stringToHtml "initial pig"
+  present (PigView pid b viewedPig pignr name [tv, kl, ho] diagnosis) =
+        withBgColor (if viewedPig == pignr then Rgb 200 200 200 else Rgb 225 225 225) $
     boxed $
-        p << ("Pig nr. " +++ show pignr +++ presentButton "remove" b)
+        (center $ image $ pigImage)
+    +++ (center $ " nr. " +++ show (pignr+1))
+    +++ p << (center $ (presentButton "remove" b))
     +++ p << ("Name:" +++ presentTextField name)
     +++ p << "Type varken: " 
     +++ presentRadioBox ["Roze", "Grijs"] tv
@@ -150,14 +160,17 @@ instance Presentable PigView where
     +++ p << "Haren overeind: "
     +++ presentRadioBox ["Ja", "Nee"] ho
     +++ p << ("diagnosis " ++ show diagnosis)
- 
+    where pigImage | viewedPig == pignr = "pig.png"
+                   | viewedPig < pignr = "pigLeft.png"
+                   | viewedPig > pignr = "pigRight.png"
+
 instance Storeable PigView where
-  save (PigView pid _ _ name symptoms diagnosis) =
+  save (PigView pid _ _ _ name symptoms diagnosis) =
     updatePig pid (\(Pig _ vid _ _ diagnosis) -> 
                     (Pig pid vid (getStrVal name) (map getIntVal symptoms) diagnosis)) 
 
 instance Initial PigView where
-  initial = PigView initial initial initial initial initial initial
+  initial = PigView initial initial initial initial initial initial initial
 
 
 
@@ -184,6 +197,18 @@ htmlPage title bdy =
                        , body bdy 
                        ]
 
+hList [] = stringToHtml "" -- TODO should have some empty here
+hList views = simpleTable [] [] [ views ]
+
+vList [] = stringToHtml "" -- TODO should have some empty here
+vList views = simpleTable [] [] [ [v] | v <- views ]
+
+data Color = Rgb Int Int Int
+           | Color String deriving Show
+
+withBgColor (Rgb r g b) h = let colorStr = "#" ++ toHex2 r ++ toHex2 g ++ toHex2 b
+                            in  thediv ! [thestyle $ "{background-color: "++ colorStr ++";}"] << h
+withBgColor (Color colorStr) h = thediv ! [thestyle $ "{background-color: "++colorStr++";}"] << h
 
 -- Utils
 
@@ -194,3 +219,24 @@ lputStrLn :: MonadIO m => String -> m ()
 lputStrLn = liftIO . putStrLn
 
 constrain mn mx x = (mn `max` x) `min` mx
+
+toHex2 :: Int -> String
+toHex2 d = [toHexDigit $ d `div` 16] ++ [toHexDigit $ d `mod` 16]
+
+toHexDigit d = let d' = constrain 0 15 d
+               in  chr $ d' + if d < 10 then ord '0' else ord 'A' - 10  
+
+withPad left right top bottom h =
+  thediv ! [thestyle $ "{padding: "++show top++"px "++show right++"px "++
+                       show bottom++"px "++show left++"px;}"] << h
+
+image filename = Html.image ! [src $ "/img/"++ filename ]
+
+pluralS 1 = ""
+pluralS n = "s" 
+
+listCommaAnd :: [String] -> String
+listCommaAnd [] = ""
+listCommaAnd [s]  = s
+listCommaAnd ss@(_:_) = (concat . intersperse ", " $ init ss) ++ " and " ++ last ss 
+
