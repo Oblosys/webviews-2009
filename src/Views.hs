@@ -36,13 +36,16 @@ instance Initial PigId where initial = PigId (-1)
 presentRadioBox :: [String] -> EInt -> [Html]
 presentRadioBox items (EInt (Id i) ei) = radioBox (show i) items ei
 
+
+-- the entire root is a form, that causes registering text field updates on pressing enter
+-- (or Done) on the iPhone. It would be nicer to capture this at the textfield itself.
+-- Local forms are a problem though because they are block elements
+-- TODO: focus loss on enter is not nice  
 presentTextField :: EString -> Html
-presentTextField (EString (Id i) str) = {- form ! 
-                   [] $ -}
+presentTextField (EString (Id i) str) = 
   textfield "" ! [identifier (show i), strAttr "VALUE" str
                  , strAttr "onChange" $ "textFieldChanged('"++show i++"')"
                  , strAttr "onFocus" $ "textFieldGotFocus()"
-                 , strAttr "onSubmit" $ "textFieldChanged('"++show i++"'); queueCommand(''); return false" 
                  ]
 
 -- seems like this one could be in Present
@@ -196,11 +199,6 @@ radioBox id items selectedIx =
                           +++ item +++ br 
                         | (i, item) <- zip [0..] items ]
 
-
-htmlPage title bdy = 
-  thehtml $ concatHtml [ header $ thetitle $ toHtml title
-                       , body bdy 
-                       ]
 
 hList [] = stringToHtml "" -- TODO should have some empty here
 hList views = simpleTable [] [] [ views ]
