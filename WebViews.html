@@ -17,12 +17,12 @@ function init()
 
 function debug(message)
 {
-    document.getElementById('debugMessage').innerHTML=message;
+//    document.getElementById('debugMessage').innerHTML=message;
 }
 
 function debugAdd(message)
 {
-    debug (message + '<br></br>' + document.getElementById('debugMessage').innerHTML);
+//    debug (message + '<br></br>' + document.getElementById('debugMessage').innerHTML);
 }
 
 function addCommand(command)
@@ -133,8 +133,12 @@ function updateTree(update)
     
     parent.replaceChild(newChild,oldChild);
       
- } 
-  else alert ('Unknown command: '+op); 
+  } 
+ else if (op === 'alert')
+  { var text = update.getAttribute('text');
+    alert(text);
+  } 
+ else alert ('Unknown command: '+op); 
 }
 
 function select(path, node)
@@ -153,13 +157,13 @@ function select(path, node)
 </script>
 
 <body onload="init()">
-<h1>WebViews</h1>
-
-<body>
-<div style="border:solid; border-width:1px; padding:4px;">
+<body style="padding:0px; margin:0px">
+<!-- <div style="border:solid; border-width:1px; margin:0px"> -->
   <div id="root">initial root</div>
-</div>
-Debug:
-<div style="border:solid; border-width:1px; padding:4px;" id="debugMessage"></div>
+<!-- </div> -->
+<!--
+Debug: -->
+<div style="visibility: hidden; border:solid; border-width:1px; padding:4px;" id="debugMessage"></div>
+
 <div id="receivedUpdates" style="visibility:hidden; border:solid; border-width:1px; padding:4px; border-color:red;" ></div>
 </body> </html>

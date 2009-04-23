@@ -31,8 +31,9 @@ eint i = EInt noId i
 data Button = Button { getButtonId :: Id, getCommand :: EditCommand } deriving (Show, Eq, Typeable, Data)
 
 data EditCommand = DocEdit (Database -> Database)
-                 | ViewEdit (ViewId) (WebView -> WebView) deriving (Show, Typeable, Data)
-
+                 | ViewEdit (ViewId) (WebView -> WebView)
+                 | AlertEdit String deriving (Show, Typeable, Data)
+                 
 instance Eq EditCommand where -- only changing the edit command does not
   c1 == c2 = True
 
