@@ -4,7 +4,7 @@
 </head>
 <script type="text/javascript">
 <!--
-var debugging = false;
+var debugging = true;
 
 var xmlhttp;
 
@@ -52,15 +52,19 @@ function refresh()
    most problematic situations.
 */
 
+
 function textFieldChanged(textFieldId)
-{  changedTextFieldId = textFieldId;
+{ // changedTextFieldId = textFieldId; // no good for textfield to textfield, should make list
+  // still gives problem when text->text (only updated after non-text edit), but no edits get lost
+   value = document.getElementById(textFieldId).value;
+   queueCommand ('SetC '+textFieldId+' "'+value+'"'); 
 }
 
 // send any pending text changes
 function textFieldGotFocus()
 { debugAdd ('text got focus changed='+changedTextFieldId);
    if (changedTextFieldId != "")
-     queueCommand('');
+     queueCommand(''); // no good, update causes textfield to lose focus
 }  
 
 function addCommand(command)
@@ -104,6 +108,7 @@ else
   }
 }
 
+<!--
 // tricky to do these as regular commands in the command queue.
 function authenticate()
 { xmlhttp.onreadystatechange=state_Change;
@@ -116,6 +121,7 @@ function unauthenticate()
   xmlhttp.open("GET",'unauthenticate',true);
   xmlhttp.send(null);
 }
+-->
 
 function state_Change()
 {
@@ -165,13 +171,30 @@ function updateTree(update)
   { var targetId = update.getAttribute('targetId');
     var newChild = update.childNodes[0];
     debugAdd("replace");
+    debugAdd(commandQueue);
     
     var oldChild = document.getElementById(targetId);
     
     var parent = oldChild.parentNode;
     
     parent.replaceChild(newChild,oldChild);
-      
+  } 
+ else if (op === 'special')
+  { var targetId = update.getAttribute('targetId');
+    var newChild = update.childNodes[0];
+    debugAdd("special"+commandQueue);
+
+    var ther2 = document.getElementById("input11");
+    
+    var oldChild = document.getElementById(targetId);
+    
+    var parent = oldChild.parentNode;    
+    parent.replaceChild(newChild,oldChild);
+
+    var newwrong2 = document.getElementById("input11");
+    var parentr2 = newwrong2.parentNode;    
+    parentr2.replaceChild(ther2,newwrong2); // Note: old and new seem reversed (but are ok)
+    debugAdd ("bla");
   } 
  else if (op === 'alert')
   { var text = update.getAttribute('text');
@@ -204,9 +227,11 @@ function select(path, node)
 
 <body onload="init()" style="padding:0px; margin:0px">
 <!-- <input type="password"> -->
-<button onClick="unauthenticate()">Logout</button>
+<!-- <button onClick="unauthenticate()">Logout</button> -->
 <!-- <div style="border:solid; border-width:1px; margin:0px"> -->
-<form onSubmit="queueCommand(''); return false"><div id="root">initial root</div></form>
+<!-- <form onSubmit="queueCommand(''); return false"> -->
+<div id="root">initial root</div>
+<!-- </form> -->
 <!-- </div> -->
 <!-- Debug: -->
 <div style="padding:4px;" id="debugMessage"></div>

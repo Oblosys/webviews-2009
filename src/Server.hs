@@ -31,6 +31,8 @@ webViewsPort = 8085
 
 users :: Map String String
 users = Map.fromList [("martijn", "p"), ("anonymous", "")] 
+-- TODO: maybe this can be (a special) part of db?
+
 {-
 Happstack notes
 Server error: Prelude.last: empty list
@@ -195,12 +197,16 @@ sessionHandler sessionStateRef cmds = {- myAuth `mplus` -} {-
                                (mkDiv "root" $ present $ assignIds rootView)
             --; putStrLn $ "rootView:\n" ++ show (assignIds rootView)
             --; putStrLn $ "database:\n" ++ show db
-            --; putStrLn $ "\n\n\nresponse = \n" ++ show responseHtml
+            ; putStrLn $ "\n\n\nresponse = \n" ++ show responseHtml
             --; putStrLn $ "Sending response sent to client: " ++
             --              take 10 responseHTML ++ "..."
-            --; modifyResponseW noCache $
             ; seq (length (show responseHtml)) $ return ()
-            ; return responseHtml
+            ; case cmds of
+                (Commands [SetC 10 _]) -> 
+                  return $ thediv ! [identifier "updates"] <<
+                    thediv![strAttr "op" "special", strAttr "targetId" "root" ] <<   
+                      (mkDiv "root" $ present $ assignIds rootView)
+                _ -> return responseHtml
             }
         Alert str -> 
           return $ thediv ! [identifier "updates"] <<

@@ -34,9 +34,9 @@ instance Initial VisitId where initial = VisitId (-1)
 instance Initial PigId where initial = PigId (-1)
 
 
-presentRadioBox :: [String] -> EInt -> [Html]
-presentRadioBox items (EInt (Id i) ei) = radioBox (show i) items ei
-
+presentRadioBox :: [String] -> EInt -> Html
+presentRadioBox items (EInt (Id i) ei) = mkDiv ("input"++show i) $ radioBox (show i) items ei
+-- id is unique
 
 -- the entire root is a form, that causes registering text field updates on pressing enter
 -- (or Done) on the iPhone. It would be nicer to capture this at the textfield itself.
@@ -49,10 +49,10 @@ presentPasswordField :: EString -> Html
 presentPasswordField = presentTextualInput (password "")
 
 presentTextualInput :: Html -> EString -> Html
-presentTextualInput inputfield (EString (Id i) str) = 
+presentTextualInput inputfield (EString (Id i) str) = mkDiv ("input"++show i) $  
   inputfield ! [identifier (show i), strAttr "VALUE" str
                , strAttr "onChange" $ "textFieldChanged('"++show i++"')"
-               , strAttr "onFocus" $ "textFieldGotFocus()"
+               -- , strAttr "onFocus" $ "textFieldGotFocus()" -- no good, see WebViews.html
                , strAttr "hidden" "True"
                ]
 
@@ -75,7 +75,10 @@ applyIfCorrectType f x = case cast f of
 -- the view matching on load can be done explicitly, following structure and checking ids, or
 -- maybe automatically, based on id. Maybe extra state can be in a separate data structure even,
 -- like in Proxima
-mkRootView user db sessionId = mkVisitView sessionId (VisitId 1) user db 
+mkRootView :: User -> Database -> Int -> ViewMap -> WebView
+mkRootView user db sessionId viewMap = 
+  --mkPigView 3 (PigId 1) 5 user db viewMap 
+  mkVisitView sessionId (VisitId 1) user db viewMap
 
 mkWebView :: (Presentable v, Storeable v, Initial v, Show v, Eq v, Data v) =>
              ViewId -> (User -> Database -> ViewMap -> ViewId -> v) -> User -> Database -> ViewMap -> WebView
@@ -137,7 +140,7 @@ instance Presentable VisitView where
     +++ p << ((if null pigs then stringToHtml $ "Not viewing any pigs" 
                else "Viewing pig nr. " +++ show (getIntVal viewedPig) ++ "   ")
     -- "debugAdd('boing');queueCommand('Set("++id++","++show i++");')"
-              +++ presentButton "previous" b1 +++ presentButton "next" b2)
+           +++ presentButton "previous" b1 +++ presentButton "next" b2)
     +++ withPad 15 0 0 0 {- (case mSubview of
                Nothing -> stringToHtml "no pigs"
                Just pv -> present pv) -}
@@ -154,39 +157,6 @@ instance Storeable VisitView where
 instance Initial VisitView where
   initial = VisitView initial initial initial initial initial initial initial initial initial initial initial initial initial
 
-
-
-data LoginView = LoginView EString EString Button 
-  deriving (Eq, Show, Typeable, Data)
-
-mkLoginView = mkWebView (ViewId (44)) $
-      \user db viewMap vid ->
-        let (LoginView name password b) = getOldView vid viewMap
-        in  LoginView name password 
-                     (Button noId $ AuthenticateEdit (strRef name) (strRef password))
-
-instance Storeable LoginView where save _ = id
-                                   
-instance Presentable LoginView where
-  present (LoginView name password loginbutton) = 
-    boxed $ ("Login:" +++ presentTextField name) +++
-            ("Password:" +++ presentPasswordField password) +++
-            presentButton "Login" loginbutton
-            
-instance Initial LoginView where initial = LoginView initial initial initial
-
-data LogoutView = LogoutView Button deriving (Eq, Show, Typeable, Data)
-
-mkLogoutView = mkWebView (ViewId (55)) $
-  \user db viewMap vid -> LogoutView (Button noId LogoutEdit)
-
-instance Storeable LogoutView where save _ = id
-                                   
-instance Presentable LogoutView where
-  present (LogoutView logoutbutton) = 
-    presentButton "Logout" logoutbutton
-            
-instance Initial LogoutView where initial = LogoutView initial
                                  
 data PigView = PigView PigId Button Int Int EString [EInt] (Either Int String) 
                deriving (Eq, Show, Typeable, Data)
@@ -229,6 +199,41 @@ instance Storeable PigView where
 instance Initial PigView where
   initial = PigView initial initial initial initial initial initial initial
 
+
+
+
+
+data LoginView = LoginView EString EString Button 
+  deriving (Eq, Show, Typeable, Data)
+
+mkLoginView = mkWebView (ViewId (44)) $
+      \user db viewMap vid ->
+        let (LoginView name password b) = getOldView vid viewMap
+        in  LoginView name password 
+                     (Button noId $ AuthenticateEdit (strRef name) (strRef password))
+
+instance Storeable LoginView where save _ = id
+                                   
+instance Presentable LoginView where
+  present (LoginView name password loginbutton) = 
+    boxed $ ("Login:" +++ presentTextField name) +++
+            ("Password:" +++ presentPasswordField password) +++
+            presentButton "Login" loginbutton
+            
+instance Initial LoginView where initial = LoginView initial initial initial
+
+data LogoutView = LogoutView Button deriving (Eq, Show, Typeable, Data)
+
+mkLogoutView = mkWebView (ViewId (55)) $
+  \user db viewMap vid -> LogoutView (Button noId LogoutEdit)
+
+instance Storeable LogoutView where save _ = id
+                                   
+instance Presentable LogoutView where
+  present (LogoutView logoutbutton) = 
+    presentButton "Logout" logoutbutton
+            
+instance Initial LogoutView where initial = LogoutView initial
 
 
 
