@@ -12,6 +12,10 @@ import Control.Monad.Trans
 import Control.Monad.Reader
 import Data.Map (Map)
 import qualified Data.Map as Map 
+import Data.IntMap (IntMap)
+import qualified Data.IntMap as IntMap 
+import System.Posix.Time
+import System.Posix.Types
 import Text.Html
 import Control.Exception
 
@@ -43,12 +47,27 @@ the monad, but it will only do something if the header is not set in the out par
 
 Header modifications must therefore be applied to out rather than be fmapped to the monad.
 -}
+type GlobalState = (Database, Sessions, SessionCounter)
 
-initState = (theDatabase, mkRootView theDatabase Map.empty, Nothing)
+initGlobalState = (theDatabase, IntMap.empty, 0)
+
+type GlobalStateRef = IORef GlobalState
+
+type SessionCounter = Int
+
+type Sessions = IntMap (WebView, Maybe EditCommand) 
+
+type SessionState = (Database, WebView, Maybe EditCommand)
+
+type SessionStateRef = IORef SessionState
+
+initSessionState = (theDatabase, mkRootView theDatabase Map.empty, Nothing)
 
 server =
- do { stateRef <- newIORef initState
-    ; simpleHTTP (Conf webViewsPort Nothing) $ debugFilter $ msum (handlers stateRef)
+ do { serverSessionId <- epochTime
+    ; globalStateRef <- newIORef initGlobalState
+    ; simpleHTTP (Conf webViewsPort Nothing) $ 
+        debugFilter $ msum (handlers serverSessionId globalStateRef)
     }
 
 {-
@@ -59,10 +78,9 @@ http://<server url>/handle?commands=Commands ..
                                         response: from handleCommands
 -}
 
-f =runReaderT
 
-handlers :: IORef (Database, WebView, Maybe EditCommand) -> [ServerPartT IO Response]
-handlers stateRef = 
+handlers :: EpochTime -> GlobalStateRef -> [ServerPartT IO Response]
+handlers serverSessionId globalStateRef = 
   [ exactdir "/" $
       do { liftIO $ putStrLn "Root requested"
          ; fileServe ["WebViews.html"] "."
@@ -71,107 +89,148 @@ handlers stateRef =
         (methodSP GET $ fileServe ["favicon.ico"] ".")
   , dir "img" $
         fileServe [] "img"  
-  , dir "handle" $ withData (\cmds -> methodSP GET $
-     do { rq <- askRq
-        ; let cookieMap = rqCookies rq
-              mcookie = case lookup "webviews" cookieMap of
-                          Just c  -> Just $ cookieValue c
-                          Nothing -> Nothing
---        ; let cookie :: Maybe String = runReaderT (readCookieValue "webviews") (rqInputs rq,rqCookies rq)
-      
-        ; lputStrLn $ "cookie!!! " ++ show mcookie 
-         
-        ; responseHtml <- liftIO $ Control.Exception.catch 
-          (do { putStrLn $ "Received data" ++ show cmds
-    
-              ; response <- handleCommands stateRef cmds
-              ; responseHtml <- case response of
-                  ViewUpdate ->
-                   do { (db, rootView, _) <- readIORef stateRef
-                      ; let responseHtml = thediv ! [identifier "updates"] <<
-                                       updateReplaceHtml "root" 
-                                         (mkDiv "root" $ present $ assignIds rootView)
-                      ; putStrLn $ "\n\n\n\ncmds = "++show cmds
-                      --; putStrLn $ "rootView:\n" ++ show (assignIds rootView)
-                      --; putStrLn $ "database:\n" ++ show db
-                      --; putStrLn $ "\n\n\nresponse = \n" ++ show responseHtml
-                      --; putStrLn $ "Sending response sent to client: " ++
-                      --              take 10 responseHTML ++ "..."
-                      --; modifyResponseW noCache $
-                      ; seq (length (show responseHtml)) $ return ()
-                      ; return responseHtml
-                      }
-                  Alert str -> 
-                    return $ thediv ! [identifier "updates"] <<
-                               (thediv![ strAttr "op" "alert"
-                                       , strAttr "text" str
-                                       ] << "") 
-                  Confirm str  -> 
-                    return $ thediv ! [identifier "updates"] <<
-                               (thediv![ strAttr "op" "confirm"
-                                       , strAttr "text" str
-                                       ] << "") 
-                  
-              ; 
-              ; return responseHtml
-              }) $ \(exc :: SomeException) ->
-           do { let exceptionTxt = 
-                              "\n\n\n\n###########################################\n\n\n" ++
-                              "Exception: " ++ show exc ++ "\n\n\n" ++
-                              "###########################################" 
-                              -- TODO: some exceptions cause program to hang when printed!
-              ; putStrLn exceptionTxt
-              ; return $ thediv ! [identifier "updates"] <<
-                           updateReplaceHtml "root" 
-                             (mkDiv "root" $ map (p . stringToHtml) $ lines exceptionTxt)
-              }
-              
-        ; addCookie 3600 (mkCookie "webviews" "1")
-        ; ok $ toResponse $ responseHtml
-        })
+  , dir "handle" $ withData (\cmds -> methodSP GET $ session serverSessionId globalStateRef cmds)
   ]
 {- TODO: why does exactdir "/handle" not work?
    TODO: fix syntax error in command
 
 -}
 
+type SessionCookie = (String, String)
 
-evaluateDbAndRootView stateRef =
- do { dbRootView <- liftIO $ readIORef stateRef
-    ; seq (length $ show dbRootView) $ return ()
-    }
+session :: EpochTime -> GlobalStateRef -> Commands -> ServerPartT IO Response
+session serverSessionId globalStateRef cmds =
+       do { rq <- askRq
+             
+        ; let cookieMap = rqCookies rq
+        ; let mcookie = case lookup "webviews" cookieMap of
+                          Nothing -> Nothing
+                          Just c  -> case safeRead (cookieValue c) of
+                                       Nothing               -> Nothing
+                                       Just (serverTime::EpochTime,key::Int) -> 
+                                         if serverTime == serverSessionId
+                                         then Just key
+                                         else Nothing
+                                                                     
+      
+        ; lputStrLn $ show rq
+        ; sessionId <- case mcookie of 
+            Nothing -> 
+             do { (database, sessions,sessionCounter) <- liftIO $ readIORef globalStateRef
+                ; lputStrLn $ "New connection: "++show sessionCounter
+                ; addCookie 3600 (mkCookie "webviews" $ show (serverSessionId, sessionCounter))
+                
+                ; let newSession = (mkRootView theDatabase Map.empty, Nothing)
+                ; let sessions' = IntMap.insert sessionCounter newSession sessions
+                
+                ; liftIO $ writeIORef globalStateRef (database, sessions', sessionCounter + 1)
+                 
+                ; return sessionCounter
+                }  
+            Just key -> 
+             do { lputStrLn $ "Session "++show key
+                ; return key
+                }
+             
+        
+        ; (database, sessions, sessionCounter) <- liftIO $ readIORef globalStateRef
+        ; sessionState <- case IntMap.lookup sessionId sessions of -- in monad to show errors (which are not caught :-( )
+                            Nothing                      -> do { lputStrLn "Fucked up"
+                                                               ; error "blaaA"
+                                                               }
+                            Just (rootView, pendingEdit) -> return (database, rootView, pendingEdit)
+        ; sessionStateRef <- liftIO $ newIORef sessionState
+                             
+        ; responseHtml <- sessionHandler sessionStateRef cmds              
+        
+        -- store the database in gs and rest in sessions
+        ; (_, sessions, sessionCounter) <- liftIO $ readIORef globalStateRef
+        ; (database', rootView', pendingEdit') <- liftIO $ readIORef sessionStateRef
+        ; let sessions' = IntMap.insert sessionId (rootView', pendingEdit') sessions                                          
+        ; liftIO $ writeIORef globalStateRef (database', sessions', sessionCounter)
+        ; ok $ toResponse $ responseHtml
+        }
+
+sessionHandler sessionStateRef cmds = liftIO $  
+ do { putStrLn $ "Received data" ++ show cmds
+
+    ; response <- handleCommands sessionStateRef cmds
+    ; responseHtml <- case response of
+        ViewUpdate ->
+         do { (db, rootView, _) <- readIORef sessionStateRef
+            ; let responseHtml = thediv ! [identifier "updates"] <<
+                             updateReplaceHtml "root" 
+                               (mkDiv "root" $ present $ assignIds rootView)
+            ; putStrLn $ "\n\n\n\ncmds = "++show cmds
+            --; putStrLn $ "rootView:\n" ++ show (assignIds rootView)
+            --; putStrLn $ "database:\n" ++ show db
+            --; putStrLn $ "\n\n\nresponse = \n" ++ show responseHtml
+            --; putStrLn $ "Sending response sent to client: " ++
+            --              take 10 responseHTML ++ "..."
+            --; modifyResponseW noCache $
+            ; seq (length (show responseHtml)) $ return ()
+            ; return responseHtml
+            }
+        Alert str -> 
+          return $ thediv ! [identifier "updates"] <<
+                     (thediv![ strAttr "op" "alert"
+                             , strAttr "text" str
+                             ] << "") 
+        Confirm str  -> 
+          return $ thediv ! [identifier "updates"] <<
+                     (thediv![ strAttr "op" "confirm"
+                             , strAttr "text" str
+                             ] << "") 
+        
+    ; return responseHtml
+    } `Control.Exception.catch` \(exc :: SomeException) ->
+       do { let exceptionTxt = 
+                  "\n\n\n\n###########################################\n\n\n" ++
+                  "Exception: " ++ show exc ++ "\n\n\n" ++
+                  "###########################################" 
+                  -- TODO: some exceptions cause program to hang when printed!
+          ; putStrLn exceptionTxt
+          ; return $ thediv ! [identifier "updates"] <<
+                       updateReplaceHtml "root" 
+                         (mkDiv "root" $ map (p . stringToHtml) $ lines exceptionTxt)
+          }
+ where evaluateDbAndRootView sessionStateRef =
+        do { dbRootView <- liftIO $ readIORef sessionStateRef
+           ; seq (length $ show dbRootView) $ return ()
+           }
 
 instance FromData Commands where
   fromData = liftM readCommand (look "commands")
 
-readCommand s = case reads s of
-                  [(cmds, "")] -> cmds
-                  _            -> SyntaxError s
+readCommand s = case safeRead s of
+                  Just cmds -> cmds
+                  Nothing   -> SyntaxError s
+
  
 -- handle each command in commands and send the updates back
-handleCommands stateRef (SyntaxError cmdStr) =
+handleCommands sessionStateRef (SyntaxError cmdStr) =
   error $ "Syntax error in commands from client: "++cmdStr 
-handleCommands stateRef (Commands [command]) = handleCommand stateRef command
-handleCommands stateRef (Commands commands) = 
- do { responses <- mapM (handleCommand stateRef) commands
+handleCommands sessionStateRef (Commands [command]) = handleCommand sessionStateRef command
+handleCommands sessionStateRef (Commands commands) = 
+ do { responses <- mapM (handleCommand sessionStateRef) commands
     ;  if all (== ViewUpdate) responses
        then return ViewUpdate
        else error "Multiple commands must all result in ViewUpdate at the moment"
     } -- TODO: think of a way to handle multiple commands and dialogs etc.
 data ServerResponse = ViewUpdate | Alert String | Confirm String deriving (Show, Eq)
 
-handleCommand :: IORef (Database, WebView, Maybe EditCommand) -> Command -> IO ServerResponse
-handleCommand stateRef Init =
-   do { (db, rootView,_) <- readIORef stateRef
+handleCommand :: SessionStateRef -> Command -> IO ServerResponse
+handleCommand sessionStateRef Init =
+   do { (db, rootView,_) <- readIORef sessionStateRef
       ; putStrLn "Init"
       ; return ViewUpdate
       }
-handleCommand stateRef Test =
-   do { (db, rootView,_) <- readIORef stateRef
+handleCommand sessionStateRef Test =
+   do { (db, rootView,_) <- readIORef sessionStateRef
       ; return ViewUpdate
       }
-handleCommand stateRef (SetC id value) =
-   do { (db, rootView,mc) <- readIORef stateRef      
+handleCommand sessionStateRef (SetC id value) =
+   do { (db, rootView,mc) <- readIORef sessionStateRef      
       ; putStrLn $ show id ++ " value is " ++ show value
 
       ; let rootView' = replace (Map.fromList [(Id id, value)]) (assignIds rootView)
@@ -180,35 +239,35 @@ handleCommand stateRef (SetC id value) =
             -- TODO: check if mkViewMap has correct arg
             rootView'' = loadView db' (mkViewMap rootView') rootView'
       -- TODO: instead of updating all, just update the one that was changed
-      ; writeIORef stateRef (db',rootView'',mc)
+      ; writeIORef sessionStateRef (db',rootView'',mc)
       ; return ViewUpdate
       }
-handleCommand stateRef (ButtonC id) =
-   do { (db, rootView, mc) <- readIORef stateRef
+handleCommand sessionStateRef (ButtonC id) =
+   do { (db, rootView, mc) <- readIORef sessionStateRef
       ; putStrLn $ "Button " ++ show id ++ " was clicked"
       ; let Button _ act = getButtonById (Id id) (assignIds rootView)
 
  --     ; case act of
  --         ViewEdit i _ -> putStrLn $ "View edit on "++show i
-      ; response <- performEditCommand stateRef act
+      ; response <- performEditCommand sessionStateRef act
           
       ; return response
       }
-handleCommand stateRef ConfirmDialogOk =
-   do { (db, rootView,mc) <- readIORef stateRef
-      ; writeIORef stateRef (db, rootView, Nothing) -- clear it, also in case of error
+handleCommand sessionStateRef ConfirmDialogOk =
+   do { (db, rootView,mc) <- readIORef sessionStateRef
+      ; writeIORef sessionStateRef (db, rootView, Nothing) -- clear it, also in case of error
       ; response <- case mc of
                       Nothing -> error "ConfirmDialogOk event without active dialog"
-                      Just ec -> performEditCommand stateRef ec
+                      Just ec -> performEditCommand sessionStateRef ec
       ; return response
       }
 
-performEditCommand stateRef command =
- do { (db, rootView, mc) <- readIORef stateRef
+performEditCommand sessionStateRef command =
+ do { (db, rootView, mc) <- readIORef sessionStateRef
     ; case command of  
             AlertEdit str -> return $ Alert str
             ConfirmEdit str ec -> 
-             do { writeIORef stateRef (db, rootView, Just ec)
+             do { writeIORef sessionStateRef (db, rootView, Just ec)
                 ; return $ Confirm str
                 }
             _ ->
@@ -226,9 +285,13 @@ performEditCommand stateRef command =
                                        --       make function for loading rootView
                       in   do { return (db, rootView'')
                               }
-                ; writeIORef stateRef (db', rootView', mc)
+                ; writeIORef sessionStateRef (db', rootView', mc)
 
                 ; return ViewUpdate
                 }
 
     }
+
+safeRead s = case reads s of
+               [(x, "")] -> Just x
+               _         -> Nothing

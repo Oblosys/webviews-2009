@@ -16,7 +16,9 @@ Build-Depends:    base >= 4.0,
 		  bytestring,
 		  html,
 		  happstack-server,
-		  happstack-helpers
+		  happstack-helpers,
+		  old-time,
+		  unix
                  
 
 Executable:       WebViews
