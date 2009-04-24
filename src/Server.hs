@@ -9,6 +9,7 @@ import Data.IORef
 import Control.Concurrent
 import Control.Monad
 import Control.Monad.Trans
+import Control.Monad.Reader
 import Data.Map (Map)
 import qualified Data.Map as Map 
 import Text.Html
@@ -57,6 +58,9 @@ http://<server url>/favicon.ico         response: <executable dir>/favicon.icome
 http://<server url>/handle?commands=Commands ..                    
                                         response: from handleCommands
 -}
+
+f =runReaderT
+
 handlers :: IORef (Database, WebView, Maybe EditCommand) -> [ServerPartT IO Response]
 handlers stateRef = 
   [ exactdir "/" $
@@ -68,10 +72,18 @@ handlers stateRef =
   , dir "img" $
         fileServe [] "img"  
   , dir "handle" $ withData (\cmds -> methodSP GET $
-     do { responseHtml <- liftIO $ Control.Exception.catch 
+     do { rq <- askRq
+        ; let cookieMap = rqCookies rq
+              mcookie = case lookup "webviews" cookieMap of
+                          Just c  -> Just $ cookieValue c
+                          Nothing -> Nothing
+--        ; let cookie :: Maybe String = runReaderT (readCookieValue "webviews") (rqInputs rq,rqCookies rq)
+      
+        ; lputStrLn $ "cookie!!! " ++ show mcookie 
+         
+        ; responseHtml <- liftIO $ Control.Exception.catch 
           (do { putStrLn $ "Received data" ++ show cmds
     
-
               ; response <- handleCommands stateRef cmds
               ; responseHtml <- case response of
                   ViewUpdate ->
@@ -80,8 +92,8 @@ handlers stateRef =
                                        updateReplaceHtml "root" 
                                          (mkDiv "root" $ present $ assignIds rootView)
                       ; putStrLn $ "\n\n\n\ncmds = "++show cmds
-                      ; putStrLn $ "rootView:\n" ++ show (assignIds rootView)
-                      ; putStrLn $ "database:\n" ++ show db
+                      --; putStrLn $ "rootView:\n" ++ show (assignIds rootView)
+                      --; putStrLn $ "database:\n" ++ show db
                       --; putStrLn $ "\n\n\nresponse = \n" ++ show responseHtml
                       --; putStrLn $ "Sending response sent to client: " ++
                       --              take 10 responseHTML ++ "..."
@@ -100,6 +112,7 @@ handlers stateRef =
                                        , strAttr "text" str
                                        ] << "") 
                   
+              ; 
               ; return responseHtml
               }) $ \(exc :: SomeException) ->
            do { let exceptionTxt = 
@@ -113,6 +126,7 @@ handlers stateRef =
                              (mkDiv "root" $ map (p . stringToHtml) $ lines exceptionTxt)
               }
               
+        ; addCookie 3600 (mkCookie "webviews" "1")
         ; ok $ toResponse $ responseHtml
         })
   ]
