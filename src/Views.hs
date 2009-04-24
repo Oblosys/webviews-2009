@@ -67,7 +67,7 @@ applyIfCorrectType f x = case cast f of
 -- the view matching on load can be done explicitly, following structure and checking ids, or
 -- maybe automatically, based on id. Maybe extra state can be in a separate data structure even,
 -- like in Proxima
-mkRootView db = mkVisitView (VisitId 1) db 
+mkRootView db sessionId = mkVisitView sessionId (VisitId 1) db 
 
 mkWebView :: (Presentable v, Storeable v, Initial v, Show v, Eq v, Data v) =>
              ViewId -> (Database -> ViewMap -> ViewId -> v) -> Database -> ViewMap -> WebView
@@ -79,17 +79,17 @@ loadView db viewMap (WebView vid f _) = (WebView vid f (f db viewMap vid))
 
 
 data VisitView = 
-  VisitView VisitId EString EString EInt Button Button Button [PigId] [String] [WebView]
+  VisitView VisitId Int EString EString EInt Button Button Button [PigId] [String] [WebView]
   deriving (Eq, Show, Typeable, Data)
 
 -- todo: doc edits seem to reset viewed pig nr.
-mkVisitView i = mkWebView (ViewId 0) $
+mkVisitView sessionId i = mkWebView (ViewId 0) $
   \db viewMap vid -> 
-  let (VisitView _ _ _ oldViewedPig _ _ _ _ _ mpigv) = getOldView vid viewMap
+  let (VisitView _ _ _ _ oldViewedPig _ _ _ _ _ mpigv) = getOldView vid viewMap
       (Visit visd zipcode date pigIds) = unsafeLookup (allVisits db) i
       viewedPig = constrain 0 (length pigIds - 1) $ getIntVal oldViewedPig
       pignames = map (pigName . unsafeLookup (allPigs db)) pigIds
-  in  VisitView i (estr zipcode) (estr date) (eint viewedPig) 
+  in  VisitView i sessionId (estr zipcode) (estr date) (eint viewedPig) 
                 (Button noId (previous (ViewId 0))) (Button noId (next (ViewId 0)))
                 (Button noId (addPig visd)) pigIds pignames $
 -- todo: check id's
@@ -100,12 +100,12 @@ mkVisitView i = mkWebView (ViewId 0) $
                 [mkPigView i pigId viewedPig db viewMap | (pigId,i) <- zip pigIds [0..]]
  where -- next and previous may cause out of bounds, but on reload, this is constrained
        previous i = mkViewEdit i $
-         \(VisitView vid zipCode date viewedPig b1 b2 b3 pigs pignames mSubview) ->
-         VisitView vid zipCode date (eint $ getIntVal viewedPig-1) b1 b2 b3 pigs pignames mSubview
+         \(VisitView vid sid zipCode date viewedPig b1 b2 b3 pigs pignames mSubview) ->
+         VisitView vid sid zipCode date (eint $ getIntVal viewedPig-1) b1 b2 b3 pigs pignames mSubview
 
        next i = mkViewEdit i $
-         \(VisitView vid zipCode date viewedPig b1 b2 b3 pigs pignames mSubview) ->
-         VisitView vid zipCode date (eint $ getIntVal viewedPig+1) b1 b2 b3 pigs pignames mSubview
+         \(VisitView vid sid zipCode date viewedPig b1 b2 b3 pigs pignames mSubview) ->
+         VisitView vid sid zipCode date (eint $ getIntVal viewedPig+1) b1 b2 b3 pigs pignames mSubview
 
        addPig i = DocEdit $ addNewPig i 
 
@@ -114,9 +114,10 @@ addNewPig vid db =
   in  (updateVisit vid $ \v -> v { pigs = pigs v ++ [newPigId] }) db'
 
 instance Presentable VisitView where
-  present (VisitView vid zipCode date viewedPig b1 b2 b3 pigs pignames subviews) =
+  present (VisitView vid sid zipCode date viewedPig b1 b2 b3 pigs pignames subviews) =
         withBgColor (Rgb 235 235 235) $
-        ("Visit at "+++ presentTextField zipCode +++" on " +++ presentTextField date)
+        ("Visit at "+++ presentTextField zipCode +++" on " +++ presentTextField date +++ 
+          "           (session# "+++show sid+++")")
     +++ p << ("Visited "++ show (length pigs) ++ " pig" ++ pluralS (length pigs) ++ ": " ++
               listCommaAnd pignames)
     +++ p << ((if null pigs then stringToHtml $ "Not viewing any pigs" 
@@ -130,13 +131,13 @@ instance Presentable VisitView where
                [] -> stringToHtml "no pigs"
                pvs -> hList $ map present pvs ++ [presentButton "add" b3] )
 instance Storeable VisitView where
-  save (VisitView vid zipCode date _ _ _ _ pigs pignames mSubView) db =
+  save (VisitView vid sid zipCode date _ _ _ _ pigs pignames mSubView) db =
     updateVisit vid (\(Visit _ _ _ pigIds) ->
                       Visit vid (getStrVal zipCode) (getStrVal date) pigIds)
                     db
 
 instance Initial VisitView where
-  initial = VisitView initial initial initial initial initial initial initial initial initial initial
+  initial = VisitView initial initial initial initial initial initial initial initial initial initial initial
 
 
 data PigView = PigView PigId Button Int Int EString [EInt] (Either Int String) 
@@ -210,8 +211,8 @@ data Color = Rgb Int Int Int
            | Color String deriving Show
 
 withBgColor (Rgb r g b) h = let colorStr = "#" ++ toHex2 r ++ toHex2 g ++ toHex2 b
-                            in  thediv ! [thestyle $ "{background-color: "++ colorStr ++";}"] << h
-withBgColor (Color colorStr) h = thediv ! [thestyle $ "{background-color: "++colorStr++";}"] << h
+                            in  thediv ! [thestyle $ "background-color: "++ colorStr ++";"] << h
+withBgColor (Color colorStr) h = thediv ! [thestyle $ "background-color: "++colorStr++";"] << h
 
 -- Utils
 
@@ -230,8 +231,8 @@ toHexDigit d = let d' = constrain 0 15 d
                in  chr $ d' + if d < 10 then ord '0' else ord 'A' - 10  
 
 withPad left right top bottom h =
-  thediv ! [thestyle $ "{padding: "++show top++"px "++show right++"px "++
-                       show bottom++"px "++show left++"px;}"] << h
+  thediv ! [thestyle $ "padding: "++show top++"px "++show right++"px "++
+                       show bottom++"px "++show left++"px;"] << h
 
 image filename = Html.image ! [src $ "/img/"++ filename ]
 

@@ -61,8 +61,6 @@ type SessionState = (Database, WebView, Maybe EditCommand)
 
 type SessionStateRef = IORef SessionState
 
-initSessionState = (theDatabase, mkRootView theDatabase Map.empty, Nothing)
-
 server =
  do { serverSessionId <- epochTime
     ; globalStateRef <- newIORef initGlobalState
@@ -117,15 +115,16 @@ session serverSessionId globalStateRef cmds =
         ; sessionId <- case mcookie of 
             Nothing -> 
              do { (database, sessions,sessionCounter) <- liftIO $ readIORef globalStateRef
-                ; lputStrLn $ "New session: "++show sessionCounter
-                ; addCookie 3600 (mkCookie "webviews" $ show (serverSessionId, sessionCounter))
+                ; let sessionId = sessionCounter
+                ; lputStrLn $ "New session: "++show sessionId
+                ; addCookie 3600 (mkCookie "webviews" $ show (serverSessionId, sessionId))
                 
-                ; let newSession = (mkRootView theDatabase Map.empty, Nothing)
-                ; let sessions' = IntMap.insert sessionCounter newSession sessions
+                ; let newSession = (mkRootView theDatabase sessionId Map.empty, Nothing)
+                ; let sessions' = IntMap.insert sessionId newSession sessions
                 
                 ; liftIO $ writeIORef globalStateRef (database, sessions', sessionCounter + 1)
                  
-                ; return sessionCounter
+                ; return sessionId
                 }  
             Just key -> 
              do { lputStrLn $ "Existing session "++show key
