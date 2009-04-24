@@ -25,9 +25,15 @@ data Command = Init | Refresh | Test
 newtype Id = Id Int deriving (Show, Eq, Ord, Data, Typeable)
 noId = Id (-1)
 
+newtype IdRef = IdRef Int deriving (Show, Eq, Ord, Data, Typeable)
+-- refs are different kind, because they may be part of view tree, and SYB id assignment functions 
+-- should not affect them
+
 data EString = EString { getStrId :: Id, getStrVal :: String } deriving (Show, Eq, Typeable, Data)
 
 estr str = EString noId str
+
+strRef (EString (Id i) _) = IdRef i
 
 data EInt = EInt { getIntId :: Id, getIntVal :: Int } deriving (Show, Eq, Typeable, Data)
 
@@ -39,7 +45,8 @@ data EditCommand = DocEdit (Database -> Database)
                  | ViewEdit (ViewId) (WebView -> WebView)
                  | AlertEdit String 
                  | ConfirmEdit String EditCommand
-                 | AuthenticateEdit
+                 | AuthenticateEdit IdRef IdRef
+                 | LogoutEdit
                  deriving (Show, Typeable, Data)
                  
 instance Eq EditCommand where -- only changing the edit command does not
@@ -78,9 +85,14 @@ class Presentable v => Viewable v where
 class Storeable v where
   save :: v -> Database -> Database
 
+instance Storeable () where
+  save () = id
+
 -- For now, Storeable on root view must save its subviews explicitly. 
 -- Maybe SYB can handle this (gives an ambiguous type var now)
 -- otherwise template haskell can do this
+
+type User = Maybe String
 
 newtype ViewId = ViewId Int deriving (Show, Eq, Ord, Typeable, Data)
 
@@ -89,7 +101,7 @@ type ViewMap = Map.Map ViewId WebView
 -- no class viewable, because mkView has parameters
 data WebView = forall view . ( Initial view, Presentable view, Storeable view
                              , Show view, Eq view, Data view) => 
-                             WebView ViewId (Database -> ViewMap -> ViewId -> view) view
+                             WebView ViewId (User -> Database -> ViewMap -> ViewId -> view) view
                              deriving Typeable
 -- (view->view) is the load view function. It is not in a class because we want to parameterize it
 -- view is the actual view (which is 'updated')
@@ -119,7 +131,9 @@ instance Show WebView where
 instance Initial WebView where
   initial = WebView (ViewId (-1)) initial
 -}
-
+instance Presentable () where
+  present () = stringToHtml "<initial webview>"
+  
 instance Presentable WebView where
   present (WebView _ _ v) = present v
 
@@ -129,6 +143,9 @@ instance Eq WebView where
                                            Just v2 -> v1 == v2
                                            Nothing -> False
 
+instance Initial () where
+  initial = ()
+  
 instance Initial [a] where
   initial = []
 
@@ -153,6 +170,8 @@ instance Initial EInt where
 instance Initial Button where
   initial = Button noId (DocEdit id)
 
+instance Initial WebView where
+  initial = WebView (ViewId (-1)) (\_ _ _ _ -> ()) ()
 
 
 

@@ -12,9 +12,9 @@ import Types
 import Database
 import Generics
 
-
--- TODO: automaticly supplying old views
---       figure out load stuff
+-- IDEA: use phantom types to enforce type structure on views
+--       GADTs?
+-- TODO: figure out load stuff
 --       use a monad for auto handling listeners to database
 -- don't use Presentable, because we might present strings in different ways.
 
@@ -24,6 +24,7 @@ instance Storeable WebView where
     let topLevelWebViews = getTopLevelWebViews v
     in  foldl (.) id $ save v : map save topLevelWebViews
 
+  
 -- first save self, then children
 -- TODO: does this order matter?
 
@@ -42,11 +43,18 @@ presentRadioBox items (EInt (Id i) ei) = radioBox (show i) items ei
 -- Local forms are a problem though because they are block elements
 -- TODO: focus loss on enter is not nice  
 presentTextField :: EString -> Html
-presentTextField (EString (Id i) str) = 
-  textfield "" ! [identifier (show i), strAttr "VALUE" str
-                 , strAttr "onChange" $ "textFieldChanged('"++show i++"')"
-                 , strAttr "onFocus" $ "textFieldGotFocus()"
-                 ]
+presentTextField = presentTextualInput (textfield "")
+  
+presentPasswordField :: EString -> Html
+presentPasswordField = presentTextualInput (password "")
+
+presentTextualInput :: Html -> EString -> Html
+presentTextualInput inputfield (EString (Id i) str) = 
+  inputfield ! [identifier (show i), strAttr "VALUE" str
+               , strAttr "onChange" $ "textFieldChanged('"++show i++"')"
+               , strAttr "onFocus" $ "textFieldGotFocus()"
+               , strAttr "hidden" "True"
+               ]
 
 -- seems like this one could be in Present
 presentButton :: String -> Button -> Html
@@ -67,56 +75,62 @@ applyIfCorrectType f x = case cast f of
 -- the view matching on load can be done explicitly, following structure and checking ids, or
 -- maybe automatically, based on id. Maybe extra state can be in a separate data structure even,
 -- like in Proxima
-mkRootView db sessionId = mkVisitView sessionId (VisitId 1) db 
+mkRootView user db sessionId = mkVisitView sessionId (VisitId 1) user db 
 
 mkWebView :: (Presentable v, Storeable v, Initial v, Show v, Eq v, Data v) =>
-             ViewId -> (Database -> ViewMap -> ViewId -> v) -> Database -> ViewMap -> WebView
-mkWebView vid wvcnstr db viewMap = loadView db viewMap $
+             ViewId -> (User -> Database -> ViewMap -> ViewId -> v) -> User -> Database -> ViewMap -> WebView
+mkWebView vid wvcnstr user db viewMap = loadView user db viewMap $
   WebView vid wvcnstr initial
 
-loadView db viewMap (WebView vid f _) = (WebView vid f (f db viewMap vid))
+loadView user db viewMap (WebView vid f _) = (WebView vid f (f user db viewMap vid))
 
 
 
 data VisitView = 
-  VisitView VisitId Int EString EString EInt Button Button Button [PigId] [String] [WebView]
-  deriving (Eq, Show, Typeable, Data)
+  VisitView VisitId Int User EString EString EInt Button Button Button [PigId] [String] WebView [WebView]
+    deriving (Eq, Show, Typeable, Data)
 
 -- todo: doc edits seem to reset viewed pig nr.
 mkVisitView sessionId i = mkWebView (ViewId 0) $
-  \db viewMap vid -> 
-  let (VisitView _ _ _ _ oldViewedPig _ _ _ _ _ mpigv) = getOldView vid viewMap
+  \user db viewMap vid -> 
+  let (VisitView _ _ _ _ _ oldViewedPig _ _ _ _ _ _ mpigv) = getOldView vid viewMap
       (Visit visd zipcode date pigIds) = unsafeLookup (allVisits db) i
       viewedPig = constrain 0 (length pigIds - 1) $ getIntVal oldViewedPig
       pignames = map (pigName . unsafeLookup (allPigs db)) pigIds
-  in  VisitView i sessionId (estr zipcode) (estr date) (eint viewedPig) 
+  in  VisitView i sessionId user (estr zipcode) (estr date) (eint viewedPig) 
                 (Button noId (previous (ViewId 0))) (Button noId (next (ViewId 0)))
-                (Button noId (addPig visd)) pigIds pignames $
+                (Button noId (addPig visd)) pigIds pignames
 -- todo: check id's
              {-   (if null pigIds -- remove guard for weird hanging exception (after removing last pig)
                     then Nothing
                     else Just $ mkPigView viewedPig (pigIds !! viewedPig) db viewMap
                    )-}
-                [mkPigView i pigId viewedPig db viewMap | (pigId,i) <- zip pigIds [0..]]
+                (if user == Nothing then (mkLoginView user db viewMap) 
+                                    else (mkLogoutView user db viewMap))
+                [mkPigView i pigId viewedPig user db viewMap | (pigId,i) <- zip pigIds [0..]]
  where -- next and previous may cause out of bounds, but on reload, this is constrained
        previous i = mkViewEdit i $
-         \(VisitView vid sid zipCode date viewedPig b1 b2 b3 pigs pignames mSubview) ->
-         VisitView vid sid zipCode date (eint $ getIntVal viewedPig-1) b1 b2 b3 pigs pignames mSubview
+         \(VisitView vid sid us zipCode date viewedPig b1 b2 b3 pigs pignames loginv mSubview) ->
+         VisitView vid sid us zipCode date (eint $ getIntVal viewedPig-1) b1 b2 b3 pigs pignames loginv mSubview
 
        next i = mkViewEdit i $
-         \(VisitView vid sid zipCode date viewedPig b1 b2 b3 pigs pignames mSubview) ->
-         VisitView vid sid zipCode date (eint $ getIntVal viewedPig+1) b1 b2 b3 pigs pignames mSubview
+         \(VisitView vid sid us zipCode date viewedPig b1 b2 b3 pigs pignames loginv mSubview) ->
+         VisitView vid sid us zipCode date (eint $ getIntVal viewedPig+1) b1 b2 b3 pigs pignames loginv mSubview
 
-       addPig i = AuthenticateEdit -- DocEdit $ addNewPig i 
+       addPig i = DocEdit $ addNewPig i 
 
 addNewPig vid db =
   let ((Pig newPigId _ _ _ _), db') = newPig vid db      
   in  (updateVisit vid $ \v -> v { pigs = pigs v ++ [newPigId] }) db'
 
 instance Presentable VisitView where
-  present (VisitView vid sid zipCode date viewedPig b1 b2 b3 pigs pignames subviews) =
+  present (VisitView vid sid us zipCode date viewedPig b1 b2 b3 pigs pignames loginoutView subviews) =
         withBgColor (Rgb 235 235 235) $
-        ("Visit at "+++ presentTextField zipCode +++" on " +++ presentTextField date +++ 
+        (case us of
+           Nothing -> p << present loginoutView 
+           Just name -> p << stringToHtml ("Hello "++name) +++ present loginoutView) +++
+        
+        (p <<"Visit at "+++ presentTextField zipCode +++" on " +++ presentTextField date +++ 
           "           (session# "+++show sid+++")")
     +++ p << ("Visited "++ show (length pigs) ++ " pig" ++ pluralS (length pigs) ++ ": " ++
               listCommaAnd pignames)
@@ -130,21 +144,55 @@ instance Presentable VisitView where
             (case subviews of
                [] -> stringToHtml "no pigs"
                pvs -> hList $ map present pvs ++ [presentButton "add" b3] )
+
 instance Storeable VisitView where
-  save (VisitView vid sid zipCode date _ _ _ _ pigs pignames mSubView) db =
+  save (VisitView vid sid us zipCode date _ _ _ _ pigs pignames _ _) db =
     updateVisit vid (\(Visit _ _ _ pigIds) ->
                       Visit vid (getStrVal zipCode) (getStrVal date) pigIds)
                     db
 
 instance Initial VisitView where
-  initial = VisitView initial initial initial initial initial initial initial initial initial initial initial
+  initial = VisitView initial initial initial initial initial initial initial initial initial initial initial initial initial
 
 
+
+data LoginView = LoginView EString EString Button 
+  deriving (Eq, Show, Typeable, Data)
+
+mkLoginView = mkWebView (ViewId (44)) $
+      \user db viewMap vid ->
+        let (LoginView name password b) = getOldView vid viewMap
+        in  LoginView name password 
+                     (Button noId $ AuthenticateEdit (strRef name) (strRef password))
+
+instance Storeable LoginView where save _ = id
+                                   
+instance Presentable LoginView where
+  present (LoginView name password loginbutton) = 
+    boxed $ ("Login:" +++ presentTextField name) +++
+            ("Password:" +++ presentPasswordField password) +++
+            presentButton "Login" loginbutton
+            
+instance Initial LoginView where initial = LoginView initial initial initial
+
+data LogoutView = LogoutView Button deriving (Eq, Show, Typeable, Data)
+
+mkLogoutView = mkWebView (ViewId (55)) $
+  \user db viewMap vid -> LogoutView (Button noId LogoutEdit)
+
+instance Storeable LogoutView where save _ = id
+                                   
+instance Presentable LogoutView where
+  present (LogoutView logoutbutton) = 
+    presentButton "Logout" logoutbutton
+            
+instance Initial LogoutView where initial = LogoutView initial
+                                 
 data PigView = PigView PigId Button Int Int EString [EInt] (Either Int String) 
                deriving (Eq, Show, Typeable, Data)
 
 mkPigView pignr i viewedPig = mkWebView (ViewId 33) $ 
-      \db viewMap vid ->
+      \user db viewMap vid ->
   let (Pig pid vid name symptoms diagnosis) = unsafeLookup (allPigs db) i
   in  PigView pid (Button noId ( ConfirmEdit "Weet u het zeker?" $ 
                                    removePigAlsoFromVisit pid vid)) 
@@ -180,6 +228,7 @@ instance Storeable PigView where
 
 instance Initial PigView where
   initial = PigView initial initial initial initial initial initial initial
+
 
 
 
