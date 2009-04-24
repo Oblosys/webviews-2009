@@ -18,19 +18,17 @@ import System.Posix.Time
 import System.Posix.Types
 import Text.Html
 import Control.Exception
+import qualified Data.ByteString.Char8 as Bytestring
+import qualified Codec.Binary.Base64.String as Base64
 
 import Types
 import Generics
 import Database
 import Views
 
+
 webViewsPort = 8085
 
-{- authorization demo 
-import qualified Data.Map as M
-import qualified Data.ByteString.Char8 as B
-import qualified Codec.Binary.Base64.String as Base64
- -}
 
 {-
 Happstack notes
@@ -69,7 +67,7 @@ server =
  do { serverSessionId <- epochTime
     ; globalStateRef <- newIORef initGlobalState
     ; simpleHTTP (Conf webViewsPort Nothing) $ 
-        debugFilter $ msum (handlers serverSessionId globalStateRef)
+        msum (handlers serverSessionId globalStateRef)
     }
 
 {-
@@ -84,14 +82,18 @@ http://<server url>/handle?commands=Commands ..
 handlers :: ServerInstanceId -> GlobalStateRef -> [ServerPart Response]
 handlers serverSessionId globalStateRef = 
   [ exactdir "/" $
-      do { liftIO $ putStrLn "Root requested"
-         ; fileServe ["WebViews.html"] "."
-         }
-  , dir "favicon.ico"
-        (methodSP GET $ fileServe ["favicon.ico"] ".")
+     do { liftIO $ putStrLn "Root requested"
+        ; fileServe ["WebViews.html"] "."
+        }
+  , dir "favicon.ico" $
+      methodSP GET $ fileServe ["favicon.ico"] "."
   , dir "img" $
-        fileServe [] "img"  
-  , dir "handle" $ withData (\cmds -> methodSP GET $ session serverSessionId globalStateRef cmds)
+      fileServe [] "img"  
+  , dir "authenticate" $ authenticate
+  , dir "unauthenticate" $ unauthenticate 
+  , debugFilter $ 
+      dir "handle" $ 
+        withData (\cmds -> methodSP GET $ session serverSessionId globalStateRef cmds)
   ]
 {- TODO: why does exactdir "/handle" not work?
    TODO: fix syntax error in command
@@ -169,9 +171,19 @@ storeSessionState globalStateRef sessionId sessionStateRef =
     ; liftIO $ writeIORef globalStateRef (database', sessions', sessionCounter)
     }
  
-sessionHandler sessionStateRef cmds = liftIO $  
- do { putStrLn $ "Received data" ++ show cmds
-
+sessionHandler sessionStateRef cmds = {- myAuth `mplus` -} {-
+ do { mAuthHeader <- getHeaderM "authorization"
+    ; let (s1,s2) = case mAuthHeader of
+                           Nothing         -> ("-","-") 
+                           Just authHeader -> parseHeader authHeader    
+    ; liftIO $ print $ s1 ++ " " ++ s2
+    ; unauthorized ()
+    ; setHeaderM "WWW-Authenticate" "Basic realm=\"WebViews\""
+    ; return $ toResponse $ stringToHtml "bla"
+    }
+-}
+     liftIO $  
+ do { putStrLn $ "Received commands" ++ show cmds
     ; response <- handleCommands sessionStateRef cmds
     ; responseHtml <- case response of
         ViewUpdate ->
@@ -179,7 +191,6 @@ sessionHandler sessionStateRef cmds = liftIO $
             ; let responseHtml = thediv ! [identifier "updates"] <<
                              updateReplaceHtml "root" 
                                (mkDiv "root" $ present $ assignIds rootView)
-            ; putStrLn $ "\n\n\n\ncmds = "++show cmds
             --; putStrLn $ "rootView:\n" ++ show (assignIds rootView)
             --; putStrLn $ "database:\n" ++ show db
             --; putStrLn $ "\n\n\nresponse = \n" ++ show responseHtml
@@ -199,6 +210,10 @@ sessionHandler sessionStateRef cmds = liftIO $
                      (thediv![ strAttr "op" "confirm"
                              , strAttr "text" str
                              ] << "") 
+        Authenticate  -> 
+          return $ thediv ! [identifier "updates"] <<
+                     (thediv![ strAttr "op" "authenticate"
+                             ] << "") 
         
     ; return responseHtml
     } `Control.Exception.catch` \(exc :: SomeException) ->
@@ -212,6 +227,7 @@ sessionHandler sessionStateRef cmds = liftIO $
                        updateReplaceHtml "root" 
                          (mkDiv "root" $ map (p . stringToHtml) $ lines exceptionTxt)
           }
+--    }
  where evaluateDbAndRootView sessionStateRef =
         do { dbRootView <- liftIO $ readIORef sessionStateRef
            ; seq (length $ show dbRootView) $ return ()
@@ -235,7 +251,7 @@ handleCommands sessionStateRef (Commands commands) =
        then return ViewUpdate
        else error "Multiple commands must all result in ViewUpdate at the moment"
     } -- TODO: think of a way to handle multiple commands and dialogs etc.
-data ServerResponse = ViewUpdate | Alert String | Confirm String deriving (Show, Eq)
+data ServerResponse = ViewUpdate | Alert String | Confirm String | Authenticate deriving (Show, Eq)
 
 handleCommand :: SessionStateRef -> Command -> IO ServerResponse
 handleCommand sessionStateRef Init =
@@ -295,6 +311,7 @@ performEditCommand sessionStateRef command =
              do { writeIORef sessionStateRef (db, rootView, Just ec)
                 ; return $ Confirm str
                 }
+            AuthenticateEdit -> return $ Authenticate
             _ ->
              do { (db', rootView') <-
                   case command of
@@ -320,3 +337,41 @@ performEditCommand sessionStateRef command =
 safeRead s = case reads s of
                [(x, "")] -> Just x
                _         -> Nothing
+
+authenticate = myAuth' `mplus` (return $ toResponse $ stringToHtml "tralalie")  
+unauthenticate =
+ do { unauthorized ()
+    --; setHeaderM "WWW-Authenticate" "Basic realm=\"WebViews\""
+    ; return $ toResponse $ stringToHtml "Not Authorized"
+    }
+  
+myAuth' :: ServerPart Response
+myAuth' = fmap toResponse myAuth
+
+myAuth :: ServerPart Html
+myAuth = basicAuth' "WebViews"
+             (Map.fromList [("martijn", " "),("m", " ")]) (return $ stringToHtml "Login Failed")
+
+basicAuth' realmName authMap unauthorizedPart =
+    do
+        let validLogin name pass = Map.lookup name authMap == Just pass  
+        authHeader <- getHeaderM "authorization"
+        case authHeader of
+            Nothing -> err
+            Just x  -> case parseHeader x of 
+                (name, ':':pass) | validLogin name pass -> mzero
+                                   | otherwise -> err
+                _                              -> err
+    where
+        err = do
+            unauthorized ()
+            setHeaderM headerName headerValue
+            unauthorizedPart
+        headerValue = "Basic realm=\"" ++ realmName ++ "\""
+        headerName  = "WWW-Authenticate"
+
+
+
+parseHeader :: Bytestring.ByteString -> (String,String)
+parseHeader = break (':'==) . Base64.decode . Bytestring.unpack . Bytestring.drop 6
+        

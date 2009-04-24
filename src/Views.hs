@@ -107,7 +107,7 @@ mkVisitView sessionId i = mkWebView (ViewId 0) $
          \(VisitView vid sid zipCode date viewedPig b1 b2 b3 pigs pignames mSubview) ->
          VisitView vid sid zipCode date (eint $ getIntVal viewedPig+1) b1 b2 b3 pigs pignames mSubview
 
-       addPig i = DocEdit $ addNewPig i 
+       addPig i = AuthenticateEdit -- DocEdit $ addNewPig i 
 
 addNewPig vid db =
   let ((Pig newPigId _ _ _ _), db') = newPig vid db      

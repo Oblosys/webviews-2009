@@ -15,7 +15,7 @@ var changedTextFieldId = '';
 function init()
 {
   queueCommand('Init');
-  refresh();
+//  refresh();
 }
 
 function debug(message)
@@ -67,7 +67,6 @@ function addCommand(command)
 { commandQueue = commandQueue + (commandQueue != '' ? ',' : '') + command;
 } // add command to queue, and if queue was not empty, put a comma in front
 
-
 // TODO we don't want empty commands sent to server
 function queueCommand(command)
 { 
@@ -103,6 +102,19 @@ if (xmlhttp!=null)
 else
   { alert("Your browser does not support XMLHTTP.");
   }
+}
+
+// tricky to do these as regular commands in the command queue.
+function authenticate()
+{ xmlhttp.onreadystatechange=state_Change;
+  xmlhttp.open("GET",'authenticate',true);
+  xmlhttp.send(null);
+}
+
+function unauthenticate()
+{ xmlhttp.onreadystatechange=state_Change;
+  xmlhttp.open("GET",'unauthenticate',true);
+  xmlhttp.send(null);
 }
 
 function state_Change()
@@ -169,6 +181,9 @@ function updateTree(update)
   { var text = update.getAttribute('text');
     if (confirm(text)) queueCommand('ConfirmDialogOk');;
   } 
+ else if (op === 'authenticate')
+  {  authenticate();
+  } 
  else alert ('Unknown command: '+op); 
 }
 
@@ -188,11 +203,11 @@ function select(path, node)
 </script>
 
 <body onload="init()" style="padding:0px; margin:0px">
+<button onClick="unauthenticate()">Logout</button>
 <!-- <div style="border:solid; border-width:1px; margin:0px"> -->
 <form onSubmit="queueCommand(''); return false"><div id="root">initial root</div></form>
 <!-- </div> -->
 <!-- Debug: -->
-<!-- <button onClick="queueCommand('Refresh')">Bla</button> -->
 <div style="padding:4px;" id="debugMessage"></div>
 
 <div id="receivedUpdates" style="visibility:hidden; border:solid; border-width:1px; padding:4px; border-color:red;" ></div>
