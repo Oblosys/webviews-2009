@@ -113,11 +113,11 @@ session serverSessionId globalStateRef cmds =
                                          else Nothing
                                                                      
       
-        ; lputStrLn $ show rq
+--        ; lputStrLn $ show rq
         ; sessionId <- case mcookie of 
             Nothing -> 
              do { (database, sessions,sessionCounter) <- liftIO $ readIORef globalStateRef
-                ; lputStrLn $ "New connection: "++show sessionCounter
+                ; lputStrLn $ "New session: "++show sessionCounter
                 ; addCookie 3600 (mkCookie "webviews" $ show (serverSessionId, sessionCounter))
                 
                 ; let newSession = (mkRootView theDatabase Map.empty, Nothing)
@@ -128,15 +128,17 @@ session serverSessionId globalStateRef cmds =
                 ; return sessionCounter
                 }  
             Just key -> 
-             do { lputStrLn $ "Session "++show key
+             do { lputStrLn $ "Existing session "++show key
                 ; return key
                 }
              
         
         ; (database, sessions, sessionCounter) <- liftIO $ readIORef globalStateRef
+        ; lputStrLn $ "\n\nNumber of active sessions: " ++ show sessionCounter                                          
+          
         ; sessionState <- case IntMap.lookup sessionId sessions of -- in monad to show errors (which are not caught :-( )
-                            Nothing                      -> do { lputStrLn "Fucked up"
-                                                               ; error "blaaA"
+                            Nothing                      -> do { lputStrLn "\n\n\n\nInternal error: Session not found\n\n\n\n\n"
+                                                               ; error "Internal error: Session not found"
                                                                }
                             Just (rootView, pendingEdit) -> return (database, rootView, pendingEdit)
         ; sessionStateRef <- liftIO $ newIORef sessionState
@@ -164,7 +166,7 @@ sessionHandler sessionStateRef cmds = liftIO $
             ; putStrLn $ "\n\n\n\ncmds = "++show cmds
             --; putStrLn $ "rootView:\n" ++ show (assignIds rootView)
             --; putStrLn $ "database:\n" ++ show db
-            --; putStrLn $ "\n\n\nresponse = \n" ++ show responseHtml
+            ; putStrLn $ "\n\n\nresponse = \n" ++ show responseHtml
             --; putStrLn $ "Sending response sent to client: " ++
             --              take 10 responseHTML ++ "..."
             --; modifyResponseW noCache $
