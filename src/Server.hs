@@ -53,6 +53,10 @@ initGlobalState = (theDatabase, IntMap.empty, 0)
 
 type GlobalStateRef = IORef GlobalState
 
+type ServerInstanceId = EpochTime
+
+type SessionId = Int
+
 type SessionCounter = Int
 
 type Sessions = IntMap (WebView, Maybe EditCommand) 
@@ -77,7 +81,7 @@ http://<server url>/handle?commands=Commands ..
 -}
 
 
-handlers :: EpochTime -> GlobalStateRef -> [ServerPartT IO Response]
+handlers :: ServerInstanceId -> GlobalStateRef -> [ServerPart Response]
 handlers serverSessionId globalStateRef = 
   [ exactdir "/" $
       do { liftIO $ putStrLn "Root requested"
@@ -96,62 +100,75 @@ handlers serverSessionId globalStateRef =
 
 type SessionCookie = (String, String)
 
-session :: EpochTime -> GlobalStateRef -> Commands -> ServerPartT IO Response
-session serverSessionId globalStateRef cmds =
-       do { rq <- askRq
-             
-        ; let cookieMap = rqCookies rq
-        ; let mcookie = case lookup "webviews" cookieMap of
-                          Nothing -> Nothing
-                          Just c  -> case safeRead (cookieValue c) of
-                                       Nothing               -> Nothing
-                                       Just (serverTime::EpochTime,key::Int) -> 
-                                         if serverTime == serverSessionId
-                                         then Just key
-                                         else Nothing
-                                                                     
+session :: ServerInstanceId -> GlobalStateRef -> Commands -> ServerPart Response
+session serverInstanceId globalStateRef cmds =
+ do { mCookieSessionId <- parseCookieSessionId serverInstanceId
       
 --        ; lputStrLn $ show rq
-        ; sessionId <- case mcookie of 
-            Nothing -> 
-             do { (database, sessions,sessionCounter) <- liftIO $ readIORef globalStateRef
-                ; let sessionId = sessionCounter
-                ; lputStrLn $ "New session: "++show sessionId
-                ; addCookie 3600 (mkCookie "webviews" $ show (serverSessionId, sessionId))
-                
-                ; let newSession = (mkRootView theDatabase sessionId Map.empty, Nothing)
-                ; let sessions' = IntMap.insert sessionId newSession sessions
-                
-                ; liftIO $ writeIORef globalStateRef (database, sessions', sessionCounter + 1)
-                 
-                ; return sessionId
-                }  
-            Just key -> 
-             do { lputStrLn $ "Existing session "++show key
-                ; return key
-                }
+        ; sessionId <- case mCookieSessionId of 
+            Nothing  -> createNewSessionState globalStateRef serverInstanceId
+            Just key -> do { lputStrLn $ "Existing session "++show key
+                           ; return key
+                           }
              
-        
-        ; (database, sessions, sessionCounter) <- liftIO $ readIORef globalStateRef
-        ; lputStrLn $ "\n\nNumber of active sessions: " ++ show sessionCounter                                          
-          
-        ; sessionState <- case IntMap.lookup sessionId sessions of -- in monad to show errors (which are not caught :-( )
-                            Nothing                      -> do { lputStrLn "\n\n\n\nInternal error: Session not found\n\n\n\n\n"
-                                                               ; error "Internal error: Session not found"
-                                                               }
-                            Just (rootView, pendingEdit) -> return (database, rootView, pendingEdit)
-        ; sessionStateRef <- liftIO $ newIORef sessionState
-                             
+        ; sessionStateRef <- retrieveSessionState globalStateRef sessionId 
+                                  
         ; responseHtml <- sessionHandler sessionStateRef cmds              
         
-        -- store the database in gs and rest in sessions
-        ; (_, sessions, sessionCounter) <- liftIO $ readIORef globalStateRef
-        ; (database', rootView', pendingEdit') <- liftIO $ readIORef sessionStateRef
-        ; let sessions' = IntMap.insert sessionId (rootView', pendingEdit') sessions                                          
-        ; liftIO $ writeIORef globalStateRef (database', sessions', sessionCounter)
+        ; storeSessionState globalStateRef sessionId sessionStateRef
+        
         ; ok $ toResponse $ responseHtml
         }
+ 
+parseCookieSessionId :: ServerInstanceId -> ServerPart (Maybe SessionId)
+parseCookieSessionId serverInstanceId = 
+ do { rq <- askRq
+             
+    ; let cookieMap = rqCookies rq
+    ; let mCookieSessionId = case lookup "webviews" cookieMap of
+                      Nothing -> Nothing -- * no webviews cookie on the client
+                      Just c  -> case safeRead (cookieValue c) of
+                                   Nothing               -> Nothing -- * ill formed cookie on client
+                                   Just (serverTime::EpochTime,key::Int) -> 
+                                     if serverTime /= serverInstanceId
+                                     then Nothing  -- * cookie from previous WebViews run
+                                     else Just key -- * correct cookie for this run
+    ; return mCookieSessionId
+    } -- TODO: this is nasty, maybe try to use the Happs function
+ 
+createNewSessionState globalStateRef serverInstanceId = 
+ do { (database, sessions,sessionCounter) <- liftIO $ readIORef globalStateRef
+    ; let sessionId = sessionCounter
+    ; lputStrLn $ "New session: "++show sessionId
+    ; addCookie 3600 (mkCookie "webviews" $ show (serverInstanceId, sessionId))
+    -- cookie lasts for one hour
+      
+    ; let newSession = (mkRootView theDatabase sessionId Map.empty, Nothing)
+    ; let sessions' = IntMap.insert sessionId newSession sessions
+   
+    ; liftIO $ writeIORef globalStateRef (database, sessions', sessionCounter + 1)
+    
+    ; return sessionId
+    }
+ 
+retrieveSessionState globalStateRef sessionId =
+ do { (database, sessions, sessionCounter) <- liftIO $ readIORef globalStateRef
+    ; lputStrLn $ "\n\nNumber of active sessions: " ++ show sessionCounter                                          
+    ; sessionState <- case IntMap.lookup sessionId sessions of -- in monad to show errors (which are not caught :-( )
+                             Nothing                      -> do { lputStrLn "\n\n\n\nInternal error: Session not found\n\n\n\n\n"
+                                                                ; error "Internal error: Session not found"
+                                                                }
+                             Just (rootView, pendingEdit) -> return (database, rootView, pendingEdit)
+    ; liftIO $ newIORef sessionState
+    }                        
 
+storeSessionState globalStateRef sessionId sessionStateRef =
+ do { (_, sessions, sessionCounter) <- liftIO $ readIORef globalStateRef
+    ; (database', rootView', pendingEdit') <- liftIO $ readIORef sessionStateRef
+    ; let sessions' = IntMap.insert sessionId (rootView', pendingEdit') sessions                                          
+    ; liftIO $ writeIORef globalStateRef (database', sessions', sessionCounter)
+    }
+ 
 sessionHandler sessionStateRef cmds = liftIO $  
  do { putStrLn $ "Received data" ++ show cmds
 
