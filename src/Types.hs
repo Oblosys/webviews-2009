@@ -14,7 +14,8 @@ import Control.Monad.Identity
 data Commands = Commands [Command] 
               | SyntaxError String -- for debugging post from client, replace read by Str in FromData instance
                   deriving (Show, Read)
-data Command = Init | Test | SetC Int String | ButtonC Int 
+
+data Command = Init | Refresh | Test | SetC Int String | ButtonC Int 
              | ConfirmDialogOk 
                deriving (Show, Read) 
 

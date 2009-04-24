@@ -182,7 +182,7 @@ sessionHandler sessionStateRef cmds = liftIO $
             ; putStrLn $ "\n\n\n\ncmds = "++show cmds
             --; putStrLn $ "rootView:\n" ++ show (assignIds rootView)
             --; putStrLn $ "database:\n" ++ show db
-            ; putStrLn $ "\n\n\nresponse = \n" ++ show responseHtml
+            --; putStrLn $ "\n\n\nresponse = \n" ++ show responseHtml
             --; putStrLn $ "Sending response sent to client: " ++
             --              take 10 responseHTML ++ "..."
             --; modifyResponseW noCache $
@@ -239,16 +239,23 @@ data ServerResponse = ViewUpdate | Alert String | Confirm String deriving (Show,
 
 handleCommand :: SessionStateRef -> Command -> IO ServerResponse
 handleCommand sessionStateRef Init =
-   do { (db, rootView,_) <- readIORef sessionStateRef
+   do { (db, rootView, _) <- readIORef sessionStateRef
       ; putStrLn "Init"
       ; return ViewUpdate
       }
+handleCommand sessionStateRef Refresh =
+   do { (db, rootView, pendingEdit) <- readIORef sessionStateRef
+      ; putStrLn "Refresh"
+      ; let rootView' = loadView db (mkViewMap rootView) rootView
+      ; writeIORef sessionStateRef (db, rootView', pendingEdit)
+      ; return ViewUpdate
+      }
 handleCommand sessionStateRef Test =
-   do { (db, rootView,_) <- readIORef sessionStateRef
+   do { (db, rootView, _) <- readIORef sessionStateRef
       ; return ViewUpdate
       }
 handleCommand sessionStateRef (SetC id value) =
-   do { (db, rootView,mc) <- readIORef sessionStateRef      
+   do { (db, rootView, pendingEdit) <- readIORef sessionStateRef      
       ; putStrLn $ show id ++ " value is " ++ show value
 
       ; let rootView' = replace (Map.fromList [(Id id, value)]) (assignIds rootView)
@@ -257,11 +264,11 @@ handleCommand sessionStateRef (SetC id value) =
             -- TODO: check if mkViewMap has correct arg
             rootView'' = loadView db' (mkViewMap rootView') rootView'
       -- TODO: instead of updating all, just update the one that was changed
-      ; writeIORef sessionStateRef (db',rootView'',mc)
+      ; writeIORef sessionStateRef (db', rootView'', pendingEdit)
       ; return ViewUpdate
       }
 handleCommand sessionStateRef (ButtonC id) =
-   do { (db, rootView, mc) <- readIORef sessionStateRef
+   do { (db, rootView, pendingEdit) <- readIORef sessionStateRef
       ; putStrLn $ "Button " ++ show id ++ " was clicked"
       ; let Button _ act = getButtonById (Id id) (assignIds rootView)
 
@@ -272,16 +279,16 @@ handleCommand sessionStateRef (ButtonC id) =
       ; return response
       }
 handleCommand sessionStateRef ConfirmDialogOk =
-   do { (db, rootView,mc) <- readIORef sessionStateRef
+   do { (db, rootView, pendingEdit) <- readIORef sessionStateRef
       ; writeIORef sessionStateRef (db, rootView, Nothing) -- clear it, also in case of error
-      ; response <- case mc of
+      ; response <- case pendingEdit of
                       Nothing -> error "ConfirmDialogOk event without active dialog"
                       Just ec -> performEditCommand sessionStateRef ec
       ; return response
       }
 
 performEditCommand sessionStateRef command =
- do { (db, rootView, mc) <- readIORef sessionStateRef
+ do { (db, rootView, pendingEdit) <- readIORef sessionStateRef
     ; case command of  
             AlertEdit str -> return $ Alert str
             ConfirmEdit str ec -> 
@@ -303,7 +310,7 @@ performEditCommand sessionStateRef command =
                                        --       make function for loading rootView
                       in   do { return (db, rootView'')
                               }
-                ; writeIORef sessionStateRef (db', rootView', mc)
+                ; writeIORef sessionStateRef (db', rootView', pendingEdit)
 
                 ; return ViewUpdate
                 }

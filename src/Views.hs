@@ -52,7 +52,7 @@ presentTextField (EString (Id i) str) =
 presentButton :: String -> Button -> Html
 presentButton txt (Button (Id id) _) =
    primHtml $ "<button onclick=\"queueCommand('ButtonC "++show id++"')\">"++txt++"</button>"
-
+-- TODO: text should be escaped
 
 mkViewEdit i f = 
   ViewEdit i $ \(WebView i lv v) -> WebView i lv $ applyIfCorrectType f v
