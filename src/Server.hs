@@ -259,54 +259,57 @@ data ServerResponse = ViewUpdate | Alert String | Confirm String {- | Authentica
 
 handleCommand :: SessionStateRef -> Command -> IO ServerResponse
 handleCommand sessionStateRef Init =
-   do { (_, db, rootView, _) <- readIORef sessionStateRef
-      ; putStrLn "Init"
-      ; return ViewUpdate
-      }
+ do { (_, db, rootView, _) <- readIORef sessionStateRef
+    ; putStrLn "Init"
+    ; return ViewUpdate
+    }
 handleCommand sessionStateRef Refresh =
-   do { (user, db, rootView, pendingEdit) <- readIORef sessionStateRef
-      ; putStrLn "Refresh"
-      ; let rootView' = loadView user db (mkViewMap rootView) rootView
-      ; writeIORef sessionStateRef (user, db, rootView', pendingEdit)
-      ; return ViewUpdate
-      }
+ do { putStrLn "Refresh"
+    ; reloadRootView sessionStateRef
+    ; return ViewUpdate
+    }
 handleCommand sessionStateRef Test =
-   do { (user, db, rootView, _) <- readIORef sessionStateRef
-      ; return ViewUpdate
-      }
+ do { (user, db, rootView, _) <- readIORef sessionStateRef
+    ; return ViewUpdate
+    }
 handleCommand sessionStateRef (SetC id value) =
-   do { (user, db, rootView, pendingEdit) <- readIORef sessionStateRef      
-      ; putStrLn $ show id ++ " value is " ++ show value
+ do { (user, db, rootView, pendingEdit) <- readIORef sessionStateRef      
+    ; putStrLn $ show id ++ " value is " ++ show value
 
-      ; let rootView' = replace (Map.fromList [(Id id, value)]) (assignIds rootView)
-      ; putStrLn $ "Updated rootView:\n" ++ show rootView'
-      ; let db' = save rootView' db
-            -- TODO: check if mkViewMap has correct arg
-            rootView'' = loadView user db' (mkViewMap rootView') rootView'
-      -- TODO: instead of updating all, just update the one that was changed
-      ; writeIORef sessionStateRef (user, db', rootView'', pendingEdit)
-      ; return ViewUpdate
-      }
+    ; let rootView' = replace (Map.fromList [(Id id, value)]) (assignIds rootView)
+    ; putStrLn $ "Updated rootView:\n" ++ show rootView'
+    ; let db' = save rootView' db
+      -- TODO: check if mkViewMap has correct arg
+    -- TODO: instead of updating all, just update the one that was changed
+    ; writeIORef sessionStateRef (user, db', rootView', pendingEdit)
+    ; reloadRootView sessionStateRef
+    ; return ViewUpdate
+    }
 handleCommand sessionStateRef (ButtonC id) =
-   do { (user, db, rootView, pendingEdit) <- readIORef sessionStateRef
-      ; putStrLn $ "Button " ++ show id ++ " was clicked"
-      ; let Button _ act = getButtonById (Id id) (assignIds rootView)
+ do { (user, db, rootView, pendingEdit) <- readIORef sessionStateRef
+    ; putStrLn $ "Button " ++ show id ++ " was clicked"
+    ; let Button _ act = getButtonById (Id id) (assignIds rootView)
 
- --     ; case act of
- --         ViewEdit i _ -> putStrLn $ "View edit on "++show i
-      ; response <- performEditCommand sessionStateRef act
+    ; response <- performEditCommand sessionStateRef act
           
-      ; return response
-      }
+    ; return response
+    }
 handleCommand sessionStateRef ConfirmDialogOk =
-   do { (user, db, rootView, pendingEdit) <- readIORef sessionStateRef
-      ; writeIORef sessionStateRef (user, db, rootView, Nothing) -- clear it, also in case of error
-      ; response <- case pendingEdit of
-                      Nothing -> error "ConfirmDialogOk event without active dialog"
-                      Just ec -> performEditCommand sessionStateRef ec
-      ; return response
-      }
-
+ do { (user, db, rootView, pendingEdit) <- readIORef sessionStateRef
+    ; writeIORef sessionStateRef (user, db, rootView, Nothing) -- clear it, also in case of error
+    ; response <- case pendingEdit of
+                    Nothing -> error "ConfirmDialogOk event without active dialog"
+                    Just ec -> performEditCommand sessionStateRef ec
+    ; return response
+    }
+ 
+reloadRootView :: SessionStateRef -> IO ()
+reloadRootView sessionStateRef =
+ do { (user, db, rootView, pendingEdit) <- readIORef sessionStateRef
+    ; let rootView' = loadView user db (mkViewMap rootView) rootView
+    ; writeIORef sessionStateRef (user, db, rootView', pendingEdit)
+    } 
+ 
 performEditCommand sessionStateRef command =
  do { (user, db, rootView, pendingEdit) <- readIORef sessionStateRef
     ; case command of  
@@ -322,18 +325,18 @@ performEditCommand sessionStateRef command =
                   case command of
                     DocEdit docedit -> 
                       let db' = docedit db
-                      in  return (db', loadView user db' (mkViewMap rootView) rootView)
+                      in  return (db', rootView)
                     ViewEdit i viewedit -> 
                       let wv = getWebViewById i rootView
                           wv' = viewedit wv
                           rootView' = replaceWebViewById i wv' rootView 
-                          rootView'' = loadView user db (mkViewMap rootView') rootView'
                                        -- TODO: check if mkViewMap has correct arg
                                        --       make function for loading rootView
-                      in   do { return (db, rootView'')
-                              }
+                      in  return (db, rootView')
+                              
                 ; writeIORef sessionStateRef (user, db', rootView', pendingEdit)
-
+                ; reloadRootView sessionStateRef
+ 
                 ; return ViewUpdate
                 }
 
@@ -355,10 +358,8 @@ authenticate sessionStateRef userEStringId passwordEStringId =
            if Map.lookup userName users == Just enteredPassword 
              then 
               do { putStrLn $ "User "++userName++" authenticated"
-                 ; let rootView' = loadView (Just userName) db (mkViewMap rootView) rootView
-                 -- NOTE take care when replacing these with more abstract versions
-                 -- first update user, then reload
-                 ; writeIORef sessionStateRef (Just userName, db, rootView', pendingEdit)
+                 ; writeIORef sessionStateRef (Just userName, db, rootView, pendingEdit)
+                 ; reloadRootView sessionStateRef
                  ; return ViewUpdate
                  }
              else 
@@ -370,10 +371,8 @@ authenticate sessionStateRef userEStringId passwordEStringId =
     }
 logout sessionStateRef =
  do { (user, db, rootView, pendingEdit) <- readIORef sessionStateRef
-    ; let rootView' = loadView Nothing db (mkViewMap rootView) rootView
-    -- NOTE take care when replacing these with more abstract versions
-    -- first update user, then reload
-    ; writeIORef sessionStateRef (Nothing, db, rootView', pendingEdit)
+    ; writeIORef sessionStateRef (Nothing, db, rootView, pendingEdit)
+    ; reloadRootView sessionStateRef
     ; return ViewUpdate
     }  
 
