@@ -29,8 +29,9 @@ import Views
 
 webViewsPort = 8085
 
-users :: Map String String
-users = Map.fromList [("martijn", "p"), ("anonymous", "")] 
+users :: Map String (String, String)
+users = Map.fromList [("martijn", ("p", "Martijn")), ("anonymous", ("", "gastgebruiker"))
+                     ,("alexey", ("mrchebas", "Pulpo")) ] 
 -- TODO: maybe this can be (a special) part of db?
 
 {-
@@ -197,15 +198,19 @@ sessionHandler sessionStateRef cmds = {- myAuth `mplus` -} {-
                                (mkDiv "root" $ present $ assignIds rootView)
             --; putStrLn $ "rootView:\n" ++ show (assignIds rootView)
             --; putStrLn $ "database:\n" ++ show db
-            ; putStrLn $ "\n\n\nresponse = \n" ++ show responseHtml
+            --; putStrLn $ "\n\n\nresponse = \n" ++ show responseHtml
             --; putStrLn $ "Sending response sent to client: " ++
             --              take 10 responseHTML ++ "..."
             ; seq (length (show responseHtml)) $ return ()
             ; case cmds of
                 (Commands [SetC 10 _]) -> 
-                  return $ thediv ! [identifier "updates"] <<
-                    thediv![strAttr "op" "special", strAttr "targetId" "root" ] <<   
-                      (mkDiv "root" $ present $ assignIds rootView)
+                 do { putStrLn "10 was edited\n\n\n\n" 
+                    ; let html = thediv ! [identifier "updates"] <<
+                            thediv![strAttr "op" "special", strAttr "targetId" "root" ] <<   
+                              (mkDiv "root" $ present $ assignIds' rootView)
+                    ; putStrLn $ "\n\n\nresponse = \n" ++ show html
+                    ; return html
+                    }
                 _ -> return responseHtml
             }
         Alert str -> 
@@ -361,17 +366,21 @@ authenticate sessionStateRef userEStringId passwordEStringId =
           mEnteredPassword = getEStringByIdRef passwordEStringId rootView
     ; case (mUserName, mEnteredPassword) of
         (Just userName, Just enteredPassword) ->
-           if Map.lookup userName users == Just enteredPassword 
-             then 
-              do { putStrLn $ "User "++userName++" authenticated"
-                 ; writeIORef sessionStateRef (Just userName, db, rootView, pendingEdit)
-                 ; reloadRootView sessionStateRef
-                 ; return ViewUpdate
-                 }
-             else 
-              do { putStrLn $ "User "++userName++" entered a wrong password"
-                 ; return $ Alert "Incorect password"
-                 }
+           case Map.lookup userName users of
+             Just (password, fullName) -> if password == enteredPassword  
+                                      then 
+                                       do { putStrLn $ "User "++userName++" authenticated"
+                                          ; writeIORef sessionStateRef (Just (userName, fullName), db, rootView, pendingEdit)
+                                          ; reloadRootView sessionStateRef
+                                          ; return ViewUpdate
+                                          }
+                                      else
+                                       do { putStrLn $ "User "++userName++" entered a wrong password"
+                                          ; return $ Alert "Incorect password"
+                                          }
+             Nothing -> do { putStrLn $ "User "++userName++" entered a wrong password"
+                           ; return $ Alert $ "Unknown username: "++userName
+                           }
         _ -> error $ "Internal error: at least one referenced Id not in rootView" ++
                      show [userEStringId, passwordEStringId]
     }

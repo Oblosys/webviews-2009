@@ -74,6 +74,10 @@ everythingBut q f x = {- if q x then [x] else -} foldl (++) [] (gmapQ (everythin
 assignIds :: Data d => d -> d
 assignIds x = snd $ everywhereAccum assignId 0 x
 
+-- for testing problems with non-unique ids in dom
+assignIds' :: Data d => d -> d
+assignIds' x = snd $ everywhereAccum assignId 100 x
+
 assignId :: Data d => Int -> d -> (Int,d)
 assignId = mkAccT $ \i (Id _) -> (i+1, Id i)
 

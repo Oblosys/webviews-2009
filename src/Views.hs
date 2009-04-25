@@ -34,33 +34,6 @@ instance Initial VisitId where initial = VisitId (-1)
 instance Initial PigId where initial = PigId (-1)
 
 
-presentRadioBox :: [String] -> EInt -> Html
-presentRadioBox items (EInt (Id i) ei) = mkDiv ("input"++show i) $ radioBox (show i) items ei
--- id is unique
-
--- the entire root is a form, that causes registering text field updates on pressing enter
--- (or Done) on the iPhone. It would be nicer to capture this at the textfield itself.
--- Local forms are a problem though because they are block elements
--- TODO: focus loss on enter is not nice  
-presentTextField :: EString -> Html
-presentTextField = presentTextualInput (textfield "")
-  
-presentPasswordField :: EString -> Html
-presentPasswordField = presentTextualInput (password "")
-
-presentTextualInput :: Html -> EString -> Html
-presentTextualInput inputfield (EString (Id i) str) = mkDiv ("input"++show i) $  
-  inputfield ! [identifier (show i), strAttr "VALUE" str
-               , strAttr "onChange" $ "textFieldChanged('"++show i++"')"
-               -- , strAttr "onFocus" $ "textFieldGotFocus()" -- no good, see WebViews.html
-               , strAttr "hidden" "True"
-               ]
-
--- seems like this one could be in Present
-presentButton :: String -> Button -> Html
-presentButton txt (Button (Id id) _) =
-   primHtml $ "<button onclick=\"queueCommand('ButtonC "++show id++"')\">"++txt++"</button>"
--- TODO: text should be escaped
 
 mkViewEdit i f = 
   ViewEdit i $ \(WebView i lv v) -> WebView i lv $ applyIfCorrectType f v
@@ -131,7 +104,7 @@ instance Presentable VisitView where
         withBgColor (Rgb 235 235 235) $
         (case us of
            Nothing -> p << present loginoutView 
-           Just name -> p << stringToHtml ("Hello "++name) +++ present loginoutView) +++
+           Just (_,name) -> p << stringToHtml ("Hello "++name++".") +++ present loginoutView) +++
         
         (p <<"Visit at "+++ presentTextField zipCode +++" on " +++ presentTextField date +++ 
           "           (session# "+++show sid+++")")
@@ -164,7 +137,7 @@ data PigView = PigView PigId Button Int Int EString [EInt] (Either Int String)
 mkPigView pignr i viewedPig = mkWebView (ViewId 33) $ 
       \user db viewMap vid ->
   let (Pig pid vid name symptoms diagnosis) = unsafeLookup (allPigs db) i
-  in  PigView pid (Button noId ( ConfirmEdit "Weet u het zeker?" $ 
+  in  PigView pid (Button noId ( ConfirmEdit ("Are you sure you want to remove pig "++show pignr++"?") $ 
                                    removePigAlsoFromVisit pid vid)) 
               viewedPig pignr (estr name) (map eint symptoms) diagnosis
  where -- need db support for removal and we need parent
@@ -175,7 +148,8 @@ instance Presentable PigView where
   present (PigView pid b _ pignr name [] diagnosis) = stringToHtml "initial pig"
   present (PigView pid b viewedPig pignr name [tv, kl, ho] diagnosis) =
         withBgColor (if viewedPig == pignr then Rgb 200 200 200 else Rgb 225 225 225) $
-    boxed $
+     mkSpan ("pigview"++show (unId (getStrId name))) $ -- borrow from name, so id is changed by syb 
+     boxed $
         (center $ image $ pigImage)
     +++ (center $ " nr. " +++ show (pignr+1))
     +++ p << (center $ (presentButton "remove" b))
@@ -245,14 +219,61 @@ updateReplaceHtml targetId newElement =
 
 mkDiv str elt = thediv![identifier str] << elt
 
+mkSpan str elt = thespan![identifier str] << elt
+
 boxed html = thediv![thestyle "border:solid; border-width:1px; padding:4px;"] << html
+
+
+
+{-
+
+Everything seems to work:
+not updating the unchanged controls and keeping id's unique causes edit events survive update
+They do seem to lose focus though, but since we know what was edited, we can easily restore the focus after
+the update
+-}
+
+
+-- the entire root is a form, that causes registering text field updates on pressing enter
+-- (or Done) on the iPhone. It would be nicer to capture this at the textfield itself.
+-- Local forms are a problem though because they are block elements
+-- TODO: focus loss on enter is not nice  
+presentTextField :: EString -> Html
+presentTextField = presentTextualInput (textfield "")
+  
+presentPasswordField :: EString -> Html
+presentPasswordField = presentTextualInput (password "")
+
+presentTextualInput :: Html -> EString -> Html
+presentTextualInput inputfield (EString (Id i) str) = mkSpan ("input"++show i) $  
+  inputfield ! [identifier (show i), strAttr "VALUE" str
+               --, strAttr "onChange" $ "textFieldChanged('"++show i++"')"
+               , strAttr "onFocus" $ "elementGotFocus('"++show i++"')"
+               , strAttr "onBlur" $ "textFieldChanged('"++show i++"')"
+               ]
+
+-- seems like this one could be in Present
+presentButton :: String -> Button -> Html
+presentButton txt (Button (Id i) _) = mkSpan ("input"++show i) $ 
+   primHtml $ "<button onclick=\"queueCommand('ButtonC "++show i++"')\""++
+                      "onfocus=\"elementGotFocus('"++show i++"')\">"++txt++"</button>"
+-- TODO: text should be escaped
+
+presentRadioBox :: [String] -> EInt -> Html
+presentRadioBox items (EInt (Id i) ei) = mkSpan ("input"++show i) $ radioBox (show i) items ei
+-- id is unique
+
 
 --radioBox :: String -> [String] -> Int -> Html
 radioBox id items selectedIx =
-  [ radio id (show i) ! ( [strAttr "onChange" ("queueCommand('SetC "++id++" %22"++show i++"%22   ')") ]
+  [ radio id (show i) ! ( [ strAttr "id" eltId 
+                          , strAttr "onChange" ("queueCommand('SetC "++id++" %22"++show i++"%22')") 
+                          , strAttr "onFocus" ("elementGotFocus('"++eltId++"')")
+                          ]
                           ++ if i == selectedIx then [strAttr "checked" ""] else []) 
                           +++ item +++ br 
-                        | (i, item) <- zip [0..] items ]
+                        | (i, item) <- zip [0..] items 
+                        , let eltId = "radio"++id++"button"++show i ]
 
 
 hList [] = stringToHtml "" -- TODO should have some empty here

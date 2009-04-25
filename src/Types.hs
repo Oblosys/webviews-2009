@@ -22,7 +22,7 @@ data Command = Init | Refresh | Test
                deriving (Show, Read) 
 
 
-newtype Id = Id Int deriving (Show, Eq, Ord, Data, Typeable)
+newtype Id = Id { unId :: Int } deriving (Show, Eq, Ord, Data, Typeable)
 noId = Id (-1)
 
 newtype IdRef = IdRef Int deriving (Show, Eq, Ord, Data, Typeable)
@@ -92,7 +92,7 @@ instance Storeable () where
 -- Maybe SYB can handle this (gives an ambiguous type var now)
 -- otherwise template haskell can do this
 
-type User = Maybe String
+type User = Maybe (String, String)
 
 newtype ViewId = ViewId Int deriving (Show, Eq, Ord, Typeable, Data)
 
