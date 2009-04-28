@@ -87,12 +87,12 @@ handlers :: ServerInstanceId -> GlobalStateRef -> [ServerPart Response]
 handlers serverSessionId globalStateRef = 
   [ exactdir "/" $
      do { liftIO $ putStrLn "Root requested"
-        ; fileServe ["scripts/WebViews.html"] "."
+        ; fileServe ["scr/WebViews.html"] "."
         }
   , dir "favicon.ico" $
       methodSP GET $ fileServe ["favicon.ico"] "."
-  , dir "scripts" $
-      fileServe [] "scripts"  
+  , dir "scr" $
+      fileServe [] "scr"  
   , dir "img" $
       fileServe [] "img"  
 --  , dir "authenticate" $ authenticate
