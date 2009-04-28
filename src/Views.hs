@@ -68,13 +68,14 @@ loadView user db viewMap (WebView vid si i f _) = (WebView vid si i f (f user db
 
 
 data VisitView = 
-  VisitView VisitId Int User (Widget EString) (Widget EString) (Widget EInt) (Widget Button) (Widget Button) (Widget Button) [PigId] [String] WebView [WebView]
+  VisitView VisitId Int User (Widget EString) (Widget EString) (Widget EInt) (Widget Button) 
+           (Widget Button) (Widget Button) [PigId] [String] {- WebView [WebView] -}
     deriving (Eq, Show, Typeable, Data)
 
 -- todo: doc edits seem to reset viewed pig nr.
 mkVisitView sessionId i = mkWebView (ViewId 0) $
   \user db viewMap vid -> 
-  let (VisitView _ _ _ _ _ oldViewedPig _ _ _ _ _ _ mpigv) = getOldView vid viewMap
+  let (VisitView _ _ _ _ _ oldViewedPig _ _ _ _ _ {- _ mpigv -}) = getOldView vid viewMap
       (Visit visd zipcode date pigIds) = unsafeLookup (allVisits db) i
       viewedPig = constrain 0 (length pigIds - 1) $ getIntVal oldViewedPig
       pignames = map (pigName . unsafeLookup (allPigs db)) pigIds
@@ -86,17 +87,17 @@ mkVisitView sessionId i = mkWebView (ViewId 0) $
                     then Nothing
                     else Just $ mkPigView viewedPig (pigIds !! viewedPig) db viewMap
                    )-}
-                (if user == Nothing then (mkLoginView user db viewMap) 
+         {-       (if user == Nothing then (mkLoginView user db viewMap) 
                                     else (mkLogoutView user db viewMap))
-                [mkPigView i pigId viewedPig user db viewMap | (pigId,i) <- zip pigIds [0..]]
+                [mkPigView i pigId viewedPig user db viewMap | (pigId,i) <- zip pigIds [0..]] -}
  where -- next and previous may cause out of bounds, but on reload, this is constrained
        previous i = mkViewEdit i $
-         \(VisitView vid sid us zipCode date viewedPig b1 b2 b3 pigs pignames loginv mSubview) ->
-         VisitView vid sid us zipCode date (eint $ getIntVal viewedPig-1) b1 b2 b3 pigs pignames loginv mSubview
+         \(VisitView vid sid us zipCode date viewedPig b1 b2 b3 pigs pignames {- loginv mSubview -}) ->
+         VisitView vid sid us zipCode date (eint $ getIntVal viewedPig-1) b1 b2 b3 pigs pignames {- loginv mSubview -}
 
        next i = mkViewEdit i $
-         \(VisitView vid sid us zipCode date viewedPig b1 b2 b3 pigs pignames loginv mSubview) ->
-         VisitView vid sid us zipCode date (eint $ getIntVal viewedPig+1) b1 b2 b3 pigs pignames loginv mSubview
+         \(VisitView vid sid us zipCode date viewedPig b1 b2 b3 pigs pignames {- loginv mSubview -}) ->
+         VisitView vid sid us zipCode date (eint $ getIntVal viewedPig+1) b1 b2 b3 pigs pignames {- loginv mSubview -}
 
        addPig i = DocEdit $ addNewPig i 
 
@@ -105,12 +106,12 @@ addNewPig vid db =
   in  (updateVisit vid $ \v -> v { pigs = pigs v ++ [newPigId] }) db'
 
 instance Presentable VisitView where
-  present (VisitView vid sid us zipCode date viewedPig b1 b2 b3 pigs pignames loginoutView subviews) =
+  present (VisitView vid sid us zipCode date viewedPig b1 b2 b3 pigs pignames {- loginoutView subviews -}) =
         withBgColor (Rgb 235 235 235) $
-        (case us of
+      {-  (case us of
            Nothing -> p << present loginoutView 
            Just (_,name) -> p << stringToHtml ("Hello "++name++".") +++ present loginoutView) +++
-        
+        -}
         (p <<"Visit at "+++ presentTextField zipCode +++" on " +++ presentTextField date +++ 
           "           (session# "+++show sid+++")")
     +++ p << ("Visited "++ show (length pigs) ++ " pig" ++ pluralS (length pigs) ++ ": " ++
@@ -119,21 +120,21 @@ instance Presentable VisitView where
                else "Viewing pig nr. " +++ show (getIntVal viewedPig) ++ "   ")
     -- "debugAdd('boing');queueCommand('Set("++id++","++show i++");')"
            +++ presentButton "previous" b1 +++ presentButton "next" b2)
-    +++ withPad 15 0 0 0 {- (case mSubview of
+  {-  +++ withPad 15 0 0 0 {- (case mSubview of
                Nothing -> stringToHtml "no pigs"
                Just pv -> present pv) -}
             (case subviews of
                [] -> stringToHtml "no pigs"
                pvs -> hList $ map present pvs ++ [presentButton "add" b3] )
-
+-}
 instance Storeable VisitView where
-  save (VisitView vid sid us zipCode date _ _ _ _ pigs pignames _ _) db =
+  save (VisitView vid sid us zipCode date _ _ _ _ pigs pignames {- _ _ -}) db =
     updateVisit vid (\(Visit _ _ _ pigIds) ->
                       Visit vid (getStrVal zipCode) (getStrVal date) pigIds)
                     db
 
 instance Initial VisitView where
-  initial = VisitView initial initial initial initial initial initial initial initial initial initial initial initial initial
+  initial = VisitView initial initial initial initial initial initial initial initial initial initial initial {- initial initial -}
 
                                  
 data PigView = PigView PigId (Widget Button) Int Int (Widget EString) [Widget EInt] (Either Int String) 
@@ -364,8 +365,8 @@ getNewOrChangedIdsViews oldViewMap newViewMap =
              let cmp = case cast oldView of
                    Nothing -> error "internal error: view with same id has different type"
                    Just oldView' -> oldView' /= view
-             in--  trace ("Comparing\n" ++ show oldView ++ 
-               --         "with\n"++ show view ++ "result\n"++show cmp) $
+             in --  trace ("Comparing\n" ++ show oldView ++ 
+                --         "with\n"++ show view ++ "result\n"++show cmp) $
                  cmp 
 
 getNewOrChangedWidgets :: ViewMap -> ViewMap -> [(Id, Id, AnyWidget)]
@@ -391,8 +392,8 @@ computeMoves oldViewMap combinedViewMap changedOrNewViews rootView@(WebView root
   let allViews = getBreadthFirstSubViews rootView
   in  (if rootVid `elem` changedOrNewViews -- move root over old root if 
        then let oldRoot = snd . head $ Map.toList oldViewMap
-            in  traceArg "Root move" (Move (mkRef i) (mkRef $ webViewGetId oldRoot) :) 
-       else trace "No root move" id) $
+            in  ((traceArg "Root move " $ Move (mkRef i) (mkRef $ webViewGetId oldRoot)) :) 
+       else trace ("No root move " ++show changedOrNewViews ++ show rootVid) id) $
         concatMap (computeChildMoves oldViewMap combinedViewMap changedOrNewViews) allViews
 
 traceArg str x = trace (str ++ show x) x
