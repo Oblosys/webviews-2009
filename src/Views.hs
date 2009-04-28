@@ -364,6 +364,8 @@ computeMoves oldViewMap combinedViewMap changedOrNewViews rootView =
 
 webViewGetId (WebView _ _ i _ _) = i 
 
+
+
 computeChildMoves :: ViewMap -> ViewMap -> [ViewId] -> WebView -> [Update]           
 computeChildMoves oldViewMap combinedViewMap changedOrNewViews (WebView vi _ _ _ view) =
   let childViews = getTopLevelWebViews view
@@ -396,3 +398,5 @@ getBreadthFirstSubViews rootView = []
 --       make bf search
 --       put id'd divs around each webview
 --       handle root
+--       improve id assignment, only assign if not -1
+--       assignment ids = getIds; Set.fromList [0..length ids -1] `Set.minus` Set.fromList ids
