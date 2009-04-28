@@ -68,7 +68,7 @@ loadView user db viewMap (WebView vid si i f _) = (WebView vid si i f (f user db
 
 
 data VisitView = 
-  VisitView VisitId Int User EString EString EInt Button Button Button [PigId] [String] WebView [WebView]
+  VisitView VisitId Int User (Widget EString) (Widget EString) (Widget EInt) (Widget Button) (Widget Button) (Widget Button) [PigId] [String] WebView [WebView]
     deriving (Eq, Show, Typeable, Data)
 
 -- todo: doc edits seem to reset viewed pig nr.
@@ -79,8 +79,8 @@ mkVisitView sessionId i = mkWebView (ViewId 0) $
       viewedPig = constrain 0 (length pigIds - 1) $ getIntVal oldViewedPig
       pignames = map (pigName . unsafeLookup (allPigs db)) pigIds
   in  VisitView i sessionId user (estr zipcode) (estr date) (eint viewedPig) 
-                (Button noId (previous (ViewId 0))) (Button noId (next (ViewId 0)))
-                (Button noId (addPig visd)) pigIds pignames
+                (button (previous (ViewId 0))) (button (next (ViewId 0)))
+                (button (addPig visd)) pigIds pignames
 -- todo: check id's
              {-   (if null pigIds -- remove guard for weird hanging exception (after removing last pig)
                     then Nothing
@@ -136,13 +136,13 @@ instance Initial VisitView where
   initial = VisitView initial initial initial initial initial initial initial initial initial initial initial initial initial
 
                                  
-data PigView = PigView PigId Button Int Int EString [EInt] (Either Int String) 
+data PigView = PigView PigId (Widget Button) Int Int (Widget EString) [Widget EInt] (Either Int String) 
                deriving (Eq, Show, Typeable, Data)
 
 mkPigView pignr i viewedPig = mkWebView (ViewId $ 10+pignr) $ 
       \user db viewMap vid ->
   let (Pig pid vid name symptoms diagnosis) = unsafeLookup (allPigs db) i
-  in  PigView pid (Button noId ( ConfirmEdit ("Are you sure you want to remove pig "++show pignr++"?") $ 
+  in  PigView pid (button ( ConfirmEdit ("Are you sure you want to remove pig "++show pignr++"?") $ 
                                    removePigAlsoFromVisit pid vid)) 
               viewedPig pignr (estr name) (map eint symptoms) diagnosis
  where -- need db support for removal and we need parent
@@ -182,14 +182,14 @@ instance Initial PigView where
 
 
 
-data LoginView = LoginView EString EString Button 
+data LoginView = LoginView (Widget EString) (Widget EString) (Widget Button) 
   deriving (Eq, Show, Typeable, Data)
 
 mkLoginView = mkWebView (ViewId (44)) $
       \user db viewMap vid ->
         let (LoginView name password b) = getOldView vid viewMap
         in  LoginView name password 
-                     (Button noId $ AuthenticateEdit (strRef name) (strRef password))
+                     (button $ AuthenticateEdit (strRef name) (strRef password))
 -- todo using the old id is not okay!
 
 instance Storeable LoginView where save _ = id
@@ -202,10 +202,10 @@ instance Presentable LoginView where
             
 instance Initial LoginView where initial = LoginView initial initial initial
 
-data LogoutView = LogoutView Button deriving (Eq, Show, Typeable, Data)
+data LogoutView = LogoutView (Widget Button) deriving (Eq, Show, Typeable, Data)
 
 mkLogoutView = mkWebView (ViewId (55)) $
-  \user db viewMap vid -> LogoutView (Button noId LogoutEdit)
+  \user db viewMap vid -> LogoutView (button LogoutEdit)
 
 instance Storeable LogoutView where save _ = id
                                    
@@ -246,14 +246,14 @@ the update
 -- (or Done) on the iPhone. It would be nicer to capture this at the textfield itself.
 -- Local forms are a problem though because they are block elements
 -- TODO: focus loss on enter is not nice  
-presentTextField :: EString -> Html
+presentTextField :: Widget EString -> Html
 presentTextField = presentTextualInput (textfield "")
   
-presentPasswordField :: EString -> Html
+presentPasswordField :: Widget EString -> Html
 presentPasswordField = presentTextualInput (password "")
 
-presentTextualInput :: Html -> EString -> Html
-presentTextualInput inputfield (EString (Id i) str) = mkSpan ("input"++show i) $  
+presentTextualInput :: Html -> Widget EString -> Html
+presentTextualInput inputfield (Widget _ _ (EString (Id i) str)) = mkSpan ("input"++show i) $  
   inputfield ! [identifier (show i), strAttr "VALUE" str
                --, strAttr "onChange" $ "textFieldChanged('"++show i++"')"
                , strAttr "onFocus" $ "elementGotFocus('"++show i++"')"
@@ -261,14 +261,14 @@ presentTextualInput inputfield (EString (Id i) str) = mkSpan ("input"++show i) $
                ]
 
 -- seems like this one could be in Present
-presentButton :: String -> Button -> Html
-presentButton txt (Button (Id i) _) = mkSpan ("input"++show i) $ 
+presentButton :: String -> Widget Button -> Html
+presentButton txt (Widget _ _ (Button (Id i) _)) = mkSpan ("input"++show i) $ 
    primHtml $ "<button onclick=\"queueCommand('ButtonC "++show i++"')\""++
                       "onfocus=\"elementGotFocus('"++show i++"')\">"++txt++"</button>"
 -- TODO: text should be escaped
 
-presentRadioBox :: [String] -> EInt -> Html
-presentRadioBox items (EInt (Id i) ei) = mkSpan ("input"++show i) $ radioBox (show i) items ei
+presentRadioBox :: [String] -> Widget EInt -> Html
+presentRadioBox items (Widget _ _ (EInt (Id i) ei)) = mkSpan ("input"++show i) $ radioBox (show i) items ei
 -- id is unique
 
 
@@ -328,21 +328,28 @@ listCommaAnd [s]  = s
 listCommaAnd ss@(_:_) = (concat . intersperse ", " $ init ss) ++ " and " ++ last ss 
 
 
+
+
+
 data Update = Move IdRef IdRef deriving Show
               -- move element target 
 
-showDiffViews (wvs, upds) = unlines (map shallowShowWebView wvs) ++ unlines (map show upds)
+showDiffViews (wvs, wds, upds) = "Views\n" ++ unlines (map shallowShowWebView wvs) ++
+                                 "Widgets\n" ++ unlines (map show wds) ++                                 
+                                 "Updates\n" ++ unlines (map show upds)
 showViewMap viewMap = unlines $ "ViewMap:" : [ show k ++ shallowShowWebView wv | (k, wv) <- Map.toList viewMap ]
 
 -- make sure new rootview has fresh webid's
-diffViews :: ViewMap -> WebView -> ([WebView], [Update])
+diffViews :: ViewMap -> WebView -> ([WebView], [AnyWidget], [Update])
 diffViews oldViewMap rootView = 
   let newViewMap = mkViewMap rootView
       newOrChangedIdsViews   = getNewOrChangedIdsViews oldViewMap newViewMap
       (newOrChangedViewIds, newOrChangedViews) = unzip newOrChangedIdsViews     
       combinedViewMap = Map.fromList newOrChangedIdsViews `Map.union` oldViewMap
   in trace (showViewMap oldViewMap ++ "new\n" ++ showViewMap newViewMap) 
-     (newOrChangedViews, computeMoves oldViewMap combinedViewMap newOrChangedViewIds rootView)
+     ( newOrChangedViews
+     , getNewOrChangedWidgets oldViewMap newViewMap  
+     , computeMoves oldViewMap combinedViewMap newOrChangedViewIds rootView)
 
 -- combined can be queried to get the id for each view at the moment before applying the moves to the
 -- tree.
@@ -356,12 +363,28 @@ getNewOrChangedIdsViews oldViewMap newViewMap =
            Just (WebView _ _ _ _ oldView) -> let cmp = case cast oldView of
                                                    Nothing -> error "internal error: view with same id has different type"
                                                    Just oldView' -> oldView' /= view
-                                             in  trace ("Comparing\n" ++ show oldView ++ 
-                                                        "with\n"++ show view ++ "result\n"++show cmp) $
+                                             in--  trace ("Comparing\n" ++ show oldView ++ 
+                                               --         "with\n"++ show view ++ "result\n"++show cmp) $
                                                  cmp 
 
+getNewOrChangedWidgets :: ViewMap -> ViewMap -> [AnyWidget]
+getNewOrChangedWidgets oldViewMap newViewMap =
+  concatMap newOrChangedWidgets $ Map.toList newViewMap
+ where newOrChangedWidgets (i, wv) =
+         let allWebNodes = getTopLevelWebNodes wv
+             allWidgets = concatMap getWidget allWebNodes
+         in  case Map.lookup i oldViewMap of
+               Nothing  -> allWidgets
+               Just owv -> let allOldWebNodes = getTopLevelWebNodes owv
+                               allOldWidgets = concatMap getWidget allOldWebNodes
+                           in  concat [ if nw /= ow then [nw] else []
+                                      | (ow, nw) <- zip allOldWidgets allWidgets
+                                      ]
+           
+             
+getWidget (WidgetNode _ _ w) = [w]
+getWidget _ = []
 
-         
 computeMoves :: ViewMap -> ViewMap -> [ViewId] -> WebView -> [Update]           
 computeMoves oldViewMap combinedViewMap changedOrNewViews rootView = 
   let allViews = getBreadthFirstSubViews rootView
@@ -380,25 +403,47 @@ webViewGetId (WebView _ _ i _ _) = i
 
 
 computeChildMoves :: ViewMap -> ViewMap -> [ViewId] -> WebView -> [Update]           
-computeChildMoves oldViewMap combinedViewMap changedOrNewViews (WebView vi _ _ _ view) =
-  let childViews = getTopLevelWebViews view
-      mOldChildViews = case Map.lookup vi oldViewMap of 
-                        Nothing                 -> Nothing
-                        Just (WebView _ _ _ _ v)  -> Just $ getTopLevelWebViews v
-  in  case mOldChildViews of
-        Nothing -> [ Move (IdRef sourceId) (IdRef stubid) | (WebView vid (Id stubid) _ _ _) <- childViews 
-                                                    , let (Id sourceId) = getIdForViewWithViewId combinedViewMap vid 
-                                                           
-                                                    ]
+computeChildMoves oldViewMap combinedViewMap changedOrNewViews wv@(WebView vi _ _ _ view) =
+  let childWebNodes = getTopLevelWebNodes wv
+      mOldChildWebNodes = case Map.lookup vi oldViewMap of 
+                            Nothing                 -> Nothing
+                            Just owv  -> Just $ getTopLevelWebNodes owv
+  in  case mOldChildWebNodes of -- no old child views, this webview is new
+        Nothing -> [ case wn of
+                       (WebViewNode (WebView vid (Id stubid) _ _ _)) -> 
+                          let (Id sourceId) = getIdForViewWithViewId combinedViewMap vid
+                          in  Move (IdRef sourceId) (IdRef stubid) 
+                       (WidgetNode stubid id w) -> Move (mkRef $ id) (mkRef $ stubid)
+                   | wn <- childWebNodes 
+                   ]
                                                       -- stubId is used as id for stubs when presenting
                    
-        Just oldChildViews -> concat
-          [ if newViewId == oldViewId && not (newViewId `elem` changedOrNewViews)
-            then [] 
-            else [Move (IdRef sourceId) (IdRef oldId)]
-          | (WebView newViewId _ _ _ _, WebView oldViewId _ (Id oldId) _ _) <-  zip childViews oldChildViews 
-          , let (Id sourceId) = getIdForViewWithViewId combinedViewMap newViewId
-          ] 
+        Just oldChildWebNodes -> concat
+          [ bla combinedViewMap changedOrNewViews own wn | (own, wn) <-  zip oldChildWebNodes childWebNodes ] 
+
+-- todo what if changed view has different nr of child nodes?
+-- looks like view id's for widgets is a better idea.
+
+        
+
+bla combinedViewMap changedOrNewViews (WebViewNode (WebView oldViewId _ (Id oldId) _ _))
+                                      (WebViewNode (WebView newViewId _ _ _ _)) =
+  let (Id sourceId) = getIdForViewWithViewId combinedViewMap newViewId
+  in if newViewId == oldViewId && not (newViewId `elem` changedOrNewViews)
+     then [] 
+     else [Move (IdRef sourceId) (IdRef oldId)]
+bla combinedViewMap changedOrNewViews (WidgetNode _ oldId oldW)
+                                      (WidgetNode _ newId newW) = if deepEq oldW newW 
+                                                          then []
+                                                          else [Move (mkRef $ newId) 
+                                                                     (mkRef $ oldId) ]
+bla _ _ _ _ = error "Internal error: child mismatch"
+
+deepEq (ButtonWidget _) (ButtonWidget _) = True -- Buttons are always equal TODO: what if text changes?
+deepEq (EStringWidget (EString _ str1)) (EStringWidget (EString _ str2)) = str1 == str2
+deepEq (EIntWidget (EInt _ int1)) (EIntWidget (EInt _ int2)) = int1 == int2
+deepEq _ _ = error "Internal error: deepEq has different arg types"
+
 getIdForViewWithViewId :: ViewMap -> ViewId -> Id          
 getIdForViewWithViewId combinedViewMap viewId =
    case Map.lookup viewId combinedViewMap of 

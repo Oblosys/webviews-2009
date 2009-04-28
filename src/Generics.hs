@@ -20,6 +20,35 @@ mkViewMap :: WebView -> ViewMap
 mkViewMap wv = let wvs = getAll wv
                     in  Map.fromList [ (i, wv) | wv@(WebView i _ _ _ _) <- wvs]
 
+-- webviews are to coarse for incrementality. We also need buttons, eints etc. as identifiable entities
+-- making these into webviews does not seem to be okay. Maybe a separate class is needed
+-- For now, we use a TreeMap for this.
+
+data WebNode = WebViewNode WebView
+             | WidgetNode  Id Id AnyWidget
+               deriving (Typeable, Data)
+
+data AnyWidget = EIntWidget EInt 
+               | EStringWidget EString 
+               | ButtonWidget Button  
+                 deriving (Eq, Typeable, Data)
+{-
+-- mkWebMap :: WebView -> [WebNodeViewMap
+mkWebMap :: Data d => d -> [(Id, WebNode)]
+mkWebMap x = everything (++) ([] `mkQ`  (\w@(WebView vwId sid id _ _) -> [(id, WebViewNode w)]) 
+                                 `extQ` (\x -> [(getIntId x, EIntNode x)])
+                                 `extQ` (\x -> [(getStrId x, EStringNode x)])
+                                 `extQ` (\x -> [(getButtonId x, ButtonNode x)])
+                             ) x
+-}
+getTopLevelWebNodes :: WebView -> [WebNode]
+getTopLevelWebNodes (WebView _ _ _ _ v) =
+  everythingTopLevel (Nothing `mkQ`  (\w@(WebView vwId sid id _ _) -> Just $ WebViewNode w) 
+                              `extQ` (\w@(Widget stbid id x@(EInt _ _))   -> Just $ WidgetNode stbid id (EIntWidget x))
+                              `extQ` (\w@(Widget stbid id x@(EString _ _)) -> Just $ WidgetNode stbid id (EStringWidget x))
+                              `extQ` (\w@(Widget stbid id x@(Button _ _))   -> Just $ WidgetNode stbid id (ButtonWidget x))
+                     ) v             -- TODO can we do this bettter?
+  
 -- lookup the view id and if the associated view is of the desired type, return it. Otherwise
 -- return initial
 getOldView :: (Initial v, Typeable v) => ViewId -> ViewMap -> v
@@ -34,19 +63,21 @@ getAll :: (Data a, Data b) => a -> [b]
 getAll = listify (const True)
 
 getTopLevelWebViews :: Data a => a -> [WebView]
-getTopLevelWebViews wv = everythingBut (Nothing `mkQ` Just) wv
+getTopLevelWebViews wv = everythingTopLevel (Nothing `mkQ` Just) wv
 -- the type sig specifies the term type
+
 
 -- is everythingBut, but not on the root (not used now)
 everythingBelow :: Data r => GenericQ (Maybe r) -> GenericQ [r]
-everythingBelow f x = foldl (++) [] (gmapQ (everythingBut f) x)
+everythingBelow f x = foldl (++) [] (gmapQ (everythingTopLevel f) x)
 
+-- TODO: this name is wrong
 -- get all non-nested descendents of a type
 -- Eg. everythingBelow () (X (T_1 .. (T_2 .. (T_3 ..) ..)) (T_4)) = [T_1,T_2,T_4]
-everythingBut :: Data r => GenericQ (Maybe r) -> GenericQ [r]
-everythingBut f x = case f x of
+everythingTopLevel :: Data r => GenericQ (Maybe r) -> GenericQ [r]
+everythingTopLevel f x = case f x of
                       Just x  -> [x]
-                      Nothing -> foldl (++) [] (gmapQ (everythingBut f) x)
+                      Nothing -> foldl (++) [] (gmapQ (everythingTopLevel f) x)
 
 getWebViewContainingId :: Id -> WebView -> Maybe WebView
 getWebViewContainingId (Id i) wv = 

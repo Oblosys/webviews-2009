@@ -29,17 +29,35 @@ newtype IdRef = IdRef Int deriving (Show, Eq, Ord, Data, Typeable)
 -- refs are different kind, because they may be part of view tree, and SYB id assignment functions 
 -- should not affect them
 
-data EString = EString { getStrId :: Id, getStrVal :: String } deriving (Show, Eq, Typeable, Data)
+mkRef (Id i) = IdRef i
 
-estr str = EString noId str
+data Widget w = Widget { getWidgetStubId :: Id, getWidgetId :: Id, getWidgetWidget :: w }
+              deriving (Show, Typeable, Data)
+                       
+instance Eq (Widget w) where
+  w1 == w2 = True
 
-strRef (EString (Id i) _) = IdRef i
+data EString = EString { getStrId' :: Id, getStrVal' :: String } deriving (Show, Eq, Typeable, Data)
 
-data EInt = EInt { getIntId :: Id, getIntVal :: Int } deriving (Show, Eq, Typeable, Data)
+getStrId (Widget _ _ (EString i v)) = i
 
-eint i = EInt noId i
+getStrVal (Widget _ _ (EString i v)) = v
 
-data Button = Button { getButtonId :: Id, getCommand :: EditCommand } deriving (Show, Eq, Typeable, Data)
+estr str = Widget noId noId $ EString noId str
+
+strRef (Widget _ _ (EString (Id i) _)) = IdRef i
+
+data EInt = EInt { getIntId' :: Id, getIntVal' :: Int } deriving (Show, Eq, Typeable, Data)
+
+getIntId (Widget _ _ (EInt i v)) = i
+
+getIntVal (Widget _ _ (EInt i v)) = v
+
+eint i = Widget noId noId $ EInt noId i
+
+data Button = Button { getButtonId' :: Id, getCommand' :: EditCommand } deriving (Show, Eq, Typeable, Data)
+
+button cmd = Widget noId noId $ Button noId cmd 
 
 data EditCommand = DocEdit (Database -> Database)
                  | ViewEdit (ViewId) (WebView -> WebView)
@@ -160,11 +178,14 @@ instance Initial String where
 instance Initial Int where
   initial = 0
 
+instance Initial w => Initial (Widget w) where
+  initial = Widget noId noId initial
+  
 instance Initial EString where
-  initial = estr ""
+  initial = EString (Id $ -1) ""
 
 instance Initial EInt where
-  initial = eint 0
+  initial = EInt (Id $ -1) 0
 
 instance Initial Button where
   initial = Button noId (DocEdit id)

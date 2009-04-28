@@ -219,7 +219,7 @@ sessionHandler sessionStateRef cmds = {- myAuth `mplus` -} {-
             ; let responseHtml = thediv ! [identifier "updates"] <<
                              updateReplaceHtml "root" 
                                (mkDiv "root" $ present $ rootView)
-            ; putStrLn $ "Diff output:\n" ++ showDiffViews (diffViews oldViewMap rootView)
+          --  ; putStrLn $ "Diff output:\n" ++ showDiffViews (diffViews oldViewMap rootView)
             
             ; putStrLn $ "View tree:\n" ++ drawViews rootView 
             --; putStrLn $ "rootView:\n" ++ show rootViewWithIds
