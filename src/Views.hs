@@ -7,6 +7,10 @@ import Text.Html hiding (image)
 import qualified Text.Html as Html
 import Data.Generics
 import Data.Char
+import Data.Map (Map)
+import qualified Data.Map as Map 
+import Data.IntMap (IntMap)
+import qualified Data.IntMap as IntMap 
 
 import Types
 import Database
@@ -16,11 +20,10 @@ import Generics
 --       GADTs?
 -- TODO: figure out load stuff
 --       use a monad for auto handling listeners to database
--- don't use Presentable, because we might present strings in different ways.
 
 
 instance Storeable WebView where
-  save (WebView _ _ v) =
+  save (WebView _ _ _ _ v) =
     let topLevelWebViews = getTopLevelWebViews v
     in  foldl (.) id $ save v : map save topLevelWebViews
 
@@ -36,7 +39,7 @@ instance Initial PigId where initial = PigId (-1)
 
 
 mkViewEdit i f = 
-  ViewEdit i $ \(WebView i lv v) -> WebView i lv $ applyIfCorrectType f v
+  ViewEdit i $ \(WebView vi si i lv v) -> WebView vi si i lv $ applyIfCorrectType f v
 
 
 applyIfCorrectType :: (Typeable y, Typeable x) => (y -> y) -> x -> x
@@ -56,9 +59,9 @@ mkRootView user db sessionId viewMap =
 mkWebView :: (Presentable v, Storeable v, Initial v, Show v, Eq v, Data v) =>
              ViewId -> (User -> Database -> ViewMap -> ViewId -> v) -> User -> Database -> ViewMap -> WebView
 mkWebView vid wvcnstr user db viewMap = loadView user db viewMap $
-  WebView vid wvcnstr initial
+  WebView vid noId noId wvcnstr initial
 
-loadView user db viewMap (WebView vid f _) = (WebView vid f (f user db viewMap vid))
+loadView user db viewMap (WebView vid si i f _) = (WebView vid si i f (f user db viewMap vid))
 
 
 
@@ -134,7 +137,7 @@ instance Initial VisitView where
 data PigView = PigView PigId Button Int Int EString [EInt] (Either Int String) 
                deriving (Eq, Show, Typeable, Data)
 
-mkPigView pignr i viewedPig = mkWebView (ViewId 33) $ 
+mkPigView pignr i viewedPig = mkWebView (ViewId $ 10+pignr) $ 
       \user db viewMap vid ->
   let (Pig pid vid name symptoms diagnosis) = unsafeLookup (allPigs db) i
   in  PigView pid (Button noId ( ConfirmEdit ("Are you sure you want to remove pig "++show pignr++"?") $ 
@@ -234,6 +237,8 @@ the update
 -}
 
 
+-- don't use Presentable, because we might present strings in different ways.
+
 -- the entire root is a form, that causes registering text field updates on pressing enter
 -- (or Done) on the iPhone. It would be nicer to capture this at the textfield itself.
 -- Local forms are a problem though because they are block elements
@@ -319,3 +324,75 @@ listCommaAnd [] = ""
 listCommaAnd [s]  = s
 listCommaAnd ss@(_:_) = (concat . intersperse ", " $ init ss) ++ " and " ++ last ss 
 
+
+data Update = Move IdRef IdRef -- move element target 
+
+-- make sure new rootview has fresh webid's
+diffViews :: ViewMap -> WebView -> ([WebView], [Update])
+diffViews oldViewMap rootView = 
+  let newViewMap = mkViewMap rootView
+      newOrChangedIdsViews   = getNewOrChangedIdsViews oldViewMap newViewMap
+      (newOrChangedViewIds, newOrChangedViews) = unzip newOrChangedIdsViews     
+      combinedViewMap = Map.fromList newOrChangedIdsViews `Map.union` oldViewMap
+  in  (newOrChangedViews, computeMoves oldViewMap combinedViewMap newOrChangedViewIds rootView)
+
+-- combined can be queried to get the id for each view at the moment before applying the moves to the
+-- tree.
+
+getNewOrChangedIdsViews :: ViewMap -> ViewMap -> [(ViewId, WebView)]
+getNewOrChangedIdsViews oldViewMap newViewMap =
+  filter isNewOrChanged $ Map.toList newViewMap
+ where isNewOrChanged (i, view) =
+         case Map.lookup i oldViewMap of
+           Nothing -> True
+           Just oldView -> oldView /= view
+
+
+         
+computeMoves :: ViewMap -> ViewMap -> [ViewId] -> WebView -> [Update]           
+computeMoves oldViewMap combinedViewMap changedOrNewViews rootView = 
+  let allViews = getBreadthFirstSubViews rootView
+  in  concatMap (computeChildMoves oldViewMap combinedViewMap changedOrNewViews) allViews
+
+-- make a breadth-first list of all views in root view, and for each view,
+-- and for each view:
+--              get subviews
+--              get subviews of previous (or nothing if no previous)
+--                 each subview, if previous == nothing or subview /= old subview           
+--                               then move subview 
+           
+
+webViewGetId (WebView _ _ i _ _) = i 
+
+computeChildMoves :: ViewMap -> ViewMap -> [ViewId] -> WebView -> [Update]           
+computeChildMoves oldViewMap combinedViewMap changedOrNewViews (WebView vi _ _ _ view) =
+  let childViews = getTopLevelWebViews view
+      mOldChildViews = case Map.lookup vi oldViewMap of 
+                        Nothing                 -> Nothing
+                        Just (WebView _ _ _ _ v)  -> Just $ getTopLevelWebViews v
+  in  case mOldChildViews of
+        Nothing -> [ Move (IdRef sourceId) (IdRef stubid) | (WebView vid (Id stubid) _ _ _) <- childViews 
+                                                    , let (Id sourceId) = getIdForViewWithViewId combinedViewMap vid 
+                                                           
+                                                    ]
+                                                      -- stubId is used as id for stubs when presenting
+                   
+        Just oldChildViews -> concat
+          [ if newViewId == oldViewId && not (newViewId `elem` changedOrNewViews)
+            then [] 
+            else [Move (IdRef sourceId) (IdRef oldId)]
+          | (WebView newViewId _ _ _ _, WebView oldViewId _ (Id oldId) _ _) <-  zip childViews oldChildViews 
+          , let (Id sourceId) = getIdForViewWithViewId combinedViewMap newViewId
+          ] 
+getIdForViewWithViewId :: ViewMap -> ViewId -> Id          
+getIdForViewWithViewId combinedViewMap viewId =
+   case Map.lookup viewId combinedViewMap of 
+     Nothing -> error "bla"
+     Just wv -> webViewGetId wv
+     
+getBreadthFirstSubViews rootView = []
+
+-- todo: change present to non-recursive, taking into account stubs
+--       make bf search
+--       put id'd divs around each webview
+--       handle root

@@ -88,10 +88,6 @@ class Storeable v where
 instance Storeable () where
   save () = id
 
--- For now, Storeable on root view must save its subviews explicitly. 
--- Maybe SYB can handle this (gives an ambiguous type var now)
--- otherwise template haskell can do this
-
 type User = Maybe (String, String)
 
 newtype ViewId = ViewId Int deriving (Show, Eq, Ord, Typeable, Data)
@@ -101,22 +97,24 @@ type ViewMap = Map.Map ViewId WebView
 -- no class viewable, because mkView has parameters
 data WebView = forall view . ( Initial view, Presentable view, Storeable view
                              , Show view, Eq view, Data view) => 
-                             WebView ViewId (User -> Database -> ViewMap -> ViewId -> view) view
+                             WebView ViewId Id Id (User -> Database -> ViewMap -> ViewId -> view) view
                              deriving Typeable
 -- (view->view) is the load view function. It is not in a class because we want to parameterize it
 -- view is the actual view (which is 'updated')
-
+-- viewid is to identify the view and it's extra state.
+-- first id is stub id, only used when presenting the first instance of the view
+-- id is there for manipulating the dhtml trees. id's will be assigned automatically
 -- why was this one existential again?
 
 
 -- gunfold seems impossible! (maybe we don't need it)
 -- recipe from this instance is from Data.Generics documentation
 instance Data WebView where
-  gfoldl k z (WebView i f v) = z WebView `k` i `k` f `k` v
+  gfoldl k z (WebView vi si i f v) = z WebView `k` vi `k` si `k` i `k` f `k` v
      
   gunfold k z c = error "gunfold not defined for WebView"
      
-  toConstr (WebView _ _ _) = con_WebView 
+  toConstr (WebView _ _ _ _ _) = con_WebView 
   dataTypeOf _ = ty_WebView
 
 ty_WebView = mkDataType "Views.WebView" [con_WebView]
@@ -125,7 +123,7 @@ con_WebView = mkConstr ty_WebView "WebView" [] Prefix
 
 
 instance Show WebView where
-  show (WebView (ViewId i) _ v) = "<" ++ show i ++ ":" ++ show v ++ ">"
+  show (WebView (ViewId i) _ _ _ v) = "<" ++ show i ++ ":" ++ show v ++ ">"
 
 {- this one is not possible
 instance Initial WebView where
@@ -135,13 +133,14 @@ instance Presentable () where
   present () = stringToHtml "<initial webview>"
   
 instance Presentable WebView where
-  present (WebView _ _ v) = present v
+  present (WebView _ _ _ _ v) = present v
 
 
 instance Eq WebView where
-  (WebView _ _ v1) == (WebView _ _ mv2) = case cast mv2 of 
-                                           Just v2 -> v1 == v2
-                                           Nothing -> False
+  _ == _ = True
+
+-- webviews are always equal, so equality on views is not based on its sub views
+-- (changes in the stucture of subviews is taken into account though, eq: [v1,v2] /= [v1,v2,newv])
 
 instance Initial () where
   initial = ()
@@ -171,7 +170,7 @@ instance Initial Button where
   initial = Button noId (DocEdit id)
 
 instance Initial WebView where
-  initial = WebView (ViewId (-1)) (\_ _ _ _ -> ()) ()
+  initial = WebView (ViewId (-1)) noId noId (\_ _ _ _ -> ()) ()
 
 
 

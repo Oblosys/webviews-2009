@@ -16,7 +16,7 @@ mytree = Bin (Bin (Leaf 'a') (Leaf 'b')) (Leaf 'c')
 
 mkViewMap :: WebView -> ViewMap
 mkViewMap wv = let wvs = getAll wv
-                    in  Map.fromList [ (i, wv) | wv@(WebView i _ _) <- wvs]
+                    in  Map.fromList [ (i, wv) | wv@(WebView i _ _ _ _) <- wvs]
 
 -- lookup the view id and if the associated view is of the desired type, return it. Otherwise
 -- return initial
@@ -24,7 +24,7 @@ getOldView :: (Initial v, Typeable v) => ViewId -> ViewMap -> v
 getOldView vid viewMap = 
   case Map.lookup vid viewMap of
     Nothing              -> initial
-    Just (WebView _ _ aView) -> case cast aView of
+    Just (WebView _ _ _ _ aView) -> case cast aView of
                                   Nothing      -> initial
                                   Just oldView -> oldView
 
@@ -103,7 +103,7 @@ replaceEInt updates x@(EInt i _) =
 replaceWebViewById :: (ViewId) -> WebView -> WebView -> WebView
 replaceWebViewById i wv rootView =
  (everywhere $ mkT replaceWebView) rootView
- where replaceWebView wv'@(WebView i' _ _) = if i == i' then wv else wv' 
+ where replaceWebView wv'@(WebView i' _ _ _ _) = if i == i' then wv else wv' 
 --getWebViews x = listify (\(WebView i' :: WebView) -> True) x 
 
 getButtonById :: Data d => Id -> d -> Button
@@ -137,7 +137,7 @@ mkAccT f = case cast f  of -- can we do this without requiring Typeable acc?
 
 
 getWebViewById i view = 
-  case listify (\(WebView i' _ _) -> i==i') view of
+  case listify (\(WebView i' _ _ _ _) -> i==i') view of
     [b] -> b
     []  -> error $ "internal error: no button with id "
     _   -> error $ "internal error: multiple buttons with id "

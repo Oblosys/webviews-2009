@@ -87,10 +87,12 @@ handlers :: ServerInstanceId -> GlobalStateRef -> [ServerPart Response]
 handlers serverSessionId globalStateRef = 
   [ exactdir "/" $
      do { liftIO $ putStrLn "Root requested"
-        ; fileServe ["WebViews.html"] "."
+        ; fileServe ["scripts/WebViews.html"] "."
         }
   , dir "favicon.ico" $
       methodSP GET $ fileServe ["favicon.ico"] "."
+  , dir "scripts" $
+      fileServe [] "scripts"  
   , dir "img" $
       fileServe [] "img"  
 --  , dir "authenticate" $ authenticate
@@ -266,6 +268,7 @@ handleCommands sessionStateRef (Commands commands) =
          _          -> error "Non View update commmand followed by other commands"
                     -- probably okay if they are all ViewUpdates
     } -- TODO: think of a way to handle multiple commands and dialogs etc.
+      --       make sure that id's are not generated between commands
 data ServerResponse = ViewUpdate | Alert String | Confirm String {- | Authenticate -} deriving (Show, Eq)
 
 handleCommand :: SessionStateRef -> Command -> IO ServerResponse
