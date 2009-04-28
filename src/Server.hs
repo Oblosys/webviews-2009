@@ -164,7 +164,13 @@ createNewSessionState globalStateRef serverInstanceId =
     ; addCookie 3600 (mkCookie "webviews" $ show (serverInstanceId, sessionId))
     -- cookie lasts for one hour
  
-    ; let newSession = (Nothing, mkWebView (ViewId 666) (\_ _ _ _ -> ()) Nothing theDatabase Map.empty, Nothing)
+      -- todo: use different id
+    ; let initialRootView = assignIds $
+                            mkWebView (ViewId 66666) (\_ _ _ _ -> ()) Nothing theDatabase Map.empty
+                            -- this creates a WebView with stubid 0 and id 1
+                            -- for now, we count on that in the client
+                            -- TODO: change this
+    ; let newSession = (Nothing, initialRootView, Nothing)
     ; let sessions' = IntMap.insert sessionId newSession sessions
    
     ; liftIO $ writeIORef globalStateRef (database, sessions', sessionCounter + 1)
@@ -225,7 +231,7 @@ sessionHandler sessionStateRef cmds = {- myAuth `mplus` -} {-
             ; putStrLn $ "Diff output:\n" ++ showDiffViews (diffViews oldViewMap rootView)
             
             ; putStrLn $ "View tree:\n" ++ drawViews rootView 
-            --; putStrLn $ "rootView:\n" ++ show rootViewWithIds
+            ; putStrLn $ "rootView:\n" ++ show rootView
             --; putStrLn $ "database:\n" ++ show db
             --; putStrLn $ "\n\n\nresponse = \n" ++ show responseHtml
             --; putStrLn $ "Sending response sent to client: " ++
@@ -301,8 +307,10 @@ data ServerResponse = ViewUpdate | Alert String | Confirm String {- | Authentica
 handleCommand :: SessionStateRef -> Command -> IO ServerResponse
 handleCommand sessionStateRef Init =
  do { putStrLn "Init"
-    ; setRootView sessionStateRef $ mkRootView Nothing theDatabase (error "sessionId not in state yet") Map.empty
-    ; return ViewUpdate -- todo: put sessionId in state
+    ; (sessionId, user, db, oldRootView, _) <- readIORef sessionStateRef
+    ; setRootView sessionStateRef $ mkRootView user db sessionId (mkViewMap oldRootView)
+    ; 
+    ; return ViewUpdate
     }
 handleCommand sessionStateRef Refresh =
  do { putStrLn "Refresh"
@@ -318,7 +326,7 @@ handleCommand sessionStateRef (SetC id value) =
     ; putStrLn $ show id ++ " value is " ++ show value
 
     ; let rootView' = replace (Map.fromList [(Id id, value)]) (assignIds rootView)
-    ; putStrLn $ "Updated rootView:\n" ++ show rootView'
+    --; putStrLn $ "Updated rootView:\n" ++ show rootView'
     ; let db' = save rootView' db
       -- TODO: check if mkViewMap has correct arg
     -- TODO: instead of updating all, just update the one that was changed

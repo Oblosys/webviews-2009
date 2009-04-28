@@ -340,7 +340,7 @@ showDiffViews (wvs, wds, upds) = "Views\n" ++ unlines (map shallowShowWebView wv
 showViewMap viewMap = unlines $ "ViewMap:" : [ show k ++ shallowShowWebView wv | (k, wv) <- Map.toList viewMap ]
 
 -- make sure new rootview has fresh webid's
-diffViews :: ViewMap -> WebView -> ([WebView], [AnyWidget], [Update])
+diffViews :: ViewMap -> WebView -> ([WebView], [(Id, Id, AnyWidget)], [Update])
 diffViews oldViewMap rootView = 
   let newViewMap = mkViewMap rootView
       newOrChangedIdsViews   = getNewOrChangedIdsViews oldViewMap newViewMap
@@ -368,7 +368,7 @@ getNewOrChangedIdsViews oldViewMap newViewMap =
                --         "with\n"++ show view ++ "result\n"++show cmp) $
                  cmp 
 
-getNewOrChangedWidgets :: ViewMap -> ViewMap -> [AnyWidget]
+getNewOrChangedWidgets :: ViewMap -> ViewMap -> [(Id, Id, AnyWidget)]
 getNewOrChangedWidgets oldViewMap newViewMap =
   concatMap newOrChangedWidgets $ Map.toList newViewMap
  where newOrChangedWidgets (i, wv) =
@@ -378,19 +378,24 @@ getNewOrChangedWidgets oldViewMap newViewMap =
                Nothing  -> allWidgets
                Just owv -> let allOldWebNodes = getTopLevelWebNodes owv
                                allOldWidgets = concatMap getWidget allOldWebNodes
-                           in  concat [ if nw /= ow then [nw] else []
-                                      | (ow, nw) <- zip allOldWidgets allWidgets
+                           in  concat [ if nw /= ow then [(s,i,nw)] else []
+                                      | ((_,_,ow), (s,i,nw)) <- zip allOldWidgets allWidgets
                                       ]
            
              
-getWidget (WidgetNode _ _ w) = [w]
+getWidget (WidgetNode stubid id w) = [(stubid, id, w)]
 getWidget _ = []
 
 computeMoves :: ViewMap -> ViewMap -> [ViewId] -> WebView -> [Update]           
-computeMoves oldViewMap combinedViewMap changedOrNewViews rootView = 
+computeMoves oldViewMap combinedViewMap changedOrNewViews rootView@(WebView rootVid _ i _ _) = 
   let allViews = getBreadthFirstSubViews rootView
-  in  concatMap (computeChildMoves oldViewMap combinedViewMap changedOrNewViews) allViews
+  in  (if rootVid `elem` changedOrNewViews -- move root over old root if 
+       then let oldRoot = snd . head $ Map.toList oldViewMap
+            in  traceArg "Root move" (Move (mkRef i) (mkRef $ webViewGetId oldRoot) :) 
+       else trace "No root move" id) $
+        concatMap (computeChildMoves oldViewMap combinedViewMap changedOrNewViews) allViews
 
+traceArg str x = trace (str ++ show x) x
 -- make a breadth-first list of all views in root view, and for each view,
 -- and for each view:
 --              get subviews
