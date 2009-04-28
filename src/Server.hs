@@ -63,20 +63,20 @@ type SessionCounter = Int
 
 type Sessions = IntMap (User, WebView, Maybe EditCommand) 
 
-type SessionState = (User, Database, WebView, Maybe EditCommand)
+type SessionState = (SessionId, User, Database, WebView, Maybe EditCommand)
 
 type SessionStateRef = IORef SessionState
 
 getRootView :: SessionStateRef -> IO WebView
 getRootView sessionStateRef =
- do { (_, _, rootView, _) <- readIORef sessionStateRef
+ do { (_, _, _, rootView, _) <- readIORef sessionStateRef
     ; return rootView
     }
  
 setRootView :: SessionStateRef -> WebView -> IO ()
 setRootView sessionStateRef rootView =
- do { (user, db, _, pendingEdit) <- readIORef sessionStateRef
-    ; writeIORef sessionStateRef (user, db, rootView, pendingEdit)
+ do { (sessionId, user, db, _, pendingEdit) <- readIORef sessionStateRef
+    ; writeIORef sessionStateRef (sessionId, user, db, rootView, pendingEdit)
     }
  
 server =
@@ -156,21 +156,22 @@ parseCookieSessionId serverInstanceId =
     ; return mCookieSessionId
     } -- TODO: this is nasty, maybe try to use the Happs function
  
+createNewSessionState :: GlobalStateRef -> ServerInstanceId -> ServerPart SessionId
 createNewSessionState globalStateRef serverInstanceId = 
  do { (database, sessions,sessionCounter) <- liftIO $ readIORef globalStateRef
     ; let sessionId = sessionCounter
     ; lputStrLn $ "New session: "++show sessionId
     ; addCookie 3600 (mkCookie "webviews" $ show (serverInstanceId, sessionId))
     -- cookie lasts for one hour
-      
-    ; let newSession = (Nothing, mkRootView Nothing theDatabase sessionId Map.empty, Nothing)
+ 
+    ; let newSession = (Nothing, mkWebView (ViewId 666) (\_ _ _ _ -> ()) Nothing theDatabase Map.empty, Nothing)
     ; let sessions' = IntMap.insert sessionId newSession sessions
    
     ; liftIO $ writeIORef globalStateRef (database, sessions', sessionCounter + 1)
     
     ; return sessionId
     }
- 
+retrieveSessionState :: GlobalStateRef -> SessionId -> ServerPart SessionStateRef
 retrieveSessionState globalStateRef sessionId =
  do { (database, sessions, sessionCounter) <- liftIO $ readIORef globalStateRef
     ; lputStrLn $ "\n\nNumber of active sessions: " ++ show sessionCounter                                          
@@ -178,13 +179,15 @@ retrieveSessionState globalStateRef sessionId =
                              Nothing                      -> do { lputStrLn "\n\n\n\nInternal error: Session not found\n\n\n\n\n"
                                                                 ; error "Internal error: Session not found"
                                                                 }
-                             Just (user, rootView, pendingEdit) -> return (user, database, rootView, pendingEdit)
+                             Just (user, rootView, pendingEdit) -> 
+                               return (sessionId, user, database, rootView, pendingEdit)
     ; liftIO $ newIORef sessionState
-    }                        
-
+    }      
+ 
+storeSessionState :: GlobalStateRef -> SessionId -> SessionStateRef -> ServerPart ()
 storeSessionState globalStateRef sessionId sessionStateRef =
  do { (_, sessions, sessionCounter) <- liftIO $ readIORef globalStateRef
-    ; (user', database', rootView', pendingEdit') <- liftIO $ readIORef sessionStateRef
+    ; (_, user', database', rootView', pendingEdit') <- liftIO $ readIORef sessionStateRef
     ; let sessions' = IntMap.insert sessionId (user', rootView', pendingEdit') sessions                                          
     ; liftIO $ writeIORef globalStateRef (database', sessions', sessionCounter)
     }
@@ -204,7 +207,7 @@ sessionHandler sessionStateRef cmds = {- myAuth `mplus` -} {-
      liftIO $  
  do { putStrLn $ "Received commands" ++ show cmds
     
-    ; (_, db, oldRootView, _) <- readIORef sessionStateRef
+    ; (_, _, db, oldRootView, _) <- readIORef sessionStateRef
     ; let oldViewMap = mkViewMap oldRootView -- this represents the views in the browser
           
     ; response <- handleCommands sessionStateRef cmds
@@ -219,7 +222,7 @@ sessionHandler sessionStateRef cmds = {- myAuth `mplus` -} {-
             ; let responseHtml = thediv ! [identifier "updates"] <<
                              updateReplaceHtml "root" 
                                (mkDiv "root" $ present $ rootView)
-          --  ; putStrLn $ "Diff output:\n" ++ showDiffViews (diffViews oldViewMap rootView)
+            ; putStrLn $ "Diff output:\n" ++ showDiffViews (diffViews oldViewMap rootView)
             
             ; putStrLn $ "View tree:\n" ++ drawViews rootView 
             --; putStrLn $ "rootView:\n" ++ show rootViewWithIds
@@ -297,9 +300,9 @@ data ServerResponse = ViewUpdate | Alert String | Confirm String {- | Authentica
 
 handleCommand :: SessionStateRef -> Command -> IO ServerResponse
 handleCommand sessionStateRef Init =
- do { (_, db, rootView, _) <- readIORef sessionStateRef
-    ; putStrLn "Init"
-    ; return ViewUpdate
+ do { putStrLn "Init"
+    ; setRootView sessionStateRef $ mkRootView Nothing theDatabase (error "sessionId not in state yet") Map.empty
+    ; return ViewUpdate -- todo: put sessionId in state
     }
 handleCommand sessionStateRef Refresh =
  do { putStrLn "Refresh"
@@ -307,11 +310,11 @@ handleCommand sessionStateRef Refresh =
     ; return ViewUpdate
     }
 handleCommand sessionStateRef Test =
- do { (user, db, rootView, _) <- readIORef sessionStateRef
+ do { (_, user, db, rootView, _) <- readIORef sessionStateRef
     ; return ViewUpdate
     }
 handleCommand sessionStateRef (SetC id value) =
- do { (user, db, rootView, pendingEdit) <- readIORef sessionStateRef      
+ do { (sessionId, user, db, rootView, pendingEdit) <- readIORef sessionStateRef      
     ; putStrLn $ show id ++ " value is " ++ show value
 
     ; let rootView' = replace (Map.fromList [(Id id, value)]) (assignIds rootView)
@@ -319,12 +322,12 @@ handleCommand sessionStateRef (SetC id value) =
     ; let db' = save rootView' db
       -- TODO: check if mkViewMap has correct arg
     -- TODO: instead of updating all, just update the one that was changed
-    ; writeIORef sessionStateRef (user, db', rootView', pendingEdit)
+    ; writeIORef sessionStateRef (sessionId, user, db', rootView', pendingEdit)
     ; reloadRootView sessionStateRef
     ; return ViewUpdate
     }
 handleCommand sessionStateRef (ButtonC id) =
- do { (user, db, rootView, pendingEdit) <- readIORef sessionStateRef
+ do { (_, user, db, rootView, pendingEdit) <- readIORef sessionStateRef
     ; putStrLn $ "Button " ++ show id ++ " was clicked"
     ; let Button _ act = getButtonById (Id id) (assignIds rootView)
 
@@ -333,8 +336,8 @@ handleCommand sessionStateRef (ButtonC id) =
     ; return response
     }
 handleCommand sessionStateRef ConfirmDialogOk =
- do { (user, db, rootView, pendingEdit) <- readIORef sessionStateRef
-    ; writeIORef sessionStateRef (user, db, rootView, Nothing) -- clear it, also in case of error
+ do { (sessionId, user, db, rootView, pendingEdit) <- readIORef sessionStateRef
+    ; writeIORef sessionStateRef (sessionId, user, db, rootView, Nothing) -- clear it, also in case of error
     ; response <- case pendingEdit of
                     Nothing -> error "ConfirmDialogOk event without active dialog"
                     Just ec -> performEditCommand sessionStateRef ec
@@ -343,17 +346,17 @@ handleCommand sessionStateRef ConfirmDialogOk =
  
 reloadRootView :: SessionStateRef -> IO ()
 reloadRootView sessionStateRef =
- do { (user, db, rootView, pendingEdit) <- readIORef sessionStateRef
+ do { (sessionId, user, db, rootView, pendingEdit) <- readIORef sessionStateRef
     ; let rootView' = loadView user db (mkViewMap rootView) rootView
-    ; writeIORef sessionStateRef (user, db, rootView', pendingEdit)
+    ; writeIORef sessionStateRef (sessionId, user, db, rootView', pendingEdit)
     } 
  
 performEditCommand sessionStateRef command =
- do { (user, db, rootView, pendingEdit) <- readIORef sessionStateRef
+ do { (sessionId, user, db, rootView, pendingEdit) <- readIORef sessionStateRef
     ; case command of  
             AlertEdit str -> return $ Alert str
             ConfirmEdit str ec -> 
-             do { writeIORef sessionStateRef (user, db, rootView, Just ec)
+             do { writeIORef sessionStateRef (sessionId, user, db, rootView, Just ec)
                 ; return $ Confirm str
                 }
             AuthenticateEdit userViewId passwordViewId -> authenticate sessionStateRef userViewId passwordViewId
@@ -372,7 +375,7 @@ performEditCommand sessionStateRef command =
                                        --       make function for loading rootView
                       in  return (db, rootView')
                               
-                ; writeIORef sessionStateRef (user, db', rootView', pendingEdit)
+                ; writeIORef sessionStateRef (sessionId, user, db', rootView', pendingEdit)
                 ; reloadRootView sessionStateRef
  
                 ; return ViewUpdate
@@ -388,7 +391,7 @@ safeRead s = case reads s of
 -- TODO id's may not be right. what if views changed and the fields get assigned different id's
 -- than when button was created?
 authenticate sessionStateRef userEStringId passwordEStringId =
- do { (user, db, rootView, pendingEdit) <- readIORef sessionStateRef
+ do { (sessionId, user, db, rootView, pendingEdit) <- readIORef sessionStateRef
     ; let mUserName = getEStringByIdRef userEStringId rootView
           mEnteredPassword = getEStringByIdRef passwordEStringId rootView
     ; case (mUserName, mEnteredPassword) of
@@ -397,7 +400,9 @@ authenticate sessionStateRef userEStringId passwordEStringId =
              Just (password, fullName) -> if password == enteredPassword  
                                       then 
                                        do { putStrLn $ "User "++userName++" authenticated"
-                                          ; writeIORef sessionStateRef (Just (userName, fullName), db, rootView, pendingEdit)
+                                          ; writeIORef sessionStateRef 
+                                              (sessionId, Just (userName, fullName)
+                                              , db, rootView, pendingEdit)
                                           ; reloadRootView sessionStateRef
                                           ; return ViewUpdate
                                           }
@@ -412,8 +417,8 @@ authenticate sessionStateRef userEStringId passwordEStringId =
                      show [userEStringId, passwordEStringId]
     }
 logout sessionStateRef =
- do { (user, db, rootView, pendingEdit) <- readIORef sessionStateRef
-    ; writeIORef sessionStateRef (Nothing, db, rootView, pendingEdit)
+ do { (sessionId, user, db, rootView, pendingEdit) <- readIORef sessionStateRef
+    ; writeIORef sessionStateRef (sessionId, Nothing, db, rootView, pendingEdit)
     ; reloadRootView sessionStateRef
     ; return ViewUpdate
     }  

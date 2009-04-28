@@ -37,8 +37,11 @@ data Widget w = Widget { getWidgetStubId :: Id, getWidgetId :: Id, getWidgetWidg
 instance Eq (Widget w) where
   w1 == w2 = True
 
-data EString = EString { getStrId' :: Id, getStrVal' :: String } deriving (Show, Eq, Typeable, Data)
+data EString = EString { getStrId' :: Id, getStrVal' :: String } deriving (Show, Typeable, Data)
 
+instance Eq EString where
+  EString _ str1 == EString _ str2 = str1 == str2
+  
 getStrId (Widget _ _ (EString i v)) = i
 
 getStrVal (Widget _ _ (EString i v)) = v
@@ -47,7 +50,10 @@ estr str = Widget noId noId $ EString noId str
 
 strRef (Widget _ _ (EString (Id i) _)) = IdRef i
 
-data EInt = EInt { getIntId' :: Id, getIntVal' :: Int } deriving (Show, Eq, Typeable, Data)
+data EInt = EInt { getIntId' :: Id, getIntVal' :: Int } deriving (Show, Typeable, Data)
+
+instance Eq EInt where
+  EInt _ int1 == EInt _ int2 = int1 == int2
 
 getIntId (Widget _ _ (EInt i v)) = i
 
@@ -55,7 +61,10 @@ getIntVal (Widget _ _ (EInt i v)) = v
 
 eint i = Widget noId noId $ EInt noId i
 
-data Button = Button { getButtonId' :: Id, getCommand' :: EditCommand } deriving (Show, Eq, Typeable, Data)
+data Button = Button { getButtonId' :: Id, getCommand' :: EditCommand } deriving (Show, Typeable, Data)
+
+instance Eq Button where
+  b1 == b2 = True -- buttons are always equal for now
 
 button cmd = Widget noId noId $ Button noId cmd 
 

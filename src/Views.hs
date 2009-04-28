@@ -360,12 +360,13 @@ getNewOrChangedIdsViews oldViewMap newViewMap =
  where isNewOrChanged (i, WebView _ _ _ _ view) =
          case Map.lookup i oldViewMap of
            Nothing -> True
-           Just (WebView _ _ _ _ oldView) -> let cmp = case cast oldView of
-                                                   Nothing -> error "internal error: view with same id has different type"
-                                                   Just oldView' -> oldView' /= view
-                                             in--  trace ("Comparing\n" ++ show oldView ++ 
-                                               --         "with\n"++ show view ++ "result\n"++show cmp) $
-                                                 cmp 
+           Just (WebView _ _ _ _ oldView) -> 
+             let cmp = case cast oldView of
+                   Nothing -> error "internal error: view with same id has different type"
+                   Just oldView' -> oldView' /= view
+             in--  trace ("Comparing\n" ++ show oldView ++ 
+               --         "with\n"++ show view ++ "result\n"++show cmp) $
+                 cmp 
 
 getNewOrChangedWidgets :: ViewMap -> ViewMap -> [AnyWidget]
 getNewOrChangedWidgets oldViewMap newViewMap =
