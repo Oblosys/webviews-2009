@@ -396,7 +396,7 @@ getIdForViewWithViewId combinedViewMap viewId =
 getBreadthFirstSubViews rootView =
   concat $ takeWhile (not . null) $ iterate (concatMap getTopLevelSubViews') [rootView] 
  where getTopLevelSubViews' (WebView _ _ _ _ vw) = getTopLevelWebViews vw
-       
+        
 -- todo: change present to non-recursive, taking into account stubs
 --       put id'd divs around each webview
 --       handle root
