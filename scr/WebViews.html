@@ -226,6 +226,26 @@ function updateTree(update)
  else if (op === 'authenticate')
   {  authenticate();
   } 
+ else if (op === 'new')
+  { var newChild = update.childNodes[0];
+
+    var newElts = document.getElementById('new');
+    newElts.appendChild(newChild);
+  }
+ else if (op === 'move')
+  { var srcId = update.getAttribute('src');
+    var dstId = update.getAttribute('dst');
+    debugAdd("Moving "+srcId + " to " + dstId);
+    srcElt = document.getElementById(srcId);
+    dstElt = document.getElementById(dstId);
+    parentElt = dstElt.parentNode;
+
+    var parkingElt = document.getElementById('parking');
+    parentElt.replaceChild(srcElt,dstElt);
+
+//    parentElt.insertBefore(srcElt,dstElt);
+    parkingElt.appendChild(dstElt);
+  }
  else alert ('Unknown command: '+op); 
 }
 
@@ -249,12 +269,13 @@ function select(path, node)
 <!-- <button onClick="debugAdd('click')" onfocus="debugAdd('focus')">click</button> -->
 <!-- <div style="border:solid; border-width:1px; margin:0px"> -->
 <!-- <form onSubmit="queueCommand(''); return false"> -->
-<div id="root">initial root</div>
+<div id="root"><div id="1">Initial root</div></div>
 <!-- </form> -->
 <!-- </div> -->
 <!-- Debug: -->
 <div style="padding:4px;" id="debugMessage"></div>
-<div id="parking" style="visibility:hidden"></div>
+<div id="new"></div>
+<div id="parking"></div>
 
 <div id="receivedUpdates" style="visibility:hidden; border:solid; border-width:1px; padding:4px; border-color:red;" ></div>
 </body> </html>

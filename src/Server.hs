@@ -225,11 +225,11 @@ sessionHandler sessionStateRef cmds = {- myAuth `mplus` -} {-
             ; setRootView sessionStateRef rootView
               
               
-            ; let responseHtml = thediv ! [identifier "updates"] <<
+            ; responseHtml <- mkIncrementalUpdates oldViewMap rootView
+          {-   thediv ! [identifier "updates"] <<
                              updateReplaceHtml "root" 
                                (mkDiv "root" $ present $ rootView)
-            ; putStrLn $ "Diff output:\n" ++ showDiffViews (diffViews oldViewMap rootView)
-            
+          -}
             ; putStrLn $ "View tree:\n" ++ drawViews rootView 
             ; putStrLn $ "rootView:\n" ++ show rootView
             --; putStrLn $ "database:\n" ++ show db
@@ -237,7 +237,7 @@ sessionHandler sessionStateRef cmds = {- myAuth `mplus` -} {-
             --; putStrLn $ "Sending response sent to client: " ++
             --              take 10 responseHTML ++ "..."
             ; seq (length (show responseHtml)) $ return ()
-            ; case cmds of
+           {- ; case cmds of
                 (Commands [SetC 10 _]) -> 
                  do { putStrLn "10 was edited\n\n\n\n" 
                     ; let html = thediv ! [identifier "updates"] <<
@@ -246,7 +246,8 @@ sessionHandler sessionStateRef cmds = {- myAuth `mplus` -} {-
                     ; putStrLn $ "\n\n\nresponse = \n" ++ show html
                     ; return html
                     }
-                _ -> return responseHtml
+                _ ->  return responseHtml -}
+            ; return responseHtml
             }
         Alert str -> 
           return $ thediv ! [identifier "updates"] <<

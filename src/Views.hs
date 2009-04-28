@@ -112,21 +112,21 @@ instance Presentable VisitView where
            Nothing -> p << present loginoutView 
            Just (_,name) -> p << stringToHtml ("Hello "++name++".") +++ present loginoutView) +++
         -}
-        (p <<"Visit at "+++ presentTextField zipCode +++" on " +++ presentTextField date +++ 
+        (p <<"Visit at "+++ present zipCode +++" on " +++ present date +++ 
           "           (session# "+++show sid+++")")
     +++ p << ("Visited "++ show (length pigs) ++ " pig" ++ pluralS (length pigs) ++ ": " ++
               listCommaAnd pignames)
     +++ p << ((if null pigs then stringToHtml $ "Not viewing any pigs" 
-               else "Viewing pig nr. " +++ show (getIntVal viewedPig) ++ "   ")
+               else "Viewing pig nr. " +++ present viewedPig +++ "   ")
     -- "debugAdd('boing');queueCommand('Set("++id++","++show i++");')"
-           +++ presentButton "previous" b1 +++ presentButton "next" b2)
+           +++ present {- Button "previous" -} b1 +++ present {-Button "next" -} b2)
   {-  +++ withPad 15 0 0 0 {- (case mSubview of
                Nothing -> stringToHtml "no pigs"
                Just pv -> present pv) -}
             (case subviews of
                [] -> stringToHtml "no pigs"
                pvs -> hList $ map present pvs ++ [presentButton "add" b3] )
--}
+-} +++ present b3
 instance Storeable VisitView where
   save (VisitView vid sid us zipCode date _ _ _ _ pigs pignames {- _ _ -}) db =
     updateVisit vid (\(Visit _ _ _ pigIds) ->
@@ -136,7 +136,7 @@ instance Storeable VisitView where
 instance Initial VisitView where
   initial = VisitView initial initial initial initial initial initial initial initial initial initial initial {- initial initial -}
 
-                                 
+{-                                 
 data PigView = PigView PigId (Widget Button) Int Int (Widget EString) [Widget EInt] (Either Int String) 
                deriving (Eq, Show, Typeable, Data)
 
@@ -178,11 +178,11 @@ instance Storeable PigView where
 
 instance Initial PigView where
   initial = PigView initial initial initial initial initial initial initial
+-}
 
 
 
-
-
+{-
 data LoginView = LoginView (Widget EString) (Widget EString) (Widget Button) 
   deriving (Eq, Show, Typeable, Data)
 
@@ -215,7 +215,7 @@ instance Presentable LogoutView where
     presentButton "Logout" logoutbutton
             
 instance Initial LogoutView where initial = LogoutView initial
-
+-}
 
 
 
@@ -247,14 +247,14 @@ the update
 -- (or Done) on the iPhone. It would be nicer to capture this at the textfield itself.
 -- Local forms are a problem though because they are block elements
 -- TODO: focus loss on enter is not nice  
-presentTextField :: Widget EString -> Html
+presentTextField :: EString -> Html
 presentTextField = presentTextualInput (textfield "")
   
-presentPasswordField :: Widget EString -> Html
+presentPasswordField :: EString -> Html
 presentPasswordField = presentTextualInput (password "")
 
-presentTextualInput :: Html -> Widget EString -> Html
-presentTextualInput inputfield (Widget _ _ (EString (Id i) str)) = mkSpan ("input"++show i) $  
+presentTextualInput :: Html -> EString -> Html
+presentTextualInput inputfield (EString (Id i) str) = mkSpan ("input"++show i) $  
   inputfield ! [identifier (show i), strAttr "VALUE" str
                --, strAttr "onChange" $ "textFieldChanged('"++show i++"')"
                , strAttr "onFocus" $ "elementGotFocus('"++show i++"')"
@@ -262,14 +262,14 @@ presentTextualInput inputfield (Widget _ _ (EString (Id i) str)) = mkSpan ("inpu
                ]
 
 -- seems like this one could be in Present
-presentButton :: String -> Widget Button -> Html
-presentButton txt (Widget _ _ (Button (Id i) _)) = mkSpan ("input"++show i) $ 
+presentButton :: String -> Button -> Html
+presentButton txt (Button (Id i) _) = mkSpan ("input"++show i) $ 
    primHtml $ "<button onclick=\"queueCommand('ButtonC "++show i++"')\""++
                       "onfocus=\"elementGotFocus('"++show i++"')\">"++txt++"</button>"
 -- TODO: text should be escaped
 
-presentRadioBox :: [String] -> Widget EInt -> Html
-presentRadioBox items (Widget _ _ (EInt (Id i) ei)) = mkSpan ("input"++show i) $ radioBox (show i) items ei
+presentRadioBox :: [String] -> EInt -> Html
+presentRadioBox items (EInt (Id i) ei) = mkSpan ("input"++show i) $ radioBox (show i) items ei
 -- id is unique
 
 
@@ -332,6 +332,14 @@ listCommaAnd ss@(_:_) = (concat . intersperse ", " $ init ss) ++ " and " ++ last
 
 
 
+
+{-
+Right now, incrementality is extremely fragile. Any views that are not presented cause
+updates to missing stubs, giving errors.
+
+Problem, parts of the old view that are not updated have their old id's in the browser,
+so the rootView should be updated to reflect these id's
+-}
 data Update = Move IdRef IdRef deriving Show
               -- move element target 
 
@@ -464,6 +472,43 @@ getBreadthFirstSubViews rootView =
 -- todo: change present to non-recursive, taking into account stubs
 --       put id'd divs around each webview
 --       handle root
+
+mkIncrementalUpdates oldViewMap rootView =
+ do { let diffVws@(newViews, newWidgets,moves) = diffViews oldViewMap rootView
+    ; let responseHtml = thediv ! [identifier "updates"] <<
+                           (map newViewHtml newViews +++
+                            map newWidgetHtml newWidgets +++
+                            map updateHtml moves
+                           )
+    ; putStrLn $ "Diff output:\n" ++ showDiffViews diffVws
+    ; putStrLn $ "Html:\n" ++ show responseHtml
+    ; return responseHtml
+    }
+
+newViewHtml :: WebView -> Html
+newViewHtml (WebView _ _ (Id i) _ v) = 
+    thediv![strAttr "op" "new"] << 
+      (mkDiv (show i) $ present v)
+
+newWidgetHtml :: (Id, Id, AnyWidget) -> Html
+newWidgetHtml (_, (Id i),anyWidget) = 
+    thediv![strAttr "op" "new"] << 
+      (mkDiv (show i) $ present anyWidget)
+
+updateHtml :: Update -> Html
+updateHtml (Move (IdRef src) (IdRef dst)) =
+    thediv![strAttr "op" "move", strAttr "src" (show src), strAttr "dst" (show dst)] << ""
+  
+
+instance Presentable (Widget x) where
+  present (Widget (Id stubId) _ _) = mkDiv (show stubId) << "Stub"
+-- todo button text and radio text needs to go into view
+
+instance Presentable AnyWidget where                          
+  present (EIntWidget eint) = presentRadioBox ["one","two", "three", "four"] eint 
+  present (EStringWidget estr) = presentTextField estr 
+  present (ButtonWidget b) = presentButton "generic button" b 
+
 
 shallowShowWebView (WebView  vid sid id _ v) =
   "<WebView: "++show vid ++ ", stub:" ++ show (unId sid) ++ ", id:" ++ show (unId id) ++ " " ++ show (typeOf v)++ ">"

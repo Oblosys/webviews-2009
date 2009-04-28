@@ -32,6 +32,8 @@ data AnyWidget = EIntWidget EInt
                | EStringWidget EString 
                | ButtonWidget Button  
                  deriving (Eq, Show, Typeable, Data)
+                          
+  
 {-
 -- mkWebMap :: WebView -> [WebNodeViewMap
 mkWebMap :: Data d => d -> [(Id, WebNode)]
