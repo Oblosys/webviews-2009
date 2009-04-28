@@ -67,6 +67,18 @@ type SessionState = (User, Database, WebView, Maybe EditCommand)
 
 type SessionStateRef = IORef SessionState
 
+getRootView :: SessionStateRef -> IO WebView
+getRootView sessionStateRef =
+ do { (_, _, rootView, _) <- readIORef sessionStateRef
+    ; return rootView
+    }
+ 
+setRootView :: SessionStateRef -> WebView -> IO ()
+setRootView sessionStateRef rootView =
+ do { (user, db, _, pendingEdit) <- readIORef sessionStateRef
+    ; writeIORef sessionStateRef (user, db, rootView, pendingEdit)
+    }
+ 
 server =
  do { serverSessionId <- epochTime
     ; globalStateRef <- newIORef initGlobalState
@@ -191,16 +203,26 @@ sessionHandler sessionStateRef cmds = {- myAuth `mplus` -} {-
 -}
      liftIO $  
  do { putStrLn $ "Received commands" ++ show cmds
+    
+    ; (_, db, oldRootView, _) <- readIORef sessionStateRef
+    ; let oldViewMap = mkViewMap oldRootView -- this represents the views in the browser
+          
     ; response <- handleCommands sessionStateRef cmds
     ; responseHtml <- case response of
         ViewUpdate ->
-         do { (_, db, rootView, _) <- readIORef sessionStateRef
+         do { rootViewWithoutIds <- getRootView sessionStateRef
+            ; let (rootView, _) = assignIds (rootViewWithoutIds, oldRootView) 
+            -- this way, all new id's are unique, also with respect to old view                                    
+            ; setRootView sessionStateRef rootView
+              
+              
             ; let responseHtml = thediv ! [identifier "updates"] <<
                              updateReplaceHtml "root" 
-                               (mkDiv "root" $ present $ assignIds rootView)
+                               (mkDiv "root" $ present $ rootView)
+            ; putStrLn $ "Diff output:\n" ++ showDiffViews (diffViews oldViewMap rootView)
             
-            ; putStrLn $ "View tree:\n" ++ drawViews (assignIds rootView) 
-            --; putStrLn $ "rootView:\n" ++ show (assignIds rootView)
+            ; putStrLn $ "View tree:\n" ++ drawViews rootView 
+            --; putStrLn $ "rootView:\n" ++ show rootViewWithIds
             --; putStrLn $ "database:\n" ++ show db
             --; putStrLn $ "\n\n\nresponse = \n" ++ show responseHtml
             --; putStrLn $ "Sending response sent to client: " ++
@@ -211,7 +233,7 @@ sessionHandler sessionStateRef cmds = {- myAuth `mplus` -} {-
                  do { putStrLn "10 was edited\n\n\n\n" 
                     ; let html = thediv ! [identifier "updates"] <<
                             thediv![strAttr "op" "special", strAttr "targetId" "root" ] <<   
-                              (mkDiv "root" $ present $ assignIds rootView) -- was assignIds' with id 100
+                              (mkDiv "root" $ present $ rootView)
                     ; putStrLn $ "\n\n\nresponse = \n" ++ show html
                     ; return html
                     }

@@ -12,6 +12,7 @@ import qualified Data.Map as Map
 import Data.IntMap (IntMap)
 import qualified Data.IntMap as IntMap 
 import Data.Tree
+import Debug.Trace
 
 import Types
 import Database
@@ -189,6 +190,7 @@ mkLoginView = mkWebView (ViewId (44)) $
         let (LoginView name password b) = getOldView vid viewMap
         in  LoginView name password 
                      (Button noId $ AuthenticateEdit (strRef name) (strRef password))
+-- todo using the old id is not okay!
 
 instance Storeable LoginView where save _ = id
                                    
@@ -326,7 +328,11 @@ listCommaAnd [s]  = s
 listCommaAnd ss@(_:_) = (concat . intersperse ", " $ init ss) ++ " and " ++ last ss 
 
 
-data Update = Move IdRef IdRef -- move element target 
+data Update = Move IdRef IdRef deriving Show
+              -- move element target 
+
+showDiffViews (wvs, upds) = unlines (map shallowShowWebView wvs) ++ unlines (map show upds)
+showViewMap viewMap = unlines $ "ViewMap:" : [ show k ++ shallowShowWebView wv | (k, wv) <- Map.toList viewMap ]
 
 -- make sure new rootview has fresh webid's
 diffViews :: ViewMap -> WebView -> ([WebView], [Update])
@@ -335,7 +341,8 @@ diffViews oldViewMap rootView =
       newOrChangedIdsViews   = getNewOrChangedIdsViews oldViewMap newViewMap
       (newOrChangedViewIds, newOrChangedViews) = unzip newOrChangedIdsViews     
       combinedViewMap = Map.fromList newOrChangedIdsViews `Map.union` oldViewMap
-  in  (newOrChangedViews, computeMoves oldViewMap combinedViewMap newOrChangedViewIds rootView)
+  in trace (showViewMap oldViewMap ++ "new\n" ++ showViewMap newViewMap) 
+     (newOrChangedViews, computeMoves oldViewMap combinedViewMap newOrChangedViewIds rootView)
 
 -- combined can be queried to get the id for each view at the moment before applying the moves to the
 -- tree.
@@ -343,10 +350,15 @@ diffViews oldViewMap rootView =
 getNewOrChangedIdsViews :: ViewMap -> ViewMap -> [(ViewId, WebView)]
 getNewOrChangedIdsViews oldViewMap newViewMap =
   filter isNewOrChanged $ Map.toList newViewMap
- where isNewOrChanged (i, view) =
+ where isNewOrChanged (i, WebView _ _ _ _ view) =
          case Map.lookup i oldViewMap of
            Nothing -> True
-           Just oldView -> oldView /= view
+           Just (WebView _ _ _ _ oldView) -> let cmp = case cast oldView of
+                                                   Nothing -> error "internal error: view with same id has different type"
+                                                   Just oldView' -> oldView' /= view
+                                             in  trace ("Comparing\n" ++ show oldView ++ 
+                                                        "with\n"++ show view ++ "result\n"++show cmp) $
+                                                 cmp 
 
 
          
@@ -401,6 +413,8 @@ getBreadthFirstSubViews rootView =
 --       put id'd divs around each webview
 --       handle root
 
+shallowShowWebView (WebView  vid sid id _ v) =
+  "<WebView: "++show vid ++ ", stub:" ++ show (unId sid) ++ ", id:" ++ show (unId id) ++ " " ++ show (typeOf v)++ ">"
 drawViews webview = drawTree $ treeFromView webview
  where treeFromView (WebView vid sid id _ v) =
          Node ("("++show vid ++ ", stub:" ++ show (unId sid) ++ ", id:" ++ show (unId id) ++ ") : " ++ show (typeOf v)) $
