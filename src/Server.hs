@@ -198,6 +198,8 @@ sessionHandler sessionStateRef cmds = {- myAuth `mplus` -} {-
             ; let responseHtml = thediv ! [identifier "updates"] <<
                              updateReplaceHtml "root" 
                                (mkDiv "root" $ present $ assignIds rootView)
+            
+            ; putStrLn $ "View tree:\n" ++ drawViews (assignIds rootView) 
             --; putStrLn $ "rootView:\n" ++ show (assignIds rootView)
             --; putStrLn $ "database:\n" ++ show db
             --; putStrLn $ "\n\n\nresponse = \n" ++ show responseHtml

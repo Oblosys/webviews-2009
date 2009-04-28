@@ -11,6 +11,7 @@ import Data.Map (Map)
 import qualified Data.Map as Map 
 import Data.IntMap (IntMap)
 import qualified Data.IntMap as IntMap 
+import Data.Tree
 
 import Types
 import Database
@@ -392,11 +393,22 @@ getIdForViewWithViewId combinedViewMap viewId =
      Nothing -> error "bla"
      Just wv -> webViewGetId wv
      
-getBreadthFirstSubViews rootView = []
-
+getBreadthFirstSubViews rootView =
+  concat $ takeWhile (not . null) $ iterate (concatMap getTopLevelSubViews') [rootView] 
+ where getTopLevelSubViews' (WebView _ _ _ _ vw) = getTopLevelWebViews vw
+       
 -- todo: change present to non-recursive, taking into account stubs
---       make bf search
 --       put id'd divs around each webview
 --       handle root
 --       improve id assignment, only assign if not -1
 --       assignment ids = getIds; Set.fromList [0..length ids -1] `Set.minus` Set.fromList ids
+
+drawViews webview = drawTree $ treeFromView webview
+ where treeFromView (WebView vid sid id _ v) =
+         Node ("("++show vid ++ ", stub:" ++ show (unId sid) ++ ", id:" ++ show (unId id) ++ ") : " ++ show (typeOf v)) $
+              map treeFromView $ getTopLevelWebViews v
+         
+data T = T Char [T]
+t0 = T 'a' [T 'b' [T 'd' [], T 'e' []], T 'c' [], T 'f' [T 'g' []]]
+
+bfs (T x cs) = [x] :  (map concat $ transpose $ map bfs cs)
