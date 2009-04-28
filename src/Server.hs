@@ -211,7 +211,7 @@ sessionHandler sessionStateRef cmds = {- myAuth `mplus` -} {-
                  do { putStrLn "10 was edited\n\n\n\n" 
                     ; let html = thediv ! [identifier "updates"] <<
                             thediv![strAttr "op" "special", strAttr "targetId" "root" ] <<   
-                              (mkDiv "root" $ present $ assignIds' rootView)
+                              (mkDiv "root" $ present $ assignIds rootView) -- was assignIds' with id 100
                     ; putStrLn $ "\n\n\nresponse = \n" ++ show html
                     ; return html
                     }

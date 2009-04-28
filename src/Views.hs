@@ -400,8 +400,6 @@ getBreadthFirstSubViews rootView =
 -- todo: change present to non-recursive, taking into account stubs
 --       put id'd divs around each webview
 --       handle root
---       improve id assignment, only assign if not -1
---       assignment ids = getIds; Set.fromList [0..length ids -1] `Set.minus` Set.fromList ids
 
 drawViews webview = drawTree $ treeFromView webview
  where treeFromView (WebView vid sid id _ v) =

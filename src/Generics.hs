@@ -6,6 +6,8 @@ import Types
 import Data.Generics
 import Data.Map (Map)
 import qualified Data.Map as Map 
+import Data.IntSet (IntSet)
+import qualified Data.IntSet as IntSet 
 
 -- Generics
 
@@ -71,15 +73,23 @@ everythingBut q f x = {- if q x then [x] else -} foldl (++) [] (gmapQ (everythin
 -}
 
 -- number all Id's in the argument data structure uniquely
-assignIds :: Data d => d -> d
-assignIds x = snd $ everywhereAccum assignId 0 x
+--assignIds :: Data d => d -> d
 
--- for testing problems with non-unique ids in dom
-assignIds' :: Data d => d -> d
-assignIds' x = snd $ everywhereAccum assignId 100 x
-
-assignId :: Data d => Int -> d -> (Int,d)
-assignId = mkAccT $ \i (Id _) -> (i+1, Id i)
+assignIds x = let (x', _,_,_) = assignIdz x in x'
+                  
+assignIdz x = (snd $ everywhereAccum assignId freeIds x, allIds, usedIds, freeIds)
+ where allIds = getAll x :: [Id]
+       usedIds = IntSet.fromList $ map unId $ filter (/= noId) $ allIds 
+       freeIds = (IntSet.fromList $ [0 .. length allIds - 1]) `IntSet.difference` usedIds
+       
+       
+assignId :: Data d => IntSet -> d -> (IntSet,d)
+assignId = mkAccT $ \ids (Id id) -> if (id == -1) 
+                                    then if IntSet.null ids 
+                                         then error "Internal error: assign Id, empty id list"
+                                         else let (newId, ids') = IntSet.deleteFindMin ids 
+                                              in  (ids', Id newId) 
+                                    else (ids, Id id)
 
 
 type Updates = Map Id String  -- maps id's to the string representation of the new value
