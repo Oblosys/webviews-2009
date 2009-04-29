@@ -338,10 +338,18 @@ Right now, incrementality is extremely fragile. Any views that are not presented
 updates to missing stubs, giving errors.
 
 Problem, parts of the old view that are not updated have their old id's in the browser,
-so the rootView should be updated to reflect these id's
+so the rootView are updated to reflect these id's (also for internal id's in widgets)
+RestoreId is used for this
+
+pressing the lowest button shows a bug in the incrementality engine.
 -}
-data Update = Move IdRef IdRef deriving Show
+data Update = Move IdRef IdRef 
+            | RestoreId IdRef IdRef
+              deriving Show
               -- move element target 
+
+isMove (Move _ _) = True
+isMove _          = False
 
 showDiffViews (wvs, wds, upds) = "Views\n" ++ unlines (map shallowShowWebView wvs) ++
                                  "Widgets\n" ++ unlines (map show wds) ++                                 
@@ -381,11 +389,11 @@ getNewOrChangedWidgets :: ViewMap -> ViewMap -> [(Id, Id, AnyWidget)]
 getNewOrChangedWidgets oldViewMap newViewMap =
   concatMap newOrChangedWidgets $ Map.toList newViewMap
  where newOrChangedWidgets (i, wv) =
-         let allWebNodes = getTopLevelWebNodes wv
+         let allWebNodes = getTopLevelWebNodesWebView wv
              allWidgets = concatMap getWidget allWebNodes
          in  case Map.lookup i oldViewMap of
                Nothing  -> allWidgets
-               Just owv -> let allOldWebNodes = getTopLevelWebNodes owv
+               Just owv -> let allOldWebNodes = getTopLevelWebNodesWebView owv
                                allOldWidgets = concatMap getWidget allOldWebNodes
                            in  concat [ if nw /= ow then [(s,i,nw)] else []
                                       | ((_,_,ow), (s,i,nw)) <- zip allOldWidgets allWidgets
@@ -398,10 +406,12 @@ getWidget _ = []
 computeMoves :: ViewMap -> ViewMap -> [ViewId] -> WebView -> [Update]           
 computeMoves oldViewMap combinedViewMap changedOrNewViews rootView@(WebView rootVid _ i _ _) = 
   let allViews = getBreadthFirstSubViews rootView
+      oldRoot = snd . head $ Map.toList oldViewMap
+         
   in  (if rootVid `elem` changedOrNewViews -- move root over old root if 
-       then let oldRoot = snd . head $ Map.toList oldViewMap
-            in  ((traceArg "Root move " $ Move (mkRef i) (mkRef $ webViewGetId oldRoot)) :) 
-       else trace ("No root move " ++show changedOrNewViews ++ show rootVid) id) $
+       then traceArg "Root move " $ Move (mkRef i) (mkRef $ webViewGetId oldRoot) 
+       else trace ("No root move " ++show changedOrNewViews ++ show rootVid) $ 
+              RestoreId (mkRef i) (mkRef $ webViewGetId oldRoot)) :
         concatMap (computeChildMoves oldViewMap combinedViewMap changedOrNewViews) allViews
 
 traceArg str x = trace (str ++ show x) x
@@ -419,10 +429,10 @@ webViewGetId (WebView _ _ i _ _) = i
 
 computeChildMoves :: ViewMap -> ViewMap -> [ViewId] -> WebView -> [Update]           
 computeChildMoves oldViewMap combinedViewMap changedOrNewViews wv@(WebView vi _ _ _ view) =
-  let childWebNodes = getTopLevelWebNodes wv
+  let childWebNodes = getTopLevelWebNodesWebView wv
       mOldChildWebNodes = case Map.lookup vi oldViewMap of 
                             Nothing                 -> Nothing
-                            Just owv  -> Just $ getTopLevelWebNodes owv
+                            Just owv  -> Just $ getTopLevelWebNodesWebView owv
   in  case mOldChildWebNodes of -- no old child views, this webview is new
         Nothing -> [ case wn of
                        (WebViewNode (WebView vid (Id stubid) _ _ _)) -> 
@@ -445,14 +455,21 @@ bla combinedViewMap changedOrNewViews (WebViewNode (WebView oldViewId _ (Id oldI
                                       (WebViewNode (WebView newViewId _ _ _ _)) =
   let (Id sourceId) = getIdForViewWithViewId combinedViewMap newViewId
   in if newViewId == oldViewId && not (newViewId `elem` changedOrNewViews)
-     then [] 
+     then [RestoreId (IdRef sourceId) (IdRef oldId)] 
      else [Move (IdRef sourceId) (IdRef oldId)]
 bla combinedViewMap changedOrNewViews (WidgetNode _ oldId oldW)
-                                      (WidgetNode _ newId newW) = if deepEq oldW newW 
-                                                          then []
-                                                          else [Move (mkRef $ newId) 
-                                                                     (mkRef $ oldId) ]
+                                      (WidgetNode _ newId newW) = 
+  if deepEq oldW newW 
+  then [ RestoreId (mkRef newId) (mkRef oldId) -- Don't care about stubid's
+       , RestoreId (mkRef $ getWidgetInternalId newW) (mkRef $ getWidgetInternalId oldW) ]
+  else [Move (mkRef $ newId) 
+             (mkRef $ oldId) ]
 bla _ _ _ _ = error "Internal error: child mismatch"
+
+getWidgetInternalId :: AnyWidget -> Id
+getWidgetInternalId  (EIntWidget (EInt id _)) = id
+getWidgetInternalId  (EStringWidget (EString id _)) = id
+getWidgetInternalId  (ButtonWidget (Button id _)) = id
 
 deepEq (ButtonWidget _) (ButtonWidget _) = True -- Buttons are always equal TODO: what if text changes?
 deepEq (EStringWidget (EString _ str1)) (EStringWidget (EString _ str2)) = str1 == str2
@@ -474,15 +491,25 @@ getBreadthFirstSubViews rootView =
 --       handle root
 
 mkIncrementalUpdates oldViewMap rootView =
- do { let diffVws@(newViews, newWidgets,moves) = diffViews oldViewMap rootView
+ do { let diffVws@(newViews, newWidgets,updates) = diffViews oldViewMap rootView
     ; let responseHtml = thediv ! [identifier "updates"] <<
                            (map newViewHtml newViews +++
                             map newWidgetHtml newWidgets +++
-                            map updateHtml moves
+                            map updateHtml updates
                            )
+      
     ; putStrLn $ "Diff output:\n" ++ showDiffViews diffVws
+    ; let subs = concat [ case upd of 
+                                    RestoreId (IdRef o) (IdRef n) -> [(Id o, Id n)]  
+                                    Move _ _ -> []
+                                | upd <- updates 
+                                ]
+    ; putStrLn $ "Id updates on rootView:" ++ show subs
+    -- todo: check restoration on views, and esp. on root.
+    
+    ; let rootView' = substituteIds subs rootView
     ; putStrLn $ "Html:\n" ++ show responseHtml
-    ; return responseHtml
+    ; return (responseHtml, rootView')
     }
 
 newViewHtml :: WebView -> Html
@@ -498,12 +525,17 @@ newWidgetHtml (_, (Id i),anyWidget) =
 updateHtml :: Update -> Html
 updateHtml (Move (IdRef src) (IdRef dst)) =
     thediv![strAttr "op" "move", strAttr "src" (show src), strAttr "dst" (show dst)] << ""
+updateHtml _ = stringToHtml "" -- restoreId is not for producing html, but for adapting the rootView  
+
+
+instance Presentable WebView where
+  present (WebView _ (Id stubId) _ _ _) = mkDiv (show stubId) << "ViewStub"
   
-
 instance Presentable (Widget x) where
-  present (Widget (Id stubId) _ _) = mkDiv (show stubId) << "Stub"
--- todo button text and radio text needs to go into view
+  present (Widget (Id stubId) _ _) = mkDiv (show stubId) << "WidgetStub"
 
+
+-- todo button text and radio text needs to go into view
 instance Presentable AnyWidget where                          
   present (EIntWidget eint) = presentRadioBox ["one","two", "three", "four"] eint 
   present (EStringWidget estr) = presentTextField estr 
@@ -512,11 +544,18 @@ instance Presentable AnyWidget where
 
 shallowShowWebView (WebView  vid sid id _ v) =
   "<WebView: "++show vid ++ ", stub:" ++ show (unId sid) ++ ", id:" ++ show (unId id) ++ " " ++ show (typeOf v)++ ">"
-drawViews webview = drawTree $ treeFromView webview
- where treeFromView (WebView vid sid id _ v) =
+
+drawWebNodes webnode = drawTree $ treeFromView webnode
+ where treeFromView (WebViewNode wv@(WebView vid sid id _ v)) =
          Node ("("++show vid ++ ", stub:" ++ show (unId sid) ++ ", id:" ++ show (unId id) ++ ") : " ++ show (typeOf v)) $
-              map treeFromView $ getTopLevelWebViews v
-         
+              map treeFromView $ getTopLevelWebNodesWebNode v
+       treeFromView (WidgetNode sid id w) =
+         Node ("(--, stub:" ++ show (unId sid) ++ ", id:" ++ show (unId id) ++ ") : " ++ showAnyWidget w) $
+              map treeFromView $ getTopLevelWebNodesWebNode w
+        where showAnyWidget (EIntWidget (EInt id i))    = "EInt " ++ show id ++" " ++ (show i)
+              showAnyWidget (EStringWidget (EString id s)) = "EString "++ show id ++" "++ (show s)
+              showAnyWidget (ButtonWidget (Button id _))  = "Button" ++ show id 
+                 
 data T = T Char [T]
 t0 = T 'a' [T 'b' [T 'd' [], T 'e' []], T 'c' [], T 'f' [T 'g' []]]
 

@@ -43,14 +43,22 @@ mkWebMap x = everything (++) ([] `mkQ`  (\w@(WebView vwId sid id _ _) -> [(id, W
                                  `extQ` (\x -> [(getButtonId x, ButtonNode x)])
                              ) x
 -}
-getTopLevelWebNodes :: WebView -> [WebNode]
-getTopLevelWebNodes (WebView _ _ _ _ v) =
+getTopLevelWebNodesWebView :: WebView -> [WebNode]
+getTopLevelWebNodesWebView (WebView _ _ _ _ v) =
   everythingTopLevel (Nothing `mkQ`  (\w@(WebView vwId sid id _ _) -> Just $ WebViewNode w) 
                               `extQ` (\w@(Widget stbid id x@(EInt _ _))   -> Just $ WidgetNode stbid id (EIntWidget x))
                               `extQ` (\w@(Widget stbid id x@(EString _ _)) -> Just $ WidgetNode stbid id (EStringWidget x))
                               `extQ` (\w@(Widget stbid id x@(Button _ _))   -> Just $ WidgetNode stbid id (ButtonWidget x))
                      ) v             -- TODO can we do this bettter?
-  
+
+-- make sure this one is not called on a WebView, but on its child view
+getTopLevelWebNodesWebNode :: Data x => x -> [WebNode]
+getTopLevelWebNodesWebNode x = everythingTopLevel 
+                     (Nothing `mkQ`  (\w@(WebView vwId sid id _ _) -> Just $ WebViewNode w) 
+                              `extQ` (\w@(Widget stbid id x@(EInt _ _))   -> Just $ WidgetNode stbid id (EIntWidget x))
+                              `extQ` (\w@(Widget stbid id x@(EString _ _)) -> Just $ WidgetNode stbid id (EStringWidget x))
+                              `extQ` (\w@(Widget stbid id x@(Button _ _))   -> Just $ WidgetNode stbid id (ButtonWidget x))
+                     ) x
 -- lookup the view id and if the associated view is of the desired type, return it. Otherwise
 -- return initial
 getOldView :: (Initial v, Typeable v) => ViewId -> ViewMap -> v
@@ -143,6 +151,13 @@ replaceEInt updates x@(EInt i _) =
     Just str -> (EInt i (read str))
     Nothing -> x
 
+substituteIds :: Data x => [(Id, Id)] -> x -> x 
+substituteIds subs wv =
+  (everywhere $ mkT replaceId) wv
+ where replaceId id@(Id i) = case lookup id subs of
+                               Nothing -> id
+                               Just id' -> id'
+       
 replaceWebViewById :: (ViewId) -> WebView -> WebView -> WebView
 replaceWebViewById i wv rootView =
  (everywhere $ mkT replaceWebView) rootView

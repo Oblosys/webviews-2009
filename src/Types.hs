@@ -159,8 +159,8 @@ instance Initial WebView where
 instance Presentable () where
   present () = stringToHtml "<initial webview>"
   
-instance Presentable WebView where
-  present (WebView _ _ _ _ v) = present v
+--instance Presentable WebView where
+--  present (WebView _ _ _ _ v) = present v
 
 
 

@@ -225,13 +225,15 @@ sessionHandler sessionStateRef cmds = {- myAuth `mplus` -} {-
             ; setRootView sessionStateRef rootView
               
               
-            ; responseHtml <- mkIncrementalUpdates oldViewMap rootView
+            ; (responseHtml, rootView') <- mkIncrementalUpdates oldViewMap rootView
           {-   thediv ! [identifier "updates"] <<
                              updateReplaceHtml "root" 
                                (mkDiv "root" $ present $ rootView)
           -}
-            ; putStrLn $ "View tree:\n" ++ drawViews rootView 
-            ; putStrLn $ "rootView:\n" ++ show rootView
+            ; putStrLn $ "View tree:\n" ++ drawWebNodes (WebViewNode rootView) 
+            ; putStrLn $ "View tree':\n" ++ drawWebNodes (WebViewNode rootView') 
+            ; putStrLn $ "rootView:\n" ++ show rootView'
+            ; setRootView sessionStateRef rootView'
             --; putStrLn $ "database:\n" ++ show db
             --; putStrLn $ "\n\n\nresponse = \n" ++ show responseHtml
             --; putStrLn $ "Sending response sent to client: " ++
