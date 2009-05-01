@@ -50,21 +50,26 @@ estr str = Widget noId noId $ EString noId str
 
 strRef (Widget _ _ (EString (Id i) _)) = IdRef i
 
-data EInt = EInt { getIntId' :: Id, getIntVal' :: Int } deriving (Show, Typeable, Data)
+data RadioView = RadioView { getIntId' :: Id, getItems :: [String], getSelection' :: Int } deriving (Show, Typeable, Data)
 
-instance Eq EInt where
-  EInt _ int1 == EInt _ int2 = int1 == int2
+setSelection' :: Int -> RadioView -> RadioView 
+setSelection' s (RadioView i its _) = RadioView i its s
 
-getIntId (Widget _ _ (EInt i v)) = i
+setSelection s (Widget si i rv) = Widget si i $ setSelection' s rv
 
-getIntVal (Widget _ _ (EInt i v)) = v
+instance Eq RadioView where
+  RadioView _ items1 int1 == RadioView _ items2 int2 = items1 == items2 && int1 == int2
 
-eint i = Widget noId noId $ EInt noId i
+getIntId (Widget _ _ (RadioView i is v)) = i
+
+getSelection (Widget _ _ (RadioView i is v)) = v
+
+radioView its i = Widget noId noId $ RadioView noId its i
 
 data Button = Button { getButtonId' :: Id, buttonText :: String, getCommand' :: EditCommand } deriving (Show, Typeable, Data)
 
 instance Eq Button where
-  b1 == b2 = True -- buttons are always equal for now
+  Button _ txt1 _ == Button _ txt2 _ = txt1 == txt2
 
 button txt cmd = Widget noId noId $ Button noId txt cmd 
 
@@ -195,8 +200,8 @@ instance Initial w => Initial (Widget w) where
 instance Initial EString where
   initial = EString (Id $ -1) ""
 
-instance Initial EInt where
-  initial = EInt (Id $ -1) 0
+instance Initial RadioView where
+  initial = RadioView (Id $ -1) [] 0
 
 instance Initial Button where
   initial = Button noId "<button>" (DocEdit id)

@@ -68,7 +68,7 @@ loadView user db viewMap (WebView vid si i f _) = (WebView vid si i f (f user db
 
 
 data VisitView = 
-  VisitView VisitId Int User (Widget EString) (Widget EString) (Widget EInt) (Widget Button) 
+  VisitView VisitId Int User (Widget EString) (Widget EString) (Widget RadioView) (Widget Button) 
            (Widget Button) (Widget Button) [PigId] [String] {- WebView [WebView] -}
     deriving (Eq, Show, Typeable, Data)
 
@@ -77,9 +77,9 @@ mkVisitView sessionId i = mkWebView (ViewId 0) $
   \user db viewMap vid -> 
   let (VisitView _ _ _ _ _ oldViewedPig _ _ _ _ _ {- _ mpigv -}) = getOldView vid viewMap
       (Visit visd zipcode date pigIds) = unsafeLookup (allVisits db) i
-      viewedPig = constrain 0 (length pigIds - 1) $ getIntVal oldViewedPig
+      viewedPig = constrain 0 (length pigIds - 1) $ getSelection oldViewedPig
       pignames = map (pigName . unsafeLookup (allPigs db)) pigIds
-  in  VisitView i sessionId user (estr zipcode) (estr date) (eint viewedPig) 
+  in  VisitView i sessionId user (estr zipcode) (estr date) (radioView ["1","2","3","4"] viewedPig) 
                 (button "previous" (previous (ViewId 0))) (button "next" (next (ViewId 0)))
                 (button "add" (addPig visd)) pigIds pignames
 -- todo: check id's
@@ -93,11 +93,11 @@ mkVisitView sessionId i = mkWebView (ViewId 0) $
  where -- next and previous may cause out of bounds, but on reload, this is constrained
        previous i = mkViewEdit i $
          \(VisitView vid sid us zipCode date viewedPig b1 b2 b3 pigs pignames {- loginv mSubview -}) ->
-         VisitView vid sid us zipCode date (eint $ getIntVal viewedPig-1) b1 b2 b3 pigs pignames {- loginv mSubview -}
+         VisitView vid sid us zipCode date (setSelection (getSelection viewedPig-1) viewedPig) b1 b2 b3 pigs pignames {- loginv mSubview -}
 
        next i = mkViewEdit i $
          \(VisitView vid sid us zipCode date viewedPig b1 b2 b3 pigs pignames {- loginv mSubview -}) ->
-         VisitView vid sid us zipCode date (eint $ getIntVal viewedPig+1) b1 b2 b3 pigs pignames {- loginv mSubview -}
+         VisitView vid sid us zipCode date (setSelection (getSelection viewedPig-1) viewedPig) b1 b2 b3 pigs pignames {- loginv mSubview -}
 
        addPig i = DocEdit $ addNewPig i 
 
@@ -137,7 +137,7 @@ instance Initial VisitView where
   initial = VisitView initial initial initial initial initial initial initial initial initial initial initial {- initial initial -}
 
 {-                                 
-data PigView = PigView PigId (Widget Button) Int Int (Widget EString) [Widget EInt] (Either Int String) 
+data PigView = PigView PigId (Widget Button) Int Int (Widget EString) [Widget RadioView] (Either Int String) 
                deriving (Eq, Show, Typeable, Data)
 
 mkPigView pignr i viewedPig = mkWebView (ViewId $ 10+pignr) $ 
@@ -145,7 +145,7 @@ mkPigView pignr i viewedPig = mkWebView (ViewId $ 10+pignr) $
   let (Pig pid vid name symptoms diagnosis) = unsafeLookup (allPigs db) i
   in  PigView pid (button ( ConfirmEdit ("Are you sure you want to remove pig "++show pignr++"?") $ 
                                    removePigAlsoFromVisit pid vid)) 
-              viewedPig pignr (estr name) (map eint symptoms) diagnosis
+              viewedPig pignr (estr name) (map radioView symptoms) diagnosis
  where -- need db support for removal and we need parent
        removePigAlsoFromVisit pid vid =
          DocEdit $ removePig pid . updateVisit vid (\v -> v { pigs = delete pid $ pigs v } )  
@@ -268,8 +268,8 @@ presentButton (Button (Id i) txt _) = mkSpan ("input"++show i) $
                       "onfocus=\"elementGotFocus('"++show i++"')\">"++txt++"</button>"
 -- TODO: text should be escaped
 
-presentRadioBox :: [String] -> EInt -> Html
-presentRadioBox items (EInt (Id i) ei) = mkDiv ("input"++show i) $ radioBox (show i) items ei
+presentRadioBox :: RadioView -> Html
+presentRadioBox (RadioView (Id i) items rv) = mkDiv ("input"++show i) $ radioBox (show i) items rv
 -- id is unique
 
 
@@ -467,13 +467,13 @@ bla combinedViewMap changedOrNewViews (WidgetNode _ oldId oldW)
 bla _ _ _ _ = error "Internal error: child mismatch"
 
 getWidgetInternalId :: AnyWidget -> Id
-getWidgetInternalId  (EIntWidget (EInt id _)) = id
+getWidgetInternalId  (RadioViewWidget (RadioView id _ _)) = id
 getWidgetInternalId  (EStringWidget (EString id _)) = id
 getWidgetInternalId  (ButtonWidget (Button id _ _)) = id
 
-deepEq (ButtonWidget _) (ButtonWidget _) = True -- Buttons are always equal TODO: what if text changes?
-deepEq (EStringWidget (EString _ str1)) (EStringWidget (EString _ str2)) = str1 == str2
-deepEq (EIntWidget (EInt _ int1)) (EIntWidget (EInt _ int2)) = int1 == int2
+deepEq (ButtonWidget b1) (ButtonWidget b2) = b1 == b2
+deepEq (EStringWidget es1) (EStringWidget es2) = es1 == es2
+deepEq (RadioViewWidget rv1) (RadioViewWidget rv2) = rv1 == rv2
 deepEq _ _ = error "Internal error: deepEq has different arg types"
 
 getIdForViewWithViewId :: ViewMap -> ViewId -> Id          
@@ -537,8 +537,8 @@ instance Presentable (Widget x) where
 
 -- todo button text and radio text needs to go into view
 instance Presentable AnyWidget where                          
-  present (EIntWidget eint) = presentRadioBox ["one","two", "three", "four"] eint 
-  present (EStringWidget estr) = presentTextField estr 
+  present (RadioViewWidget rv) = presentRadioBox rv 
+  present (EStringWidget es) = presentTextField es 
   present (ButtonWidget b) = presentButton b 
 
 
@@ -552,7 +552,7 @@ drawWebNodes webnode = drawTree $ treeFromView webnode
        treeFromView (WidgetNode sid id w) =
          Node ("(--, stub:" ++ show (unId sid) ++ ", id:" ++ show (unId id) ++ ") : " ++ showAnyWidget w) $
               map treeFromView $ getTopLevelWebNodesWebNode w
-        where showAnyWidget (EIntWidget (EInt id i))    = "EInt " ++ show id ++" " ++ (show i)
+        where showAnyWidget (RadioViewWidget (RadioView id is i))    = "RadioView " ++ show id ++" " ++ (show i) ++ ": "++ show is
               showAnyWidget (EStringWidget (EString id s)) = "EString "++ show id ++" "++ (show s)
               showAnyWidget (ButtonWidget (Button id _ _))  = "Button" ++ show id 
                  

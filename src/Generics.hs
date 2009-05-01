@@ -28,7 +28,7 @@ data WebNode = WebViewNode WebView
              | WidgetNode  Id Id AnyWidget
                deriving (Typeable, Data)
 
-data AnyWidget = EIntWidget EInt 
+data AnyWidget = RadioViewWidget RadioView 
                | EStringWidget EString 
                | ButtonWidget Button  
                  deriving (Eq, Show, Typeable, Data)
@@ -38,7 +38,7 @@ data AnyWidget = EIntWidget EInt
 -- mkWebMap :: WebView -> [WebNodeViewMap
 mkWebMap :: Data d => d -> [(Id, WebNode)]
 mkWebMap x = everything (++) ([] `mkQ`  (\w@(WebView vwId sid id _ _) -> [(id, WebViewNode w)]) 
-                                 `extQ` (\x -> [(getIntId x, EIntNode x)])
+                                 `extQ` (\x -> [(getIntId x, RadioViewNode x)])
                                  `extQ` (\x -> [(getStrId x, EStringNode x)])
                                  `extQ` (\x -> [(getButtonId x, ButtonNode x)])
                              ) x
@@ -46,7 +46,7 @@ mkWebMap x = everything (++) ([] `mkQ`  (\w@(WebView vwId sid id _ _) -> [(id, W
 getTopLevelWebNodesWebView :: WebView -> [WebNode]
 getTopLevelWebNodesWebView (WebView _ _ _ _ v) =
   everythingTopLevel (Nothing `mkQ`  (\w@(WebView vwId sid id _ _) -> Just $ WebViewNode w) 
-                              `extQ` (\w@(Widget stbid id x@(EInt _ _))   -> Just $ WidgetNode stbid id (EIntWidget x))
+                              `extQ` (\w@(Widget stbid id x@(RadioView _ _ _))   -> Just $ WidgetNode stbid id (RadioViewWidget x))
                               `extQ` (\w@(Widget stbid id x@(EString _ _)) -> Just $ WidgetNode stbid id (EStringWidget x))
                               `extQ` (\w@(Widget stbid id x@(Button _ _ _))   -> Just $ WidgetNode stbid id (ButtonWidget x))
                      ) v             -- TODO can we do this bettter?
@@ -55,7 +55,7 @@ getTopLevelWebNodesWebView (WebView _ _ _ _ v) =
 getTopLevelWebNodesWebNode :: Data x => x -> [WebNode]
 getTopLevelWebNodesWebNode x = everythingTopLevel 
                      (Nothing `mkQ`  (\w@(WebView vwId sid id _ _) -> Just $ WebViewNode w) 
-                              `extQ` (\w@(Widget stbid id x@(EInt _ _))   -> Just $ WidgetNode stbid id (EIntWidget x))
+                              `extQ` (\w@(Widget stbid id x@(RadioView _ _ _))   -> Just $ WidgetNode stbid id (RadioViewWidget x))
                               `extQ` (\w@(Widget stbid id x@(EString _ _)) -> Just $ WidgetNode stbid id (EStringWidget x))
                               `extQ` (\w@(Widget stbid id x@(Button _ _ _))   -> Just $ WidgetNode stbid id (ButtonWidget x))
                      ) x
@@ -137,7 +137,7 @@ type Updates = Map Id String  -- maps id's to the string representation of the n
 
 -- update the datastructure at the id's in Updates 
 replace :: Data d => Updates -> d -> d
-replace updates v = (everywhere $ extT (mkT (replaceEString updates))  (replaceEInt updates)) v
+replace updates v = (everywhere $ extT (mkT (replaceEString updates))  (replaceRadioView updates)) v
 
 replaceEString :: Updates -> EString -> EString
 replaceEString updates x@(EString i _) =
@@ -145,10 +145,10 @@ replaceEString updates x@(EString i _) =
     Just str -> (EString i str)
     Nothing -> x
 
-replaceEInt :: Updates -> EInt -> EInt
-replaceEInt updates x@(EInt i _) =
+replaceRadioView :: Updates -> RadioView -> RadioView
+replaceRadioView updates x@(RadioView i is _) =
   case Map.lookup i updates of
-    Just str -> (EInt i (read str))
+    Just str -> (RadioView i is (read str))
     Nothing -> x
 
 substituteIds :: Data x => [(Id, Id)] -> x -> x 
