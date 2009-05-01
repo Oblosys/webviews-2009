@@ -388,7 +388,8 @@ performEditCommand sessionStateRef command =
                               
                 ; writeIORef sessionStateRef (sessionId, user, db', rootView', pendingEdit)
                 ; reloadRootView sessionStateRef
- 
+                --; putStrLn $ "\n\n\n\view before edit:" ++ show rootView
+                --; putStrLn $ "\nview after edit:" ++ show rootView'
                 ; return ViewUpdate
                 }
 

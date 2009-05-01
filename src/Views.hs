@@ -79,9 +79,9 @@ mkVisitView sessionId i = mkWebView (ViewId 0) $
       (Visit visd zipcode date pigIds) = unsafeLookup (allVisits db) i
       viewedPig = constrain 0 (length pigIds - 1) $ getSelection oldViewedPig
       pignames = map (pigName . unsafeLookup (allPigs db)) pigIds
-  in  VisitView i sessionId user (estr zipcode) (estr date) (radioView ["1","2","3","4"] viewedPig) 
-                (button "previous" (previous (ViewId 0))) (button "next" (next (ViewId 0)))
-                (button "add" (addPig visd)) pigIds pignames
+  in  VisitView i sessionId user (estr (ViewId 10000) zipcode) (estr (ViewId 10001) date) (radioView  (ViewId 10002) ["1","2","3","4"] viewedPig) 
+                (button (ViewId 10004) "previous" (previous (ViewId 0))) (button (ViewId 10005) "next" (next (ViewId 0)))
+                (button (ViewId 10006) "add" (addPig visd)) pigIds pignames
 -- todo: check id's
              {-   (if null pigIds -- remove guard for weird hanging exception (after removing last pig)
                     then Nothing
@@ -97,7 +97,7 @@ mkVisitView sessionId i = mkWebView (ViewId 0) $
 
        next i = mkViewEdit i $
          \(VisitView vid sid us zipCode date viewedPig b1 b2 b3 pigs pignames {- loginv mSubview -}) ->
-         VisitView vid sid us zipCode date (setSelection (getSelection viewedPig-1) viewedPig) b1 b2 b3 pigs pignames {- loginv mSubview -}
+         VisitView vid sid us zipCode date (setSelection (getSelection viewedPig+1) viewedPig) b1 b2 b3 pigs pignames {- loginv mSubview -}
 
        addPig i = DocEdit $ addNewPig i 
 
@@ -351,11 +351,8 @@ data Update = Move IdRef IdRef
 isMove (Move _ _) = True
 isMove _          = False
 
-showDiffViews (wvs, wds, upds) = "Views\n" ++ unlines (map shallowShowWebView wvs) ++
-                                 "Widgets\n" ++ unlines (map show wds) ++                                 
-                                 "Updates\n" ++ unlines (map show upds)
-showViewMap viewMap = unlines $ "ViewMap:" : [ show k ++ shallowShowWebView wv | (k, wv) <- Map.toList viewMap ]
 
+-- TODO: pass webnodemap around instead of viewmap
 -- make sure new rootview has fresh webid's
 diffViews :: ViewMap -> WebView -> ([WebView], [(Id, Id, AnyWidget)], [Update])
 diffViews oldViewMap rootView = 
@@ -363,13 +360,46 @@ diffViews oldViewMap rootView =
       newOrChangedIdsViews   = getNewOrChangedIdsViews oldViewMap newViewMap
       (newOrChangedViewIds, newOrChangedViews) = unzip newOrChangedIdsViews     
       combinedViewMap = Map.fromList newOrChangedIdsViews `Map.union` oldViewMap
-  in trace (showViewMap oldViewMap ++ "new\n" ++ showViewMap newViewMap) 
+  in -- trace ("\nOld view map\n"++showViewMap oldViewMap ++ "\nNew view map\n" ++ showViewMap newViewMap) 
+     trace ("\nChangedWebNodes:\n" ++ show (getNewOrChangedIdsWebNodes 
+                                             (mkWebNodeMap $  snd . head $ Map.toList oldViewMap) 
+                                             (mkWebNodeMap rootView)))
      ( newOrChangedViews
      , getNewOrChangedWidgets oldViewMap newViewMap  
      , computeMoves oldViewMap combinedViewMap newOrChangedViewIds rootView)
 
 -- combined can be queried to get the id for each view at the moment before applying the moves to the
 -- tree.
+
+
+-- TODO: no need to compute new or changed first, can be put in Update list
+diffViewsWN :: ViewMap -> WebView -> ([WebNode], [Update])
+diffViewsWN oldViewMap rootView' = 
+  let oldRootView = snd . head $ Map.toList oldViewMap
+      rootView = fixRootViewStubId oldRootView rootView'
+      newWebNodeMap = mkWebNodeMap rootView
+      oldWebNodeMap = mkWebNodeMap oldRootView
+      newOrChangedIdsWebNodes = getNewOrChangedIdsWebNodes oldWebNodeMap newWebNodeMap
+      (newOrChangedWebNodeIds, newOrChangedWebNodes) = unzip newOrChangedIdsWebNodes     
+      combinedWebNodeMap = Map.fromList newOrChangedIdsWebNodes `Map.union` oldWebNodeMap
+  in -- trace ("\nOld view map\n"++showViewMap oldViewMap ++ "\nNew view map\n" ++ showViewMap newViewMap) 
+    ( newOrChangedWebNodes
+    , computeMovesWN oldWebNodeMap combinedWebNodeMap newOrChangedWebNodeIds rootView)
+
+-- replace rootViews stub id by old view's id, so if rootview is changed (and moved to it's stub)
+-- it is moved over the old root
+fixRootViewStubId (WebView ovi osi oi ofn ov) (WebView vi si i fn v) = 
+  WebView vi oi i fn v
+
+getNewOrChangedIdsWebNodes :: WebNodeMap -> WebNodeMap -> [(ViewId, WebNode)]
+getNewOrChangedIdsWebNodes oldWebNodeMap newWebNodeMap =
+  trace ("newWebNodeMap: "++ show (Map.keys newWebNodeMap))$
+  filter isNewOrChanged $ Map.toList newWebNodeMap
+ where isNewOrChanged (i, webNode) =
+         case Map.lookup i oldWebNodeMap of
+           Nothing -> True
+           Just oldWebNode -> oldWebNode /= webNode
+          
 
 getNewOrChangedIdsViews :: ViewMap -> ViewMap -> [(ViewId, WebView)]
 getNewOrChangedIdsViews oldViewMap newViewMap =
@@ -400,8 +430,16 @@ getNewOrChangedWidgets oldViewMap newViewMap =
                                       ]
            
              
-getWidget (WidgetNode stubid id w) = [(stubid, id, w)]
+getWidget (WidgetNode _ stubid id w) = [(stubid, id, w)]
 getWidget _ = []
+
+computeMovesWN :: WebNodeMap -> WebNodeMap -> [ViewId] -> WebView -> [Update]           
+computeMovesWN oldViewMap combinedViewMap changedOrNewWebNodes rootView@(WebView rootVid _ i _ _) = 
+  concatMap (computeMove oldViewMap combinedViewMap changedOrNewWebNodes) $
+    getBreadthFirstWebNodes rootView
+  
+
+webNodeGetId (WebViewNode (WebView _ _ i _ _)) = i 
 
 computeMoves :: ViewMap -> ViewMap -> [ViewId] -> WebView -> [Update]           
 computeMoves oldViewMap combinedViewMap changedOrNewViews rootView@(WebView rootVid _ i _ _) = 
@@ -425,6 +463,34 @@ traceArg str x = trace (str ++ show x) x
 
 webViewGetId (WebView _ _ i _ _) = i 
 
+computeMove :: WebNodeMap -> WebNodeMap -> [ViewId] -> WebNode -> [Update]
+computeMove oldWebNodeMap combinedWebNodeMap changedOrNewWebNodes webNode = 
+  case Map.lookup (getWebNodeViewId webNode) oldWebNodeMap of
+    Nothing -> case webNode of -- if a web node is new, just move it to its stub id
+                               -- in this case its parent must also be new so the stub
+                               -- will be in the new presentations as well
+                 (WebViewNode (WebView vid (Id stubid) (Id i) _ _)) -> 
+                   [Move (IdRef i) (IdRef stubid)] 
+                 (WidgetNode _ stubid id w) -> 
+                   [Move (mkRef $ id) (mkRef $ stubid)]
+    Just oldWebNode -> case (oldWebNode, webNode) of
+                         (  (WebViewNode (WebView oldViewId _ (Id oldId) _ _))
+                          , (WebViewNode (WebView newViewId _ (Id sourceId) _ _))) ->
+                          if not (newViewId `elem` changedOrNewWebNodes)
+                          then [RestoreId (IdRef sourceId) (IdRef oldId)] 
+                          else [Move (IdRef sourceId) (IdRef oldId)]
+                         (  (WidgetNode _         _ oldId oldW)
+                          , (WidgetNode newViewId _ newId newW) ) -> 
+                            if not (newViewId `elem` changedOrNewWebNodes)
+                            then [ RestoreId (mkRef newId) (mkRef oldId) -- Don't care about stubid's
+                                 , RestoreId (mkRef $ getWidgetInternalId newW) (mkRef $ getWidgetInternalId oldW) ]
+                            else [Move (mkRef $ newId) (mkRef $ oldId) ] 
+    
+getWebNodeViewId (WebViewNode (WebView vid _ _ _ _)) = vid      
+getWebNodeViewId (WidgetNode vid _ _ _) = vid
+
+getWebNodeId (WebViewNode (WebView _ _ i _ _)) = i      
+getWebNodeId (WidgetNode _ _ i _) = i
 
 
 computeChildMoves :: ViewMap -> ViewMap -> [ViewId] -> WebView -> [Update]           
@@ -438,7 +504,7 @@ computeChildMoves oldViewMap combinedViewMap changedOrNewViews wv@(WebView vi _ 
                        (WebViewNode (WebView vid (Id stubid) _ _ _)) -> 
                           let (Id sourceId) = getIdForViewWithViewId combinedViewMap vid
                           in  Move (IdRef sourceId) (IdRef stubid) 
-                       (WidgetNode stubid id w) -> Move (mkRef $ id) (mkRef $ stubid)
+                       (WidgetNode _ stubid id w) -> Move (mkRef $ id) (mkRef $ stubid)
                    | wn <- childWebNodes 
                    ]
                                                       -- stubId is used as id for stubs when presenting
@@ -457,8 +523,8 @@ bla combinedViewMap changedOrNewViews (WebViewNode (WebView oldViewId _ (Id oldI
   in if newViewId == oldViewId && not (newViewId `elem` changedOrNewViews)
      then [RestoreId (IdRef sourceId) (IdRef oldId)] 
      else [Move (IdRef sourceId) (IdRef oldId)]
-bla combinedViewMap changedOrNewViews (WidgetNode _ oldId oldW)
-                                      (WidgetNode _ newId newW) = 
+bla combinedViewMap changedOrNewViews (WidgetNode _ _ oldId oldW)
+                                      (WidgetNode _ _ newId newW) = 
   if deepEq oldW newW 
   then [ RestoreId (mkRef newId) (mkRef oldId) -- Don't care about stubid's
        , RestoreId (mkRef $ getWidgetInternalId newW) (mkRef $ getWidgetInternalId oldW) ]
@@ -486,19 +552,35 @@ getBreadthFirstSubViews rootView =
   concat $ takeWhile (not . null) $ iterate (concatMap getTopLevelSubViews') [rootView] 
  where getTopLevelSubViews' (WebView _ _ _ _ vw) = getTopLevelWebViews vw
         
--- todo: change present to non-recursive, taking into account stubs
---       put id'd divs around each webview
---       handle root
-
+getBreadthFirstWebNodes :: WebView -> [WebNode]
+getBreadthFirstWebNodes rootView =
+  concat $ takeWhile (not . null) $ iterate (concatMap getTopLevelWebNodes) 
+                                       [WebViewNode rootView]
+ where getTopLevelWebNodes (WebViewNode wv) = getTopLevelWebNodesWebView wv
+       getTopLevelWebNodes _ = []
+       
 mkIncrementalUpdates oldViewMap rootView =
  do { let diffVws@(newViews, newWidgets,updates) = diffViews oldViewMap rootView
+    ; putStrLn $ "\nChanged or new views\n" ++ unlines (map shallowShowWebView newViews) 
+    ; putStrLn $ "\nChanged or new widgets\n" ++ unlines (map show newWidgets)
+    ; putStrLn $ "\nUpdates\n" ++ unlines (map show updates)
+    
+    ; 
+      let (newWebNodes, upd') = diffViewsWN oldViewMap rootView
+    ; putStrLn $ "\nChanged or new WebNodes\n" ++ unlines (map show  newWebNodes) 
+    ; putStrLn $ "\nUpdates\n" ++ unlines (map show upd')
+    --; putStrLn $ "\nBreadth-first WebNodes\n" ++ unlines (map show $ getBreadthFirstWebNodes rootView)                           
+    
     ; let responseHtml = thediv ! [identifier "updates"] <<
+                           (map newWebNodeHtml newWebNodes +++
+                            map updateHtml updates )
+
+{-    ; let responseHtml = thediv ! [identifier "updates"] <<
                            (map newViewHtml newViews +++
                             map newWidgetHtml newWidgets +++
                             map updateHtml updates
-                           )
+-}                           
       
-    ; putStrLn $ "Diff output:\n" ++ showDiffViews diffVws
     ; let subs = concat [ case upd of 
                                     RestoreId (IdRef o) (IdRef n) -> [(Id o, Id n)]  
                                     Move _ _ -> []
@@ -511,6 +593,18 @@ mkIncrementalUpdates oldViewMap rootView =
     ; putStrLn $ "Html:\n" ++ show responseHtml
     ; return (responseHtml, rootView')
     }
+ 
+                                
+showViewMap viewMap = unlines $ "ViewMap:" : [ show k ++ shallowShowWebView wv | (k, wv) <- Map.toList viewMap ]
+
+
+newWebNodeHtml :: WebNode -> Html
+newWebNodeHtml (WebViewNode (WebView _ _ (Id i) _ v)) = 
+    thediv![strAttr "op" "new"] << 
+      (mkSpan (show i) $ present v)
+newWebNodeHtml (WidgetNode _ _ (Id i) w) = 
+    thediv![strAttr "op" "new"] << 
+      (mkSpan (show i) $ present w)
 
 newViewHtml :: WebView -> Html
 newViewHtml (WebView _ _ (Id i) _ v) = 
@@ -532,7 +626,7 @@ instance Presentable WebView where
   present (WebView _ (Id stubId) _ _ _) = mkSpan (show stubId) << "ViewStub"
   
 instance Presentable (Widget x) where
-  present (Widget (Id stubId) _ _) = mkSpan (show stubId) << "WidgetStub"
+  present (Widget _ (Id stubId) _ _) = mkSpan (show stubId) << "WidgetStub"
 
 
 -- todo button text and radio text needs to go into view
@@ -549,7 +643,7 @@ drawWebNodes webnode = drawTree $ treeFromView webnode
  where treeFromView (WebViewNode wv@(WebView vid sid id _ v)) =
          Node ("("++show vid ++ ", stub:" ++ show (unId sid) ++ ", id:" ++ show (unId id) ++ ") : " ++ show (typeOf v)) $
               map treeFromView $ getTopLevelWebNodesWebNode v
-       treeFromView (WidgetNode sid id w) =
+       treeFromView (WidgetNode _ sid id w) =
          Node ("(--, stub:" ++ show (unId sid) ++ ", id:" ++ show (unId id) ++ ") : " ++ showAnyWidget w) $
               map treeFromView $ getTopLevelWebNodesWebNode w
         where showAnyWidget (RadioViewWidget (RadioView id is i))    = "RadioView " ++ show id ++" " ++ (show i) ++ ": "++ show is

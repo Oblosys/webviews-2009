@@ -22,42 +22,32 @@ mkViewMap wv = let wvs = getAll wv
 
 -- webviews are to coarse for incrementality. We also need buttons, eints etc. as identifiable entities
 -- making these into webviews does not seem to be okay. Maybe a separate class is needed
--- For now, we use a TreeMap for this.
 
-data WebNode = WebViewNode WebView
-             | WidgetNode  Id Id AnyWidget
-               deriving (Typeable, Data)
-
-data AnyWidget = RadioViewWidget RadioView 
-               | EStringWidget EString 
-               | ButtonWidget Button  
-                 deriving (Eq, Show, Typeable, Data)
-                          
   
-{-
--- mkWebMap :: WebView -> [WebNodeViewMap
-mkWebMap :: Data d => d -> [(Id, WebNode)]
-mkWebMap x = everything (++) ([] `mkQ`  (\w@(WebView vwId sid id _ _) -> [(id, WebViewNode w)]) 
-                                 `extQ` (\x -> [(getIntId x, RadioViewNode x)])
-                                 `extQ` (\x -> [(getStrId x, EStringNode x)])
-                                 `extQ` (\x -> [(getButtonId x, ButtonNode x)])
-                             ) x
--}
+
+mkWebNodeMap :: Data d => d -> WebNodeMap
+mkWebNodeMap x = Map.fromList $ everything (++) 
+  ([] `mkQ`  (\w@(WebView vid sid id _ _) -> [(vid, WebViewNode w)]) 
+      `extQ` (\(Widget vid sid id w) -> [(vid, WidgetNode vid sid id $ RadioViewWidget w)])
+      `extQ` (\(Widget vid sid id w) -> [(vid, WidgetNode vid sid id $ EStringWidget w)])
+      `extQ` (\(Widget vid sid id w) -> [(vid, WidgetNode vid sid id $ ButtonWidget w)])
+  ) x    
+
 getTopLevelWebNodesWebView :: WebView -> [WebNode]
 getTopLevelWebNodesWebView (WebView _ _ _ _ v) =
   everythingTopLevel (Nothing `mkQ`  (\w@(WebView vwId sid id _ _) -> Just $ WebViewNode w) 
-                              `extQ` (\w@(Widget stbid id x@(RadioView _ _ _))   -> Just $ WidgetNode stbid id (RadioViewWidget x))
-                              `extQ` (\w@(Widget stbid id x@(EString _ _)) -> Just $ WidgetNode stbid id (EStringWidget x))
-                              `extQ` (\w@(Widget stbid id x@(Button _ _ _))   -> Just $ WidgetNode stbid id (ButtonWidget x))
+                              `extQ` (\w@(Widget vi stbid id x@(RadioView _ _ _))   -> Just $ WidgetNode vi stbid id (RadioViewWidget x))
+                              `extQ` (\w@(Widget vi stbid id x@(EString _ _)) -> Just $ WidgetNode vi stbid id (EStringWidget x))
+                              `extQ` (\w@(Widget vi stbid id x@(Button _ _ _))   -> Just $ WidgetNode vi stbid id (ButtonWidget x))
                      ) v             -- TODO can we do this bettter?
 
 -- make sure this one is not called on a WebView, but on its child view
 getTopLevelWebNodesWebNode :: Data x => x -> [WebNode]
 getTopLevelWebNodesWebNode x = everythingTopLevel 
                      (Nothing `mkQ`  (\w@(WebView vwId sid id _ _) -> Just $ WebViewNode w) 
-                              `extQ` (\w@(Widget stbid id x@(RadioView _ _ _))   -> Just $ WidgetNode stbid id (RadioViewWidget x))
-                              `extQ` (\w@(Widget stbid id x@(EString _ _)) -> Just $ WidgetNode stbid id (EStringWidget x))
-                              `extQ` (\w@(Widget stbid id x@(Button _ _ _))   -> Just $ WidgetNode stbid id (ButtonWidget x))
+                              `extQ` (\w@(Widget vi stbid id x@(RadioView _ _ _))   -> Just $ WidgetNode vi stbid id (RadioViewWidget x))
+                              `extQ` (\w@(Widget vi stbid id x@(EString _ _)) -> Just $ WidgetNode vi stbid id (EStringWidget x))
+                              `extQ` (\w@(Widget vi stbid id x@(Button _ _ _))   -> Just $ WidgetNode vi stbid id (ButtonWidget x))
                      ) x
 -- lookup the view id and if the associated view is of the desired type, return it. Otherwise
 -- return initial
