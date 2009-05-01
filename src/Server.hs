@@ -339,8 +339,8 @@ handleCommand sessionStateRef (SetC id value) =
     }
 handleCommand sessionStateRef (ButtonC id) =
  do { (_, user, db, rootView, pendingEdit) <- readIORef sessionStateRef
-    ; putStrLn $ "Button " ++ show id ++ " was clicked"
-    ; let Button _ act = getButtonById (Id id) (assignIds rootView)
+    ; let Button _ txt act = getButtonById (Id id) (assignIds rootView)
+    ; putStrLn $ "Button #" ++ show id ++ ":" ++ txt ++ " was clicked"
 
     ; response <- performEditCommand sessionStateRef act
           

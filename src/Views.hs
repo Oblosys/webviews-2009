@@ -80,8 +80,8 @@ mkVisitView sessionId i = mkWebView (ViewId 0) $
       viewedPig = constrain 0 (length pigIds - 1) $ getIntVal oldViewedPig
       pignames = map (pigName . unsafeLookup (allPigs db)) pigIds
   in  VisitView i sessionId user (estr zipcode) (estr date) (eint viewedPig) 
-                (button (previous (ViewId 0))) (button (next (ViewId 0)))
-                (button (addPig visd)) pigIds pignames
+                (button "previous" (previous (ViewId 0))) (button "next" (next (ViewId 0)))
+                (button "add" (addPig visd)) pigIds pignames
 -- todo: check id's
              {-   (if null pigIds -- remove guard for weird hanging exception (after removing last pig)
                     then Nothing
@@ -119,7 +119,7 @@ instance Presentable VisitView where
     +++ p << ((if null pigs then stringToHtml $ "Not viewing any pigs" 
                else "Viewing pig nr. " +++ present viewedPig +++ "   ")
     -- "debugAdd('boing');queueCommand('Set("++id++","++show i++");')"
-           +++ present {- Button "previous" -} b1 +++ present {-Button "next" -} b2)
+           +++ present b1 +++ present b2)
   {-  +++ withPad 15 0 0 0 {- (case mSubview of
                Nothing -> stringToHtml "no pigs"
                Just pv -> present pv) -}
@@ -262,14 +262,14 @@ presentTextualInput inputfield (EString (Id i) str) = mkSpan ("input"++show i) $
                ]
 
 -- seems like this one could be in Present
-presentButton :: String -> Button -> Html
-presentButton txt (Button (Id i) _) = mkSpan ("input"++show i) $ 
+presentButton :: Button -> Html
+presentButton (Button (Id i) txt _) = mkSpan ("input"++show i) $ 
    primHtml $ "<button onclick=\"queueCommand('ButtonC "++show i++"')\""++
                       "onfocus=\"elementGotFocus('"++show i++"')\">"++txt++"</button>"
 -- TODO: text should be escaped
 
 presentRadioBox :: [String] -> EInt -> Html
-presentRadioBox items (EInt (Id i) ei) = mkSpan ("input"++show i) $ radioBox (show i) items ei
+presentRadioBox items (EInt (Id i) ei) = mkDiv ("input"++show i) $ radioBox (show i) items ei
 -- id is unique
 
 
@@ -469,7 +469,7 @@ bla _ _ _ _ = error "Internal error: child mismatch"
 getWidgetInternalId :: AnyWidget -> Id
 getWidgetInternalId  (EIntWidget (EInt id _)) = id
 getWidgetInternalId  (EStringWidget (EString id _)) = id
-getWidgetInternalId  (ButtonWidget (Button id _)) = id
+getWidgetInternalId  (ButtonWidget (Button id _ _)) = id
 
 deepEq (ButtonWidget _) (ButtonWidget _) = True -- Buttons are always equal TODO: what if text changes?
 deepEq (EStringWidget (EString _ str1)) (EStringWidget (EString _ str2)) = str1 == str2
@@ -515,12 +515,12 @@ mkIncrementalUpdates oldViewMap rootView =
 newViewHtml :: WebView -> Html
 newViewHtml (WebView _ _ (Id i) _ v) = 
     thediv![strAttr "op" "new"] << 
-      (mkDiv (show i) $ present v)
+      (mkSpan (show i) $ present v)
 
 newWidgetHtml :: (Id, Id, AnyWidget) -> Html
 newWidgetHtml (_, (Id i),anyWidget) = 
     thediv![strAttr "op" "new"] << 
-      (mkDiv (show i) $ present anyWidget)
+      (mkSpan (show i) $ present anyWidget)
 
 updateHtml :: Update -> Html
 updateHtml (Move (IdRef src) (IdRef dst)) =
@@ -529,17 +529,17 @@ updateHtml _ = stringToHtml "" -- restoreId is not for producing html, but for a
 
 
 instance Presentable WebView where
-  present (WebView _ (Id stubId) _ _ _) = mkDiv (show stubId) << "ViewStub"
+  present (WebView _ (Id stubId) _ _ _) = mkSpan (show stubId) << "ViewStub"
   
 instance Presentable (Widget x) where
-  present (Widget (Id stubId) _ _) = mkDiv (show stubId) << "WidgetStub"
+  present (Widget (Id stubId) _ _) = mkSpan (show stubId) << "WidgetStub"
 
 
 -- todo button text and radio text needs to go into view
 instance Presentable AnyWidget where                          
   present (EIntWidget eint) = presentRadioBox ["one","two", "three", "four"] eint 
   present (EStringWidget estr) = presentTextField estr 
-  present (ButtonWidget b) = presentButton "generic button" b 
+  present (ButtonWidget b) = presentButton b 
 
 
 shallowShowWebView (WebView  vid sid id _ v) =
@@ -554,7 +554,7 @@ drawWebNodes webnode = drawTree $ treeFromView webnode
               map treeFromView $ getTopLevelWebNodesWebNode w
         where showAnyWidget (EIntWidget (EInt id i))    = "EInt " ++ show id ++" " ++ (show i)
               showAnyWidget (EStringWidget (EString id s)) = "EString "++ show id ++" "++ (show s)
-              showAnyWidget (ButtonWidget (Button id _))  = "Button" ++ show id 
+              showAnyWidget (ButtonWidget (Button id _ _))  = "Button" ++ show id 
                  
 data T = T Char [T]
 t0 = T 'a' [T 'b' [T 'd' [], T 'e' []], T 'c' [], T 'f' [T 'g' []]]

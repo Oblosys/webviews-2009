@@ -61,12 +61,12 @@ getIntVal (Widget _ _ (EInt i v)) = v
 
 eint i = Widget noId noId $ EInt noId i
 
-data Button = Button { getButtonId' :: Id, getCommand' :: EditCommand } deriving (Show, Typeable, Data)
+data Button = Button { getButtonId' :: Id, buttonText :: String, getCommand' :: EditCommand } deriving (Show, Typeable, Data)
 
 instance Eq Button where
   b1 == b2 = True -- buttons are always equal for now
 
-button cmd = Widget noId noId $ Button noId cmd 
+button txt cmd = Widget noId noId $ Button noId txt cmd 
 
 data EditCommand = DocEdit (Database -> Database)
                  | ViewEdit (ViewId) (WebView -> WebView)
@@ -199,7 +199,7 @@ instance Initial EInt where
   initial = EInt (Id $ -1) 0
 
 instance Initial Button where
-  initial = Button noId (DocEdit id)
+  initial = Button noId "<button>" (DocEdit id)
 
 instance Initial WebView where
   initial = WebView (ViewId (-1)) noId noId (\_ _ _ _ -> ()) ()
