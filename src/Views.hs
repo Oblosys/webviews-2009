@@ -69,35 +69,35 @@ loadView user db viewMap (WebView vid si i f _) = (WebView vid si i f (f user db
 
 data VisitView = 
   VisitView VisitId Int User (Widget EString) (Widget EString) (Widget RadioView) (Widget Button) 
-           (Widget Button) (Widget Button) [PigId] [String] {- WebView [WebView] -}
+           (Widget Button) (Widget Button) [PigId] [String] WebView [WebView]
     deriving (Eq, Show, Typeable, Data)
 
 -- todo: doc edits seem to reset viewed pig nr.
 mkVisitView sessionId i = mkWebView (ViewId 0) $
   \user db viewMap vid -> 
-  let (VisitView _ _ _ _ _ oldViewedPig _ _ _ _ _ {- _ mpigv -}) = getOldView vid viewMap
+  let (VisitView _ _ _ _ _ oldViewedPig _ _ _ _ _ _ mpigv) = getOldView vid viewMap
       (Visit visd zipcode date pigIds) = unsafeLookup (allVisits db) i
       viewedPig = constrain 0 (length pigIds - 1) $ getSelection oldViewedPig
       pignames = map (pigName . unsafeLookup (allPigs db)) pigIds
-  in  VisitView i sessionId user (estr (ViewId 10000) zipcode) (estr (ViewId 10001) date) (radioView  (ViewId 10002) ["1","2","3","4"] viewedPig) 
-                (button (ViewId 10004) "previous" (previous (ViewId 0))) (button (ViewId 10005) "next" (next (ViewId 0)))
-                (button (ViewId 10006) "add" (addPig visd)) pigIds pignames
+  in  VisitView i sessionId user (estr (ViewId 1000) zipcode) (estr (ViewId 1001) date) (radioView  (ViewId 1002) ["1","2","3","4"] viewedPig) 
+                (button (ViewId 1003) "previous" (previous (ViewId 1004))) (button (ViewId 1005) "next" (next (ViewId 0)))
+                (button (ViewId 1006) "add" (addPig visd)) pigIds pignames
 -- todo: check id's
              {-   (if null pigIds -- remove guard for weird hanging exception (after removing last pig)
                     then Nothing
                     else Just $ mkPigView viewedPig (pigIds !! viewedPig) db viewMap
                    )-}
-         {-       (if user == Nothing then (mkLoginView user db viewMap) 
+                (if user == Nothing then (mkLoginView user db viewMap) 
                                     else (mkLogoutView user db viewMap))
-                [mkPigView i pigId viewedPig user db viewMap | (pigId,i) <- zip pigIds [0..]] -}
+                [mkPigView i pigId viewedPig user db viewMap | (pigId,i) <- zip pigIds [0..]]
  where -- next and previous may cause out of bounds, but on reload, this is constrained
        previous i = mkViewEdit i $
-         \(VisitView vid sid us zipCode date viewedPig b1 b2 b3 pigs pignames {- loginv mSubview -}) ->
-         VisitView vid sid us zipCode date (setSelection (getSelection viewedPig-1) viewedPig) b1 b2 b3 pigs pignames {- loginv mSubview -}
+         \(VisitView vid sid us zipCode date viewedPig b1 b2 b3 pigs pignames loginv mSubview) ->
+         VisitView vid sid us zipCode date (setSelection (getSelection viewedPig-1) viewedPig) b1 b2 b3 pigs pignames loginv mSubview
 
        next i = mkViewEdit i $
-         \(VisitView vid sid us zipCode date viewedPig b1 b2 b3 pigs pignames {- loginv mSubview -}) ->
-         VisitView vid sid us zipCode date (setSelection (getSelection viewedPig+1) viewedPig) b1 b2 b3 pigs pignames {- loginv mSubview -}
+         \(VisitView vid sid us zipCode date viewedPig b1 b2 b3 pigs pignames loginv mSubview) ->
+         VisitView vid sid us zipCode date (setSelection (getSelection viewedPig+1) viewedPig) b1 b2 b3 pigs pignames loginv mSubview
 
        addPig i = DocEdit $ addNewPig i 
 
@@ -106,46 +106,49 @@ addNewPig vid db =
   in  (updateVisit vid $ \v -> v { pigs = pigs v ++ [newPigId] }) db'
 
 instance Presentable VisitView where
-  present (VisitView vid sid us zipCode date viewedPig b1 b2 b3 pigs pignames {- loginoutView subviews -}) =
+  present (VisitView vid sid us zipCode date viewedPig b1 b2 b3 pigs pignames loginoutView subviews) =
         withBgColor (Rgb 235 235 235) $
-      {-  (case us of
+        (case us of
            Nothing -> p << present loginoutView 
            Just (_,name) -> p << stringToHtml ("Hello "++name++".") +++ present loginoutView) +++
-        -}
+        
         (p <<"Visit at "+++ present zipCode +++" on " +++ present date +++ 
           "           (session# "+++show sid+++")")
     +++ p << ("Visited "++ show (length pigs) ++ " pig" ++ pluralS (length pigs) ++ ": " ++
               listCommaAnd pignames)
     +++ p << ((if null pigs then stringToHtml $ "Not viewing any pigs" 
                else "Viewing pig nr. " +++ present viewedPig +++ "   ")
-    -- "debugAdd('boing');queueCommand('Set("++id++","++show i++");')"
            +++ present b1 +++ present b2)
-  {-  +++ withPad 15 0 0 0 {- (case mSubview of
+    +++ withPad 15 0 0 0 {- (case mSubview of
                Nothing -> stringToHtml "no pigs"
                Just pv -> present pv) -}
             (case subviews of
                [] -> stringToHtml "no pigs"
-               pvs -> hList $ map present pvs ++ [presentButton "add" b3] )
--} +++ present b3
+               pvs -> hList $ map present pvs ++ [present b3] )
+
 instance Storeable VisitView where
-  save (VisitView vid sid us zipCode date _ _ _ _ pigs pignames {- _ _ -}) db =
+  save (VisitView vid sid us zipCode date _ _ _ _ pigs pignames _ _) db =
     updateVisit vid (\(Visit _ _ _ pigIds) ->
                       Visit vid (getStrVal zipCode) (getStrVal date) pigIds)
                     db
 
 instance Initial VisitView where
-  initial = VisitView initial initial initial initial initial initial initial initial initial initial initial {- initial initial -}
+  initial = VisitView initial initial initial initial initial initial initial initial initial initial initial initial initial
+                       
 
-{-                                 
 data PigView = PigView PigId (Widget Button) Int Int (Widget EString) [Widget RadioView] (Either Int String) 
                deriving (Eq, Show, Typeable, Data)
 
 mkPigView pignr i viewedPig = mkWebView (ViewId $ 10+pignr) $ 
       \user db viewMap vid ->
-  let (Pig pid vid name symptoms diagnosis) = unsafeLookup (allPigs db) i
-  in  PigView pid (button ( ConfirmEdit ("Are you sure you want to remove pig "++show pignr++"?") $ 
+  let (Pig pid vid name [s0,s1,s2] diagnosis) = unsafeLookup (allPigs db) i
+  in  PigView pid (button (ViewId $ pignr*10000 + 10000) "remove" ( ConfirmEdit ("Are you sure you want to remove pig "++show pignr++"?") $ 
                                    removePigAlsoFromVisit pid vid)) 
-              viewedPig pignr (estr name) (map radioView symptoms) diagnosis
+              viewedPig pignr (estr (ViewId $ pignr*10000 + 10001) name) 
+                [ radioView (ViewId $ pignr*10000 + 10002) ["Roze", "Grijs"] s0
+                , radioView (ViewId $ pignr*10000 + 10003) ["1", "2", "3"] s1
+                , radioView (ViewId $ pignr*10000 + 10004) ["Ja", "Nee"] s2
+                ] diagnosis
  where -- need db support for removal and we need parent
        removePigAlsoFromVisit pid vid =
          DocEdit $ removePig pid . updateVisit vid (\v -> v { pigs = delete pid $ pigs v } )  
@@ -158,14 +161,14 @@ instance Presentable PigView where
      boxed $
         (center $ image $ pigImage)
     +++ (center $ " nr. " +++ show (pignr+1))
-    +++ p << (center $ (presentButton "remove" b))
-    +++ p << ("Name:" +++ presentTextField name)
+    +++ p << (center $ (present b))
+    +++ p << ("Name:" +++ present name)
     +++ p << "Type varken: " 
-    +++ presentRadioBox ["Roze", "Grijs"] tv
+    +++ present tv
     +++ p << "Fase cyclus: "
-    +++ presentRadioBox ["1", "2", "3"] kl
+    +++ present kl
     +++ p << "Haren overeind: "
-    +++ presentRadioBox ["Ja", "Nee"] ho
+    +++ present ho
     +++ p << ("diagnosis " ++ show diagnosis)
     where pigImage | viewedPig == pignr = "pig.png"
                    | viewedPig < pignr = "pigLeft.png"
@@ -174,48 +177,50 @@ instance Presentable PigView where
 instance Storeable PigView where
   save (PigView pid _ _ _ name symptoms diagnosis) =
     updatePig pid (\(Pig _ vid _ _ diagnosis) -> 
-                    (Pig pid vid (getStrVal name) (map getIntVal symptoms) diagnosis)) 
+                    (Pig pid vid (getStrVal name) (map getSelection symptoms) diagnosis)) 
 
 instance Initial PigView where
   initial = PigView initial initial initial initial initial initial initial
--}
 
 
 
-{-
+
+
 data LoginView = LoginView (Widget EString) (Widget EString) (Widget Button) 
   deriving (Eq, Show, Typeable, Data)
 
 mkLoginView = mkWebView (ViewId (44)) $
       \user db viewMap vid ->
         let (LoginView name password b) = getOldView vid viewMap
-        in  LoginView name password 
-                     (button $ AuthenticateEdit (strRef name) (strRef password))
+        in  LoginView (estr (ViewId 3000) $ getStrVal name) 
+                      (estr (ViewId 3001) $ getStrVal password) 
+                      (button (ViewId 3002) "Login" $ AuthenticateEdit (strRef name) (strRef password))
 -- todo using the old id is not okay!
+-- TODO: related: how to handle setting the id but not the value
 
 instance Storeable LoginView where save _ = id
                                    
 instance Presentable LoginView where
   present (LoginView name password loginbutton) = 
-    boxed $ ("Login:" +++ presentTextField name) +++
-            ("Password:" +++ presentPasswordField password) +++
-            presentButton "Login" loginbutton
+    boxed $ ("Login:" +++ present name) +++
+            ("Password:" +++ present password) +++
+            present loginbutton
             
 instance Initial LoginView where initial = LoginView initial initial initial
 
 data LogoutView = LogoutView (Widget Button) deriving (Eq, Show, Typeable, Data)
 
 mkLogoutView = mkWebView (ViewId (55)) $
-  \user db viewMap vid -> LogoutView (button LogoutEdit)
+  \user db viewMap vid -> LogoutView (button (ViewId 4001) "Logout" LogoutEdit)
 
 instance Storeable LogoutView where save _ = id
                                    
 instance Presentable LogoutView where
   present (LogoutView logoutbutton) = 
-    presentButton "Logout" logoutbutton
+    present logoutbutton
             
 instance Initial LogoutView where initial = LogoutView initial
--}
+
 
 
 
@@ -567,7 +572,7 @@ mkIncrementalUpdates oldViewMap rootView =
     
     ; 
       let (newWebNodes, upd') = diffViewsWN oldViewMap rootView
-    ; putStrLn $ "\nChanged or new WebNodes\n" ++ unlines (map show  newWebNodes) 
+    --; putStrLn $ "\nChanged or new WebNodes\n" ++ unlines (map show  newWebNodes) 
     ; putStrLn $ "\nUpdates\n" ++ unlines (map show upd')
     --; putStrLn $ "\nBreadth-first WebNodes\n" ++ unlines (map show $ getBreadthFirstWebNodes rootView)                           
     
@@ -575,12 +580,13 @@ mkIncrementalUpdates oldViewMap rootView =
                            (map newWebNodeHtml newWebNodes +++
                             map updateHtml updates )
 
-{-    ; let responseHtml = thediv ! [identifier "updates"] <<
+{-    
+    ; let responseHtml = thediv ! [identifier "updates"] <<
                            (map newViewHtml newViews +++
                             map newWidgetHtml newWidgets +++
-                            map updateHtml updates
--}                           
-      
+                            map updateHtml updates)
+                         
+  -}    
     ; let subs = concat [ case upd of 
                                     RestoreId (IdRef o) (IdRef n) -> [(Id o, Id n)]  
                                     Move _ _ -> []
@@ -590,7 +596,7 @@ mkIncrementalUpdates oldViewMap rootView =
     -- todo: check restoration on views, and esp. on root.
     
     ; let rootView' = substituteIds subs rootView
-    ; putStrLn $ "Html:\n" ++ show responseHtml
+    --; putStrLn $ "Html:\n" ++ show responseHtml
     ; return (responseHtml, rootView')
     }
  
@@ -643,8 +649,8 @@ drawWebNodes webnode = drawTree $ treeFromView webnode
  where treeFromView (WebViewNode wv@(WebView vid sid id _ v)) =
          Node ("("++show vid ++ ", stub:" ++ show (unId sid) ++ ", id:" ++ show (unId id) ++ ") : " ++ show (typeOf v)) $
               map treeFromView $ getTopLevelWebNodesWebNode v
-       treeFromView (WidgetNode _ sid id w) =
-         Node ("(--, stub:" ++ show (unId sid) ++ ", id:" ++ show (unId id) ++ ") : " ++ showAnyWidget w) $
+       treeFromView (WidgetNode vid sid id w) =
+         Node ("("++show vid++", stub:" ++ show (unId sid) ++ ", id:" ++ show (unId id) ++ ") : " ++ showAnyWidget w) $
               map treeFromView $ getTopLevelWebNodesWebNode w
         where showAnyWidget (RadioViewWidget (RadioView id is i))    = "RadioView " ++ show id ++" " ++ (show i) ++ ": "++ show is
               showAnyWidget (EStringWidget (EString id s)) = "EString "++ show id ++" "++ (show s)

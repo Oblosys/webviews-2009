@@ -232,7 +232,7 @@ sessionHandler sessionStateRef cmds = {- myAuth `mplus` -} {-
           -}
             ; putStrLn $ "View tree:\n" ++ drawWebNodes (WebViewNode rootView) 
             ; putStrLn $ "View tree':\n" ++ drawWebNodes (WebViewNode rootView') 
-            ; putStrLn $ "rootView:\n" ++ show rootView'
+            --; putStrLn $ "rootView:\n" ++ show rootView'
             ; setRootView sessionStateRef rootView'
             --; putStrLn $ "database:\n" ++ show db
             --; putStrLn $ "\n\n\nresponse = \n" ++ show responseHtml
