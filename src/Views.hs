@@ -123,9 +123,7 @@ instance Presentable VisitView where
     +++ withPad 15 0 0 0 {- (case mSubview of
                Nothing -> stringToHtml "no pigs"
                Just pv -> present pv) -}
-            (case subviews of
-               [] -> stringToHtml "no pigs"
-               pvs -> hList $ map present pvs ++ [present b3] )
+            (hList $ map present subviews ++ [present b3] )
 
 instance Storeable VisitView where
   save (VisitView vid sid us zipCode date _ _ _ _ pigs pignames _ _) db =
@@ -358,24 +356,6 @@ isMove (Move _ _ _) = True
 isMove _          = False
 
 
--- TODO: pass webnodemap around instead of viewmap
--- make sure new rootview has fresh webid's
-diffViews :: ViewMap -> WebView -> ([WebView], [(Id, Id, AnyWidget)], [Update])
-diffViews oldViewMap rootView = 
-  let newViewMap = mkViewMap rootView
-      newOrChangedIdsViews   = getNewOrChangedIdsViews oldViewMap newViewMap
-      (newOrChangedViewIds, newOrChangedViews) = unzip newOrChangedIdsViews     
-      combinedViewMap = Map.fromList newOrChangedIdsViews `Map.union` oldViewMap
-  in -- trace ("\nOld view map\n"++showViewMap oldViewMap ++ "\nNew view map\n" ++ showViewMap newViewMap) 
-   --  trace ("\nChangedWebNodes:\n" ++ show (getNewOrChangedIdsWebNodes 
-   --                                          (mkWebNodeMap $  snd . head $ Map.toList oldViewMap) 
-   --                                          (mkWebNodeMap rootView)))
-     ( newOrChangedViews
-     , getNewOrChangedWidgets oldViewMap newViewMap  
-     , computeMoves oldViewMap combinedViewMap newOrChangedViewIds rootView)
-
--- combined can be queried to get the id for each view at the moment before applying the moves to the
--- tree.
 
 
 -- TODO: no need to compute new or changed first, can be put in Update list
@@ -386,31 +366,10 @@ diffViewsWN oldViewMap rootView =
       newWebNodeMap = mkWebNodeMap rootView
       oldWebNodeMap = mkWebNodeMap oldRootView
       newOrChangedIdsWebNodes = {- addChangedViewChildren $ -} getNewOrChangedIdsWebNodes oldWebNodeMap newWebNodeMap
-      (newOrChangedWebNodeIds, newOrChangedWebNodes) = unzip newOrChangedIdsWebNodes     
-      combinedWebNodeMap = Map.fromList newOrChangedIdsWebNodes `Map.union` oldWebNodeMap
+      (newOrChangedWebNodeIds, newOrChangedWebNodes) = unzip newOrChangedIdsWebNodes
   in -- trace ("\nOld view map\n"++showViewMap oldViewMap ++ "\nNew view map\n" ++ showViewMap newViewMap) 
     ( newOrChangedWebNodes
-    , computeMovesWN oldWebNodeMap combinedWebNodeMap newOrChangedWebNodeIds rootView)
-
-{-
--- replace rootViews stub id by old view's id, so if rootview is changed (and moved to it's stub)
--- it is moved over the old root
-fixRootViewStubId (WebView ovi osi oi ofn ov) (WebView vi si i fn v) = 
-  WebView vi oi i fn v
--}
-{-
-addChangedViewChildren ::  [(ViewId, WebNode)] -> [(ViewId, WebNode)]
-addChangedViewChildren changedIdsWebNodes =
-  changedIdsWebNodes ++ concatMap webNodeChildren changedWebNodes
- where (changedIds,changedWebNodes) = unzip changedIdsWebNodes
-       webNodeChildren (WidgetNode _ _ _ _) = []
-       webNodeChildren (WebViewNode (WebView _ _ _ _ v)) = 
-         [ (viewId, childWebNode)
-         | childWebNode <- getTopLevelWebNodesWebNode v
-         , let viewId = getWebNodeViewId childWebNode
-         , viewId `notElem` changedIds
-         ]
--}
+    , computeMoves oldWebNodeMap newOrChangedWebNodeIds rootView)
 
 getNewOrChangedIdsWebNodes :: WebNodeMap -> WebNodeMap -> [(ViewId, WebNode)]
 getNewOrChangedIdsWebNodes oldWebNodeMap newWebNodeMap =
@@ -421,22 +380,19 @@ getNewOrChangedIdsWebNodes oldWebNodeMap newWebNodeMap =
            Nothing -> True
            Just oldWebNode -> oldWebNode /= webNode
           
-computeMovesWN :: WebNodeMap -> WebNodeMap -> [ViewId] -> WebView -> [Update]           
-computeMovesWN oldWebNodeMap combinedWebNodeMap changedOrNewWebNodes rootView@(WebView rootVid stubId rootId _ _) = 
+computeMoves :: WebNodeMap -> [ViewId] -> WebView -> [Update]           
+computeMoves oldWebNodeMap changedOrNewWebNodes rootView@(WebView rootVid stubId rootId _ _) = 
   (if rootVid `elem` changedOrNewWebNodes 
    then let oldRoot = snd . head $ Map.toList oldWebNodeMap
         in  [ Move "Root move" (mkRef $ rootId) (mkRef $ getWebNodeId oldRoot) ] 
    else []) ++
-  concatMap (computeMove oldWebNodeMap combinedWebNodeMap changedOrNewWebNodes)
+  concatMap (computeMove oldWebNodeMap changedOrNewWebNodes)
     (getBreadthFirstWebNodes rootView)
-  
-
-
 
 -- if we do the comparison here, also take into account moving the immediate children of a changed
 -- view
-computeMove :: WebNodeMap -> WebNodeMap -> [ViewId] -> WebNode -> [Update]
-computeMove oldWebNodeMap combinedWebNodeMap changedOrNewWebNodes webNode =  
+computeMove :: WebNodeMap -> [ViewId] -> WebNode -> [Update]
+computeMove oldWebNodeMap changedOrNewWebNodes webNode =  
   if getWebNodeViewId webNode `notElem` changedOrNewWebNodes 
   then -- parent has not changed
        let Just oldWebNode = Map.lookup (getWebNodeViewId webNode) oldWebNodeMap 
@@ -478,53 +434,6 @@ computeMove oldWebNodeMap combinedWebNodeMap changedOrNewWebNodes webNode =
            , let childViewId = getWebNodeViewId childWebNode
            ]
        
-    {-
-  case Map.lookup (getWebNodeViewId webNode) oldWebNodeMap of
-    Nothing -> case webNode of -- if a web node is new, just move it to its stub id
-                               -- in this case its parent must also be new so the stub
-                               -- will be in the new presentations as well
-                 (WebViewNode (WebView vid (Id stubid) (Id i) _ _)) -> 
-                   [Move "a" (IdRef i) (IdRef stubid)] 
-                 (WidgetNode _ stubid id w) -> 
-                   [Move "b" (mkRef $ id) (mkRef $ stubid)]
-    Just oldWebNode -> case (oldWebNode, webNode) of
-                         (  (WidgetNode _         _ oldId oldW)
-                          , (WidgetNode newViewId _ newId newW) ) -> 
-                             [] {-  if not (newViewId `elem` changedOrNewWebNodes)
-                            then [ RestoreId (mkRef newId) (mkRef oldId) -- Don't care about stubid's
-                                 , RestoreId (mkRef $ getWidgetInternalId newW) (mkRef $ getWidgetInternalId oldW) ]
-                            else [Move "c" (mkRef $ newId) (mkRef $ oldId) ] -}
-                         (  (WebViewNode (WebView oldViewId _ (Id oldId) _ _))
-                          , (WebViewNode (WebView newViewId _ (Id sourceId) _ nv))) ->
-                          if not (newViewId `elem` changedOrNewWebNodes)
-                          then [RestoreId (IdRef sourceId) (IdRef oldId)] ++ concat
-                               [ if viewId `notElem` changedOrNewWebNodes then
-                                     [] --Move "e" (mkRef $ getWebNodeId oldChildWN) 
-                                          --      (mkRef $ getWebNodeStubId childWebNode)
-                                 else
-                                    let Just oldChildWN = Map.lookup viewId oldWebNodeMap 
-                                    in  [Move "f" (mkRef $ getWebNodeId childWebNode)
-                                               (mkRef $ getWebNodeStubId oldChildWN)
-                                       ]
-                               | childWebNode <- getTopLevelWebNodesWebNode nv
-                               , let viewId = getWebNodeViewId childWebNode
-                                  -- TODO: check this rare case (it's not so rare, happens on delete pig (view changes, some entries stay the same)
-                               ]
-                          
-                          else [Move "d"  (IdRef sourceId) (IdRef oldId)] ++
-                               [ if viewId `notElem` changedOrNewWebNodes then
-                                   let Just oldChildWN = Map.lookup viewId oldWebNodeMap
-                                   in  Move "g" (mkRef $ getWebNodeId oldChildWN) 
-                                                (mkRef $ getWebNodeStubId childWebNode)
-                                 else  Move "h" (mkRef $ getWebNodeId childWebNode)
-                                                (mkRef $ getWebNodeStubId childWebNode)
-                                      
-                               | childWebNode <- getTopLevelWebNodesWebNode nv
-                               , let viewId = getWebNodeViewId childWebNode
-                                  -- TODO: check this rare case (it's not so rare, happens on delete pig (view changes, some entries stay the same)
-                               ]
-
--}
 getTopLevelWebNodesForWebNode (WidgetNode _ _ _ wn) = []
 getTopLevelWebNodesForWebNode (WebViewNode (WebView _ _ _ _ v)) = getTopLevelWebNodesWebNode v
 
@@ -534,113 +443,7 @@ restoreInternalIds (WebViewNode _) (WebViewNode _) = []
 restoreInternalIds _ _ = error "Internal error: restoreInternalIds, WebNode mismatch"
 
 
-
-
-{-
-computeMove :: WebNodeMap -> WebNodeMap -> [ViewId] -> WebNode -> [Update]
-computeMove oldWebNodeMap combinedWebNodeMap changedOrNewWebNodes webNode = 
-  case Map.lookup (getWebNodeViewId webNode) oldWebNodeMap of
-    Nothing -> case webNode of -- if a web node is new, just move it to its stub id
-                               -- in this case its parent must also be new so the stub
-                               -- will be in the new presentations as well
-                 (WebViewNode (WebView vid (Id stubid) (Id i) _ _)) -> 
-                   [Move "a" (IdRef i) (IdRef stubid)] 
-                 (WidgetNode _ stubid id w) -> 
-                   [Move "b" (mkRef $ id) (mkRef $ stubid)]
-    Just oldWebNode -> case (oldWebNode, webNode) of
-                         (  (WidgetNode _         _ oldId oldW)
-                          , (WidgetNode newViewId _ newId newW) ) -> 
-                             [] {-  if not (newViewId `elem` changedOrNewWebNodes)
-                            then [ RestoreId (mkRef newId) (mkRef oldId) -- Don't care about stubid's
-                                 , RestoreId (mkRef $ getWidgetInternalId newW) (mkRef $ getWidgetInternalId oldW) ]
-                            else [Move "c" (mkRef $ newId) (mkRef $ oldId) ] -}
-                         (  (WebViewNode (WebView oldViewId _ (Id oldId) _ _))
-                          , (WebViewNode (WebView newViewId _ (Id sourceId) _ nv))) ->
-                          if not (newViewId `elem` changedOrNewWebNodes)
-                          then [RestoreId (IdRef sourceId) (IdRef oldId)] ++ concat
-                               [ if viewId `notElem` changedOrNewWebNodes then
-                                     [] --Move "e" (mkRef $ getWebNodeId oldChildWN) 
-                                          --      (mkRef $ getWebNodeStubId childWebNode)
-                                 else
-                                    let Just oldChildWN = Map.lookup viewId oldWebNodeMap 
-                                    in  [Move "f" (mkRef $ getWebNodeId childWebNode)
-                                               (mkRef $ getWebNodeStubId oldChildWN)
-                                       ]
-                               | childWebNode <- getTopLevelWebNodesWebNode nv
-                               , let viewId = getWebNodeViewId childWebNode
-                                  -- TODO: check this rare case (it's not so rare, happens on delete pig (view changes, some entries stay the same)
-                               ]
-                          
-                          else [Move "d"  (IdRef sourceId) (IdRef oldId)] ++
-                               [ if viewId `notElem` changedOrNewWebNodes then
-                                   let Just oldChildWN = Map.lookup viewId oldWebNodeMap
-                                   in  Move "g" (mkRef $ getWebNodeId oldChildWN) 
-                                                (mkRef $ getWebNodeStubId childWebNode)
-                                 else  Move "h" (mkRef $ getWebNodeId childWebNode)
-                                                (mkRef $ getWebNodeStubId childWebNode)
-                                      
-                               | childWebNode <- getTopLevelWebNodesWebNode nv
-                               , let viewId = getWebNodeViewId childWebNode
-                                  -- TODO: check this rare case (it's not so rare, happens on delete pig (view changes, some entries stay the same)
-                               ]
--}
-
-
-
-
-getNewOrChangedIdsViews :: ViewMap -> ViewMap -> [(ViewId, WebView)]
-getNewOrChangedIdsViews oldViewMap newViewMap =
-  filter isNewOrChanged $ Map.toList newViewMap
- where isNewOrChanged (i, WebView _ _ _ _ view) =
-         case Map.lookup i oldViewMap of
-           Nothing -> True
-           Just (WebView _ _ _ _ oldView) -> 
-             let cmp = case cast oldView of
-                   Nothing -> error "internal error: view with same id has different type"
-                   Just oldView' -> oldView' /= view
-             in --  trace ("Comparing\n" ++ show oldView ++ 
-                --         "with\n"++ show view ++ "result\n"++show cmp) $
-                 cmp 
-
-getNewOrChangedWidgets :: ViewMap -> ViewMap -> [(Id, Id, AnyWidget)]
-getNewOrChangedWidgets oldViewMap newViewMap =
-  concatMap newOrChangedWidgets $ Map.toList newViewMap
- where newOrChangedWidgets (i, wv) =
-         let allWebNodes = getTopLevelWebNodesWebView wv
-             allWidgets = concatMap getWidget allWebNodes
-         in  case Map.lookup i oldViewMap of
-               Nothing  -> allWidgets
-               Just owv -> let allOldWebNodes = getTopLevelWebNodesWebView owv
-                               allOldWidgets = concatMap getWidget allOldWebNodes
-                           in  concat [ if nw /= ow then [(s,i,nw)] else []
-                                      | ((_,_,ow), (s,i,nw)) <- zip allOldWidgets allWidgets
-                                      ]
-           
-             
-getWidget (WidgetNode _ stubid id w) = [(stubid, id, w)]
-getWidget _ = []
-
-
-webNodeGetId (WebViewNode (WebView _ _ i _ _)) = i 
-
-computeMoves :: ViewMap -> ViewMap -> [ViewId] -> WebView -> [Update]           
-computeMoves oldViewMap combinedViewMap changedOrNewViews rootView@(WebView rootVid _ i _ _) = 
-  let allViews = getBreadthFirstSubViews rootView
-      oldRoot = snd . head $ Map.toList oldViewMap
-         
-  in  (if rootVid `elem` changedOrNewViews -- move root over old root if 
-       then traceArg "Root move " $ Move "root" (mkRef i) (mkRef $ webViewGetId oldRoot) 
-       else trace ("No root move " ++show changedOrNewViews ++ show rootVid) $ 
-              RestoreId (mkRef i) (mkRef $ webViewGetId oldRoot)) :
-        concatMap (computeChildMoves oldViewMap combinedViewMap changedOrNewViews) allViews
-
 traceArg str x = trace (str ++ show x) x
--- make a breadth-first list of all views in root view, and for each view,
--- and for each view:
---              get subviews
---              get subviews of previous (or nothing if no previous)
---                 each subview, if previous == nothing or subview /= old subview           
---                               then move subview 
            
 
 webViewGetId (WebView _ _ i _ _) = i 
@@ -656,65 +459,12 @@ getWebNodeId (WidgetNode _ _ i _) = i
 getWebNodeStubId (WebViewNode (WebView _ si _ _ _)) = si      
 getWebNodeStubId (WidgetNode _ si _ _) = si
 
-computeChildMoves :: ViewMap -> ViewMap -> [ViewId] -> WebView -> [Update]           
-computeChildMoves oldViewMap combinedViewMap changedOrNewViews wv@(WebView vi _ _ _ view) =
-  let childWebNodes = getTopLevelWebNodesWebView wv
-      mOldChildWebNodes = case Map.lookup vi oldViewMap of 
-                            Nothing                 -> Nothing
-                            Just owv  -> Just $ getTopLevelWebNodesWebView owv
-  in  case mOldChildWebNodes of -- no old child views, this webview is new
-        Nothing -> [ case wn of
-                       (WebViewNode (WebView vid (Id stubid) _ _ _)) -> 
-                          let (Id sourceId) = getIdForViewWithViewId combinedViewMap vid
-                          in  Move "old" (IdRef sourceId) (IdRef stubid) 
-                       (WidgetNode _ stubid id w) -> Move "old" (mkRef $ id) (mkRef $ stubid)
-                   | wn <- childWebNodes 
-                   ]
-                                                      -- stubId is used as id for stubs when presenting
-                   
-        Just oldChildWebNodes -> concat
-          [ bla combinedViewMap changedOrNewViews own wn | (own, wn) <-  zip oldChildWebNodes childWebNodes ] 
-
--- todo what if changed view has different nr of child nodes?
--- looks like view id's for widgets is a better idea.
-
-        
-
-bla combinedViewMap changedOrNewViews (WebViewNode (WebView oldViewId _ (Id oldId) _ _))
-                                      (WebViewNode (WebView newViewId _ _ _ _)) =
-  let (Id sourceId) = getIdForViewWithViewId combinedViewMap newViewId
-  in if newViewId == oldViewId && not (newViewId `elem` changedOrNewViews)
-     then [RestoreId (IdRef sourceId) (IdRef oldId)] 
-     else [Move "old" (IdRef sourceId) (IdRef oldId)]
-bla combinedViewMap changedOrNewViews (WidgetNode _ _ oldId oldW)
-                                      (WidgetNode _ _ newId newW) = 
-  if deepEq oldW newW 
-  then [ RestoreId (mkRef newId) (mkRef oldId) -- Don't care about stubid's
-       , RestoreId (mkRef $ getWidgetInternalId newW) (mkRef $ getWidgetInternalId oldW) ]
-  else [Move "old" (mkRef $ newId) 
-             (mkRef $ oldId) ]
-bla _ _ _ _ = error "Internal error: child mismatch"
 
 getWidgetInternalId :: AnyWidget -> Id
 getWidgetInternalId  (RadioViewWidget (RadioView id _ _)) = id
 getWidgetInternalId  (EStringWidget (EString id _)) = id
 getWidgetInternalId  (ButtonWidget (Button id _ _)) = id
-
-deepEq (ButtonWidget b1) (ButtonWidget b2) = b1 == b2
-deepEq (EStringWidget es1) (EStringWidget es2) = es1 == es2
-deepEq (RadioViewWidget rv1) (RadioViewWidget rv2) = rv1 == rv2
-deepEq _ _ = error "Internal error: deepEq has different arg types"
-
-getIdForViewWithViewId :: ViewMap -> ViewId -> Id          
-getIdForViewWithViewId combinedViewMap viewId =
-   case Map.lookup viewId combinedViewMap of 
-     Nothing -> error "bla"
-     Just wv -> webViewGetId wv
-     
-getBreadthFirstSubViews rootView =
-  concat $ takeWhile (not . null) $ iterate (concatMap getTopLevelSubViews') [rootView] 
- where getTopLevelSubViews' (WebView _ _ _ _ vw) = getTopLevelWebViews vw
-        
+            
 getBreadthFirstWebNodes :: WebView -> [WebNode]
 getBreadthFirstWebNodes rootView =
   concat $ takeWhile (not . null) $ iterate (concatMap getTopLevelWebNodes) 
@@ -723,32 +473,18 @@ getBreadthFirstWebNodes rootView =
        getTopLevelWebNodes _ = []
        
 mkIncrementalUpdates oldViewMap rootView =
- do { --let diffVws@(newViews, newWidgets,updates) = diffViews oldViewMap rootView
-    --; putStrLn $ "\nChanged or new views\n" ++ unlines (map shallowShowWebView newViews) 
-    --; putStrLn $ "\nChanged or new widgets\n" ++ unlines (map show newWidgets)
-    --; putStrLn $ "\nUpdates\n" ++ unlines (map show updates)
-    
-    ; 
-      let (newWebNodes, upd') = diffViewsWN oldViewMap rootView
+ do { let (newWebNodes, updates) = diffViewsWN oldViewMap rootView
     ; putStrLn $ "\nChanged or new web nodes\n" ++ unlines (map shallowShowWebNode newWebNodes) 
-    ; putStrLn $ "\nUpdates\n" ++ unlines (map show upd')
-    --; putStrLn $ "\nBreadth-first WebNodes\n" ++ unlines (map show $ getBreadthFirstWebNodes rootView)                           
+    ; putStrLn $ "\nUpdates\n" ++ unlines (map show updates)
     
     ; let responseHtml = thediv ! [identifier "updates"] <<
                            (map newWebNodeHtml newWebNodes +++
-                            map updateHtml upd')
-
-{-    
-    ; let responseHtml = thediv ! [identifier "updates"] <<
-                           (map newViewHtml newViews +++
-                            map newWidgetHtml newWidgets +++
                             map updateHtml updates)
-                         
-  -}    
+
     ; let subs = concat [ case upd of 
                                     RestoreId (IdRef o) (IdRef n) -> [(Id o, Id n)]  
                                     Move _ _ _ -> []
-                                | upd <- upd' 
+                                | upd <- updates
                                 ]
     ; putStrLn $ "Id updates on rootView:" ++ show subs
     -- todo: check restoration on views, and esp. on root.
