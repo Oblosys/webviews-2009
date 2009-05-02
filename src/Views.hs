@@ -68,7 +68,7 @@ loadView user db viewMap (WebView vid si i f _) = (WebView vid si i f (f user db
 
 
 data VisitView = 
-  VisitView VisitId Int User (Widget EString) (Widget EString) (Widget RadioView) (Widget Button) 
+  VisitView VisitId Int User (Widget EString) (Widget EString) Int (Widget Button) 
            (Widget Button) (Widget Button) [PigId] [String] WebView [WebView]
     deriving (Eq, Show, Typeable, Data)
 
@@ -77,9 +77,9 @@ mkVisitView sessionId i = mkWebView (ViewId 0) $
   \user db viewMap vid -> 
   let (VisitView _ _ _ _ _ oldViewedPig _ _ _ _ _ _ mpigv) = getOldView vid viewMap
       (Visit visd zipcode date pigIds) = unsafeLookup (allVisits db) i
-      viewedPig = constrain 0 (length pigIds - 1) $ getSelection oldViewedPig
+      viewedPig = constrain 0 (length pigIds - 1) $ oldViewedPig
       pignames = map (pigName . unsafeLookup (allPigs db)) pigIds
-  in  VisitView i sessionId user (estr (ViewId 1000) zipcode) (estr (ViewId 1001) date) (radioView  (ViewId 1002) ["1","2","3","4"] viewedPig) 
+  in  VisitView i sessionId user (estr (ViewId 1000) zipcode) (estr (ViewId 1001) date) viewedPig 
                 (button (ViewId 1003) "previous" (previous (ViewId 0))) 
                 (button (ViewId 1005) "next" (next (ViewId 0)))
                 (button (ViewId 1007) "add" (addPig visd)) pigIds pignames
@@ -94,11 +94,11 @@ mkVisitView sessionId i = mkWebView (ViewId 0) $
  where -- next and previous may cause out of bounds, but on reload, this is constrained
        previous i = mkViewEdit i $
          \(VisitView vid sid us zipCode date viewedPig b1 b2 b3 pigs pignames loginv mSubview) ->
-         VisitView vid sid us zipCode date (setSelection (getSelection viewedPig-1) viewedPig) b1 b2 b3 pigs pignames loginv mSubview
+         VisitView vid sid us zipCode date (viewedPig-1) b1 b2 b3 pigs pignames loginv mSubview
 
        next i = mkViewEdit i $
          \(VisitView vid sid us zipCode date viewedPig b1 b2 b3 pigs pignames loginv mSubview) ->
-         VisitView vid sid us zipCode date (setSelection (getSelection viewedPig+1) viewedPig) b1 b2 b3 pigs pignames loginv mSubview
+         VisitView vid sid us zipCode date (viewedPig+1) b1 b2 b3 pigs pignames loginv mSubview
 
        addPig i = DocEdit $ addNewPig i 
 
@@ -118,7 +118,7 @@ instance Presentable VisitView where
     +++ p << ("Visited "++ show (length pigs) ++ " pig" ++ pluralS (length pigs) ++ ": " ++
               listCommaAnd pignames)
     +++ p << ((if null pigs then stringToHtml $ "Not viewing any pigs" 
-               else "Viewing pig nr. " +++ present viewedPig +++ "   ")
+               else "Viewing pig nr. " +++ show viewedPig +++ "   ")
            +++ present b1 +++ present b2)
     +++ withPad 15 0 0 0 {- (case mSubview of
                Nothing -> stringToHtml "no pigs"
@@ -193,7 +193,9 @@ mkLoginView = mkWebView (ViewId (44)) $
         let (LoginView name password b) = getOldView vid viewMap
         in  LoginView (estr (ViewId 3000) $ getStrVal name) 
                       (estr (ViewId 3001) $ getStrVal password) 
-                      (button (ViewId 3002) "Login" $ AuthenticateEdit (strRef name) (strRef password))
+                      (button (ViewId 3002) "Login" $ AuthenticateEdit 
+                                                        (mkViewRef (ViewId 3000)) 
+                                                        (mkViewRef (ViewId 3001)))
 -- todo using the old id is not okay!
 -- TODO: related: how to handle setting the id but not the value
 
@@ -360,8 +362,8 @@ isMove _          = False
 
 -- TODO: no need to compute new or changed first, can be put in Update list
 --       do have to take into account addChangedViewChildren then
-diffViewsWN :: ViewMap -> WebView -> ([WebNode], [Update])
-diffViewsWN oldViewMap rootView = 
+diffViews :: ViewMap -> WebView -> ([WebNode], [Update])
+diffViews oldViewMap rootView = 
   let oldRootView = snd . head $ Map.toList oldViewMap
       newWebNodeMap = mkWebNodeMap rootView
       oldWebNodeMap = mkWebNodeMap oldRootView
@@ -473,7 +475,7 @@ getBreadthFirstWebNodes rootView =
        getTopLevelWebNodes _ = []
        
 mkIncrementalUpdates oldViewMap rootView =
- do { let (newWebNodes, updates) = diffViewsWN oldViewMap rootView
+ do { let (newWebNodes, updates) = diffViews oldViewMap rootView
     ; putStrLn $ "\nChanged or new web nodes\n" ++ unlines (map shallowShowWebNode newWebNodes) 
     ; putStrLn $ "\nUpdates\n" ++ unlines (map show updates)
     

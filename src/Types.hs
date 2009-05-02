@@ -32,9 +32,14 @@ newtype Id = Id { unId :: Int } deriving (Show, Eq, Ord, Data, Typeable)
 
 noId = Id (-1)
 
-newtype IdRef = IdRef Int deriving (Show, Eq, Ord, Data, Typeable)
+
 -- refs are different kind, because they may be part of view tree, and SYB id assignment functions 
 -- should not affect them
+newtype ViewIdRef = ViewIdRef Int deriving (Show, Eq, Ord, Data, Typeable)
+
+newtype IdRef = IdRef Int deriving (Show, Eq, Ord, Data, Typeable)
+
+mkViewRef (ViewId i) = ViewIdRef i
 
 mkRef (Id i) = IdRef i
 
@@ -84,7 +89,7 @@ data EditCommand = DocEdit (Database -> Database)
                  | ViewEdit (ViewId) (WebView -> WebView)
                  | AlertEdit String 
                  | ConfirmEdit String EditCommand
-                 | AuthenticateEdit IdRef IdRef
+                 | AuthenticateEdit ViewIdRef ViewIdRef
                  | LogoutEdit
                  deriving (Show, Typeable, Data)
                  

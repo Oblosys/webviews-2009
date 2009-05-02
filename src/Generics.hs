@@ -192,6 +192,6 @@ getWebViewById i view =
     []  -> error $ "internal error: no button with id "
     _   -> error $ "internal error: multiple buttons with id "
 
-getEStringByIdRef :: Data v => IdRef -> v -> Maybe String
-getEStringByIdRef (IdRef i) view =
-  something (Nothing `mkQ` (\(EString (Id i') str) -> if i == i' then Just str else Nothing)) view
+getEStringByViewId :: Data v => ViewIdRef -> v -> Maybe String
+getEStringByViewId (ViewIdRef i) view =
+  something (Nothing `mkQ` (\(Widget (ViewId i') _ _ (EString _ str)) -> if i == i' then Just str else Nothing)) view

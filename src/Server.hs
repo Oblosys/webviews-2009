@@ -402,10 +402,10 @@ safeRead s = case reads s of
 
 -- TODO id's may not be right. what if views changed and the fields get assigned different id's
 -- than when button was created?
-authenticate sessionStateRef userEStringId passwordEStringId =
+authenticate sessionStateRef userEStringViewId passwordEStringViewId =
  do { (sessionId, user, db, rootView, pendingEdit) <- readIORef sessionStateRef
-    ; let mUserName = getEStringByIdRef userEStringId rootView
-          mEnteredPassword = getEStringByIdRef passwordEStringId rootView
+    ; let mUserName = getEStringByViewId userEStringViewId rootView
+          mEnteredPassword = getEStringByViewId passwordEStringViewId rootView
     ; case (mUserName, mEnteredPassword) of
         (Just userName, Just enteredPassword) ->
            case Map.lookup userName users of
@@ -425,8 +425,8 @@ authenticate sessionStateRef userEStringId passwordEStringId =
              Nothing -> do { putStrLn $ "User "++userName++" entered a wrong password"
                            ; return $ Alert $ "Unknown username: "++userName
                            }
-        _ -> error $ "Internal error: at least one referenced Id not in rootView" ++
-                     show [userEStringId, passwordEStringId]
+        _ -> error $ "Internal error: at least one referenced ViewId not in rootView" ++
+                     show [userEStringViewId, passwordEStringViewId]
     }
 logout sessionStateRef =
  do { (sessionId, user, db, rootView, pendingEdit) <- readIORef sessionStateRef
