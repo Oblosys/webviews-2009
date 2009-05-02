@@ -247,12 +247,8 @@ the update
 -}
 
 
--- don't use Presentable, because we might present strings in different ways.
-
--- the entire root is a form, that causes registering text field updates on pressing enter
--- (or Done) on the iPhone. It would be nicer to capture this at the textfield itself.
--- Local forms are a problem though because they are block elements
--- TODO: focus loss on enter is not nice  
+-- textfields are in forms, that causes registering text field updates on pressing enter
+-- (or Done) on the iPhone.
 presentTextField :: EString -> Html
 presentTextField = presentTextualInput (textfield "")
   

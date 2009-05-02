@@ -5,13 +5,13 @@
 
 <script type="text/javascript">
 <!--// < this comment keeps emacs from thinking the whole block is a comment
-var debugging = false;
+var debugging = true;
 
 var xmlhttp;
 
 var commandQueue = '';
 
-var focusedElement = '';
+var focusedElementId = '';
 
 function init()
 {
@@ -62,6 +62,7 @@ function textFieldChanged(textFieldId)
 // send any pending text changes
 function elementGotFocus(id)
 {  debugAdd('element '+id+' has focus');
+  focusedElementId = id;
 }  
 
 function addCommand(command)
@@ -138,18 +139,26 @@ if (xmlhttp.readyState==4)
     // after this, firstChild has a value, while it is null before
     // newRendering.firstChild;
     
-    
+   // process all the updates from the server
    while (updates.firstChild)
     { updateTree( updates.firstChild );
     ; updates.removeChild(updates.firstChild);
     }
 
+  // clean any parked webnodes
   var parking = document.getElementById("parking");    
   while (parking.firstChild)
     { parking.removeChild(parking.firstChild);
     }
 
-    
+  // restore focus
+    debugAdd("restoring focus to "+focusedElementId);
+    var focusedElement = document.getElementById(focusedElementId);
+    if (focusedElement != null)
+      focusedElement.focus();
+    else
+      debugAdd("failed");
+
    }
   else
     {
