@@ -52,18 +52,20 @@ data Widget w = Widget { getWidgetViewId :: ViewId, getWidgetStubId :: Id, getWi
 instance Eq (Widget w) where
   w1 == w2 = True
 
-data EString = EString { getStrId' :: Id, getStrVal' :: String } deriving (Show, Typeable, Data)
+data EString = EString { getStrId' :: Id, getHidden :: Bool, getStrVal' :: String } deriving (Show, Typeable, Data)
 
 instance Eq EString where
-  EString _ str1 == EString _ str2 = str1 == str2
+  EString _ h1 str1 == EString _ h2 str2 = h1 == h2 && str1 == str2
   
-getStrId (Widget _ _ _ (EString i v)) = i
+getStrId (Widget _ _ _ (EString i h v)) = i
 
-getStrVal (Widget _ _ _ (EString i v)) = v
+getStrVal (Widget _ _ _ (EString i h v)) = v
 
-estr viewId str = Widget viewId noId noId $ EString noId str
+estr viewId str = Widget viewId noId noId $ EString noId False str
 
-strRef (Widget _ _ _ (EString (Id i) _)) = IdRef i
+epassword viewId str = Widget viewId noId noId $ EString noId True str
+
+strRef (Widget _ _ _ (EString (Id i) h _)) = IdRef i
 
 data RadioView = RadioView { getIntId' :: Id, getItems :: [String], getSelection' :: Int } deriving (Show, Typeable, Data)
 
@@ -231,7 +233,7 @@ instance Initial w => Initial (Widget w) where
   initial = Widget noViewId noId noId initial
   
 instance Initial EString where
-  initial = EString (Id $ -1) ""
+  initial = EString (Id $ -1) False ""
 
 instance Initial RadioView where
   initial = RadioView (Id $ -1) [] 0

@@ -37,7 +37,7 @@ getTopLevelWebNodesWebView :: WebView -> [WebNode]
 getTopLevelWebNodesWebView (WebView _ _ _ _ v) =
   everythingTopLevel (Nothing `mkQ`  (\w@(WebView vwId sid id _ _) -> Just $ WebViewNode w) 
                               `extQ` (\w@(Widget vi stbid id x@(RadioView _ _ _))   -> Just $ WidgetNode vi stbid id (RadioViewWidget x))
-                              `extQ` (\w@(Widget vi stbid id x@(EString _ _)) -> Just $ WidgetNode vi stbid id (EStringWidget x))
+                              `extQ` (\w@(Widget vi stbid id x@(EString _ _ _)) -> Just $ WidgetNode vi stbid id (EStringWidget x))
                               `extQ` (\w@(Widget vi stbid id x@(Button _ _ _))   -> Just $ WidgetNode vi stbid id (ButtonWidget x))
                      ) v             -- TODO can we do this bettter?
 
@@ -47,7 +47,7 @@ getTopLevelWebNodesWebNode :: Data x => x -> [WebNode]
 getTopLevelWebNodesWebNode x = everythingTopLevel 
                      (Nothing `mkQ`  (\w@(WebView vwId sid id _ _) -> Just $ WebViewNode w) 
                               `extQ` (\w@(Widget vi stbid id x@(RadioView _ _ _))   -> Just $ WidgetNode vi stbid id (RadioViewWidget x))
-                              `extQ` (\w@(Widget vi stbid id x@(EString _ _)) -> Just $ WidgetNode vi stbid id (EStringWidget x))
+                              `extQ` (\w@(Widget vi stbid id x@(EString _ _ _)) -> Just $ WidgetNode vi stbid id (EStringWidget x))
                               `extQ` (\w@(Widget vi stbid id x@(Button _ _ _))   -> Just $ WidgetNode vi stbid id (ButtonWidget x))
                      ) x
 -- lookup the view id and if the associated view is of the desired type, return it. Otherwise
@@ -132,9 +132,9 @@ replace :: Data d => Updates -> d -> d
 replace updates v = (everywhere $ extT (mkT (replaceEString updates))  (replaceRadioView updates)) v
 
 replaceEString :: Updates -> EString -> EString
-replaceEString updates x@(EString i _) =
+replaceEString updates x@(EString i h _) =
   case Map.lookup i updates of
-    Just str -> (EString i str)
+    Just str -> (EString i h str)
     Nothing -> x
 
 replaceRadioView :: Updates -> RadioView -> RadioView
@@ -194,4 +194,4 @@ getWebViewById i view =
 
 getEStringByViewId :: Data v => ViewIdRef -> v -> Maybe String
 getEStringByViewId (ViewIdRef i) view =
-  something (Nothing `mkQ` (\(Widget (ViewId i') _ _ (EString _ str)) -> if i == i' then Just str else Nothing)) view
+  something (Nothing `mkQ` (\(Widget (ViewId i') _ _ (EString _ _ str)) -> if i == i' then Just str else Nothing)) view

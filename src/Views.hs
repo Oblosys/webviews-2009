@@ -192,7 +192,7 @@ mkLoginView = mkWebView (ViewId (44)) $
       \user db viewMap vid ->
         let (LoginView name password b) = getOldView vid viewMap
         in  LoginView (estr (ViewId 3000) $ getStrVal name) 
-                      (estr (ViewId 3001) $ getStrVal password) 
+                      (epassword (ViewId 3001) $ getStrVal password) 
                       (button (ViewId 3002) "Login" $ AuthenticateEdit 
                                                         (mkViewRef (ViewId 3000)) 
                                                         (mkViewRef (ViewId 3001)))
@@ -249,20 +249,17 @@ the update
 
 -- textfields are in forms, that causes registering text field updates on pressing enter
 -- (or Done) on the iPhone.
-presentTextField :: EString -> Html
-presentTextField = presentTextualInput (textfield "")
-  
-presentPasswordField :: EString -> Html
-presentPasswordField = presentTextualInput (password "")
 
-presentTextualInput :: Html -> EString -> Html
-presentTextualInput inputfield (EString (Id i) str) = mkSpan ("input"++show i) $  
-  form![ thestyle "display: inline"] $
-  inputfield ! [identifier (show i), strAttr "VALUE" str
-               --, strAttr "onChange" $ "textFieldChanged('"++show i++"')"
-               , strAttr "onFocus" $ "elementGotFocus('"++show i++"')"
-               , strAttr "onBlur" $ "textFieldChanged('"++show i++"')"
-               ]
+presentTextField :: EString -> Html
+presentTextField (EString (Id i) hidden str) = 
+  let inputField = if hidden then password "" else textfield ""
+  in mkSpan ("input"++show i) $  
+       form![ thestyle "display: inline", strAttr "onSubmit" "return false"] $
+         inputField ! [identifier (show i), strAttr "VALUE" str
+                      --, strAttr "onChange" $ "textFieldChanged('"++show i++"')"
+                      , strAttr "onFocus" $ "elementGotFocus('"++show i++"')"
+                      , strAttr "onBlur" $ "textFieldChanged('"++show i++"')"
+                      ]
 
 -- seems like this one could be in Present
 presentButton :: Button -> Html
@@ -461,7 +458,7 @@ getWebNodeStubId (WidgetNode _ si _ _) = si
 
 getWidgetInternalId :: AnyWidget -> Id
 getWidgetInternalId  (RadioViewWidget (RadioView id _ _)) = id
-getWidgetInternalId  (EStringWidget (EString id _)) = id
+getWidgetInternalId  (EStringWidget (EString id _ _)) = id
 getWidgetInternalId  (ButtonWidget (Button id _ _)) = id
             
 getBreadthFirstWebNodes :: WebView -> [WebNode]
@@ -548,7 +545,7 @@ drawWebNodes webnode = drawTree $ treeFromView webnode
          Node ("("++show vid++", stub:" ++ show (unId sid) ++ ", id:" ++ show (unId id) ++ ") : " ++ showAnyWidget w) $
               map treeFromView $ getTopLevelWebNodesWebNode w
         where showAnyWidget (RadioViewWidget (RadioView id is i))    = "RadioView " ++ show id ++" " ++ (show i) ++ ": "++ show is
-              showAnyWidget (EStringWidget (EString id s)) = "EString "++ show id ++" "++ (show s)
+              showAnyWidget (EStringWidget (EString id h s)) = "EString "++ show id ++" "++(if h then "password" else "normal")++ show s
               showAnyWidget (ButtonWidget (Button id _ _))  = "Button" ++ show id 
                  
 data T = T Char [T]
