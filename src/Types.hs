@@ -13,13 +13,16 @@ import Control.Monad.Identity
 
 data Commands = Commands [Command] 
               | SyntaxError String -- for debugging post from client, replace read by Str in FromData instance
-                  deriving (Show, Read)
+                  deriving (Eq, Show, Read)
+
+getCommands (Commands cs) = cs
+getCommands _             = []
 
 data Command = Init | Refresh | Test 
              | SetC Int String 
              | ButtonC Int 
              | ConfirmDialogOk 
-               deriving (Show, Read) 
+               deriving (Eq, Show, Read) 
 
 -- view id's are for identifying views and widgets with regard to incrementality
 -- they remain constant over the view's/widget's life

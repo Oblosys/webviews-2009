@@ -156,6 +156,14 @@ parseCookieSessionId serverInstanceId =
     ; return mCookieSessionId
     } -- TODO: this is nasty, maybe try to use the Happs function
  
+
+initialRootView = assignIds $
+                    mkWebView (ViewId 66666) (\_ _ _ _ -> ()) Nothing theDatabase Map.empty
+-- this creates a WebView with stubid 0 and id 1
+-- for now, we count on that in the client
+-- TODO: change this to something more robust
+-- todo: use different id
+
 createNewSessionState :: GlobalStateRef -> ServerInstanceId -> ServerPart SessionId
 createNewSessionState globalStateRef serverInstanceId = 
  do { (database, sessions,sessionCounter) <- liftIO $ readIORef globalStateRef
@@ -164,12 +172,7 @@ createNewSessionState globalStateRef serverInstanceId =
     ; addCookie 3600 (mkCookie "webviews" $ show (serverInstanceId, sessionId))
     -- cookie lasts for one hour
  
-      -- todo: use different id
-    ; let initialRootView = assignIds $
-                            mkWebView (ViewId 66666) (\_ _ _ _ -> ()) Nothing theDatabase Map.empty
-                            -- this creates a WebView with stubid 0 and id 1
-                            -- for now, we count on that in the client
-                            -- TODO: change this
+      
     ; let newSession = (Nothing, initialRootView, Nothing)
     ; let sessions' = IntMap.insert sessionId newSession sessions
    
@@ -213,7 +216,13 @@ sessionHandler sessionStateRef cmds = {- myAuth `mplus` -} {-
      liftIO $  
  do { putStrLn $ "Received commands" ++ show cmds
     
-    ; (_, _, db, oldRootView, _) <- readIORef sessionStateRef
+    ; (_, _, db, oldRootView', _) <- readIORef sessionStateRef
+    
+    -- TODO: this elem construction is not so nice if Init is part of multiple commands
+    ; let oldRootView = if Init `elem` getCommands cmds 
+                        then initialRootView 
+                        else oldRootView' 
+
     ; let oldViewMap = mkViewMap oldRootView -- this represents the views in the browser
           
     ; response <- handleCommands sessionStateRef cmds
