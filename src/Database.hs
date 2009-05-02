@@ -52,7 +52,9 @@ theDatabase = Database (Map.fromList [ (VisitId 1, Visit (VisitId 1) "3581" "27-
                                                   [ PigId 1, PigId 2, PigId 3 ])])
                     (Map.fromList [ (PigId 1, Pig (PigId 1) (VisitId 1) "Knir" [0,2,1] (Left 2))
                                   , (PigId 2, Pig (PigId 2) (VisitId 1) "Knar" [0,1,1] (Right "Malaria"))
-                                  , (PigId 3, Pig (PigId 3) (VisitId 1) "Knor" [1,1,1] (Left 3)) ])
+                                  , (PigId 3, Pig (PigId 3) (VisitId 1) "Knor" [1,1,1] (Left 3)) 
+                                  ]
+                    )
 --                    ]
   
 {-

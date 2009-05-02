@@ -42,6 +42,7 @@ getTopLevelWebNodesWebView (WebView _ _ _ _ v) =
                      ) v             -- TODO can we do this bettter?
 
 -- make sure this one is not called on a WebView, but on its child view
+-- TODO: rename this one, it is not called on a WebNode
 getTopLevelWebNodesWebNode :: Data x => x -> [WebNode]
 getTopLevelWebNodesWebNode x = everythingTopLevel 
                      (Nothing `mkQ`  (\w@(WebView vwId sid id _ _) -> Just $ WebViewNode w) 
@@ -106,9 +107,10 @@ everythingBut q f x = {- if q x then [x] else -} foldl (++) [] (gmapQ (everythin
 -- number all Id's in the argument data structure uniquely
 --assignIds :: Data d => d -> d
 
-assignIds x = let (x', _,_,_) = assignIdz x in x'
+clearIds x = everywhere (mkT $ \(Id _) -> noId) x
+assignIds x = assignIdz x
                   
-assignIdz x = (snd $ everywhereAccum assignId freeIds x, allIds, usedIds, freeIds)
+assignIdz x = (snd $ everywhereAccum assignId freeIds x)
  where allIds = getAll x :: [Id]
        usedIds = IntSet.fromList $ map unId $ filter (/= noId) $ allIds 
        freeIds = (IntSet.fromList $ [0 .. length allIds - 1]) `IntSet.difference` usedIds

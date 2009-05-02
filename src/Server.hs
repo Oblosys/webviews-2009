@@ -220,7 +220,7 @@ sessionHandler sessionStateRef cmds = {- myAuth `mplus` -} {-
     ; responseHtml <- case response of
         ViewUpdate ->
          do { rootViewWithoutIds <- getRootView sessionStateRef
-            ; let (rootView, _) = assignIds (rootViewWithoutIds, oldRootView) 
+            ; let (rootView, _) = assignIds (clearIds rootViewWithoutIds, oldRootView) 
             -- this way, all new id's are unique, also with respect to old view                                    
             ; setRootView sessionStateRef rootView
               
