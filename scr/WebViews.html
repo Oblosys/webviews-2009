@@ -11,8 +11,6 @@ var xmlhttp;
 
 var commandQueue = '';
 
-var changedTextFieldId = '';
-
 var focusedElement = '';
 
 function init()
@@ -57,16 +55,13 @@ function refresh()
 
 
 function textFieldChanged(textFieldId)
-{ // changedTextFieldId = textFieldId; // no good for textfield to textfield, should make list
-  // still gives problem when text->text (only updated after non-text edit), but no edits get lost
-   value = document.getElementById(textFieldId).value;
+{  value = document.getElementById(textFieldId).value;
    queueCommand ('SetC '+textFieldId+' "'+value+'"'); 
 }
 
 // send any pending text changes
 function elementGotFocus(id)
-{  focusedElementId = id;
-   debugAdd('element '+id+' has focus');
+{  debugAdd('element '+id+' has focus');
 }  
 
 function addCommand(command)
@@ -76,12 +71,6 @@ function addCommand(command)
 // TODO we don't want empty commands sent to server
 function queueCommand(command)
 { 
-  if (changedTextFieldId != "")
-  { debugAdd(changedTextFieldId+" has changed");
-    value = document.getElementById(changedTextFieldId).value;
-    addCommand ('SetC '+changedTextFieldId+' "'+value+'"');
-    changedTextFieldId = "";
- }
   if (command != '') addCommand(command);
 
   if ( xmlhttp && xmlhttp.readyState != 0 && xmlhttp.readyState != 4)
