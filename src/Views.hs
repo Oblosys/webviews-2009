@@ -113,7 +113,7 @@ instance Presentable VisitView where
            Nothing -> p << present loginoutView 
            Just (_,name) -> p << stringToHtml ("Hello "++name++".") +++ present loginoutView) +++
         
-        (p <<"Visit at "+++ present zipCode +++" on " +++ present date +++ 
+        p << ("Visit at "+++ present zipCode +++" on " +++ present date +++ 
           "           (session# "+++show sid+++")")
     +++ p << ("Visited "++ show (length pigs) ++ " pig" ++ pluralS (length pigs) ++ ": " ++
               listCommaAnd pignames)
