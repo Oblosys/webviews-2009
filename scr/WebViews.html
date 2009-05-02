@@ -154,7 +154,11 @@ if (xmlhttp.readyState==4)
     { updateTree( updates.firstChild );
     ; updates.removeChild(updates.firstChild);
     }
-    
+
+  var parking = document.getElementById("parking");    
+  while (parking.firstChild)
+    { parking.removeChild(parking.firstChild);
+    }
 
     
    }
