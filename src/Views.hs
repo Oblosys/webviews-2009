@@ -261,6 +261,7 @@ presentPasswordField = presentTextualInput (password "")
 
 presentTextualInput :: Html -> EString -> Html
 presentTextualInput inputfield (EString (Id i) str) = mkSpan ("input"++show i) $  
+  form![ thestyle "display: inline"] $
   inputfield ! [identifier (show i), strAttr "VALUE" str
                --, strAttr "onChange" $ "textFieldChanged('"++show i++"')"
                , strAttr "onFocus" $ "elementGotFocus('"++show i++"')"
