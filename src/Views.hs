@@ -13,7 +13,8 @@ import Data.IntMap (IntMap)
 import qualified Data.IntMap as IntMap 
 import Data.Tree
 import Debug.Trace
-
+import System.IO.Unsafe -- until we have monadic load view
+import System.Time
 import Types
 import Database
 import Generics
@@ -68,44 +69,60 @@ loadView user db viewMap (WebView vid si i f _) = (WebView vid si i f (f user db
 
 
 data VisitsView = 
-  VisitsView Int [(String,String)] 
+  VisitsView Int Int User [(String,String)] 
                  (Widget Button) (Widget Button) (Widget Button) (Widget Button) 
+                 WebView
                  (Maybe WebView)
     deriving (Eq, Show, Typeable, Data)
   
-data VisitView = 
-  VisitView VisitId Int User (Widget EString) (Widget EString) Int (Widget Button) 
-           (Widget Button) (Widget Button) [PigId] [String] WebView [WebView]
-    deriving (Eq, Show, Typeable, Data)
-
-modifyViewedVisit fn (VisitsView v a b c d e f) = (VisitsView (fn v) a b c d e f)
+modifyViewedVisit fn (VisitsView v a b c d e f g h i) = (VisitsView (fn v) a b c d e f g h i)
 
 mkVisitsView sessionId = mkWebView (ViewId 2000) $
   \user db viewMap vid ->
-  let (VisitsView oldViewedVisit _ _ _ _ _ _) = getOldView vid viewMap
+  let (VisitsView oldViewedVisit _ _ _ _ _ _ _ _ _) = getOldView vid viewMap
       viewedVisit = constrain 0 (length visits - 1) oldViewedVisit
       (visitIds, visits) = unzip $ Map.toList $ allVisits db
   in  VisitsView viewedVisit
-                 [ (zipCode visit, date visit)
-                 | visit <- visits
-                 ]
+                 sessionId
+                 user
+                 [ (zipCode visit, date visit) | visit <- visits ]
                  (button (ViewId 2001) "Previous" $ mkViewEdit (ViewId 2000) $ modifyViewedVisit (\x -> x-1)) 
                  (button (ViewId 2002) "Next" $ mkViewEdit (ViewId 2000) $  modifyViewedVisit (+1))
-                 (button (ViewId 2003) "Add" $ mkViewEdit (ViewId 2000) $ noEdit)
-                 (button (ViewId 2004) "Remove" $ mkViewEdit (ViewId 2000) $ noEdit)
+                 (button (ViewId 2003) "Add"  addNewVisit)
+                 (button (ViewId 2004) "Remove" $
+                    ConfirmEdit ("Are you sure you want to remove this visit?") $ 
+                                   (DocEdit $ removeVisit (visitIds !! viewedVisit)))
+                 (if user == Nothing then (mkLoginView user db viewMap) 
+                                    else (mkLogoutView user db viewMap))
+                 
                  (if null visits
                     then Nothing
-                    else Just $ mkVisitView sessionId  (visitIds !! viewedVisit) user db viewMap
+                    else Just $ mkVisitView (visitIds !! viewedVisit) user db viewMap
                    )
- where noEdit :: VisitsView -> VisitsView 
-       noEdit = id
+ where addNewVisit = DocEdit $ \db -> let ((Visit nvid _ _ _),db') = newVisit db 
+                                      in  updateVisit nvid (\v -> v {date = today}) db' 
+       today = unsafePerformIO $ -- only until we have a monad in mkView!! (probably doesn't even work now)
+         do { clockTime <-  getClockTime
+            ; ct <- toCalendarTime clockTime
+            ; return $ show (ctDay ct) ++ "-" ++show (fromEnum (ctMonth ct) + 1) ++ "-" ++show (ctYear ct)
+            }
 
 instance Presentable VisitsView where
-  present (VisitsView viewedVisit visits prev next add remove mv) =
-    (p << "list of all visits") +++         
-    (p << vList [ zipCode +++ "  " +++ date 
-                     | (zipCode, date) <- visits]) +++
-    (p << present prev +++ (if null visits then "no visits" else show viewedVisit) +++ present next +++ present add +++ present remove) +++
+  present (VisitsView viewedVisit sessionId user visits prev next add remove loginoutView mv) =
+        withBgColor (Rgb 235 235 235) $
+         (case user of
+           Nothing -> p << present loginoutView 
+           Just (_,name) -> p << stringToHtml ("Hello "++name++".") +++ present loginoutView) +++
+    p << ("List of all visits     (session# "++show sessionId++")") +++         
+    p << (simpleTable [] [] $ 
+            [ stringToHtml "Zip", stringToHtml "Date"] :
+            [ [ (if i == viewedVisit then bold  else id) $ stringToHtml zipCode 
+              , (if i == viewedVisit then bold  else id) $ stringToHtml date 
+              ] 
+            | (i,(zipCode, date)) <- zip [0..] visits]) +++
+    p << (present prev +++ "   " +++ (if null visits then "no visits" else show viewedVisit) +++ 
+          "    " +++ present next) +++ 
+    p << (present add +++ present remove) +++
     withPad 15 0 0 0 (boxed (case mv of
                Nothing -> stringToHtml "no visits"
                Just pv -> present pv)) 
@@ -114,30 +131,34 @@ instance Storeable VisitsView where
   save _ = id
    
 instance Initial VisitsView where                 
-  initial = VisitsView 0 initial initial initial initial initial initial
+  initial = VisitsView 0 initial initial initial initial initial initial initial initial initial
   
+
+data VisitView = 
+  VisitView VisitId (Widget EString) (Widget EString) Int (Widget Button) 
+           (Widget Button) (Widget Button) [PigId] [String] [WebView]
+    deriving (Eq, Show, Typeable, Data)
+
 -- todo: doc edits seem to reset viewed pig nr.
-mkVisitView sessionId i = mkWebView (ViewId 0) $
+mkVisitView i = mkWebView (ViewId 0) $
   \user db viewMap vid -> 
-  let (VisitView _ _ _ _ _ oldViewedPig _ _ _ _ _ _ mpigv) = getOldView vid viewMap
+  let (VisitView _ _ _ oldViewedPig _ _ _ _ _ mpigv) = getOldView vid viewMap
       (Visit visd zipcode date pigIds) = unsafeLookup (allVisits db) i
       viewedPig = constrain 0 (length pigIds - 1) $ oldViewedPig
       pignames = map (pigName . unsafeLookup (allPigs db)) pigIds
-  in  VisitView i sessionId user (estr (ViewId 1000) zipcode) (estr (ViewId 1001) date) viewedPig 
+  in  VisitView i (estr (ViewId 1000) zipcode) (estr (ViewId 1001) date) viewedPig 
                 (button (ViewId 1003) "previous" (previous (ViewId 0))) 
                 (button (ViewId 1005) "next" (next (ViewId 0)))
                 (button (ViewId 1007) "add" (addPig visd)) pigIds pignames
-                (if user == Nothing then (mkLoginView user db viewMap) 
-                                    else (mkLogoutView user db viewMap))
                 [mkPigView i pigId viewedPig user db viewMap | (pigId,i) <- zip pigIds [0..]]
  where -- next and previous may cause out of bounds, but on reload, this is constrained
        previous i = mkViewEdit i $
-         \(VisitView vid sid us zipCode date viewedPig b1 b2 b3 pigs pignames loginv mSubview) ->
-         VisitView vid sid us zipCode date (viewedPig-1) b1 b2 b3 pigs pignames loginv mSubview
+         \(VisitView vid zipCode date viewedPig b1 b2 b3 pigs pignames mSubview) ->
+         VisitView vid zipCode date (viewedPig-1) b1 b2 b3 pigs pignames mSubview
 
        next i = mkViewEdit i $
-         \(VisitView vid sid us zipCode date viewedPig b1 b2 b3 pigs pignames loginv mSubview) ->
-         VisitView vid sid us zipCode date (viewedPig+1) b1 b2 b3 pigs pignames loginv mSubview
+         \(VisitView vid zipCode date viewedPig b1 b2 b3 pigs pignames mSubview) ->
+         VisitView vid zipCode date (viewedPig+1) b1 b2 b3 pigs pignames mSubview
 
        addPig i = DocEdit $ addNewPig i 
 
@@ -146,14 +167,9 @@ addNewPig vid db =
   in  (updateVisit vid $ \v -> v { pigs = pigs v ++ [newPigId] }) db'
 
 instance Presentable VisitView where
-  present (VisitView vid sid us zipCode date viewedPig b1 b2 b3 pigs pignames loginoutView subviews) =
-        withBgColor (Rgb 235 235 235) $
-        (case us of
-           Nothing -> p << present loginoutView 
-           Just (_,name) -> p << stringToHtml ("Hello "++name++".") +++ present loginoutView) +++
+  present (VisitView us zipCode date viewedPig b1 b2 b3 pigs pignames subviews) =
         
-        p << ("Visit at "+++ present zipCode +++" on " +++ present date +++ 
-          "           (session# "+++show sid+++")")
+        p << ("Visit at "+++ present zipCode +++" on " +++ present date)
     +++ p << ("Visited "++ show (length pigs) ++ " pig" ++ pluralS (length pigs) ++ ": " ++
               listCommaAnd pignames)
     +++ p << ((if null pigs then stringToHtml $ "Not viewing any pigs" 
@@ -163,13 +179,13 @@ instance Presentable VisitView where
             (hList $ map present subviews ++ [present b3] )
 
 instance Storeable VisitView where
-  save (VisitView vid sid us zipCode date _ _ _ _ pigs pignames _ _) db =
+  save (VisitView vid zipCode date _ _ _ _ pigs pignames _) db =
     updateVisit vid (\(Visit _ _ _ pigIds) ->
                       Visit vid (getStrVal zipCode) (getStrVal date) pigIds)
                     db
 
 instance Initial VisitView where
-  initial = VisitView initial initial initial initial initial initial initial initial initial initial initial initial initial
+  initial = VisitView initial initial initial initial initial initial initial initial initial initial
                        
 
 data PigView = PigView PigId (Widget Button) Int Int (Widget EString) [Widget RadioView] (Either Int String) 

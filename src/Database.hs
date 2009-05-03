@@ -25,6 +25,16 @@ updateVisit i f db =
           }
 -- add error
 
+removeVisit :: VisitId -> Database -> Database
+removeVisit i db = db { allVisits = Map.delete i (allVisits db) }
+
+newVisit :: Database -> (Visit, Database)
+newVisit db =
+  let ids = [ i | VisitId i <- map fst (Map.toList $ allVisits db) ]
+      newId = VisitId $ if null ids then 0 else (maximum ids + 1)
+      newVisit = Visit newId "" "" []
+  in  ( newVisit, db { allVisits = Map.insert newId newVisit (allVisits db) } )
+          
 data Pig = 
   Pig { pigId :: PigId, parentVisit :: VisitId, pigName :: String, symptoms :: [Int]
       , diagnose :: Either Int String 
