@@ -223,7 +223,6 @@ sessionHandler sessionStateRef cmds = {- myAuth `mplus` -} {-
                         then initialRootView 
                         else oldRootView' 
 
-    ; let oldViewMap = mkViewMap oldRootView -- this represents the views in the browser
           
     ; response <- handleCommands sessionStateRef cmds
     ; responseHtml <- case response of
@@ -234,7 +233,7 @@ sessionHandler sessionStateRef cmds = {- myAuth `mplus` -} {-
             ; setRootView sessionStateRef rootView
               
               
-            ; (responseHtml, rootView') <- mkIncrementalUpdates oldViewMap rootView
+            ; (responseHtml, rootView') <- mkIncrementalUpdates oldRootView rootView
           {-   thediv ! [identifier "updates"] <<
                              updateReplaceHtml "root" 
                                (mkDiv "root" $ present $ rootView)

@@ -392,16 +392,15 @@ isMove _          = False
 
 -- TODO: no need to compute new or changed first, can be put in Update list
 --       do have to take into account addChangedViewChildren then
-diffViews :: ViewMap -> WebView -> ([WebNode], [Update])
-diffViews oldRootViewMap rootView = 
-  let oldRootView = snd . head $ Map.toList oldViewMap
-      newWebNodeMap = mkWebNodeMap rootView
+diffViews :: WebView-> WebView -> ([WebNode], [Update])
+diffViews oldRootView rootView = 
+  let newWebNodeMap = mkWebNodeMap rootView
       oldWebNodeMap = mkWebNodeMap oldRootView
-      newOrChangedIdsWebNodes = {- addChangedViewChildren $ -} getNewOrChangedIdsWebNodes oldWebNodeMap newWebNodeMap
+      newOrChangedIdsWebNodes = getNewOrChangedIdsWebNodes oldWebNodeMap newWebNodeMap
       (newOrChangedWebNodeIds, newOrChangedWebNodes) = unzip newOrChangedIdsWebNodes
   in -- trace ("\nOld view map\n"++showViewMap oldViewMap ++ "\nNew view map\n" ++ showViewMap newViewMap) 
     ( newOrChangedWebNodes
-    , computeMoves oldWebNodeMap newOrChangedWebNodeIds rootView)
+    , computeMoves oldRootView oldWebNodeMap newOrChangedWebNodeIds rootView)
 
 getNewOrChangedIdsWebNodes :: WebNodeMap -> WebNodeMap -> [(ViewId, WebNode)]
 getNewOrChangedIdsWebNodes oldWebNodeMap newWebNodeMap =
@@ -412,12 +411,11 @@ getNewOrChangedIdsWebNodes oldWebNodeMap newWebNodeMap =
            Nothing -> True
            Just oldWebNode -> oldWebNode /= webNode
           
-computeMoves :: WebNodeMap -> [ViewId] -> WebView -> [Update]           
-computeMoves oldWebNodeMap changedOrNewWebNodes rootView@(WebView rootVid stubId rootId _ _) = 
+computeMoves :: WebView -> WebNodeMap -> [ViewId] -> WebView -> [Update]           
+computeMoves oldRootViewrootView@(WebView _ _ oldRootId _ _) 
+             oldWebNodeMap changedOrNewWebNodes rootView@(WebView rootVid stubId rootId _ _) = 
   (if rootVid `elem` changedOrNewWebNodes 
-   then let oldRoot = snd . head $ Map.toList oldWebNodeMap
-        in  -- trace (showWebNodeMap oldWebNodeMap)
-            [ Move "Root move" (mkRef $ rootId) (mkRef $ getWebNodeId oldRoot) ] 
+   then [ Move "Root move" (mkRef $ rootId) (mkRef $ oldRootId) ] 
    else []) ++
   concatMap (computeMove oldWebNodeMap changedOrNewWebNodes)
     (getBreadthFirstWebNodes rootView)
