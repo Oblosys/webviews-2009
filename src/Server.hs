@@ -239,7 +239,7 @@ sessionHandler sessionStateRef cmds = {- myAuth `mplus` -} {-
                              updateReplaceHtml "root" 
                                (mkDiv "root" $ present $ rootView)
           -}
-            ; putStrLn $ "View tree:\n" ++ drawWebNodes (WebViewNode rootView) 
+           -- ; putStrLn $ "View tree:\n" ++ drawWebNodes (WebViewNode rootView) 
             ; putStrLn $ "View tree':\n" ++ drawWebNodes (WebViewNode rootView') 
             --; putStrLn $ "rootView:\n" ++ show rootView'
             ; setRootView sessionStateRef rootView'
@@ -264,16 +264,16 @@ sessionHandler sessionStateRef cmds = {- myAuth `mplus` -} {-
           return $ thediv ! [identifier "updates"] <<
                      (thediv![ strAttr "op" "alert"
                              , strAttr "text" str
-                             ] << "") 
+                             ] << noHtml) 
         Confirm str  -> 
           return $ thediv ! [identifier "updates"] <<
                      (thediv![ strAttr "op" "confirm"
                              , strAttr "text" str
-                             ] << "") 
+                             ] << noHtml) 
 {-        Authenticate  -> 
           return $ thediv ! [identifier "updates"] <<
                      (thediv![ strAttr "op" "authenticate"
-                             ] << "") 
+                             ] << noHtml) 
 -}        
     ; return responseHtml
     } `Control.Exception.catch` \(exc :: SomeException) ->

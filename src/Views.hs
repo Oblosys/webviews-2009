@@ -56,7 +56,8 @@ applyIfCorrectType f x = case cast f of
 mkRootView :: User -> Database -> Int -> ViewMap -> WebView
 mkRootView user db sessionId viewMap = 
   --mkPigView 3 (PigId 1) 5 user db viewMap 
-  mkVisitView sessionId (VisitId 1) user db viewMap
+  --mkVisitView sessionId (VisitId 1) user db viewMap
+  mkVisitsView sessionId user db viewMap
 
 mkWebView :: (Presentable v, Storeable v, Initial v, Show v, Eq v, Data v) =>
              ViewId -> (User -> Database -> ViewMap -> ViewId -> v) -> User -> Database -> ViewMap -> WebView
@@ -66,12 +67,55 @@ mkWebView vid wvcnstr user db viewMap = loadView user db viewMap $
 loadView user db viewMap (WebView vid si i f _) = (WebView vid si i f (f user db viewMap vid))
 
 
-
+data VisitsView = 
+  VisitsView Int [(String,String)] 
+                 (Widget Button) (Widget Button) (Widget Button) (Widget Button) 
+                 (Maybe WebView)
+    deriving (Eq, Show, Typeable, Data)
+  
 data VisitView = 
   VisitView VisitId Int User (Widget EString) (Widget EString) Int (Widget Button) 
            (Widget Button) (Widget Button) [PigId] [String] WebView [WebView]
     deriving (Eq, Show, Typeable, Data)
 
+modifyViewedVisit fn (VisitsView v a b c d e f) = (VisitsView (fn v) a b c d e f)
+
+mkVisitsView sessionId = mkWebView (ViewId 2000) $
+  \user db viewMap vid ->
+  let (VisitsView oldViewedVisit _ _ _ _ _ _) = getOldView vid viewMap
+      viewedVisit = constrain 0 (length visits - 1) oldViewedVisit
+      (visitIds, visits) = unzip $ Map.toList $ allVisits db
+  in  VisitsView viewedVisit
+                 [ (zipCode visit, date visit)
+                 | visit <- visits
+                 ]
+                 (button (ViewId 2001) "Previous" $ mkViewEdit (ViewId 2000) $ modifyViewedVisit (\x -> x-1)) 
+                 (button (ViewId 2002) "Next" $ mkViewEdit (ViewId 2000) $  modifyViewedVisit (+1))
+                 (button (ViewId 2003) "Add" $ mkViewEdit (ViewId 2000) $ noEdit)
+                 (button (ViewId 2004) "Remove" $ mkViewEdit (ViewId 2000) $ noEdit)
+                 (if null visits
+                    then Nothing
+                    else Just $ mkVisitView sessionId  (visitIds !! viewedVisit) user db viewMap
+                   )
+ where noEdit :: VisitsView -> VisitsView 
+       noEdit = id
+
+instance Presentable VisitsView where
+  present (VisitsView viewedVisit visits prev next add remove mv) =
+    (p << "list of all visits") +++         
+    (p << vList [ zipCode +++ "  " +++ date 
+                     | (zipCode, date) <- visits]) +++
+    (p << present prev +++ (if null visits then "no visits" else show viewedVisit) +++ present next +++ present add +++ present remove) +++
+    withPad 15 0 0 0 (boxed (case mv of
+               Nothing -> stringToHtml "no visits"
+               Just pv -> present pv)) 
+
+instance Storeable VisitsView where
+  save _ = id
+   
+instance Initial VisitsView where                 
+  initial = VisitsView 0 initial initial initial initial initial initial
+  
 -- todo: doc edits seem to reset viewed pig nr.
 mkVisitView sessionId i = mkWebView (ViewId 0) $
   \user db viewMap vid -> 
@@ -83,11 +127,6 @@ mkVisitView sessionId i = mkWebView (ViewId 0) $
                 (button (ViewId 1003) "previous" (previous (ViewId 0))) 
                 (button (ViewId 1005) "next" (next (ViewId 0)))
                 (button (ViewId 1007) "add" (addPig visd)) pigIds pignames
--- todo: check id's
-             {-   (if null pigIds -- remove guard for weird hanging exception (after removing last pig)
-                    then Nothing
-                    else Just $ mkPigView viewedPig (pigIds !! viewedPig) db viewMap
-                   )-}
                 (if user == Nothing then (mkLoginView user db viewMap) 
                                     else (mkLogoutView user db viewMap))
                 [mkPigView i pigId viewedPig user db viewMap | (pigId,i) <- zip pigIds [0..]]
@@ -120,9 +159,7 @@ instance Presentable VisitView where
     +++ p << ((if null pigs then stringToHtml $ "Not viewing any pigs" 
                else "Viewing pig nr. " +++ show viewedPig +++ "   ")
            +++ present b1 +++ present b2)
-    +++ withPad 15 0 0 0 {- (case mSubview of
-               Nothing -> stringToHtml "no pigs"
-               Just pv -> present pv) -}
+    +++ withPad 15 0 0 0 
             (hList $ map present subviews ++ [present b3] )
 
 instance Storeable VisitView where
@@ -237,7 +274,6 @@ mkSpan str elt = thespan![identifier str] << elt
 boxed html = thediv![thestyle "border:solid; border-width:1px; padding:4px;"] << html
 
 
-
 {-
 
 Everything seems to work:
@@ -285,10 +321,10 @@ radioBox id items selectedIx =
                         , let eltId = "radio"++id++"button"++show i ]
 
 
-hList [] = stringToHtml "" -- TODO should have some empty here
+hList [] = noHtml
 hList views = simpleTable [] [] [ views ]
 
-vList [] = stringToHtml "" -- TODO should have some empty here
+vList [] = noHtml
 vList views = simpleTable [] [] [ [v] | v <- views ]
 
 data Color = Rgb Int Int Int
@@ -357,7 +393,7 @@ isMove _          = False
 -- TODO: no need to compute new or changed first, can be put in Update list
 --       do have to take into account addChangedViewChildren then
 diffViews :: ViewMap -> WebView -> ([WebNode], [Update])
-diffViews oldViewMap rootView = 
+diffViews oldRootViewMap rootView = 
   let oldRootView = snd . head $ Map.toList oldViewMap
       newWebNodeMap = mkWebNodeMap rootView
       oldWebNodeMap = mkWebNodeMap oldRootView
@@ -380,11 +416,15 @@ computeMoves :: WebNodeMap -> [ViewId] -> WebView -> [Update]
 computeMoves oldWebNodeMap changedOrNewWebNodes rootView@(WebView rootVid stubId rootId _ _) = 
   (if rootVid `elem` changedOrNewWebNodes 
    then let oldRoot = snd . head $ Map.toList oldWebNodeMap
-        in  [ Move "Root move" (mkRef $ rootId) (mkRef $ getWebNodeId oldRoot) ] 
+        in  -- trace (showWebNodeMap oldWebNodeMap)
+            [ Move "Root move" (mkRef $ rootId) (mkRef $ getWebNodeId oldRoot) ] 
    else []) ++
   concatMap (computeMove oldWebNodeMap changedOrNewWebNodes)
     (getBreadthFirstWebNodes rootView)
 
+showWebNodeMap :: WebNodeMap -> String
+showWebNodeMap wnmap = unlines [ "<"++show k++":"++shallowShowWebNode wn++">" 
+                               | (k,wn) <- Map.toList wnmap ] 
 -- if we do the comparison here, also take into account moving the immediate children of a changed
 -- view
 computeMove :: WebNodeMap -> [ViewId] -> WebNode -> [Update]
@@ -515,7 +555,7 @@ newWidgetHtml (_, (Id i),anyWidget) =
 updateHtml :: Update -> Html
 updateHtml (Move _ (IdRef src) (IdRef dst)) = if src == dst then error "Source is destingation" else
     thediv![strAttr "op" "move", strAttr "src" (show src), strAttr "dst" (show dst)] << ""
-updateHtml _ = stringToHtml "" -- restoreId is not for producing html, but for adapting the rootView  
+updateHtml _ = noHtml -- restoreId is not for producing html, but for adapting the rootView  
 
 
 instance Presentable WebView where
