@@ -77,7 +77,7 @@ presentTextField :: EString -> Html
 presentTextField (EString (Id i) hidden str) = 
   let inputField = if hidden then password "" else textfield ""
   in form![ thestyle "display: inline", strAttr "onSubmit" $ "textFieldChanged('"++show i++"');return false"] $
-       inputField ! [identifier (show i), strAttr "VALUE" str
+       inputField ! [identifier (show i), strAttr "value" str
                     --, strAttr "onChange" $ "textFieldChanged('"++show i++"')"
                     , strAttr "onFocus" $ "elementGotFocus('"++show i++"')"
                     , strAttr "onBlur" $ "textFieldChanged('"++show i++"')"
@@ -87,8 +87,8 @@ presentTextField (EString (Id i) hidden str) =
 presentButton :: Button -> Html
 presentButton (Button (Id i) txt enabled _) = 
    primHtml $ "<button " ++ (if enabled then "" else "disabled ") ++
-                      "onclick=\"queueCommand('ButtonC "++show i++"')\" "++
-                      "onfocus=\"elementGotFocus('"++show i++"')\">"++txt++"</button>"
+                            "onclick=\"queueCommand('ButtonC "++show i++"')\" "++
+                            "onfocus=\"elementGotFocus('"++show i++"')\">"++txt++"</button>"
 -- TODO: text should be escaped
 
 presentRadioBox :: RadioView -> Html
