@@ -125,3 +125,48 @@ instance Presentable AnyWidget where
 
 
 
+
+
+
+-- Login -----------------------------------------------------------------------  
+
+data LoginView = LoginView (Widget EString) (Widget EString) (Widget Button) 
+  deriving (Eq, Show, Typeable, Data)
+
+mkLoginView = mkWebView (ViewId (44)) $
+      \user db viewMap vid ->
+        let (LoginView name password b) = getOldView vid viewMap
+        in  LoginView (estr (ViewId 3000) $ getStrVal name) 
+                      (epassword (ViewId 3001) $ getStrVal password) 
+                      (button (ViewId 3002) "Login" True $ 
+                         AuthenticateEdit (mkViewRef (ViewId 3000)) 
+                                          (mkViewRef (ViewId 3001)))
+
+instance Storeable LoginView where save _ = id
+                                   
+instance Presentable LoginView where
+  present (LoginView name password loginbutton) = 
+    boxed $ simpleTable [] [] [ [ stringToHtml "Login:", present name]
+                              , [ stringToHtml "Password:", present password]
+                              , [ present loginbutton ]
+                              ]
+            
+instance Initial LoginView where initial = LoginView initial initial initial
+
+
+
+-- Logout ----------------------------------------------------------------------  
+
+data LogoutView = LogoutView (Widget Button) deriving (Eq, Show, Typeable, Data)
+
+mkLogoutView = mkWebView (ViewId (55)) $
+  \(Just (l,_)) db viewMap vid -> LogoutView (button (ViewId 4001) 
+                                             ("Logout " ++  l) True LogoutEdit)
+
+instance Storeable LogoutView where save _ = id
+                                   
+instance Presentable LogoutView where
+  present (LogoutView logoutbutton) = 
+    present logoutbutton
+            
+instance Initial LogoutView where initial = LogoutView initial

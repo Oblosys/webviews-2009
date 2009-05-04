@@ -1,6 +1,7 @@
 # copy sources with scp instead of using svn
 # copying cabal does not make sense, since we cannot configure remotely yet.
-scp ../scr/WebViews.html  martijn@pooh.zoo.cs.uu.nl:WebViews/scr
+scp ../scr/* martijn@pooh.zoo.cs.uu.nl:WebViews/scr
+scp ../img/* martijn@pooh.zoo.cs.uu.nl:WebViews/img
 scp ../src/* martijn@pooh.zoo.cs.uu.nl:WebViews/src
 buildPooh
 runPooh

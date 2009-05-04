@@ -112,7 +112,9 @@ data VisitView =
            (Widget Button) (Widget Button) [PigId] [String] [WebView]
     deriving (Eq, Show, Typeable, Data)
 
--- todo: doc edits seem to reset viewed pig nr.
+modifyViewedPig f (VisitView vid zipCode date viewedPig b1 b2 b3 pigs pignames mSubview) =
+  VisitView vid zipCode date (f viewedPig) b1 b2 b3 pigs pignames mSubview
+
 mkVisitView i = mkWebView (ViewId 0) $
   \user db viewMap vid -> 
   let (VisitView _ _ _ oldViewedPig _ _ _ _ _ mpigv) = getOldView vid viewMap
@@ -126,14 +128,8 @@ mkVisitView i = mkWebView (ViewId 0) $
                 (button (ViewId 1007) "Add" True (addPig visd)) pigIds pignames
                 [mkPigView i pigId viewedPig user db viewMap | (pigId,i) <- zip pigIds [0..]]
  where -- next and previous may cause out of bounds, but on reload, this is constrained
-       previous vi = mkViewEdit vi $
-         \(VisitView vid zipCode date viewedPig b1 b2 b3 pigs pignames mSubview) ->
-         VisitView vid zipCode date (viewedPig-1) b1 b2 b3 pigs pignames mSubview
-
-       next vi = mkViewEdit vi $
-         \(VisitView vid zipCode date viewedPig b1 b2 b3 pigs pignames mSubview) ->
-         VisitView vid zipCode date (viewedPig+1) b1 b2 b3 pigs pignames mSubview
-
+       previous vi = mkViewEdit vi $ modifyViewedPig (\x -> x - 1)
+       next vi = mkViewEdit vi $ modifyViewedPig (+1)
        addPig i = DocEdit $ addNewPig i 
 
 addNewPig vid db =
@@ -141,7 +137,7 @@ addNewPig vid db =
   in  (updateVisit vid $ \v -> v { pigs = pigs v ++ [newPigId] }) db'
 
 instance Presentable VisitView where
-  present (VisitView us zipCode date viewedPig b1 b2 b3 pigs pignames subviews) =
+  present (VisitView vid zipCode date viewedPig b1 b2 b3 pigs pignames subviews) =
         
     p << ("Visit at zip code "+++ present zipCode +++" on " +++ present date) +++
     p << ("Visited "++ show (length pigs) ++ " pig" ++ 
@@ -167,13 +163,14 @@ instance Initial VisitView where
 
 -- Pig -------------------------------------------------------------------------  
 
-data PigView = PigView PigId (Widget Button) Int Int (Widget EString) [Widget RadioView] (Either Int String) 
+data PigView = PigView PigId String (Widget Button) Int Int (Widget EString) [Widget RadioView] (Either Int String) 
                deriving (Eq, Show, Typeable, Data)
 
 mkPigView pignr i viewedPig = mkWebView (ViewId $ 10+pignr) $ 
       \user db viewMap vid ->
   let (Pig pid vid name [s0,s1,s2] diagnosis) = unsafeLookup (allPigs db) i
-  in  PigView pid (button (ViewId $ pignr*10000 + 10000) "remove" True ( ConfirmEdit ("Are you sure you want to remove pig "++show pignr++"?") $ 
+  in  PigView pid (imageUrl s0)
+              (button (ViewId $ pignr*10000 + 10000) "remove" True ( ConfirmEdit ("Are you sure you want to remove pig "++show (pignr+1)++"?") $ 
                                    removePigAlsoFromVisit pid vid)) 
               viewedPig pignr (estr (ViewId $ pignr*10000 + 10001) name) 
                 [ radioView (ViewId $ pignr*10000 + 10002) ["Pink", "Grey"] s0 True
@@ -182,80 +179,36 @@ mkPigView pignr i viewedPig = mkWebView (ViewId $ 10+pignr) $
                 ] diagnosis
  where removePigAlsoFromVisit pid vid =
          DocEdit $ removePig pid . updateVisit vid (\v -> v { pigs = delete pid $ pigs v } )  
+       
+       imageUrl s0 = "pig"++pigColor s0++pigDirection++".png" 
+       pigColor s0 = if s0 == 1 then "Grey" else ""
+       pigDirection = if viewedPig < pignr then "Left" 
+                      else if viewedPig > pignr then "Right" else ""
 
 instance Presentable PigView where
-  present (PigView pid b _ pignr name [] diagnosis) = stringToHtml "initial pig"
-  present (PigView pid b viewedPig pignr name [tv, kl, ho] diagnosis) =
+  present (PigView pid _ b _ pignr name [] diagnosis) = stringToHtml "initial pig"
+  present (PigView pid imageUrl b viewedPig pignr name [co, ab, as] diagnosis) =
     withBgColor (if viewedPig == pignr then Rgb 200 200 200 else Rgb 225 225 225) $
       boxed $
-        (center $ image $ pigImage) +++
+        (center $ image $ imageUrl) +++
         (center $ " nr. " +++ show (pignr+1)) +++
         p << (center $ (present b)) +++
         p << ("Name:" +++ present name) +++
         p << "Pig color: " +++
-        present tv +++
+        present co +++
         p << "Has had antibiotics: " +++
-        present kl +++
+        present ab +++
         p << "Antibiotics successful: " +++
-        present ho
-   where pigImage | viewedPig == pignr = "pig.png"
-                  | viewedPig < pignr = "pigLeft.png"
-                  | viewedPig > pignr = "pigRight.png"
+        present as
 
 instance Storeable PigView where
-  save (PigView pid _ _ _ name symptoms diagnosis) =
+  save (PigView pid _ _ _ _ name symptoms diagnosis) =
     updatePig pid (\(Pig _ vid _ _ diagnosis) -> 
                     (Pig pid vid (getStrVal name) (map getSelection symptoms) diagnosis)) 
 
 instance Initial PigView where
-  initial = PigView initial initial initial initial initial initial initial
+  initial = PigView initial "" initial initial initial initial initial initial
 
-
-
-
-
--- Login -----------------------------------------------------------------------  
-
-data LoginView = LoginView (Widget EString) (Widget EString) (Widget Button) 
-  deriving (Eq, Show, Typeable, Data)
-
-mkLoginView = mkWebView (ViewId (44)) $
-      \user db viewMap vid ->
-        let (LoginView name password b) = getOldView vid viewMap
-        in  LoginView (estr (ViewId 3000) $ getStrVal name) 
-                      (epassword (ViewId 3001) $ getStrVal password) 
-                      (button (ViewId 3002) "Login" True $ 
-                         AuthenticateEdit (mkViewRef (ViewId 3000)) 
-                                          (mkViewRef (ViewId 3001)))
-
-instance Storeable LoginView where save _ = id
-                                   
-instance Presentable LoginView where
-  present (LoginView name password loginbutton) = 
-    boxed $ simpleTable [] [] [ [ stringToHtml "Login:", present name]
-                              , [ stringToHtml "Password:", present password]
-                              , [ present loginbutton ]
-                              ]
-            
-instance Initial LoginView where initial = LoginView initial initial initial
-
-
-
--- Logout ----------------------------------------------------------------------  
-
-data LogoutView = LogoutView (Widget Button) deriving (Eq, Show, Typeable, Data)
-
-mkLogoutView = mkWebView (ViewId (55)) $
-  \(Just (l,_)) db viewMap vid -> LogoutView (button (ViewId 4001) 
-                                             ("Logout " ++  l) True LogoutEdit)
-
-instance Storeable LogoutView where save _ = id
-                                   
-instance Presentable LogoutView where
-  present (LogoutView logoutbutton) = 
-    present logoutbutton
-            
-instance Initial LogoutView where initial = LogoutView initial
 
 
 
