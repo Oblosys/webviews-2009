@@ -222,18 +222,7 @@ storeSessionState globalStateRef sessionId sessionStateRef =
     }
  
 sessionHandler :: SessionStateRef -> Commands -> ServerPart Html
-sessionHandler sessionStateRef cmds = {- myAuth `mplus` -} {-
- do { mAuthHeader <- getHeaderM "authorization"
-    ; let (s1,s2) = case mAuthHeader of
-                           Nothing         -> ("-","-") 
-                           Just authHeader -> parseHeader authHeader    
-    ; liftIO $ print $ s1 ++ " " ++ s2
-    ; unauthorized ()
-    ; setHeaderM "WWW-Authenticate" "Basic realm=\"WebViews\""
-    ; return $ toResponse $ stringToHtml "bla"
-    }
--}
-     liftIO $  
+sessionHandler sessionStateRef cmds = liftIO $  
  do { putStrLn $ "Received commands" ++ show cmds
     
     ; (_, _, db, oldRootView', _) <- readIORef sessionStateRef
@@ -301,11 +290,6 @@ sessionHandler sessionStateRef cmds = {- myAuth `mplus` -} {-
                      (thediv![ strAttr "op" "confirm"
                              , strAttr "text" str
                              ] << noHtml) 
-{-        Authenticate  -> 
-          return $ thediv ! [identifier "updates"] <<
-                     (thediv![ strAttr "op" "authenticate"
-                             ] << noHtml) 
--}        
     ; return responseHtml
     } `Control.Exception.catch` \(exc :: SomeException) ->
        do { let exceptionTxt = 
@@ -332,6 +316,8 @@ readCommand s = case safeRead s of
                   Nothing   -> SyntaxError s
 
  
+data ServerResponse = ViewUpdate | Alert String | Confirm String deriving (Show, Eq)
+
 -- handle each command in commands and send the updates back
 handleCommands sessionStateRef (SyntaxError cmdStr) =
   error $ "Syntax error in commands from client: "++cmdStr 
@@ -345,7 +331,7 @@ handleCommands sessionStateRef (Commands commands) =
                     -- probably okay if they are all ViewUpdates
     } -- TODO: think of a way to handle multiple commands and dialogs etc.
       --       make sure that id's are not generated between commands
-data ServerResponse = ViewUpdate | Alert String | Confirm String {- | Authenticate -} deriving (Show, Eq)
+
 
 handleCommand :: SessionStateRef -> Command -> IO ServerResponse
 handleCommand sessionStateRef Init =
@@ -436,10 +422,6 @@ performEditCommand sessionStateRef command =
 
     }
 
-safeRead s = case reads s of
-               [(x, "")] -> Just x
-               _         -> Nothing
-
 
 -- TODO id's may not be right. what if views changed and the fields get assigned different id's
 -- than when button was created?
@@ -485,44 +467,8 @@ lputStr = liftIO . putStr
 lputStrLn :: MonadIO m => String -> m ()
 lputStrLn = liftIO . putStrLn
 
-
-{- old http authentication
-
-authenticate = myAuth' `mplus` (return $ toResponse $ stringToHtml "tralalie")  
-unauthenticate =
- do { unauthorized ()
-    --; setHeaderM "WWW-Authenticate" "Basic realm=\"WebViews\""
-    ; return $ toResponse $ stringToHtml "Not Authorized"
-    }
-  
-myAuth' :: ServerPart Response
-myAuth' = fmap toResponse myAuth
-
-myAuth :: ServerPart Html
-myAuth = basicAuth' "WebViews"
-             (Map.fromList [("martijn", " "),("m", " ")]) (return $ stringToHtml "Login Failed")
-
-basicAuth' realmName authMap unauthorizedPart =
-    do
-        let validLogin name pass = Map.lookup name authMap == Just pass  
-        authHeader <- getHeaderM "authorization"
-        case authHeader of
-            Nothing -> err
-            Just x  -> case parseHeader x of 
-                (name, ':':pass) | validLogin name pass -> mzero
-                                   | otherwise -> err
-                _                              -> err
-    where
-        err = do
-            unauthorized ()
-            setHeaderM headerName headerValue
-            unauthorizedPart
-        headerValue = "Basic realm=\"" ++ realmName ++ "\""
-        headerName  = "WWW-Authenticate"
+safeRead s = case reads s of
+               [(x, "")] -> Just x
+               _         -> Nothing
 
 
-
-parseHeader :: Bytestring.ByteString -> (String,String)
-parseHeader = break (':'==) . Base64.decode . Bytestring.unpack . Bytestring.drop 6
-        
--}
