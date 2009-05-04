@@ -117,10 +117,10 @@ mkVisitsView sessionId = mkWebView (ViewId 2000) $
 
 instance Presentable VisitsView where
   present (VisitsView viewedVisit sessionId user visits prev next add remove selectButtons loginoutView mv) =
-        withPad 15 0 0 0 $ withBgColor (Rgb 235 235 235) $
+    withBgColor (Rgb 235 235 235) $ withPad 15 0 15 0 $
          (case user of
-           Nothing -> p << present loginoutView 
-           Just (_,name) -> p << stringToHtml ("Hello "++name++".") +++ present loginoutView) +++
+           Nothing -> present loginoutView 
+           Just (_,name) -> stringToHtml ("Hello "++name++".") +++ present loginoutView) +++
     p << ("List of all visits     (session# "++show sessionId++")") +++         
     p << ( hList [ withBgColor (Rgb 250 250 250) $ boxed $ withSize 400 100 $ 
           (simpleTable [] [] $ 

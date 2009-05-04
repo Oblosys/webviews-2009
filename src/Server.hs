@@ -273,7 +273,7 @@ sessionHandler sessionStateRef cmds = {- myAuth `mplus` -} {-
             --; putStrLn $ "rootView:\n" ++ show rootView'
             ; setRootView sessionStateRef rootView'
             --; putStrLn $ "database:\n" ++ show db
-            --; putStrLn $ "\n\n\nresponse = \n" ++ show responseHtml
+            ; putStrLn $ "\n\n\nresponse = \n" ++ show responseHtml
             --; putStrLn $ "Sending response sent to client: " ++
             --              take 10 responseHTML ++ "..."
             ; seq (length (show responseHtml)) $ return ()
