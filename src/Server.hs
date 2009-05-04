@@ -24,7 +24,8 @@ import qualified Codec.Binary.Base64.String as Base64
 import Types
 import Generics
 import Database
-import Views
+import WebViews
+import WebViewLib
 
 
 webViewsPort = 8085
