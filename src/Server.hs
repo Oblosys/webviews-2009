@@ -423,10 +423,8 @@ performEditCommand sessionStateRef command =
                           rootView' = replaceWebViewById i wv' rootView 
                                        -- TODO: check if mkViewMap has correct arg
                                        --       make function for loading rootView
-                      in  return (db, rootView')
-                          -- TODO: probably need a save rootView' here    
-                          -- now buttons that do db updates through the view won't
-                          -- register
+                      in  return (save rootView' db, rootView')
+                
                 ; writeIORef sessionStateRef (sessionId, user, db', rootView', pendingEdit)
                 ; reloadRootView sessionStateRef
                 --; putStrLn $ "\n\n\n\view before edit:" ++ show rootView
