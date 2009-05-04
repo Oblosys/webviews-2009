@@ -26,6 +26,7 @@ mkRootView user db sessionId viewMap =
   mkVisitsView sessionId user db viewMap
 
 
+
 -- Visits ----------------------------------------------------------------------  
 
 data VisitsView = 

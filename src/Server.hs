@@ -241,6 +241,7 @@ sessionHandler sessionStateRef cmds = liftIO $
          do { rootViewWithoutIds <- getRootView sessionStateRef
               -- this is the modified rootView                      
                                     
+            -- save the database if there was a change
             ; (_, _, db', _, _) <- readIORef sessionStateRef
             ; if db /= db' then 
                do { fh <- openFile "Database.txt" WriteMode
@@ -255,11 +256,8 @@ sessionHandler sessionStateRef cmds = liftIO $
               
               
             ; (responseHtml, rootView') <- mkIncrementalUpdates oldRootView rootView
-          {-   thediv ! [identifier "updates"] <<
-                             updateReplaceHtml "root" 
-                               (mkDiv "root" $ present $ rootView)
-          -}
-           -- ; putStrLn $ "View tree:\n" ++ drawWebNodes (WebViewNode rootView) 
+            
+            --; putStrLn $ "View tree:\n" ++ drawWebNodes (WebViewNode rootView) 
             --; putStrLn $ "View tree':\n" ++ drawWebNodes (WebViewNode rootView') 
             --; putStrLn $ "rootView:\n" ++ show rootView'
             ; setRootView sessionStateRef rootView'
@@ -268,41 +266,31 @@ sessionHandler sessionStateRef cmds = liftIO $
             --; putStrLn $ "Sending response sent to client: " ++
             --              take 10 responseHTML ++ "..."
             ; seq (length (show responseHtml)) $ return ()
-           {- ; case cmds of
-                (Commands [SetC 10 _]) -> 
-                 do { putStrLn "10 was edited\n\n\n\n" 
-                    ; let html = thediv ! [identifier "updates"] <<
-                            thediv![strAttr "op" "special", strAttr "targetId" "root" ] <<   
-                              (mkDiv "root" $ present $ rootView)
-                    ; putStrLn $ "\n\n\nresponse = \n" ++ show html
-                    ; return html
-                    }
-                _ ->  return responseHtml -}
             ; return responseHtml
             }
         Alert str -> 
           return $ thediv ! [identifier "updates"] <<
-                     (thediv![ strAttr "op" "alert"
-                             , strAttr "text" str
-                             ] << noHtml) 
+                   (thediv![ strAttr "op" "alert"
+                           , strAttr "text" str
+                           ] << noHtml) 
         Confirm str  -> 
           return $ thediv ! [identifier "updates"] <<
-                     (thediv![ strAttr "op" "confirm"
-                             , strAttr "text" str
-                             ] << noHtml) 
+                    (thediv![ strAttr "op" "confirm"
+                            , strAttr "text" str
+                            ] << noHtml) 
+    
     ; return responseHtml
     } `Control.Exception.catch` \(exc :: SomeException) ->
        do { let exceptionTxt = 
                   "\n\n\n\n###########################################\n\n\n" ++
                   "Exception: " ++ show exc ++ "\n\n\n" ++
                   "###########################################" 
-                  -- TODO: some exceptions cause program to hang when printed!
+          
           ; putStrLn exceptionTxt
           ; return $ thediv ! [identifier "updates"] <<
                        updateReplaceHtml "root" 
-                         (mkDiv "root" $ map (p . stringToHtml) $ lines exceptionTxt)
+                        (mkDiv "root" $ map (p . stringToHtml) $ lines exceptionTxt)
           }
---    }
  where evaluateDbAndRootView sessionStateRef =
         do { dbRootView <- liftIO $ readIORef sessionStateRef
            ; seq (length $ show dbRootView) $ return ()
