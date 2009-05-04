@@ -85,11 +85,19 @@ server =
  do { serverSessionId <- epochTime
     ; globalStateRef <- newIORef initGlobalState
     
-    ; fh <- openFile "Database.txt" ReadMode
-    ; dbStr <- hGetContents fh 
-    ; seq (length dbStr) $ return ()
-    ; hClose fh
-    
+    ; dbStr <-
+       do { fh <- openFile "Database.txt" ReadMode
+          ; dbStr <- hGetContents fh 
+          ; seq (length dbStr) $ return ()
+          ; hClose fh
+          ; return dbStr
+          } `Control.Exception.catch` \(exc :: SomeException) ->
+       do { putStrLn $ "On opening Database.txt:\n"
+          ; putStrLn $ "Exception "++ show exc
+          ; putStrLn $ "\nUsing default database."
+          ; return ""
+          }
+       
     ; case safeRead dbStr of
         Just db -> modifyIORef globalStateRef $
                      \(_, sessions, sessionCounter) -> (db, sessions, sessionCounter)
