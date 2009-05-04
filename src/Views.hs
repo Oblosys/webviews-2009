@@ -111,24 +111,25 @@ mkVisitsView sessionId = mkWebView (ViewId 2000) $
 
 instance Presentable VisitsView where
   present (VisitsView viewedVisit sessionId user visits prev next add remove loginoutView mv) =
-        withBgColor (Rgb 235 235 235) $
+        withBgColor (Rgb 235 235 235) $ withPad 15 0 0 0 $
          (case user of
            Nothing -> p << present loginoutView 
            Just (_,name) -> p << stringToHtml ("Hello "++name++".") +++ present loginoutView) +++
     p << ("List of all visits     (session# "++show sessionId++")") +++         
-    p << (simpleTable [] [] $ 
-            [ stringToHtml "Nr.", stringToHtml "Zip", stringToHtml "Date"] :
+    p << (withSize 400 100 $ boxed $ withBgColor (Rgb 250 250 250) $
+          (simpleTable [] [] $ 
+            [ stringToHtml "Nr. ", stringToHtml "Zip  ", stringToHtml "Date"] :
             [ [ stringToHtml $ show i
               , (if i == viewedVisit then bold  else id) $ stringToHtml zipCode 
               , (if i == viewedVisit then bold  else id) $ stringToHtml date 
               ] 
-            | (i,(zipCode, date)) <- zip [0..] visits]) +++
+            | (i,(zipCode, date)) <- zip [0..] visits])) +++
     p << ((if null visits then "There are no visits. " else "Viewing visit nr. "++ show (viewedVisit+1) ++ ".") +++ 
           "    " +++ present prev +++ present next) +++ 
     p << (present add +++ present remove) +++
-    withPad 15 0 0 0 (boxed (case mv of
-               Nothing -> stringToHtml "No visits."
-               Just pv -> present pv)) 
+    boxed (case mv of
+             Nothing -> stringToHtml "No visits."
+             Just pv -> present pv) 
 
 instance Storeable VisitsView where
   save _ = id
@@ -354,10 +355,16 @@ vList views = simpleTable [] [] [ [v] | v <- views ]
 data Color = Rgb Int Int Int
            | Color String deriving Show
 
-withBgColor (Rgb r g b) h = let colorStr = "#" ++ toHex2 r ++ toHex2 g ++ toHex2 b
-                            in  thediv ! [thestyle $ "background-color: "++ colorStr ++";"] << h
-withBgColor (Color colorStr) h = thediv ! [thestyle $ "background-color: "++colorStr++";"] << h
+withBgColor color elt = thediv ! [bgColorAttr color] << elt
 
+bgColorAttr color = 
+  let colorStr = case color of
+                     Rgb r g b      -> "#" ++ toHex2 r ++ toHex2 g ++ toHex2 b
+                     Color colorStr -> colorStr
+  in thestyle $ "background-color: "++colorStr++";"
+
+withSize width height elt = thediv! [thestyle $ "width: "++show width++"px;" ++
+                                                "height: "++show height++"px;"] << elt
 -- Utils
 
 lputStr :: MonadIO m => String -> m ()
