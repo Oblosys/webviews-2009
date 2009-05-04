@@ -24,6 +24,8 @@ import HtmlLib
 --       use a monad for auto handling listeners to database
 
 
+-- When loading from different point than root, make sure Id's are not messed up
+
 instance Storeable WebView where
   save (WebView _ _ _ _ v) =
     let topLevelWebViews = getTopLevelWebViews v
@@ -53,11 +55,16 @@ applyIfCorrectType f x = case cast f of
 -- like in Proxima
 
 mkWebView :: (Presentable v, Storeable v, Initial v, Show v, Eq v, Data v) =>
-             ViewId -> (User -> Database -> ViewMap -> ViewId -> v) -> User -> Database -> ViewMap -> WebView
-mkWebView vid wvcnstr user db viewMap = loadView user db viewMap $
-  WebView vid noId noId wvcnstr initial
+             (User -> Database -> ViewMap -> Int -> ViewId -> (v, Int)) -> 
+             User -> Database -> ViewMap -> Int -> (WebView, Int)
+mkWebView wvcnstr user db viewMap viewIdCounter = loadView user db viewMap viewIdCounter $
+  WebView noViewId noId noId wvcnstr initial
 
-loadView user db viewMap (WebView vid si i f _) = (WebView vid si i f (f user db viewMap vid))
+loadView :: User -> Database -> ViewMap -> Int -> WebView -> (WebView, Int)
+loadView user db viewMap viewIdCounter (WebView vid si i f _) =
+  let vid = ViewId viewIdCounter
+      (view,viewIdCounter') = f user db viewMap (viewIdCounter+1) vid
+  in  (WebView vid si i f view,viewIdCounter')
 
 
 
@@ -126,14 +133,15 @@ instance Presentable AnyWidget where
 data LoginView = LoginView (Widget EString) (Widget EString) (Widget Button) 
   deriving (Eq, Show, Typeable, Data)
 
-mkLoginView = mkWebView (ViewId (44)) $
-      \user db viewMap vid ->
+mkLoginView = mkWebView $
+      \user db viewMap vidC vid ->
         let (LoginView name password b) = getOldView vid viewMap
-        in  LoginView (estr (ViewId 3000) $ getStrVal name) 
+        in  (LoginView (estr (ViewId 3000) $ getStrVal name) 
                       (epassword (ViewId 3001) $ getStrVal password) 
                       (button (ViewId 3002) "Login" True $ 
                          AuthenticateEdit (mkViewRef (ViewId 3000)) 
                                           (mkViewRef (ViewId 3001)))
+            , vidC)
 
 instance Storeable LoginView where save _ = id
                                    
@@ -152,9 +160,9 @@ instance Initial LoginView where initial = LoginView initial initial initial
 
 data LogoutView = LogoutView (Widget Button) deriving (Eq, Show, Typeable, Data)
 
-mkLogoutView = mkWebView (ViewId (55)) $
-  \(Just (l,_)) db viewMap vid -> LogoutView (button (ViewId 4001) 
-                                             ("Logout " ++  l) True LogoutEdit)
+mkLogoutView = mkWebView $
+  \(Just (l,_)) db viewMap vidC vid -> 
+   (LogoutView (button (ViewId 4001) ("Logout " ++  l) True LogoutEdit), vidC)
 
 instance Storeable LogoutView where save _ = id
                                    

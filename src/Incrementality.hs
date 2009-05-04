@@ -158,7 +158,7 @@ getBreadthFirstWebNodes rootView =
        
 mkIncrementalUpdates oldViewMap rootView =
  do { let (newWebNodes, updates) = diffViews oldViewMap rootView
-    --; putStrLn $ "\nChanged or new web nodes\n" ++ unlines (map shallowShowWebNode newWebNodes) 
+    ; putStrLn $ "\nChanged or new web nodes\n" ++ unlines (map shallowShowWebNode newWebNodes) 
     --; putStrLn $ "\nUpdates\n" ++ unlines (map show updates)
     
     ; let responseHtml = thediv ! [identifier "updates"] <<

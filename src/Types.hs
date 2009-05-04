@@ -169,7 +169,7 @@ type ViewMap = Map.Map ViewId WebView
 -- no class viewable, because mkView has parameters
 data WebView = forall view . ( Initial view, Presentable view, Storeable view
                              , Show view, Eq view, Data view) => 
-                             WebView ViewId Id Id (User -> Database -> ViewMap -> ViewId -> view) view
+                             WebView ViewId Id Id (User -> Database -> ViewMap -> Int -> ViewId -> (view, Int)) view
                              deriving Typeable
 -- (view->view) is the load view function. It is not in a class because we want to parameterize it
 -- view is the actual view (which is 'updated')
@@ -247,8 +247,16 @@ instance Initial Button where
   initial = Button noId "<button>" False (DocEdit id)
 
 instance Initial WebView where
-  initial = WebView (ViewId (-1)) noId noId (\_ _ _ _ -> ()) ()
+  initial = WebView (ViewId (-1)) noId noId (\_ _ _ _ _ -> ((), error "Internal error: initial WebView evalutated")) ()
 
+
+
+-- once we have a monad, we can use the normal sequence here
+sequenceWV :: [Int -> (x, Int)] -> Int -> ([x], Int)
+sequenceWV [] vidC = ([], vidC)
+sequenceWV (f:fs) vidC = let (x,vidC') = f vidC
+                             (xs, vidC'') = sequenceWV fs vidC'
+                         in  (x:xs, vidC'')
 
 
 type MkViewState v = [v->v]
