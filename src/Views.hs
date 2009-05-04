@@ -71,15 +71,16 @@ loadView user db viewMap (WebView vid si i f _) = (WebView vid si i f (f user db
 data VisitsView = 
   VisitsView Int Int User [(String,String)] 
                  (Widget Button) (Widget Button) (Widget Button) (Widget Button) 
+                 [Widget Button]
                  WebView
                  (Maybe WebView)
     deriving (Eq, Show, Typeable, Data)
   
-modifyViewedVisit fn (VisitsView v a b c d e f g h i) = (VisitsView (fn v) a b c d e f g h i)
+modifyViewedVisit fn (VisitsView v a b c d e f g h i j) = (VisitsView (fn v) a b c d e f g h i j)
 
 mkVisitsView sessionId = mkWebView (ViewId 2000) $
   \user db viewMap vid ->
-  let (VisitsView oldViewedVisit _ _ _ _ _ _ _ _ _) = getOldView vid viewMap
+  let (VisitsView oldViewedVisit _ _ _ _ _ _ _ _ _ _) = getOldView vid viewMap
       viewedVisit = constrain 0 (length visits - 1) oldViewedVisit
       (visitIds, visits) = unzip $ Map.toList $ allVisits db
   in  VisitsView viewedVisit
@@ -94,6 +95,9 @@ mkVisitsView sessionId = mkWebView (ViewId 2000) $
                  (button (ViewId 2004) "Remove" (not $ null visits) $
                     ConfirmEdit ("Are you sure you want to remove this visit?") $ 
                                    (DocEdit $ removeVisit (visitIds !! viewedVisit)))
+                 [ button (ViewId $ 2005+p) (show p) (p/=viewedVisit) (selectVisit (ViewId 2000) p) 
+                 | p <- [0..length visits - 1] ]
+                
                  (if user == Nothing then (mkLoginView user db viewMap) 
                                     else (mkLogoutView user db viewMap))
                  
@@ -103,6 +107,8 @@ mkVisitsView sessionId = mkWebView (ViewId 2000) $
                    )
  where addNewVisit = DocEdit $ \db -> let ((Visit nvid _ _ _),db') = newVisit db 
                                       in  updateVisit nvid (\v -> v {date = today}) db' 
+       selectVisit vi v = mkViewEdit vi $ modifyViewedVisit (const v)
+
        today = unsafePerformIO $ -- only until we have a monad in mkView!! (probably doesn't even work now)
          do { clockTime <-  getClockTime
             ; ct <- toCalendarTime clockTime
@@ -110,23 +116,23 @@ mkVisitsView sessionId = mkWebView (ViewId 2000) $
             }
 
 instance Presentable VisitsView where
-  present (VisitsView viewedVisit sessionId user visits prev next add remove loginoutView mv) =
-        withBgColor (Rgb 235 235 235) $ withPad 15 0 0 0 $
+  present (VisitsView viewedVisit sessionId user visits prev next add remove selectButtons loginoutView mv) =
+        withPad 15 0 0 0 $ withBgColor (Rgb 235 235 235) $
          (case user of
            Nothing -> p << present loginoutView 
            Just (_,name) -> p << stringToHtml ("Hello "++name++".") +++ present loginoutView) +++
     p << ("List of all visits     (session# "++show sessionId++")") +++         
-    p << (withSize 400 100 $ boxed $ withBgColor (Rgb 250 250 250) $
+    p << ( hList [ withBgColor (Rgb 250 250 250) $ boxed $ withSize 400 100 $ 
           (simpleTable [] [] $ 
             [ stringToHtml "Nr. ", stringToHtml "Zip  ", stringToHtml "Date"] :
-            [ [ stringToHtml $ show i
+            [ [ present selectButton
               , (if i == viewedVisit then bold  else id) $ stringToHtml zipCode 
               , (if i == viewedVisit then bold  else id) $ stringToHtml date 
               ] 
-            | (i,(zipCode, date)) <- zip [0..] visits])) +++
+            | (i,selectButton,(zipCode, date)) <- zip3 [0..] selectButtons visits])])  +++
+    p << (present add +++ present remove) +++
     p << ((if null visits then "There are no visits. " else "Viewing visit nr. "++ show (viewedVisit+1) ++ ".") +++ 
           "    " +++ present prev +++ present next) +++ 
-    p << (present add +++ present remove) +++
     boxed (case mv of
              Nothing -> stringToHtml "No visits."
              Just pv -> present pv) 
@@ -135,7 +141,7 @@ instance Storeable VisitsView where
   save _ = id
    
 instance Initial VisitsView where                 
-  initial = VisitsView 0 initial initial initial initial initial initial initial initial initial
+  initial = VisitsView 0 initial initial initial initial initial initial initial initial initial initial
   
 
 data VisitView = 
@@ -148,19 +154,20 @@ mkVisitView i = mkWebView (ViewId 0) $
   \user db viewMap vid -> 
   let (VisitView _ _ _ oldViewedPig _ _ _ _ _ mpigv) = getOldView vid viewMap
       (Visit visd zipcode date pigIds) = unsafeLookup (allVisits db) i
-      viewedPig = constrain 0 (length pigIds - 1) $ oldViewedPig
+      nrOfPigs = length pigIds
+      viewedPig = constrain 0 (nrOfPigs - 1) $ oldViewedPig
       pignames = map (pigName . unsafeLookup (allPigs db)) pigIds
   in  VisitView i (estr (ViewId 1000) zipcode) (estr (ViewId 1001) date) viewedPig 
                 (button (ViewId 1003) "Previous" (viewedPig > 0) (previous (ViewId 0))) 
-                (button (ViewId 1005) "Next" (viewedPig < (length pigIds - 1)) (next (ViewId 0)))
+                (button (ViewId 1005) "Next" (viewedPig < (nrOfPigs - 1)) (next (ViewId 0)))
                 (button (ViewId 1007) "Add" True (addPig visd)) pigIds pignames
                 [mkPigView i pigId viewedPig user db viewMap | (pigId,i) <- zip pigIds [0..]]
  where -- next and previous may cause out of bounds, but on reload, this is constrained
-       previous i = mkViewEdit i $
+       previous vi = mkViewEdit vi $
          \(VisitView vid zipCode date viewedPig b1 b2 b3 pigs pignames mSubview) ->
          VisitView vid zipCode date (viewedPig-1) b1 b2 b3 pigs pignames mSubview
 
-       next i = mkViewEdit i $
+       next vi = mkViewEdit vi $
          \(VisitView vid zipCode date viewedPig b1 b2 b3 pigs pignames mSubview) ->
          VisitView vid zipCode date (viewedPig+1) b1 b2 b3 pigs pignames mSubview
 
@@ -364,7 +371,8 @@ bgColorAttr color =
   in thestyle $ "background-color: "++colorStr++";"
 
 withSize width height elt = thediv! [thestyle $ "width: "++show width++"px;" ++
-                                                "height: "++show height++"px;"] << elt
+                                                "height: "++show height++"px;" ++
+                                                "overflow: auto" ] << elt
 -- Utils
 
 lputStr :: MonadIO m => String -> m ()
