@@ -319,7 +319,7 @@ presentTextField :: EString -> Html
 presentTextField (EString (Id i) hidden str) = 
   let inputField = if hidden then password "" else textfield ""
   in mkSpan ("input"++show i) $  
-       form![ thestyle "display: inline", strAttr "onSubmit" "return false"] $
+       form![ thestyle "display: inline", strAttr "onSubmit" $ "textFieldChanged('"++show i++"');return false"] $
          inputField ! [identifier (show i), strAttr "VALUE" str
                       --, strAttr "onChange" $ "textFieldChanged('"++show i++"')"
                       , strAttr "onFocus" $ "elementGotFocus('"++show i++"')"
