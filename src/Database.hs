@@ -5,18 +5,18 @@ import Data.Generics
 import Data.Map (Map)
 import qualified Data.Map as Map 
 
-newtype VisitId = VisitId Int deriving (Show, Eq, Ord, Typeable, Data)
+newtype VisitId = VisitId Int deriving (Show, Read, Eq, Ord, Typeable, Data)
 
-newtype PigId = PigId Int deriving (Show, Eq, Ord, Typeable, Data)
+newtype PigId = PigId Int deriving (Show, Read, Eq, Ord, Typeable, Data)
 
 -- must be Typeable and Data, because update functions in views (which must be Data etc.) are Database->Database
 data Database = Database { allVisits :: Map VisitId Visit, allPigs :: Map PigId Pig }
-                  deriving (Show, Typeable,Data)
+                  deriving (Eq, Show, Read, Typeable,Data)
 
 data Visit = 
   Visit { visitId :: VisitId, zipCode :: String
         , date :: String, pigs :: [PigId]
-        } deriving (Show, Typeable, Data)
+        } deriving (Eq, Show, Read, Typeable, Data)
 
 updateVisit :: VisitId -> (Visit -> Visit) -> Database -> Database
 updateVisit i f db = 
@@ -38,7 +38,7 @@ newVisit db =
 data Pig = 
   Pig { pigId :: PigId, parentVisit :: VisitId, pigName :: String, symptoms :: [Int]
       , diagnose :: Either Int String 
-      } deriving (Show, Typeable,Data)
+      } deriving (Eq, Show, Read, Typeable,Data)
 
 -- put id in element? It is also in the map.
 

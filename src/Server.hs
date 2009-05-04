@@ -31,7 +31,9 @@ webViewsPort = 8085
 
 users :: Map String (String, String)
 users = Map.fromList [("martijn", ("p", "Martijn")), ("anonymous", ("", "gastgebruiker"))
-                     ,("alexey", ("mrchebas", "Pulpo")) ] 
+                     ,("alexey", ("mrchebas", "Pulpo")) 
+                     ,("lambert", ("bla", "Lambert"))
+                     ] 
 -- TODO: maybe this can be (a special) part of db?
 
 {-
@@ -82,6 +84,16 @@ setRootView sessionStateRef rootView =
 server =
  do { serverSessionId <- epochTime
     ; globalStateRef <- newIORef initGlobalState
+    
+    ; fh <- openFile "Database.txt" ReadMode
+    ; dbStr <- hGetContents fh 
+    ; seq (length dbStr) $ return ()
+    ; hClose fh
+    
+    ; case safeRead dbStr of
+        Just db -> modifyIORef globalStateRef $
+                     \(_, sessions, sessionCounter) -> (db, sessions, sessionCounter)
+        Nothing -> return ()
     ; simpleHTTP (Conf webViewsPort Nothing) $ 
         msum (handlers serverSessionId globalStateRef)
     }
@@ -107,8 +119,6 @@ handlers serverSessionId globalStateRef =
       fileServe [] "scr"  
   , dir "img" $
       fileServe [] "img"  
---  , dir "authenticate" $ authenticate
---  , dir "unauthenticate" $ unauthenticate 
   , debugFilter $ 
       dir "handle" $ 
         withData (\cmds -> methodSP GET $ session serverSessionId globalStateRef cmds)
@@ -225,9 +235,21 @@ sessionHandler sessionStateRef cmds = {- myAuth `mplus` -} {-
 
           
     ; response <- handleCommands sessionStateRef cmds
+    -- handleCommands modifies the state              
+                  
     ; responseHtml <- case response of
         ViewUpdate ->
          do { rootViewWithoutIds <- getRootView sessionStateRef
+              -- this is the modified rootView                      
+                                    
+            ; (_, _, db', _, _) <- readIORef sessionStateRef
+            ; if db /= db' then 
+               do { fh <- openFile "Database.txt" WriteMode
+                  ; hPutStr fh $ show db'
+                  ; hClose fh
+                  }
+               else return ()
+            
             ; let (rootView, _) = assignIds (clearIds rootViewWithoutIds, oldRootView) 
             -- this way, all new id's are unique, also with respect to old view                                    
             ; setRootView sessionStateRef rootView
@@ -239,7 +261,7 @@ sessionHandler sessionStateRef cmds = {- myAuth `mplus` -} {-
                                (mkDiv "root" $ present $ rootView)
           -}
            -- ; putStrLn $ "View tree:\n" ++ drawWebNodes (WebViewNode rootView) 
-            ; putStrLn $ "View tree':\n" ++ drawWebNodes (WebViewNode rootView') 
+            --; putStrLn $ "View tree':\n" ++ drawWebNodes (WebViewNode rootView') 
             --; putStrLn $ "rootView:\n" ++ show rootView'
             ; setRootView sessionStateRef rootView'
             --; putStrLn $ "database:\n" ++ show db
@@ -386,6 +408,7 @@ performEditCommand sessionStateRef command =
                     DocEdit docedit -> 
                       let db' = docedit db
                       in  return (db', rootView)
+                             
                     ViewEdit i viewedit -> 
                       let wv = getWebViewById i rootView
                           wv' = viewedit wv
@@ -393,7 +416,9 @@ performEditCommand sessionStateRef command =
                                        -- TODO: check if mkViewMap has correct arg
                                        --       make function for loading rootView
                       in  return (db, rootView')
-                              
+                          -- TODO: probably need a save rootView' here    
+                          -- now buttons that do db updates through the view won't
+                          -- register
                 ; writeIORef sessionStateRef (sessionId, user, db', rootView', pendingEdit)
                 ; reloadRootView sessionStateRef
                 --; putStrLn $ "\n\n\n\view before edit:" ++ show rootView
