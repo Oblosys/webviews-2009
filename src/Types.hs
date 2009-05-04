@@ -67,21 +67,24 @@ epassword viewId str = Widget viewId noId noId $ EString noId True str
 
 strRef (Widget _ _ _ (EString (Id i) h _)) = IdRef i
 
-data RadioView = RadioView { getIntId' :: Id, getItems :: [String], getSelection' :: Int } deriving (Show, Typeable, Data)
+data RadioView = RadioView { getIntId' :: Id, getItems :: [String], getSelection' :: Int 
+                           , getEnabled :: Bool 
+                           } deriving (Show, Typeable, Data)
 
 setSelection' :: Int -> RadioView -> RadioView 
-setSelection' s (RadioView i its _) = RadioView i its s
+setSelection' s (RadioView i its _ en) = RadioView i its s en
 
 setSelection s (Widget vi si i rv) = Widget vi si i $ setSelection' s rv
 
 instance Eq RadioView where
-  RadioView _ items1 int1 == RadioView _ items2 int2 = items1 == items2 && int1 == int2
+  RadioView _ items1 int1 enabled1 == RadioView _ items2 int2 enabled2 = 
+    items1 == items2 && int1 == int2 && enabled1 == enabled2
 
-getIntId (Widget _ _ _ (RadioView i is v)) = i
+getIntId (Widget _ _ _ (RadioView i is v _)) = i
 
-getSelection (Widget _ _ _ (RadioView i is v)) = v
+getSelection (Widget _ _ _ (RadioView i is v _)) = v
 
-radioView viewId its i = Widget viewId noId noId $ RadioView noId its i
+radioView viewId its i enabled = Widget viewId noId noId $ RadioView noId its i enabled
 
 data Button = Button { getButtonId' :: Id, buttonText :: String, getCommand' :: EditCommand } deriving (Show, Typeable, Data)
 
@@ -236,7 +239,7 @@ instance Initial EString where
   initial = EString (Id $ -1) False ""
 
 instance Initial RadioView where
-  initial = RadioView (Id $ -1) [] 0
+  initial = RadioView (Id $ -1) [] 0 True
 
 instance Initial Button where
   initial = Button noId "<button>" (DocEdit id)

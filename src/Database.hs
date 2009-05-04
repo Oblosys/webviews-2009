@@ -64,11 +64,11 @@ theDatabase = Database
                 , (VisitId 2, Visit (VisitId 2) "3581" "27-3-2009"
                     [ PigId 4, PigId 5])
                 ])
-  (Map.fromList [ (PigId 1, Pig (PigId 1) (VisitId 1) "Knir" [0,2,1] (Left 2))
+  (Map.fromList [ (PigId 1, Pig (PigId 1) (VisitId 1) "Knir" [0,0,0] (Left 2))
                 , (PigId 2, Pig (PigId 2) (VisitId 1) "Knar" [0,1,1] (Right "Malaria"))
-                , (PigId 3, Pig (PigId 3) (VisitId 1) "Knor" [1,1,1] (Left 3)) 
+                , (PigId 3, Pig (PigId 3) (VisitId 1) "Knor" [1,0,1] (Left 3)) 
                 , (PigId 4, Pig (PigId 4) (VisitId 1) "Piglet" [1,1,1] (Left 3)) 
-                , (PigId 5, Pig (PigId 5) (VisitId 1) "Pinky" [1,1,1] (Left 3)) 
+                , (PigId 5, Pig (PigId 5) (VisitId 1) "Pinky" [0,1,1] (Left 3)) 
                 ])
 --                    ]
   

@@ -120,11 +120,11 @@ instance Presentable VisitsView where
               , (if i == viewedVisit then bold  else id) $ stringToHtml date 
               ] 
             | (i,(zipCode, date)) <- zip [0..] visits]) +++
-    p << (present prev +++ "   " +++ (if null visits then "no visits" else show viewedVisit) +++ 
-          "    " +++ present next) +++ 
+    p << ((if null visits then "There are no visits. " else "Viewing visit nr. "++ show viewedVisit ++ ".") +++ 
+          "    " +++ present prev +++ present next) +++ 
     p << (present add +++ present remove) +++
     withPad 15 0 0 0 (boxed (case mv of
-               Nothing -> stringToHtml "no visits"
+               Nothing -> noHtml
                Just pv -> present pv)) 
 
 instance Storeable VisitsView where
@@ -147,9 +147,9 @@ mkVisitView i = mkWebView (ViewId 0) $
       viewedPig = constrain 0 (length pigIds - 1) $ oldViewedPig
       pignames = map (pigName . unsafeLookup (allPigs db)) pigIds
   in  VisitView i (estr (ViewId 1000) zipcode) (estr (ViewId 1001) date) viewedPig 
-                (button (ViewId 1003) "previous" (previous (ViewId 0))) 
-                (button (ViewId 1005) "next" (next (ViewId 0)))
-                (button (ViewId 1007) "add" (addPig visd)) pigIds pignames
+                (button (ViewId 1003) "Previous" (previous (ViewId 0))) 
+                (button (ViewId 1005) "Next" (next (ViewId 0)))
+                (button (ViewId 1007) "Add" (addPig visd)) pigIds pignames
                 [mkPigView i pigId viewedPig user db viewMap | (pigId,i) <- zip pigIds [0..]]
  where -- next and previous may cause out of bounds, but on reload, this is constrained
        previous i = mkViewEdit i $
@@ -169,11 +169,11 @@ addNewPig vid db =
 instance Presentable VisitView where
   present (VisitView us zipCode date viewedPig b1 b2 b3 pigs pignames subviews) =
         
-        p << ("Visit at "+++ present zipCode +++" on " +++ present date)
+        p << ("Visit at zip code "+++ present zipCode +++" on " +++ present date)
     +++ p << ("Visited "++ show (length pigs) ++ " pig" ++ pluralS (length pigs) ++ ": " ++
               listCommaAnd pignames)
-    +++ p << ((if null pigs then stringToHtml $ "Not viewing any pigs" 
-               else "Viewing pig nr. " +++ show viewedPig +++ "   ")
+    +++ p << ((if null pigs then stringToHtml $ "Not viewing any pigs.   " 
+               else "Viewing pig nr. " +++ show viewedPig +++ ".   ")
            +++ present b1 +++ present b2)
     +++ withPad 15 0 0 0 
             (hList $ map present subviews ++ [present b3] )
@@ -197,9 +197,9 @@ mkPigView pignr i viewedPig = mkWebView (ViewId $ 10+pignr) $
   in  PigView pid (button (ViewId $ pignr*10000 + 10000) "remove" ( ConfirmEdit ("Are you sure you want to remove pig "++show pignr++"?") $ 
                                    removePigAlsoFromVisit pid vid)) 
               viewedPig pignr (estr (ViewId $ pignr*10000 + 10001) name) 
-                [ radioView (ViewId $ pignr*10000 + 10002) ["Roze", "Grijs"] s0
-                , radioView (ViewId $ pignr*10000 + 10003) ["1", "2", "3"] s1
-                , radioView (ViewId $ pignr*10000 + 10004) ["Ja", "Nee"] s2
+                [ radioView (ViewId $ pignr*10000 + 10002) ["Pink", "Grey"] s0 True
+                , radioView (ViewId $ pignr*10000 + 10003) ["Yes", "No"] s1 True
+                , radioView (ViewId $ pignr*10000 + 10004) ["Yes", "No"] s2 (s1 == 0)
                 ] diagnosis
  where -- need db support for removal and we need parent
        removePigAlsoFromVisit pid vid =
@@ -215,13 +215,13 @@ instance Presentable PigView where
     +++ (center $ " nr. " +++ show (pignr+1))
     +++ p << (center $ (present b))
     +++ p << ("Name:" +++ present name)
-    +++ p << "Type varken: " 
+    +++ p << "Pig color: " 
     +++ present tv
-    +++ p << "Fase cyclus: "
+    +++ p << "Has had antibiotics: "
     +++ present kl
-    +++ p << "Haren overeind: "
+    +++ p << "Antibiotics successful: "
     +++ present ho
-    +++ p << ("diagnosis " ++ show diagnosis)
+--    +++ p << ("diagnosis " ++ show diagnosis)
     where pigImage | viewedPig == pignr = "pig.png"
                    | viewedPig < pignr = "pigLeft.png"
                    | viewedPig > pignr = "pigRight.png"
@@ -256,16 +256,18 @@ instance Storeable LoginView where save _ = id
                                    
 instance Presentable LoginView where
   present (LoginView name password loginbutton) = 
-    boxed $ ("Login:" +++ present name) +++
-            ("Password:" +++ present password) +++
-            present loginbutton
+    boxed $ simpleTable [] [] [ [ stringToHtml "Login:", present name]
+                              , [ stringToHtml "Password:", present password]
+                              , [ present loginbutton ]
+                              ]
             
 instance Initial LoginView where initial = LoginView initial initial initial
 
 data LogoutView = LogoutView (Widget Button) deriving (Eq, Show, Typeable, Data)
 
 mkLogoutView = mkWebView (ViewId (55)) $
-  \user db viewMap vid -> LogoutView (button (ViewId 4001) "Logout" LogoutEdit)
+  \(Just (l,_)) db viewMap vid -> LogoutView (button (ViewId 4001) 
+                                             ("Logout " ++  l) LogoutEdit)
 
 instance Storeable LogoutView where save _ = id
                                    
@@ -321,20 +323,22 @@ presentButton (Button (Id i) txt _) = mkSpan ("input"++show i) $
 -- TODO: text should be escaped
 
 presentRadioBox :: RadioView -> Html
-presentRadioBox (RadioView (Id i) items rv) = mkDiv ("input"++show i) $ radioBox (show i) items rv
+presentRadioBox (RadioView (Id i) items sel enabled) = 
+  mkDiv ("input"++show i) $ radioBox (show i) items sel enabled
 -- id is unique
 
 
 --radioBox :: String -> [String] -> Int -> Html
-radioBox id items selectedIx =
+radioBox id items selectedIx enabled =
   [ radio id (show i) ! ( [ strAttr "id" eltId 
                           , strAttr "onChange" ("queueCommand('SetC "++id++" %22"++show i++"%22')") 
                           , strAttr "onFocus" ("elementGotFocus('"++eltId++"')")
                           ]
-                          ++ if i == selectedIx then [strAttr "checked" ""] else []) 
+                          ++ (if enabled && i == selectedIx then [strAttr "checked" ""] else []) 
+                          ++ (if not enabled then [strAttr "disabled" ""] else [])) 
                           +++ item +++ br 
-                        | (i, item) <- zip [0..] items 
-                        , let eltId = "radio"++id++"button"++show i ]
+  | (i, item) <- zip [0..] items 
+  , let eltId = "radio"++id++"button"++show i ]
 
 
 hList [] = noHtml
@@ -511,7 +515,7 @@ getWebNodeStubId (WidgetNode _ si _ _) = si
 
 
 getWidgetInternalId :: AnyWidget -> Id
-getWidgetInternalId  (RadioViewWidget (RadioView id _ _)) = id
+getWidgetInternalId  (RadioViewWidget (RadioView id _ _ _)) = id
 getWidgetInternalId  (EStringWidget (EString id _ _)) = id
 getWidgetInternalId  (ButtonWidget (Button id _ _)) = id
             
@@ -598,7 +602,7 @@ drawWebNodes webnode = drawTree $ treeFromView webnode
        treeFromView (WidgetNode vid sid id w) =
          Node ("("++show vid++", stub:" ++ show (unId sid) ++ ", id:" ++ show (unId id) ++ ") : " ++ showAnyWidget w) $
               map treeFromView $ getTopLevelWebNodesWebNode w
-        where showAnyWidget (RadioViewWidget (RadioView id is i))    = "RadioView " ++ show id ++" " ++ (show i) ++ ": "++ show is
+        where showAnyWidget (RadioViewWidget (RadioView id is i e))    = "RadioView " ++ show id ++" " ++ (show i) ++(if e then "enabled" else "disabled") ++ ": "++ show is
               showAnyWidget (EStringWidget (EString id h s)) = "EString "++ show id ++" "++(if h then "password" else "normal")++ show s
               showAnyWidget (ButtonWidget (Button id _ _))  = "Button" ++ show id 
                  

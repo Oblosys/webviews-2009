@@ -36,7 +36,7 @@ mkWebNodeMap x = Map.fromList $ everything (++)
 getTopLevelWebNodesWebView :: WebView -> [WebNode]
 getTopLevelWebNodesWebView (WebView _ _ _ _ v) =
   everythingTopLevel (Nothing `mkQ`  (\w@(WebView vwId sid id _ _) -> Just $ WebViewNode w) 
-                              `extQ` (\w@(Widget vi stbid id x@(RadioView _ _ _))   -> Just $ WidgetNode vi stbid id (RadioViewWidget x))
+                              `extQ` (\w@(Widget vi stbid id x@(RadioView _ _ _ _))   -> Just $ WidgetNode vi stbid id (RadioViewWidget x))
                               `extQ` (\w@(Widget vi stbid id x@(EString _ _ _)) -> Just $ WidgetNode vi stbid id (EStringWidget x))
                               `extQ` (\w@(Widget vi stbid id x@(Button _ _ _))   -> Just $ WidgetNode vi stbid id (ButtonWidget x))
                      ) v             -- TODO can we do this bettter?
@@ -46,7 +46,7 @@ getTopLevelWebNodesWebView (WebView _ _ _ _ v) =
 getTopLevelWebNodesWebNode :: Data x => x -> [WebNode]
 getTopLevelWebNodesWebNode x = everythingTopLevel 
                      (Nothing `mkQ`  (\w@(WebView vwId sid id _ _) -> Just $ WebViewNode w) 
-                              `extQ` (\w@(Widget vi stbid id x@(RadioView _ _ _))   -> Just $ WidgetNode vi stbid id (RadioViewWidget x))
+                              `extQ` (\w@(Widget vi stbid id x@(RadioView _ _ _ _))   -> Just $ WidgetNode vi stbid id (RadioViewWidget x))
                               `extQ` (\w@(Widget vi stbid id x@(EString _ _ _)) -> Just $ WidgetNode vi stbid id (EStringWidget x))
                               `extQ` (\w@(Widget vi stbid id x@(Button _ _ _))   -> Just $ WidgetNode vi stbid id (ButtonWidget x))
                      ) x
@@ -138,9 +138,9 @@ replaceEString updates x@(EString i h _) =
     Nothing -> x
 
 replaceRadioView :: Updates -> RadioView -> RadioView
-replaceRadioView updates x@(RadioView i is _) =
+replaceRadioView updates x@(RadioView i is _ en) =
   case Map.lookup i updates of
-    Just str -> (RadioView i is (read str))
+    Just str -> (RadioView i is (read str) en)
     Nothing -> x
 
 substituteIds :: Data x => [(Id, Id)] -> x -> x 
