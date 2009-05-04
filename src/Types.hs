@@ -68,7 +68,7 @@ epassword viewId str = Widget viewId noId noId $ EString noId True str
 strRef (Widget _ _ _ (EString (Id i) h _)) = IdRef i
 
 data RadioView = RadioView { getIntId' :: Id, getItems :: [String], getSelection' :: Int 
-                           , getEnabled :: Bool 
+                           , getRadioEnabled :: Bool 
                            } deriving (Show, Typeable, Data)
 
 setSelection' :: Int -> RadioView -> RadioView 
@@ -86,12 +86,14 @@ getSelection (Widget _ _ _ (RadioView i is v _)) = v
 
 radioView viewId its i enabled = Widget viewId noId noId $ RadioView noId its i enabled
 
-data Button = Button { getButtonId' :: Id, buttonText :: String, getCommand' :: EditCommand } deriving (Show, Typeable, Data)
+data Button = Button { getButtonId' :: Id, buttonText :: String, getButtonEnabled :: Bool
+                     , getCommand' :: EditCommand 
+                     } deriving (Show, Typeable, Data)
 
 instance Eq Button where
-  Button _ txt1 _ == Button _ txt2 _ = txt1 == txt2
+  Button _ txt1 enabled1 _ == Button _ txt2 enabled2 _ = txt1 == txt2 && enabled1 == enabled2
 
-button viewId txt cmd = Widget viewId noId noId $ Button noId txt cmd 
+button viewId txt enabled cmd = Widget viewId noId noId $ Button noId txt enabled cmd
 
 data EditCommand = DocEdit (Database -> Database)
                  | ViewEdit (ViewId) (WebView -> WebView)
@@ -239,10 +241,10 @@ instance Initial EString where
   initial = EString (Id $ -1) False ""
 
 instance Initial RadioView where
-  initial = RadioView (Id $ -1) [] 0 True
+  initial = RadioView (Id $ -1) [] 0 False
 
 instance Initial Button where
-  initial = Button noId "<button>" (DocEdit id)
+  initial = Button noId "<button>" False (DocEdit id)
 
 instance Initial WebView where
   initial = WebView (ViewId (-1)) noId noId (\_ _ _ _ -> ()) ()

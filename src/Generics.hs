@@ -38,7 +38,7 @@ getTopLevelWebNodesWebView (WebView _ _ _ _ v) =
   everythingTopLevel (Nothing `mkQ`  (\w@(WebView vwId sid id _ _) -> Just $ WebViewNode w) 
                               `extQ` (\w@(Widget vi stbid id x@(RadioView _ _ _ _))   -> Just $ WidgetNode vi stbid id (RadioViewWidget x))
                               `extQ` (\w@(Widget vi stbid id x@(EString _ _ _)) -> Just $ WidgetNode vi stbid id (EStringWidget x))
-                              `extQ` (\w@(Widget vi stbid id x@(Button _ _ _))   -> Just $ WidgetNode vi stbid id (ButtonWidget x))
+                              `extQ` (\w@(Widget vi stbid id x@(Button _ _ _ _))   -> Just $ WidgetNode vi stbid id (ButtonWidget x))
                      ) v             -- TODO can we do this bettter?
 
 -- make sure this one is not called on a WebView, but on its child view
@@ -48,7 +48,7 @@ getTopLevelWebNodesWebNode x = everythingTopLevel
                      (Nothing `mkQ`  (\w@(WebView vwId sid id _ _) -> Just $ WebViewNode w) 
                               `extQ` (\w@(Widget vi stbid id x@(RadioView _ _ _ _))   -> Just $ WidgetNode vi stbid id (RadioViewWidget x))
                               `extQ` (\w@(Widget vi stbid id x@(EString _ _ _)) -> Just $ WidgetNode vi stbid id (EStringWidget x))
-                              `extQ` (\w@(Widget vi stbid id x@(Button _ _ _))   -> Just $ WidgetNode vi stbid id (ButtonWidget x))
+                              `extQ` (\w@(Widget vi stbid id x@(Button _ _ _ _))   -> Just $ WidgetNode vi stbid id (ButtonWidget x))
                      ) x
 -- lookup the view id and if the associated view is of the desired type, return it. Otherwise
 -- return initial
@@ -158,7 +158,7 @@ replaceWebViewById i wv rootView =
 
 getButtonById :: Data d => Id -> d -> Button
 getButtonById i view = 
-  case listify (\(Button i' _ _) -> i==i') view of
+  case listify (\(Button i' _ _ _) -> i==i') view of
     [b] -> b
     []  -> error $ "internal error: no button with id "++show i
     _   -> error $ "internal error: multiple buttons with id "++show i

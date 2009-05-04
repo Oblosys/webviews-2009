@@ -86,10 +86,12 @@ mkVisitsView sessionId = mkWebView (ViewId 2000) $
                  sessionId
                  user
                  [ (zipCode visit, date visit) | visit <- visits ]
-                 (button (ViewId 2001) "Previous" $ mkViewEdit (ViewId 2000) $ modifyViewedVisit (\x -> x-1)) 
-                 (button (ViewId 2002) "Next" $ mkViewEdit (ViewId 2000) $  modifyViewedVisit (+1))
-                 (button (ViewId 2003) "Add"  addNewVisit)
-                 (button (ViewId 2004) "Remove" $
+                 (button (ViewId 2001) "Previous" (viewedVisit > 0) $ 
+                    mkViewEdit (ViewId 2000) $ modifyViewedVisit (\x -> x-1)) 
+                 (button (ViewId 2002) "Next" (viewedVisit < (length visits - 1)) $ 
+                    mkViewEdit (ViewId 2000) $  modifyViewedVisit (+1))
+                 (button (ViewId 2003) "Add" True addNewVisit)
+                 (button (ViewId 2004) "Remove" (not $ null visits) $
                     ConfirmEdit ("Are you sure you want to remove this visit?") $ 
                                    (DocEdit $ removeVisit (visitIds !! viewedVisit)))
                  (if user == Nothing then (mkLoginView user db viewMap) 
@@ -115,16 +117,17 @@ instance Presentable VisitsView where
            Just (_,name) -> p << stringToHtml ("Hello "++name++".") +++ present loginoutView) +++
     p << ("List of all visits     (session# "++show sessionId++")") +++         
     p << (simpleTable [] [] $ 
-            [ stringToHtml "Zip", stringToHtml "Date"] :
-            [ [ (if i == viewedVisit then bold  else id) $ stringToHtml zipCode 
+            [ stringToHtml "Nr.", stringToHtml "Zip", stringToHtml "Date"] :
+            [ [ stringToHtml $ show i
+              , (if i == viewedVisit then bold  else id) $ stringToHtml zipCode 
               , (if i == viewedVisit then bold  else id) $ stringToHtml date 
               ] 
             | (i,(zipCode, date)) <- zip [0..] visits]) +++
-    p << ((if null visits then "There are no visits. " else "Viewing visit nr. "++ show viewedVisit ++ ".") +++ 
+    p << ((if null visits then "There are no visits. " else "Viewing visit nr. "++ show (viewedVisit+1) ++ ".") +++ 
           "    " +++ present prev +++ present next) +++ 
     p << (present add +++ present remove) +++
     withPad 15 0 0 0 (boxed (case mv of
-               Nothing -> noHtml
+               Nothing -> stringToHtml "No visits."
                Just pv -> present pv)) 
 
 instance Storeable VisitsView where
@@ -147,9 +150,9 @@ mkVisitView i = mkWebView (ViewId 0) $
       viewedPig = constrain 0 (length pigIds - 1) $ oldViewedPig
       pignames = map (pigName . unsafeLookup (allPigs db)) pigIds
   in  VisitView i (estr (ViewId 1000) zipcode) (estr (ViewId 1001) date) viewedPig 
-                (button (ViewId 1003) "Previous" (previous (ViewId 0))) 
-                (button (ViewId 1005) "Next" (next (ViewId 0)))
-                (button (ViewId 1007) "Add" (addPig visd)) pigIds pignames
+                (button (ViewId 1003) "Previous" (viewedPig > 0) (previous (ViewId 0))) 
+                (button (ViewId 1005) "Next" (viewedPig < (length pigIds - 1)) (next (ViewId 0)))
+                (button (ViewId 1007) "Add" True (addPig visd)) pigIds pignames
                 [mkPigView i pigId viewedPig user db viewMap | (pigId,i) <- zip pigIds [0..]]
  where -- next and previous may cause out of bounds, but on reload, this is constrained
        previous i = mkViewEdit i $
@@ -173,7 +176,7 @@ instance Presentable VisitView where
     +++ p << ("Visited "++ show (length pigs) ++ " pig" ++ pluralS (length pigs) ++ ": " ++
               listCommaAnd pignames)
     +++ p << ((if null pigs then stringToHtml $ "Not viewing any pigs.   " 
-               else "Viewing pig nr. " +++ show viewedPig +++ ".   ")
+               else "Viewing pig nr. " +++ show (viewedPig+1) +++ ".   ")
            +++ present b1 +++ present b2)
     +++ withPad 15 0 0 0 
             (hList $ map present subviews ++ [present b3] )
@@ -194,7 +197,7 @@ data PigView = PigView PigId (Widget Button) Int Int (Widget EString) [Widget Ra
 mkPigView pignr i viewedPig = mkWebView (ViewId $ 10+pignr) $ 
       \user db viewMap vid ->
   let (Pig pid vid name [s0,s1,s2] diagnosis) = unsafeLookup (allPigs db) i
-  in  PigView pid (button (ViewId $ pignr*10000 + 10000) "remove" ( ConfirmEdit ("Are you sure you want to remove pig "++show pignr++"?") $ 
+  in  PigView pid (button (ViewId $ pignr*10000 + 10000) "remove" True ( ConfirmEdit ("Are you sure you want to remove pig "++show pignr++"?") $ 
                                    removePigAlsoFromVisit pid vid)) 
               viewedPig pignr (estr (ViewId $ pignr*10000 + 10001) name) 
                 [ radioView (ViewId $ pignr*10000 + 10002) ["Pink", "Grey"] s0 True
@@ -246,7 +249,7 @@ mkLoginView = mkWebView (ViewId (44)) $
         let (LoginView name password b) = getOldView vid viewMap
         in  LoginView (estr (ViewId 3000) $ getStrVal name) 
                       (epassword (ViewId 3001) $ getStrVal password) 
-                      (button (ViewId 3002) "Login" $ AuthenticateEdit 
+                      (button (ViewId 3002) "Login" True $ AuthenticateEdit 
                                                         (mkViewRef (ViewId 3000)) 
                                                         (mkViewRef (ViewId 3001)))
 -- todo using the old id is not okay!
@@ -267,7 +270,7 @@ data LogoutView = LogoutView (Widget Button) deriving (Eq, Show, Typeable, Data)
 
 mkLogoutView = mkWebView (ViewId (55)) $
   \(Just (l,_)) db viewMap vid -> LogoutView (button (ViewId 4001) 
-                                             ("Logout " ++  l) LogoutEdit)
+                                             ("Logout " ++  l) True LogoutEdit)
 
 instance Storeable LogoutView where save _ = id
                                    
@@ -317,8 +320,9 @@ presentTextField (EString (Id i) hidden str) =
 
 -- seems like this one could be in Present
 presentButton :: Button -> Html
-presentButton (Button (Id i) txt _) = mkSpan ("input"++show i) $ 
-   primHtml $ "<button onclick=\"queueCommand('ButtonC "++show i++"')\""++
+presentButton (Button (Id i) txt enabled _) = mkSpan ("input"++show i) $ 
+   primHtml $ "<button " ++ (if enabled then "" else "disabled ") ++
+                      "onclick=\"queueCommand('ButtonC "++show i++"')\" "++
                       "onfocus=\"elementGotFocus('"++show i++"')\">"++txt++"</button>"
 -- TODO: text should be escaped
 
@@ -517,7 +521,7 @@ getWebNodeStubId (WidgetNode _ si _ _) = si
 getWidgetInternalId :: AnyWidget -> Id
 getWidgetInternalId  (RadioViewWidget (RadioView id _ _ _)) = id
 getWidgetInternalId  (EStringWidget (EString id _ _)) = id
-getWidgetInternalId  (ButtonWidget (Button id _ _)) = id
+getWidgetInternalId  (ButtonWidget (Button id _ _ _)) = id
             
 getBreadthFirstWebNodes :: WebView -> [WebNode]
 getBreadthFirstWebNodes rootView =
@@ -604,7 +608,7 @@ drawWebNodes webnode = drawTree $ treeFromView webnode
               map treeFromView $ getTopLevelWebNodesWebNode w
         where showAnyWidget (RadioViewWidget (RadioView id is i e))    = "RadioView " ++ show id ++" " ++ (show i) ++(if e then "enabled" else "disabled") ++ ": "++ show is
               showAnyWidget (EStringWidget (EString id h s)) = "EString "++ show id ++" "++(if h then "password" else "normal")++ show s
-              showAnyWidget (ButtonWidget (Button id _ _))  = "Button" ++ show id 
+              showAnyWidget (ButtonWidget (Button id _ _ _))  = "Button" ++ show id 
                  
 data T = T Char [T]
 t0 = T 'a' [T 'b' [T 'd' [], T 'e' []], T 'c' [], T 'f' [T 'g' []]]
