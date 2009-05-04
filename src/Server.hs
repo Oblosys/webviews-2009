@@ -26,7 +26,8 @@ import Generics
 import Database
 import WebViews
 import WebViewLib
-
+import Incrementality
+import HtmlLib
 
 webViewsPort = 8085
 
@@ -474,6 +475,16 @@ logout sessionStateRef =
     ; reloadRootView sessionStateRef
     ; return ViewUpdate
     }  
+
+
+-- Utils
+
+lputStr :: MonadIO m => String -> m ()
+lputStr = liftIO . putStr
+
+lputStrLn :: MonadIO m => String -> m ()
+lputStrLn = liftIO . putStrLn
+
 
 {- old http authentication
 
