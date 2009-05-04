@@ -26,6 +26,9 @@ mkRootView user db sessionId viewMap =
   mkVisitsView sessionId user db viewMap
 
 
+-- TODO: unknown button error has not been resolved yet!
+
+
 
 -- Visits ----------------------------------------------------------------------  
 
@@ -49,14 +52,14 @@ mkVisitsView sessionId = mkWebView (ViewId 2000) $
                  user
                  [ (zipCode visit, date visit) | visit <- visits ]
                  (button (ViewId 2001) "Previous" (viewedVisit > 0) $ 
-                    mkViewEdit (ViewId 2000) $ modifyViewedVisit (\x -> x-1)) 
+                    mkViewEdit vid $ modifyViewedVisit (\x -> x-1)) 
                  (button (ViewId 2002) "Next" (viewedVisit < (length visits - 1)) $ 
-                    mkViewEdit (ViewId 2000) $  modifyViewedVisit (+1))
+                    mkViewEdit vid $  modifyViewedVisit (+1))
                  (button (ViewId 2003) "Add" True addNewVisit)
                  (button (ViewId 2004) "Remove" (not $ null visits) $
                     ConfirmEdit ("Are you sure you want to remove this visit?") $ 
                                    (DocEdit $ removeVisit (visitIds !! viewedVisit)))
-                 [ button (ViewId $ 2005+p) (show p) (p/=viewedVisit) (selectVisit (ViewId 2000) p) 
+                 [ button (ViewId $ 2005+p) (show p) (p/=viewedVisit) (selectVisit vid p) 
                  | p <- [0..length visits - 1] ]
                 
                  (if user == Nothing then (mkLoginView user db viewMap) 
@@ -124,8 +127,8 @@ mkVisitView i = mkWebView (ViewId 0) $
       viewedPig = constrain 0 (nrOfPigs - 1) $ oldViewedPig
       pignames = map (pigName . unsafeLookup (allPigs db)) pigIds
   in  VisitView i (estr (ViewId 1000) zipcode) (estr (ViewId 1001) date) viewedPig 
-                (button (ViewId 1003) "Previous" (viewedPig > 0) (previous (ViewId 0))) 
-                (button (ViewId 1005) "Next" (viewedPig < (nrOfPigs - 1)) (next (ViewId 0)))
+                (button (ViewId 1003) "Previous" (viewedPig > 0) (previous vid)) 
+                (button (ViewId 1005) "Next" (viewedPig < (nrOfPigs - 1)) (next vid))
                 (button (ViewId 1007) "Add" True (addPig visd)) pigIds pignames
                 [mkPigView i pigId viewedPig user db viewMap | (pigId,i) <- zip pigIds [0..]]
  where -- next and previous may cause out of bounds, but on reload, this is constrained

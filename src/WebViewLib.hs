@@ -76,39 +76,32 @@ the update
 presentTextField :: EString -> Html
 presentTextField (EString (Id i) hidden str) = 
   let inputField = if hidden then password "" else textfield ""
-  in mkSpan ("input"++show i) $  
-       form![ thestyle "display: inline", strAttr "onSubmit" $ "textFieldChanged('"++show i++"');return false"] $
-         inputField ! [identifier (show i), strAttr "VALUE" str
-                      --, strAttr "onChange" $ "textFieldChanged('"++show i++"')"
-                      , strAttr "onFocus" $ "elementGotFocus('"++show i++"')"
-                      , strAttr "onBlur" $ "textFieldChanged('"++show i++"')"
-                      ]
+  in form![ thestyle "display: inline", strAttr "onSubmit" $ "textFieldChanged('"++show i++"');return false"] $
+       inputField ! [identifier (show i), strAttr "VALUE" str
+                    --, strAttr "onChange" $ "textFieldChanged('"++show i++"')"
+                    , strAttr "onFocus" $ "elementGotFocus('"++show i++"')"
+                    , strAttr "onBlur" $ "textFieldChanged('"++show i++"')"
+                    ]
 
 -- seems like this one could be in Present
 presentButton :: Button -> Html
-presentButton (Button (Id i) txt enabled _) = mkSpan ("input"++show i) $ 
+presentButton (Button (Id i) txt enabled _) = 
    primHtml $ "<button " ++ (if enabled then "" else "disabled ") ++
                       "onclick=\"queueCommand('ButtonC "++show i++"')\" "++
                       "onfocus=\"elementGotFocus('"++show i++"')\">"++txt++"</button>"
 -- TODO: text should be escaped
 
 presentRadioBox :: RadioView -> Html
-presentRadioBox (RadioView (Id i) items sel enabled) = 
-  mkDiv ("input"++show i) $ radioBox (show i) items sel enabled
--- id is unique
-
-
---radioBox :: String -> [String] -> Int -> Html
-radioBox id items selectedIx enabled =
-  [ radio id (show i) ! ( [ strAttr "id" eltId 
-                          , strAttr "onChange" ("queueCommand('SetC "++id++" %22"++show i++"%22')") 
+presentRadioBox (RadioView (Id id) items selectedIx enabled) = thespan << 
+  [ radio (show id) (show i) ! ( [ strAttr "id" eltId 
+                          , strAttr "onChange" ("queueCommand('SetC "++show id++" %22"++show i++"%22')") 
                           , strAttr "onFocus" ("elementGotFocus('"++eltId++"')")
                           ]
                           ++ (if enabled && i == selectedIx then [strAttr "checked" ""] else []) 
                           ++ (if not enabled then [strAttr "disabled" ""] else [])) 
                           +++ item +++ br 
   | (i, item) <- zip [0..] items 
-  , let eltId = "radio"++id++"button"++show i ]
+  , let eltId = "radio"++show id++"button"++show i ] -- these must be unique for setting focus
 
 instance Presentable WebView where
   present (WebView _ (Id stubId) _ _ _) = mkSpan (show stubId) << "ViewStub"
