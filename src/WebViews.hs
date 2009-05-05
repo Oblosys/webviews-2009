@@ -43,36 +43,34 @@ data VisitsView =
 modifyViewedVisit fn (VisitsView v a b c d e f g h i j) = (VisitsView (fn v) a b c d e f g h i j)
 
 mkVisitsView sessionId = mkWebView $
-  \user db viewMap vidC vid ->
-  let (VisitsView oldViewedVisit _ _ _ _ _ _ _ _ _ _) = getOldView vid viewMap
-      viewedVisit = constrain 0 (length visits - 1) oldViewedVisit
-      (visitIds, visits) = unzip $ Map.toList $ allVisits db
-      (loginOutView,vidC') = if user == Nothing then (mkLoginView user db viewMap vidC) 
-                             else (mkLogoutView user db viewMap vidC)
-      (visitView, vidC'') = (if null visits
-                            then (Nothing, vidC')
-                            else let (vw, vidC'') = mkVisitView (visitIds !! viewedVisit) user db viewMap vidC'
-                                 in  (Just vw, vidC'')
-                            )           
-  in  (VisitsView viewedVisit
-                 sessionId
-                 user
-                 [ (zipCode visit, date visit) | visit <- visits ]
-                 (button (ViewId 2001) "Previous" (viewedVisit > 0) $ 
-                    mkViewEdit vid $ modifyViewedVisit (\x -> x-1)) 
-                 (button (ViewId 2002) "Next" (viewedVisit < (length visits - 1)) $ 
-                    mkViewEdit vid $  modifyViewedVisit (+1))
-                 (button (ViewId 2003) "Add" True addNewVisit)
-                 (button (ViewId 2004) "Remove" (not $ null visits) $
-                    ConfirmEdit ("Are you sure you want to remove this visit?") $ 
+ \user db viewMap vid ->
+  do { let (VisitsView oldViewedVisit _ _ _ _ _ _ _ _ _ _) = getOldView vid viewMap
+           viewedVisit = constrain 0 (length visits - 1) oldViewedVisit
+           (visitIds, visits) = unzip $ Map.toList $ allVisits db
+     ; prevB <- mkButton "Previous" (viewedVisit > 0)  
+                  (mkViewEdit vid $ modifyViewedVisit (\x -> x-1))
+     ; nextB <- mkButton "Next" (viewedVisit < (length visits - 1))  
+                       (mkViewEdit vid (modifyViewedVisit (+1)))
+     ; addB <- mkButton "Add" True addNewVisit
+     ; removeB <- mkButton "Remove" (not $ null visits) 
+                         (ConfirmEdit ("Are you sure you want to remove this visit?") $ 
                                    (DocEdit $ removeVisit (visitIds !! viewedVisit)))
-                 [ button (ViewId $ 2005+p) (show p) (p/=viewedVisit) (selectVisit vid p) 
-                 | p <- [0..length visits - 1] ]
-                
-                 loginOutView
-                 
+     ; selectionBs <- sequence [ mkButton (show p) (p/=viewedVisit) (selectVisit vid p) 
+                                        | p <- [0..length visits - 1] ]
+
+     ; loginOutView <- if user == Nothing then WV $ mkLoginView user db viewMap 
+                             else WV $ mkLogoutView user db viewMap
+     ; visitView <-  if null visits
+                            then return Nothing
+                            else do { vw <- WV $ mkVisitView (visitIds !! viewedVisit) user db viewMap
+                                    ; return (Just vw)
+                                    }
+                             
+   ;  return $ VisitsView viewedVisit sessionId user
+                 [ (zipCode visit, date visit) | visit <- visits ]
+                 prevB nextB addB removeB selectionBs loginOutView
                  visitView
-      , vidC'')
+   }
  where addNewVisit = DocEdit $ \db -> let ((Visit nvid _ _ _),db') = newVisit db 
                                       in  updateVisit nvid (\v -> v {date = today}) db' 
        selectVisit vi v = mkViewEdit vi $ modifyViewedVisit (const v)
@@ -124,20 +122,25 @@ modifyViewedPig f (VisitView vid zipCode date viewedPig b1 b2 b3 pigs pignames m
   VisitView vid zipCode date (f viewedPig) b1 b2 b3 pigs pignames mSubview
 
 mkVisitView i = mkWebView $
-  \user db viewMap vidC vid -> 
-  let (VisitView _ _ _ oldViewedPig _ _ _ _ _ mpigv) = getOldView vid viewMap
-      (Visit visd zipcode date pigIds) = unsafeLookup (allVisits db) i
-      nrOfPigs = length pigIds
-      viewedPig = constrain 0 (nrOfPigs - 1) $ oldViewedPig
-      pignames = map (pigName . unsafeLookup (allPigs db)) pigIds
-      (pigViews, vidC') = sequenceWV [mkPigView i pigId viewedPig user db viewMap | (pigId,i) <- zip pigIds [0..]]
-                                     vidC
-  in  (VisitView i (estr (ViewId 1000) zipcode) (estr (ViewId 1001) date) viewedPig 
-                 (button (ViewId 1003) "Previous" (viewedPig > 0) (previous vid)) 
-                 (button (ViewId 1005) "Next" (viewedPig < (nrOfPigs - 1)) (next vid))
-                 (button (ViewId 1007) "Add" True (addPig visd)) pigIds pignames
-                 pigViews 
-      ,vidC')
+  \user db viewMap vid -> 
+    do { let (VisitView _ _ _ oldViewedPig _ _ _ _ _ mpigv) = getOldView vid viewMap
+             (Visit visd zipcode date pigIds) = unsafeLookup (allVisits db) i
+             nrOfPigs = length pigIds
+             viewedPig = constrain 0 (nrOfPigs - 1) $ oldViewedPig
+             pignames = map (pigName . unsafeLookup (allPigs db)) pigIds
+       ; zipT <- mkTextField zipcode 
+       ; dateT <- mkTextField date
+       ; prevB <- mkButton "Previous" (viewedPig > 0) (previous vid)
+       ; nextB <- mkButton "Next" (viewedPig < (nrOfPigs - 1)) (next vid)
+       ; addB <- mkButton "Add" True (addPig visd)
+                 
+       ; pigViews <- sequence [ WV $ mkPigView i pigId viewedPig user db viewMap 
+                              | (pigId,i) <- zip pigIds [0..] 
+                              ]
+                                     
+       ; return $ VisitView i zipT dateT 
+                    viewedPig prevB  nextB addB pigIds pignames pigViews 
+       }
  where -- next and previous may cause out of bounds, but on reload, this is constrained
        previous vi = mkViewEdit vi $ modifyViewedPig (\x -> x - 1)
        next vi = mkViewEdit vi $ modifyViewedPig (+1)
@@ -178,17 +181,21 @@ data PigView = PigView PigId String (Widget Button) Int Int (Widget EString) [Wi
                deriving (Eq, Show, Typeable, Data)
 
 mkPigView pignr i viewedPig = mkWebView $ 
-      \user db viewMap vidC vid ->
-  let (Pig pid vid name [s0,s1,s2] diagnosis) = unsafeLookup (allPigs db) i
-  in  (PigView pid (imageUrl s0)
-              (button (ViewId $ pignr*10000 + 10000) "remove" True ( ConfirmEdit ("Are you sure you want to remove pig "++show (pignr+1)++"?") $ 
-                                   removePigAlsoFromVisit pid vid)) 
-              viewedPig pignr (estr (ViewId $ pignr*10000 + 10001) name) 
-                [ radioView (ViewId $ pignr*10000 + 10002) ["Pink", "Grey"] s0 True
-                , radioView (ViewId $ pignr*10000 + 10003) ["Yes", "No"] s1 True
-                , radioView (ViewId $ pignr*10000 + 10004) ["Yes", "No"] s2 (s1 == 0)
-                ] diagnosis
-      , vidC)
+  \user db viewMap vid ->
+   do { let (Pig pid vid name [s0,s1,s2] diagnosis) = unsafeLookup (allPigs db) i
+      ; removeB <- mkButton "remove" True $ 
+                     ConfirmEdit ("Are you sure you want to remove pig "++show (pignr+1)++"?") $ 
+                                   removePigAlsoFromVisit pid vid              
+      ; nameT <- mkTextField name                             
+      ; rv1 <- mkRadioView ["Pink", "Grey"] s0 True
+      ; rv2 <- mkRadioView ["Yes", "No"] s1 True
+      ; rv3 <- mkRadioView ["Yes", "No"] s2 (s1 == 0)
+                
+      ; return $
+          PigView pid (imageUrl s0) removeB  
+            viewedPig pignr nameT 
+            [ rv1, rv2, rv3] diagnosis
+      }
  where removePigAlsoFromVisit pid vid =
          DocEdit $ removePig pid . updateVisit vid (\v -> v { pigs = delete pid $ pigs v } )  
        

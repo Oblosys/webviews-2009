@@ -251,14 +251,31 @@ instance Initial WebView where
 
 
 
--- once we have a monad, we can use the normal sequence here
-sequenceWV :: [Int -> (x, Int)] -> Int -> ([x], Int)
-sequenceWV [] vidC = ([], vidC)
-sequenceWV (f:fs) vidC = let (x,vidC') = f vidC
-                             (xs, vidC'') = sequenceWV fs vidC'
-                         in  (x:xs, vidC'')
+mkButton' str en ac vidC = (button (ViewId vidC) str en ac, vidC + 1)
+
+mkButton :: String -> Bool -> EditCommand -> WVMonad (Widget Button)
+mkButton str en ac = WV $ \vidC -> (button (ViewId vidC) str en ac, vidC + 1)
 
 
+mkRadioView is s en = WV $ \vidC -> (radioView (ViewId vidC) is s en, vidC +1)
+
+mkTextField str = WV $ \vidC -> (estr (ViewId vidC) str, vidC + 1)
+mkPasswordField str = WV $ \vidC -> (epassword (ViewId vidC) str, vidC + 1)
+
+widgetGetViewRef (Widget (ViewId vid) _ _ _) = ViewIdRef vid
+                  
+runWV :: Int -> WVMonad x -> (x, Int) 
+runWV i (WV f) = f i
+
+newtype WVMonad x = WV (Int -> (x, Int))
+
+instance Monad WVMonad where
+  return x = WV $ \i -> (x, i)   
+  
+  (WV ma) >>= f = WV $ \i -> let (a,i')  = ma i 
+                                 (WV b) = f a 
+                             in  b i'
+  
 type MkViewState v = [v->v]
 
 -- Identity will be IO

@@ -178,7 +178,7 @@ parseCookieSessionId serverInstanceId =
  
 initialRootView :: WebView
 initialRootView = fst $ assignIds $
-                    mkWebView (\_ _ _ vidC _ -> ((),vidC)) Nothing theDatabase Map.empty 0
+                    mkWebView (\_ _ _  _ -> return ()) Nothing theDatabase Map.empty 0
 -- this creates a WebView with stubid 0 and id 1
 -- for now, we count on that in the client
 -- TODO: change this to something more robust
