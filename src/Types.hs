@@ -20,7 +20,8 @@ getCommands _             = []
 
 data Command = Init | Refresh | Test 
              | SetC Int String 
-             | ButtonC Int 
+             | ButtonC Int
+             | PerformEditActionC Int 
              | ConfirmDialogOk 
                deriving (Eq, Show, Read) 
 
@@ -95,6 +96,14 @@ instance Eq Button where
 
 button viewId txt enabled cmd = Widget viewId noId noId $ Button noId txt enabled cmd
 
+
+data EditAction = EditAction { getActionId :: Id, getCommand :: EditCommand 
+                             } deriving (Show, Typeable, Data)
+
+instance Eq EditAction where
+  EditAction _ _ == EditAction _ _ = True
+  
+
 data EditCommand = DocEdit (Database -> Database)
                  | ViewEdit (ViewId) (WebView -> WebView)
                  | AlertEdit String 
@@ -162,6 +171,7 @@ instance Eq WebNode where
 data AnyWidget = RadioViewWidget RadioView 
                | EStringWidget EString 
                | ButtonWidget Button  
+               | EditActionWidget EditAction
                  deriving (Eq, Show, Typeable, Data)
                           
 type ViewMap = Map.Map ViewId WebView
@@ -246,6 +256,9 @@ instance Initial RadioView where
 instance Initial Button where
   initial = Button noId "<button>" False (DocEdit id)
 
+instance Initial EditAction where
+  initial = EditAction noId (DocEdit id)  
+
 instance Initial WebView where
   initial = WebView (ViewId (-1)) noId noId (\_ _ _ _ _ -> ((), error "Internal error: initial WebView evalutated")) ()
 
@@ -256,6 +269,9 @@ mkButton' str en ac vidC = (button (ViewId vidC) str en ac, vidC + 1)
 mkButton :: String -> Bool -> EditCommand -> WVMonad (Widget Button)
 mkButton str en ac = WV $ \vidC -> (button (ViewId vidC) str en ac, vidC + 1)
 
+-- editActions don't really need a ViewId, but they do need their internal ids updates, which
+-- is the easiest by putting them in Widgets.
+mkEditAction ac = WV $ \vidC -> (Widget (ViewId vidC) noId noId $ EditAction noId ac, vidC + 1)
 
 mkRadioView is s en = WV $ \vidC -> (radioView (ViewId vidC) is s en, vidC +1)
 

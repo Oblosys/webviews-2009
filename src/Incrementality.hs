@@ -148,6 +148,7 @@ getWidgetInternalId :: AnyWidget -> Id
 getWidgetInternalId  (RadioViewWidget (RadioView id _ _ _)) = id
 getWidgetInternalId  (EStringWidget (EString id _ _)) = id
 getWidgetInternalId  (ButtonWidget (Button id _ _ _)) = id
+getWidgetInternalId  (EditActionWidget (EditAction id _)) = id
             
 getBreadthFirstWebNodes :: WebView -> [WebNode]
 getBreadthFirstWebNodes rootView =
@@ -165,12 +166,12 @@ mkIncrementalUpdates oldViewMap rootView =
                            (map newWebNodeHtml newWebNodes +++
                             map updateHtml updates)
 
-    ; let subs = concat [ case upd of 
-                                    RestoreId (IdRef o) (IdRef n) -> [(Id o, Id n)]  
+    ; let subs = concat [ case upd of  -- TODO: fix something here
+                                    RestoreId (IdRef o) (IdRef n) -> [(Id n, Id o)]  
                                     Move _ _ _ -> []
                                 | upd <- updates
                                 ]
-    --; putStrLn $ "Id updates on rootView:" ++ show subs
+    ; putStrLn $ "Id updates on rootView:" ++ show subs
     -- todo: check restoration on views, and esp. on root.
     
     ; let rootView' = substituteIds subs rootView
@@ -222,7 +223,8 @@ drawWebNodes webnode = drawTree $ treeFromView webnode
               map treeFromView $ getTopLevelWebNodesWebNode w
         where showAnyWidget (RadioViewWidget (RadioView id is i e))    = "RadioView " ++ show id ++" " ++ (show i) ++(if e then "enabled" else "disabled") ++ ": "++ show is
               showAnyWidget (EStringWidget (EString id h s)) = "EString "++ show id ++" "++(if h then "password" else "normal")++ show s
-              showAnyWidget (ButtonWidget (Button id _ _ _))  = "Button" ++ show id 
+              showAnyWidget (ButtonWidget (Button id _ _ _))  = "Button " ++ show id 
+              showAnyWidget (EditActionWidget (EditAction id _))  = "EditAction " ++ show id
                  
 data T = T Char [T]
 t0 = T 'a' [T 'b' [T 'd' [], T 'e' []], T 'c' [], T 'f' [T 'g' []]]

@@ -31,6 +31,7 @@ mkWebNodeMap x = Map.fromList $ everything (++)
       `extQ` (\(Widget vid sid id w) -> [(vid, WidgetNode vid sid id $ RadioViewWidget w)])
       `extQ` (\(Widget vid sid id w) -> [(vid, WidgetNode vid sid id $ EStringWidget w)])
       `extQ` (\(Widget vid sid id w) -> [(vid, WidgetNode vid sid id $ ButtonWidget w)])
+      `extQ` (\(Widget vid sid id w) -> [(vid, WidgetNode vid sid id $ EditActionWidget w)])
   ) x    
 
 getTopLevelWebNodesWebView :: WebView -> [WebNode]
@@ -39,6 +40,7 @@ getTopLevelWebNodesWebView (WebView _ _ _ _ v) =
                               `extQ` (\w@(Widget vi stbid id x@(RadioView _ _ _ _))   -> Just $ WidgetNode vi stbid id (RadioViewWidget x))
                               `extQ` (\w@(Widget vi stbid id x@(EString _ _ _)) -> Just $ WidgetNode vi stbid id (EStringWidget x))
                               `extQ` (\w@(Widget vi stbid id x@(Button _ _ _ _))   -> Just $ WidgetNode vi stbid id (ButtonWidget x))
+                              `extQ` (\w@(Widget vi stbid id x@(EditAction _ _))   -> Just $ WidgetNode vi stbid id (EditActionWidget x))
                      ) v             -- TODO can we do this bettter?
 
 -- make sure this one is not called on a WebView, but on its child view
@@ -49,6 +51,7 @@ getTopLevelWebNodesWebNode x = everythingTopLevel
                               `extQ` (\w@(Widget vi stbid id x@(RadioView _ _ _ _))   -> Just $ WidgetNode vi stbid id (RadioViewWidget x))
                               `extQ` (\w@(Widget vi stbid id x@(EString _ _ _)) -> Just $ WidgetNode vi stbid id (EStringWidget x))
                               `extQ` (\w@(Widget vi stbid id x@(Button _ _ _ _))   -> Just $ WidgetNode vi stbid id (ButtonWidget x))
+                              `extQ` (\w@(Widget vi stbid id x@(EditAction _ _))   -> Just $ WidgetNode vi stbid id (EditActionWidget x))
                      ) x
 -- lookup the view id and if the associated view is of the desired type, return it. Otherwise
 -- return initial
@@ -162,6 +165,13 @@ getButtonById i view =
     [b] -> b
     []  -> error $ "internal error: no button with id "++show i
     _   -> error $ "internal error: multiple buttons with id "++show i
+
+getEditActionById :: Data d => Id -> d -> EditAction
+getEditActionById i view = 
+  case listify (\(EditAction i' _) -> i==i') view of
+    [b] -> b
+    []  -> error $ "internal error: no edit action with id "++show i
+    _   -> error $ "internal error: multiple edit actions with id "++show i
 
 --
 

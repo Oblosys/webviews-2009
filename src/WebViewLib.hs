@@ -100,6 +100,16 @@ presentButton (Button (Id i) txt enabled _) =
                             "onfocus=\"elementGotFocus('"++show i++"')\">"++txt++"</button>"
 -- TODO: text should be escaped
 
+
+-- Edit actions are a bit different, since they do not have a widget presentation.
+-- TODO: maybe combine edit actions with buttons, so they use the same command structure
+-- a descriptive text field can be added to the action, to let the server be able to show
+-- which button was pressed. However, it is not sure if this works okay with restoring id's
+-- though it probably works out, as the ea id is the only one needing restoration.
+withEditAction (Widget _ _ _ (EditAction (Id i) _)) elt = 
+  thespan![strAttr "onClick" $ "queueCommand('PerformEditActionC "++show i++"')"] << elt
+-- TODO fix it that these are not moved by incremental algorithm, so we don't need to present them
+
 presentRadioBox :: RadioView -> Html
 presentRadioBox (RadioView (Id id) items selectedIx enabled) = thespan << 
   [ radio (show id) (show i) ! ( [ strAttr "id" eltId 
@@ -124,6 +134,7 @@ instance Presentable AnyWidget where
   present (RadioViewWidget rv) = presentRadioBox rv 
   present (EStringWidget es) = presentTextField es 
   present (ButtonWidget b) = presentButton b 
+  present (EditActionWidget b) = stringToHtml "zakatoekoe"
 
 
 

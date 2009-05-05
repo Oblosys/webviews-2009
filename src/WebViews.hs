@@ -33,7 +33,7 @@ mkRootView user db sessionId viewMap =
 data VisitsView = 
   VisitsView Int Int User [(String,String)] 
                  (Widget Button) (Widget Button) (Widget Button) (Widget Button) 
-                 [Widget Button] WebView (Maybe WebView)
+                 [Widget EditAction] WebView (Maybe WebView)
     deriving (Eq, Show, Typeable, Data)
   
 modifyViewedVisit fn (VisitsView v a b c d e f g h i j) = VisitsView (fn v) a b c d e f g h i j
@@ -43,7 +43,7 @@ mkVisitsView sessionId = mkWebView $
   do { let (VisitsView oldViewedVisit _ _ _ _ _ _ _ _ _ _) = getOldView vid viewMap
            viewedVisit = constrain 0 (length visits - 1) oldViewedVisit
            (visitIds, visits) = unzip $ Map.toList $ allVisits db
-           
+                        
      ; prevB   <- mkButton "Previous" (viewedVisit > 0)                   $ prev vid
      ; nextB   <- mkButton "Next"     (viewedVisit < (length visits - 1)) $ next vid 
      ; addB    <- mkButton "Add" True addNewVisit
@@ -51,8 +51,9 @@ mkVisitsView sessionId = mkWebView $
                     ConfirmEdit ("Are you sure you want to remove this visit?") $ 
                       DocEdit $ removeVisit (visitIds !! viewedVisit)
                   
-     ; selectionBs <- sequence [ mkButton (show p) (p/=viewedVisit) (selectVisit vid p) 
-                               | p <- [0..length visits - 1] ]
+     ; selectionActions <- sequence [ mkEditAction $ selectVisit vid p 
+                                    | p <- [0..length visits - 1 ]
+                                    ]
 
      ; loginOutView <- if user == Nothing then mkLoginView user db viewMap 
                                           else mkLogoutView user db viewMap
@@ -64,8 +65,8 @@ mkVisitsView sessionId = mkWebView $
                              
      ;  return $ VisitsView viewedVisit sessionId user
                  [ (zipCode visit, date visit) | visit <- visits ]
-                 prevB nextB addB removeB selectionBs loginOutView
-                 visitView
+                 prevB nextB addB removeB selectionActions 
+                 loginOutView visitView
      }
  where prev vid = mkViewEdit vid $ modifyViewedVisit decrease
        next vid = mkViewEdit vid $ modifyViewedVisit increase
@@ -81,7 +82,8 @@ mkVisitsView sessionId = mkWebView $
             }
 
 instance Presentable VisitsView where
-  present (VisitsView viewedVisit sessionId user visits prev next add remove selectButtons loginoutView mv) =
+  present (VisitsView viewedVisit sessionId user visits prev next add remove 
+                      selectionActions loginoutView mv) =
     withBgColor (Rgb 235 235 235) $ withPad 15 0 15 0 $
       (case user of
          Nothing -> present loginoutView 
@@ -90,17 +92,20 @@ instance Presentable VisitsView where
       p << (hList [ withBgColor (Rgb 250 250 250) $ boxed $ withSize 400 100 $ 
              (simpleTable [] [] $ 
                [ stringToHtml "Nr. ", stringToHtml "Zip  ", stringToHtml "Date"] :
-               [ [ present selectButton
-                 , (if i == viewedVisit then bold  else id) $ stringToHtml zipCode 
-                 , (if i == viewedVisit then bold  else id) $ stringToHtml date 
+               [ [ withEditAction selectionAction $
+                     (if i == viewedVisit then bold  else id) $ stringToHtml $ show i
+                 , withEditAction selectionAction $
+                     (if i == viewedVisit then bold  else id) $ stringToHtml zipCode 
+                 , withEditAction selectionAction $
+                     (if i == viewedVisit then bold  else id) $ stringToHtml date 
                  ] 
-               | (i,selectButton,(zipCode, date)) <- zip3 [0..] selectButtons visits])])  +++
+               | (i, selectionAction, (zipCode, date)) <- zip3 [0..] selectionActions visits])])  +++
       p << (present add +++ present remove) +++
       p << ((if null visits then "There are no visits. " else "Viewing visit nr. "++ show (viewedVisit+1) ++ ".") +++ 
              "    " +++ present prev +++ present next) +++ 
       boxed (case mv of
                Nothing -> stringToHtml "No visits."
-               Just pv -> present pv) 
+               Just pv -> present pv) +++ concatHtml (map present selectionActions)
 
 instance Storeable VisitsView where
   save _ = id
@@ -108,7 +113,8 @@ instance Storeable VisitsView where
 instance Initial VisitsView where                 
   initial = VisitsView 0 initial initial initial initial initial initial initial initial initial initial
   
-  
+
+
 
 -- Visit -----------------------------------------------------------------------  
 
@@ -134,7 +140,7 @@ mkVisitView i = mkWebView $
        ; nextB <- mkButton "Next"     (viewedPig < (nrOfPigs - 1)) $ next vid
        ; addB  <- mkButton "Add"      True                         $ addPig visd
                  
-       ; pigViews <- sequence [ mkPigView i pigId viewedPig user db viewMap 
+       ; pigViews <- sequence [ mkPigView vid i pigId viewedPig user db viewMap 
                               | (pigId,i) <- zip pigIds [0..] 
                               ]
                                      
@@ -170,14 +176,16 @@ instance Initial VisitView where
 
 
 
+
 -- Pig -------------------------------------------------------------------------  
 
-data PigView = PigView PigId String (Widget Button) Int Int (Widget EString) [Widget RadioView] (Either Int String) 
+data PigView = PigView PigId (Widget EditAction) String (Widget Button) Int Int (Widget EString) [Widget RadioView] (Either Int String) 
                deriving (Eq, Show, Typeable, Data)
 
-mkPigView pignr i viewedPig = mkWebView $ 
+mkPigView parentViewId pignr i viewedPig = mkWebView $ 
   \user db viewMap vid ->
    do { let (Pig pid vid name [s0,s1,s2] diagnosis) = unsafeLookup (allPigs db) i
+      ; selectAction <- mkEditAction $ mkViewEdit parentViewId $ modifyViewedPig (\_ -> pignr)
       ; removeB <- mkButton "remove" True $ 
                      ConfirmEdit ("Are you sure you want to remove pig "++show (pignr+1)++"?") $ 
                        removePigAlsoFromVisit pid vid              
@@ -185,7 +193,7 @@ mkPigView pignr i viewedPig = mkWebView $
       ; rv1 <- mkRadioView ["Pink", "Grey"] s0 True
       ; rv2 <- mkRadioView ["Yes", "No"]    s1 True
       ; rv3 <- mkRadioView ["Yes", "No"]    s2 (s1 == 0)
-      ; return $ PigView pid (imageUrl s0) removeB  viewedPig pignr nameT 
+      ; return $ PigView pid selectAction (imageUrl s0) removeB  viewedPig pignr nameT 
                          [rv1, rv2, rv3] diagnosis
       }
  where removePigAlsoFromVisit pid vid =
@@ -197,9 +205,10 @@ mkPigView pignr i viewedPig = mkWebView $
                       else if viewedPig > pignr then "Right" else ""
 
 instance Presentable PigView where
-  present (PigView pid _ b _ pignr name [] diagnosis) = stringToHtml "initial pig"
-  present (PigView pid imageUrl b viewedPig pignr name [co, ab, as] diagnosis) =
-    withBgColor (if viewedPig == pignr then Rgb 200 200 200 else Rgb 225 225 225) $
+  present (PigView pid _ _ b _ pignr name [] diagnosis) = stringToHtml "initial pig"
+  present (PigView pid editAction imageUrl b viewedPig pignr name [co, ab, as] diagnosis) =
+    withEditAction editAction $
+    (withBgColor (if viewedPig == pignr then Rgb 200 200 200 else Rgb 225 225 225) $
       boxed $
         (center $ image $ imageUrl) +++
         (center $ " nr. " +++ show (pignr+1)) +++
@@ -210,12 +219,13 @@ instance Presentable PigView where
         p << "Has had antibiotics: " +++
         present ab +++
         p << "Antibiotics successful: " +++
-        present as
+        present as) +++
+        present editAction
 
 instance Storeable PigView where
-  save (PigView pid _ _ _ _ name symptoms diagnosis) =
+  save (PigView pid _ _ _ _ _ name symptoms diagnosis) =
     updatePig pid (\(Pig _ vid _ _ diagnosis) -> 
                     (Pig pid vid (getStrVal name) (map getSelection symptoms) diagnosis)) 
 
 instance Initial PigView where
-  initial = PigView initial "" initial initial initial initial initial initial
+  initial = PigView initial initial "" initial initial initial initial initial initial
