@@ -89,17 +89,22 @@ instance Presentable VisitsView where
          Nothing -> present loginoutView 
          Just (_,name) -> stringToHtml ("Hello "++name++".") +++ present loginoutView) +++
       p << ("List of all visits     (session# "++show sessionId++")") +++         
-      p << (hList [ withBgColor (Rgb 250 250 250) $ boxed $ withSize 400 100 $ 
-             (simpleTable [strAttr "cellPadding" "0", thestyle "border-collapse: collapse"] [] $ 
-               [ stringToHtml "Nr. ", stringToHtml "Zip  ", stringToHtml "Date"] :
-               [ [ withEditAction selectionAction $
-                     (if i == viewedVisit then bold  else id) $ stringToHtml $ show i
-                 , withEditAction selectionAction $
-                     (if i == viewedVisit then bold  else id) $ stringToHtml zipCode 
-                 , withEditAction selectionAction $
-                     (if i == viewedVisit then bold  else id) $ stringToHtml date 
-                 ] 
-               | (i, selectionAction, (zipCode, date)) <- zip3 [0..] selectionActions visits])])  +++
+      p << (hList [ withBgColor (Rgb 250 250 250) $ boxed $ withSize 150 100 $ 
+             (let rowAttrss = [] :
+                              [ [withEditActionAttr selectionAction] ++
+                                if i == viewedVisit then [ fgbgColorAttr (Rgb 255 255 255) (Rgb 0 0 255)
+                                                           ] else [] 
+                              | (i,selectionAction) <- zip [0..] selectionActions 
+                              ]
+                  rows = [ stringToHtml "Nr.    ", stringToHtml "Zip"+++spaces 3
+                         , (stringToHtml "Date"+++spaces 10) ]  :
+                         [ [stringToHtml $ show i, stringToHtml zipCode, stringToHtml date] 
+                         | (i, (zipCode, date)) <- zip [0..] visits
+                         ]
+              in  mkTable [strAttr "width" "100%", strAttr "cellPadding" "2", thestyle "border-collapse: collapse"] 
+                     rowAttrss rows
+               
+                 )])  +++
       p << (present add +++ present remove) +++
       p << ((if null visits then "There are no visits. " else "Viewing visit nr. "++ show (viewedVisit+1) ++ ".") +++ 
              "    " +++ present prev +++ present next) +++ 
