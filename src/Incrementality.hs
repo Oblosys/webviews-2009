@@ -123,8 +123,13 @@ getTopLevelWebNodesForWebNode (WebViewNode (WebView _ _ _ _ v)) = getTopLevelWeb
 
 restoreInternalIds (WidgetNode _ _ _ oldW) (WidgetNode _ _ _ newW) =  
   [ RestoreId (mkRef $ getWidgetInternalId newW) (mkRef $ getWidgetInternalId oldW) ]
-restoreInternalIds (WebViewNode _) (WebViewNode _) = [] 
+restoreInternalIds (WebViewNode oldWv) (WebViewNode newWv) =  
+  [ RestoreId (mkRef $ newId) (mkRef $ oldId)
+  | (oldId, newId) <- zip (webViewGetInternalIds oldWv) (webViewGetInternalIds newWv)
+  ]
+  
 restoreInternalIds _ _ = error "Internal error: restoreInternalIds, WebNode mismatch"
+
 
 
 traceArg str x = trace (str ++ show x) x
@@ -167,7 +172,7 @@ mkIncrementalUpdates oldViewMap rootView =
                             map updateHtml updates)
 
     ; let subs = concat [ case upd of  -- TODO: fix something here
-                                    RestoreId (IdRef o) (IdRef n) -> [(Id n, Id o)]  
+                                    RestoreId (IdRef o) (IdRef n) -> [(Id o, Id n)]  
                                     Move _ _ _ -> []
                                 | upd <- updates
                                 ]

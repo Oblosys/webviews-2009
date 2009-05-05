@@ -12,7 +12,11 @@ import qualified Data.IntSet as IntSet
 -- Generics
 
 
-data Tree = Bin Tree Tree | Leaf Char deriving (Show, Data, Typeable)
+data Tree = Bin Tree Tree | SecondTree Tree2 | ThirdTree Tree3 | FourthTree Tree4 | Leaf Char |IdLeaf Id deriving (Show, Data, Typeable)
+
+data Tree2 = FirstTree2 Tree  deriving (Show, Data, Typeable)
+data Tree3 = FirstTree3 Tree  deriving (Show, Data, Typeable)
+data Tree4 = FirstTree4 Tree  deriving (Show, Data, Typeable)
 
 mytree = Bin (Bin (Leaf 'a') (Leaf 'b')) (Leaf 'c')
 
@@ -40,7 +44,6 @@ getTopLevelWebNodesWebView (WebView _ _ _ _ v) =
                               `extQ` (\w@(Widget vi stbid id x@(RadioView _ _ _ _))   -> Just $ WidgetNode vi stbid id (RadioViewWidget x))
                               `extQ` (\w@(Widget vi stbid id x@(EString _ _ _)) -> Just $ WidgetNode vi stbid id (EStringWidget x))
                               `extQ` (\w@(Widget vi stbid id x@(Button _ _ _ _))   -> Just $ WidgetNode vi stbid id (ButtonWidget x))
-                              `extQ` (\w@(Widget vi stbid id x@(EditAction _ _))   -> Just $ WidgetNode vi stbid id (EditActionWidget x))
                      ) v             -- TODO can we do this bettter?
 
 -- make sure this one is not called on a WebView, but on its child view
@@ -51,7 +54,6 @@ getTopLevelWebNodesWebNode x = everythingTopLevel
                               `extQ` (\w@(Widget vi stbid id x@(RadioView _ _ _ _))   -> Just $ WidgetNode vi stbid id (RadioViewWidget x))
                               `extQ` (\w@(Widget vi stbid id x@(EString _ _ _)) -> Just $ WidgetNode vi stbid id (EStringWidget x))
                               `extQ` (\w@(Widget vi stbid id x@(Button _ _ _ _))   -> Just $ WidgetNode vi stbid id (ButtonWidget x))
-                              `extQ` (\w@(Widget vi stbid id x@(EditAction _ _))   -> Just $ WidgetNode vi stbid id (EditActionWidget x))
                      ) x
 -- lookup the view id and if the associated view is of the desired type, return it. Otherwise
 -- return initial
@@ -91,6 +93,36 @@ getWebViewContainingId (Id i) wv =
     Nothing -> Nothing -- id not found
   where isId (Id i') = if i == i' then Just i' else Nothing
 
+
+-- return internal id's but don't descend past Widgets or WebViews
+webViewGetInternalIds :: WebView -> [Id]        
+webViewGetInternalIds (WebView _ _ _ _ v) = 
+  let --stopcond = (False `mkQ` (((\wv@(WebView _ _ _ _ _) -> True) :: WebView -> Bool))) 
+      isId :: Id -> Bool
+      isId _ = True
+      stop :: GenericQ Bool
+      stop = False `mkQ` isWebView `extQ` isWidget1 `extQ` isWidget2 `extQ` isWidget3
+      isWebView :: WebView -> Bool -- TODO: aargh! just one is tricky with the type var in widget
+      isWebView _ = True
+      isWidget1 :: Widget RadioView -> Bool
+      isWidget1 _ = True
+      isWidget2 :: Widget EString -> Bool
+      isWidget2 _ = True
+      isWidget3 :: Widget Button -> Bool
+      isWidget3 _ = True
+
+  in  listifyBut isId stop v 
+
+-- a GenericQ is easier in the callee code, but not as nice for the caller
+listifyBut :: (Data a, Data x) => (a -> Bool) -> GenericQ Bool -> x -> [a]  
+listifyBut stnh but x =
+  case cast x of
+    Just a  -> if stnh a then [a] else []
+    Nothing -> if but x  
+               then []
+               else foldl (++) [] (gmapQ (listifyBut stnh but) x)
+
+                    
 somethingAcc :: (Data a, Data r) => a -> GenericQ (Maybe a) -> GenericQ (Maybe r) -> GenericQ (Maybe (r,a))
 somethingAcc a fa f x = let a' = case fa x of 
                                    Nothing -> a

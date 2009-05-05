@@ -269,9 +269,8 @@ mkButton' str en ac vidC = (button (ViewId vidC) str en ac, vidC + 1)
 mkButton :: String -> Bool -> EditCommand -> WVMonad (Widget Button)
 mkButton str en ac = WV $ \vidC -> (button (ViewId vidC) str en ac, vidC + 1)
 
--- editActions don't really need a ViewId, but they do need their internal ids updates, which
--- is the easiest by putting them in Widgets.
-mkEditAction ac = WV $ \vidC -> (Widget (ViewId vidC) noId noId $ EditAction noId ac, vidC + 1)
+-- no need to be in monad
+mkEditAction ac = return $ EditAction noId ac
 
 mkRadioView is s en = WV $ \vidC -> (radioView (ViewId vidC) is s en, vidC +1)
 

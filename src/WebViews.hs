@@ -32,8 +32,8 @@ mkRootView user db sessionId viewMap =
 
 data VisitsView = 
   VisitsView Int Int User [(String,String)] 
-                 (Widget Button) (Widget Button) (Widget Button) (Widget Button) 
-                 [Widget EditAction] WebView (Maybe WebView)
+                 WebView [EditAction] (Widget Button) (Widget Button) (Widget Button) (Widget Button) 
+                 (Maybe WebView)
     deriving (Eq, Show, Typeable, Data)
   
 modifyViewedVisit fn (VisitsView v a b c d e f g h i j) = VisitsView (fn v) a b c d e f g h i j
@@ -65,8 +65,8 @@ mkVisitsView sessionId = mkWebView $
                              
      ;  return $ VisitsView viewedVisit sessionId user
                  [ (zipCode visit, date visit) | visit <- visits ]
-                 prevB nextB addB removeB selectionActions 
-                 loginOutView visitView
+                 loginOutView selectionActions 
+                 prevB nextB addB removeB  visitView
      }
  where prev vid = mkViewEdit vid $ modifyViewedVisit decrease
        next vid = mkViewEdit vid $ modifyViewedVisit increase
@@ -82,15 +82,15 @@ mkVisitsView sessionId = mkWebView $
             }
 
 instance Presentable VisitsView where
-  present (VisitsView viewedVisit sessionId user visits prev next add remove 
-                      selectionActions loginoutView mv) =
+  present (VisitsView viewedVisit sessionId user visits loginoutView selectionActions  
+                      prev next add remove mv) =
     withBgColor (Rgb 235 235 235) $ withPad 15 0 15 0 $
       (case user of
          Nothing -> present loginoutView 
          Just (_,name) -> stringToHtml ("Hello "++name++".") +++ present loginoutView) +++
       p << ("List of all visits     (session# "++show sessionId++")") +++         
       p << (hList [ withBgColor (Rgb 250 250 250) $ boxed $ withSize 400 100 $ 
-             (simpleTable [] [] $ 
+             (simpleTable [strAttr "cellPadding" "0", thestyle "border-collapse: collapse"] [] $ 
                [ stringToHtml "Nr. ", stringToHtml "Zip  ", stringToHtml "Date"] :
                [ [ withEditAction selectionAction $
                      (if i == viewedVisit then bold  else id) $ stringToHtml $ show i
@@ -105,7 +105,7 @@ instance Presentable VisitsView where
              "    " +++ present prev +++ present next) +++ 
       boxed (case mv of
                Nothing -> stringToHtml "No visits."
-               Just pv -> present pv) +++ concatHtml (map present selectionActions)
+               Just pv -> present pv)
 
 instance Storeable VisitsView where
   save _ = id
@@ -179,7 +179,7 @@ instance Initial VisitView where
 
 -- Pig -------------------------------------------------------------------------  
 
-data PigView = PigView PigId (Widget EditAction) String (Widget Button) Int Int (Widget EString) [Widget RadioView] (Either Int String) 
+data PigView = PigView PigId EditAction String (Widget Button) Int Int (Widget EString) [Widget RadioView] (Either Int String) 
                deriving (Eq, Show, Typeable, Data)
 
 mkPigView parentViewId pignr i viewedPig = mkWebView $ 
@@ -219,9 +219,8 @@ instance Presentable PigView where
         p << "Has had antibiotics: " +++
         present ab +++
         p << "Antibiotics successful: " +++
-        present as) +++
-        present editAction
-
+        present as)
+    
 instance Storeable PigView where
   save (PigView pid _ _ _ _ _ name symptoms diagnosis) =
     updatePig pid (\(Pig _ vid _ _ diagnosis) -> 

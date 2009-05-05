@@ -156,11 +156,7 @@ if (xmlhttp.readyState==4)
    if (drawingViewTree)
      drawViewTree();
 
-  // clean any parked webnodes
-  var parking = document.getElementById("parking");    
-  while (parking.firstChild)
-    { parking.removeChild(parking.firstChild);
-    }
+    removeChildrenById("parking"); // clean any parked webnodes
 
     // restore focus
     debugAdd("restoring focus to "+focusedElementId);
@@ -276,11 +272,9 @@ function select(path, node)
 }
 
 function drawViewTree()
-{ var viewTree = document.getElementById("viewTree");    
-  while (viewTree.firstChild)
-    viewTree.removeChild(viewTree.firstChild);
-    
-   drawViewTreeElt('',document.getElementById('root'));
+{ removeChildrenById("viewTree");    
+     
+  drawViewTreeElt('',document.getElementById('root'));
 }
 
 function drawViewTreeElt(indent, elt)
@@ -291,6 +285,15 @@ function drawViewTreeElt(indent, elt)
 
 function draw(str)
 { document.getElementById('viewTree').innerHTML+=str
+}
+
+function removeChildrenById(id)
+{ removeChildren(document.getElementById(id));
+}
+
+function removeChildren(elt)
+{ while (elt.firstChild)
+    elt.removeChild(elt.firstChild);
 }
 -->
 </script>

@@ -95,7 +95,7 @@ presentTextField (EString (Id i) hidden str) =
 -- seems like this one could be in Present
 presentButton :: Button -> Html
 presentButton (Button (Id i) txt enabled _) = 
-   primHtml $ "<button " ++ (if enabled then "" else "disabled ") ++
+   primHtml $ "<button id=\""++ show i++"\" "++ (if enabled then "" else "disabled ") ++
                             "onclick=\"queueCommand('ButtonC "++show i++"')\" "++
                             "onfocus=\"elementGotFocus('"++show i++"')\">"++txt++"</button>"
 -- TODO: text should be escaped
@@ -106,13 +106,14 @@ presentButton (Button (Id i) txt enabled _) =
 -- a descriptive text field can be added to the action, to let the server be able to show
 -- which button was pressed. However, it is not sure if this works okay with restoring id's
 -- though it probably works out, as the ea id is the only one needing restoration.
-withEditAction (Widget _ _ _ (EditAction (Id i) _)) elt = 
-  thespan![strAttr "onClick" $ "queueCommand('PerformEditActionC "++show i++"')"] << elt
+withEditAction (EditAction (Id i) _) elt = 
+  thespan![ identifier $ show i 
+          , strAttr "onClick" $ "queueCommand('PerformEditActionC "++show i++"')"] << elt
 -- TODO fix it that these are not moved by incremental algorithm, so we don't need to present them
 
 presentRadioBox :: RadioView -> Html
 presentRadioBox (RadioView (Id id) items selectedIx enabled) = thespan << 
-  [ radio (show id) (show i) ! ( [ strAttr "id" eltId 
+  [ radio (show id) (show i) ! ( [ identifier eltId 
                           , strAttr "onChange" ("queueCommand('SetC "++show id++" %22"++show i++"%22')") 
                           , strAttr "onFocus" ("elementGotFocus('"++eltId++"')")
                           ]
