@@ -56,12 +56,12 @@ applyIfCorrectType f x = case cast f of
 
 mkWebView' :: (Presentable v, Storeable v, Initial v, Show v, Eq v, Data v) =>
              (User -> Database -> ViewMap -> Int -> ViewId -> (v, Int)) -> 
-             User -> Database -> ViewMap -> Int -> (WebView, Int)
-mkWebView' wvcnstr user db viewMap viewIdCounter = loadView user db viewMap viewIdCounter $
-  WebView noViewId noId noId wvcnstr initial
+             User -> Database -> ViewMap -> WVMonad WebView
+mkWebView' wvcnstr user db viewMap = 
+  WV $ loadView user db viewMap (WebView noViewId noId noId wvcnstr initial)
 
-loadView :: User -> Database -> ViewMap -> Int -> WebView -> (WebView, Int)
-loadView user db viewMap viewIdCounter (WebView vid si i f _) =
+loadView :: User -> Database -> ViewMap -> WebView -> Int -> (WebView, Int)
+loadView user db viewMap (WebView vid si i f _) viewIdCounter =
   let vid = ViewId viewIdCounter
       (view,viewIdCounter') = f user db viewMap (viewIdCounter+1) vid
   in  (WebView vid si i f view,viewIdCounter')

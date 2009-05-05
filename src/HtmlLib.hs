@@ -4,6 +4,9 @@ import Text.Html
 import Data.Char
 import Data.List
 
+decrease x = x - 1
+
+increase x = x + 1
 
 
 updateReplaceHtml :: String -> Html -> Html
