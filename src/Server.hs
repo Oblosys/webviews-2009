@@ -257,14 +257,14 @@ sessionHandler sessionStateRef cmds = liftIO $
               
             ; (responseHtml, rootView') <- mkIncrementalUpdates oldRootView rootView
             -- rootView' has different id's (the ones that were not updated and hence are
-            -- changed to their previous versions)
+            -- restored to their previous values)
                                            
             --; putStrLn $ "View tree:\n" ++ drawWebNodes (WebViewNode rootView) 
-            ; putStrLn $ "View tree':\n" ++ drawWebNodes (WebViewNode rootView') 
             --; putStrLn $ "rootView:\n" ++ show rootView'
             ; setRootView sessionStateRef rootView'
             --; putStrLn $ "database:\n" ++ show db
             ; putStrLn $ "\n\n\nresponse = \n" ++ show responseHtml
+            ; putStrLn $ "View tree':\n" ++ drawWebNodes (WebViewNode rootView') 
             --; putStrLn $ "Sending response sent to client: " ++
             --              take 10 responseHTML ++ "..."
             ; seq (length (show responseHtml)) $ return ()

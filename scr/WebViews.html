@@ -7,12 +7,20 @@
 <!--// < this comment keeps emacs from thinking the whole block is a comment
 var debugging = false;
 //var debugging = true;
+var drawingViewTree = false;
+//var drawingViewTree = true;
+
+// for easily setting a breakpoint in the move operation
+function breakpointCheck()
+{
+}
 
 var xmlhttp;
 
 var commandQueue = '';
 
 var focusedElementId = '';
+
 
 function init()
 {
@@ -134,7 +142,6 @@ if (xmlhttp.readyState==4)
     }
     
    
-    
     var updates = document.getElementById('updates');
     // getElementById seems to trigger parsing the responseText
     // after this, firstChild has a value, while it is null before
@@ -146,13 +153,16 @@ if (xmlhttp.readyState==4)
     ; updates.removeChild(updates.firstChild);
     }
 
+   if (drawingViewTree)
+     drawViewTree();
+
   // clean any parked webnodes
   var parking = document.getElementById("parking");    
   while (parking.firstChild)
     { parking.removeChild(parking.firstChild);
     }
 
-  // restore focus
+    // restore focus
     debugAdd("restoring focus to "+focusedElementId);
     var focusedElement = document.getElementById(focusedElementId);
     if (focusedElement != null)
@@ -238,6 +248,7 @@ function updateTree(update)
  else if (op === 'move')
   { var srcId = update.getAttribute('src');
     var dstId = update.getAttribute('dst');
+    breakpointCheck();
     debugAdd("Moving "+srcId + " to " + dstId);
     srcElt = document.getElementById(srcId);
     dstElt = document.getElementById(dstId);
@@ -264,12 +275,35 @@ function select(path, node)
     }
 }
 
+function drawViewTree()
+{ var viewTree = document.getElementById("viewTree");    
+  while (viewTree.firstChild)
+    viewTree.removeChild(viewTree.firstChild);
+    
+   drawViewTreeElt('',document.getElementById('root'));
+}
+
+function drawViewTreeElt(indent, elt)
+{ if (elt.id) draw(indent+elt.id+'<br/>');
+  for (var i=0; i < elt.childNodes.length; i++)
+    drawViewTreeElt(indent+  (elt.id ? '&nbsp;&nbsp;&nbsp;' : ''), elt.childNodes[i]);
+}
+
+function draw(str)
+{ document.getElementById('viewTree').innerHTML+=str
+}
 -->
 </script>
-
+<!--
+<table cellpadding="0" style="border-collapse: collapse;">
+  <tr><td>bla</td><td>bla</td></tr>
+  <tr><td>bla</td><td>bla</td></tr>
+</table>
+-->
 <body onload="init()" style="padding:0px; margin:0px">
 <!-- <button onClick="debugAdd('click')" onfocus="debugAdd('focus')">click</button> -->
 <!-- <div style="border:solid; border-width:1px; margin:0px"> -->
+<div id="viewTree"></div>
 <div id="root"><div id="1">Initial root</div></div>
 <!-- </div> -->
 <!-- Debug: -->
