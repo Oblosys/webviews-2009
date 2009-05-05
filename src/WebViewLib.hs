@@ -109,7 +109,9 @@ presentButton (Button (Id i) txt enabled _) =
 withEditAction (EditAction (Id i) _) elt = 
   thespan![ identifier $ show i 
           , strAttr "onClick" $ "queueCommand('PerformEditActionC "++show i++"')"] << elt
--- TODO fix it that these are not moved by incremental algorithm, so we don't need to present them
+
+withEditActionAttr (EditAction (Id i) _) = 
+  strAttr "onClick" $ "queueCommand('PerformEditActionC "++show i++"')"
 
 presentRadioBox :: RadioView -> Html
 presentRadioBox (RadioView (Id id) items selectedIx enabled) = thespan << 
