@@ -11,6 +11,11 @@ import qualified Data.Map as Map
 import Control.Monad.State
 import Control.Monad.Identity
 
+import Happstack.Server 
+-- this imports the Typeable1 instance for StateT
+-- somehow we cannot import Happstack.State.Types (package is always hidden)
+-- Another weird thing is that in scion the instance is imported already
+
 data Commands = Commands [Command] 
               | SyntaxError String -- for debugging post from client, replace read by Str in FromData instance
                   deriving (Eq, Show, Read)
@@ -166,7 +171,7 @@ instance Eq WebNode where
     case cast wv1 of
       Nothing -> False
       Just wv1' -> wv1' == wv2
-               
+  _ == _ = False             
 
 data AnyWidget = RadioViewWidget RadioView 
                | EStringWidget EString 
@@ -177,10 +182,12 @@ data AnyWidget = RadioViewWidget RadioView
 type ViewMap = Map.Map ViewId WebView
 
 -- no class viewable, because mkView has parameters
-data WebView = forall view . ( Initial view, Presentable view, Storeable view
+data WebView = forall view . ( Data (StateT WebViewState IO view) 
+                             , Initial view, Presentable view, Storeable view
                              , Show view, Eq view, Data view) => 
-                             WebView ViewId Id Id (User -> Database -> ViewMap -> Int -> ViewId -> (view, Int)) view
-                             deriving Typeable
+                             WebView ViewId Id Id (User -> Database -> ViewMap -> ViewId -> WebViewM view) view
+                             
+               deriving Typeable
 -- (view->view) is the load view function. It is not in a class because we want to parameterize it
 -- view is the actual view (which is 'updated')
 -- viewid is to identify the view and it's extra state.
@@ -201,6 +208,17 @@ instance Data WebView where
 
 ty_WebView = mkDataType "Views.WebView" [con_WebView]
 con_WebView = mkConstr ty_WebView "WebView" [] Prefix
+
+instance (Typeable v) => Data (StateT WebViewState IO v) where
+  gfoldl k z (StateT x) = z StateT `k` x
+  gunfold k z c = error "gunfold not defined for StateT"
+     
+  toConstr (StateT _) = con_StateT 
+  dataTypeOf _ = ty_StateT
+  
+  
+ty_StateT = mkDataType "Control.Monad.StateT" [con_StateT]
+con_StateT = mkConstr ty_StateT "StateT" [] Prefix
 
 
 
@@ -260,22 +278,22 @@ instance Initial EditAction where
   initial = EditAction noId (DocEdit id)  
 
 instance Initial WebView where
-  initial = WebView (ViewId (-1)) noId noId (\_ _ _ _ _ -> ((), error "Internal error: initial WebView evalutated")) ()
+  initial = WebView (ViewId (-1)) noId noId (\_ _ _ _ -> return ()) ()
 
 
 
-mkButton' str en ac vidC = (button (ViewId vidC) str en ac, vidC + 1)
 
-mkButton :: String -> Bool -> EditCommand -> WVMonad (Widget Button)
-mkButton str en ac = WV $ \vidC -> (button (ViewId vidC) str en ac, vidC + 1)
+
+mkButton :: String -> Bool -> EditCommand -> WebViewM (Widget Button)
+mkButton str en ac = liftS $  \vidC -> (button (ViewId vidC) str en ac, vidC + 1)
 
 -- no need to be in monad
 mkEditAction ac = return $ EditAction noId ac
 
-mkRadioView is s en = WV $ \vidC -> (radioView (ViewId vidC) is s en, vidC +1)
+mkRadioView is s en = liftS $ \vidC -> (radioView (ViewId vidC) is s en, vidC +1)
 
-mkTextField str = WV $ \vidC -> (estr (ViewId vidC) str, vidC + 1)
-mkPasswordField str = WV $ \vidC -> (epassword (ViewId vidC) str, vidC + 1)
+mkTextField str = liftS $ \vidC -> (estr (ViewId vidC) str, vidC + 1)
+mkPasswordField str = liftS $ \vidC -> (epassword (ViewId vidC) str, vidC + 1)
 
 widgetGetViewRef (Widget (ViewId vid) _ _ _) = ViewIdRef vid
                   
@@ -291,12 +309,23 @@ instance Monad WVMonad where
                                  (WV b) = f a 
                              in  b i'
   
-type MkViewState v = [v->v]
-
--- Identity will be IO
-type ViewM v a = StateT (MkViewState v) Identity a
+data WebViewState = WebViewState Int deriving (Typeable, Data)
 
 
+
+type WebViewM a = StateT WebViewState IO a
+
+instance (Typeable st, Typeable1 m) => Typeable1 (StateT st m) where
+    typeOf1 x = mkTyConApp (mkTyCon "Control.Monad.State.StateT") [typeOf (undefined :: st), typeOf1 (m x)]
+        where m :: StateT st m a -> m a
+              m = undefined
+
+ 
+liftS :: (Int -> (x,Int)) -> WebViewM x
+liftS f = StateT (\(WebViewState i) -> (return $ let (x, i')= f i in (x, WebViewState i')))
+
+
+{-
 mkAction :: (v->v) -> ViewM v Int
 mkAction f = 
  do { actions <- get
@@ -310,8 +339,9 @@ testMonad = print $ "bla" {- runMonad [1,2,3] $
     ; return l
     } -}
 
-
+-}
 -- hide this constructor, so user needs to use mkView
+{-
 data AView v = AView { editActions :: [v->v], makeView :: v -> v }
 
 mkView :: (ViewM v (v->v)) -> (AView v)
@@ -329,3 +359,4 @@ mkTestView v = mkView $
  do { i <- mkAction $ \(TestView x s) -> TestView x s
     ; return $ \v -> TestView i "bla"
     } 
+-}

@@ -11,20 +11,21 @@ import qualified Data.Map as Map
 import Data.IntMap (IntMap)
 import qualified Data.IntMap as IntMap 
 import Debug.Trace
-import System.IO.Unsafe -- until we have monadic load view
 import System.Time
 import Types
 import Database
 import Generics
 import WebViewLib
 import HtmlLib
+import Control.Monad.State
 
-mkRootView :: User -> Database -> Int -> ViewMap -> WebView
+mkRootView :: User -> Database -> Int -> ViewMap -> IO WebView
 mkRootView user db sessionId viewMap = 
-  fst $ runWV 0 $ mkVisitsView sessionId user db viewMap
-
-
--- TODO: unknown button error has not been resolved yet!
+ do { let wvm = (mkVisitsView sessionId user db viewMap)
+    ; rv <- evalStateT wvm (WebViewState 0)
+    ; return $ assignIds rv
+    } -- TODO: id's here?
+-- TODO Make a function for this (also used in mkinitialrootview)
 
 
 
@@ -43,10 +44,10 @@ mkVisitsView sessionId = mkWebView $
   do { let (VisitsView oldViewedVisit _ _ _ _ _ _ _ _ _ _) = getOldView vid viewMap
            viewedVisit = constrain 0 (length visits - 1) oldViewedVisit
            (visitIds, visits) = unzip $ Map.toList $ allVisits db
-                        
+     ; today <- liftIO getToday             
      ; prevB   <- mkButton "Previous" (viewedVisit > 0)                   $ prev vid
      ; nextB   <- mkButton "Next"     (viewedVisit < (length visits - 1)) $ next vid 
-     ; addB    <- mkButton "Add" True addNewVisit
+     ; addB    <- mkButton "Add"      True                                $ addNewVisit today
      ; removeB <- mkButton "Remove" (not $ null visits) $
                     ConfirmEdit ("Are you sure you want to remove this visit?") $ 
                       DocEdit $ removeVisit (visitIds !! viewedVisit)
@@ -71,11 +72,11 @@ mkVisitsView sessionId = mkWebView $
  where prev vid = mkViewEdit vid $ modifyViewedVisit decrease
        next vid = mkViewEdit vid $ modifyViewedVisit increase
        
-       addNewVisit = DocEdit $ \db -> let ((Visit nvid _ _ _),db') = newVisit db 
-                                      in  updateVisit nvid (\v -> v {date = today}) db' 
+       addNewVisit today = DocEdit $ \db -> let ((Visit nvid _ _ _),db') = newVisit db 
+                                            in  updateVisit nvid (\v -> v {date = today}) db' 
        selectVisit vi v = mkViewEdit vi $ modifyViewedVisit (const v)
 
-       today = unsafePerformIO $ -- only until we have an io monad in mkView!!
+       getToday =
          do { clockTime <-  getClockTime
             ; ct <- toCalendarTime clockTime
             ; return $ show (ctDay ct) ++ "-" ++show (fromEnum (ctMonth ct) + 1) ++ "-" ++show (ctYear ct)
@@ -89,7 +90,7 @@ instance Presentable VisitsView where
          Nothing -> present loginoutView 
          Just (_,name) -> stringToHtml ("Hello "++name++".") +++ present loginoutView) +++
       p << ("List of all visits     (session# "++show sessionId++")") +++         
-      p << (hList [ withBgColor (Rgb 250 250 250) $ boxed $ withSize 150 100 $ 
+      p << (hList [ withBgColor (Rgb 250 250 250) $ boxed $ withSize 200 100 $ 
              (let rowAttrss = [] :
                               [ [withEditActionAttr selectionAction] ++
                                 if i == viewedVisit then [ fgbgColorAttr (Rgb 255 255 255) (Rgb 0 0 255)
@@ -99,7 +100,7 @@ instance Presentable VisitsView where
                   rows = [ stringToHtml "Nr.    ", stringToHtml "Zip"+++spaces 3
                          , (stringToHtml "Date"+++spaces 10) ]  :
                          [ [stringToHtml $ show i, stringToHtml zipCode, stringToHtml date] 
-                         | (i, (zipCode, date)) <- zip [0..] visits
+                         | (i, (zipCode, date)) <- zip [1..] visits
                          ]
               in  mkTable [strAttr "width" "100%", strAttr "cellPadding" "2", thestyle "border-collapse: collapse"] 
                      rowAttrss rows

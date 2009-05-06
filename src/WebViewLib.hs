@@ -1,5 +1,6 @@
 module WebViewLib where
 
+import Control.Monad.State
 import Control.Monad.Trans
 import Data.List
 import Text.Html hiding (image)
@@ -53,22 +54,23 @@ applyIfCorrectType f x = case cast f of
 -- the view matching on load can be done explicitly, following structure and checking ids, or
 -- maybe automatically, based on id. Maybe extra state can be in a separate data structure even,
 -- like in Proxima
+loadView :: User -> Database -> ViewMap -> WebView -> WebViewM WebView
+loadView user db viewMap (WebView _ si i mkView _) =
+ do { WebViewState viewIdCounter <- get
+    ; let newViewId = ViewId viewIdCounter                             
+    ; put $ WebViewState $ viewIdCounter + 1
+    ; view <- mkView user db viewMap newViewId 
+    ; return $ WebView newViewId si i mkView view
+    }
 
-mkWebView' :: (Presentable v, Storeable v, Initial v, Show v, Eq v, Data v) =>
-             (User -> Database -> ViewMap -> Int -> ViewId -> (v, Int)) -> 
-             User -> Database -> ViewMap -> WVMonad WebView
-mkWebView' wvcnstr user db viewMap = 
-  WV $ loadView user db viewMap (WebView noViewId noId noId wvcnstr initial)
-
-loadView :: User -> Database -> ViewMap -> WebView -> Int -> (WebView, Int)
-loadView user db viewMap (WebView vid si i f _) viewIdCounter =
-  let vid = ViewId viewIdCounter
-      (view,viewIdCounter') = f user db viewMap (viewIdCounter+1) vid
-  in  (WebView vid si i f view,viewIdCounter')
-
-mkWebView f = 
-  mkWebView' $ \user db viewMap vidC vid -> runWV vidC $ f user db viewMap vid 
-
+mkWebView :: (Presentable v, Storeable v, Initial v, Show v, Eq v, Data v) =>
+             (User -> Database -> ViewMap -> ViewId -> WebViewM v) ->
+             User -> Database -> ViewMap -> WebViewM WebView
+mkWebView mkView user db viewMap =
+ do { let initialWebView = WebView noViewId noId noId mkView initial
+    ; webView <- loadView user db viewMap initialWebView
+    ; return webView
+    } 
 
 {-
 

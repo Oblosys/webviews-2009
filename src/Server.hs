@@ -10,6 +10,7 @@ import Control.Concurrent
 import Control.Monad
 import Control.Monad.Trans
 import Control.Monad.Reader
+import Control.Monad.State
 import Data.Map (Map)
 import qualified Data.Map as Map 
 import Data.IntMap (IntMap)
@@ -176,9 +177,13 @@ parseCookieSessionId serverInstanceId =
     ; return mCookieSessionId
     } -- TODO: this is nasty, maybe try to use the Happs function
  
-initialRootView :: WebView
-initialRootView = assignIds $ fst $ runWV 0 $
-                    mkWebView (\_ _ _ _ -> return ()) Nothing theDatabase Map.empty
+mkInitialRootView :: IO WebView
+mkInitialRootView = runWebView $ mkWebView (\_ _ _ _ -> return ()) Nothing theDatabase Map.empty 
+
+runWebView wvm =
+ do { rv <- evalStateT wvm (WebViewState 0)
+    ; return $ assignIds rv
+    }
 -- this creates a WebView with stubid 0 and id 1
 -- for now, we count on that in the client
 -- TODO: change this to something more robust
@@ -192,7 +197,8 @@ createNewSessionState globalStateRef serverInstanceId =
     ; addCookie 3600 (mkCookie "webviews" $ show (serverInstanceId, sessionId))
     -- cookie lasts for one hour
  
-      
+    ; initialRootView <- liftIO $ mkInitialRootView
+                         
     ; let newSession = (Nothing, initialRootView, Nothing)
     ; let sessions' = IntMap.insert sessionId newSession sessions
    
@@ -228,9 +234,9 @@ sessionHandler sessionStateRef cmds = liftIO $
     ; (_, _, db, oldRootView', _) <- readIORef sessionStateRef
     
     -- TODO: this elem construction is not so nice if Init is part of multiple commands
-    ; let oldRootView = if Init `elem` getCommands cmds 
-                        then initialRootView 
-                        else oldRootView' 
+    ; oldRootView <- if Init `elem` getCommands cmds 
+                     then mkInitialRootView 
+                     else return oldRootView' 
 
           
     ; response <- handleCommands sessionStateRef cmds
@@ -327,8 +333,9 @@ handleCommand :: SessionStateRef -> Command -> IO ServerResponse
 handleCommand sessionStateRef Init =
  do { putStrLn "Init"
     ; (sessionId, user, db, oldRootView, _) <- readIORef sessionStateRef
-    ; setRootView sessionStateRef $ mkRootView user db sessionId (mkViewMap oldRootView)
-    ; 
+    ; rootView <- liftIO $ mkRootView user db sessionId (mkViewMap oldRootView)
+    ; setRootView sessionStateRef rootView
+     
     ; return ViewUpdate
     }
 handleCommand sessionStateRef Refresh =
@@ -383,7 +390,8 @@ handleCommand sessionStateRef ConfirmDialogOk =
 reloadRootView :: SessionStateRef -> IO ()
 reloadRootView sessionStateRef =
  do { (sessionId, user, db, rootView, pendingEdit) <- readIORef sessionStateRef
-    ; let (rootView',_) = loadView user db (mkViewMap rootView) rootView 0
+    ; rootView' <- evalStateT (loadView user db (mkViewMap rootView) rootView) (WebViewState 0)
+ -- TODO this 0 does not seem right BUG
     ; writeIORef sessionStateRef (sessionId, user, db, rootView', pendingEdit)
     } 
  
