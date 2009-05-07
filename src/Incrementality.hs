@@ -73,6 +73,11 @@ computeMoves oldRootViewrootView@(WebView _ _ oldRootId _ _)
 showWebNodeMap :: WebNodeMap -> String
 showWebNodeMap wnmap = unlines [ "<"++show k++":"++shallowShowWebNode wn++">" 
                                | (k,wn) <- Map.toList wnmap ] 
+
+-- TODO: If webnodes get fresh view id's, the reuse of the incrementality algorithme gets quite bad.
+-- inserting an extra widget at the top of the page may cause a lot of redraws.
+-- But at least it seems to be correct for now.
+
 -- if we do the comparison here, also take into account moving the immediate children of a changed
 -- view
 computeMove :: WebNodeMap -> [ViewId] -> WebNode -> [Update]
@@ -91,14 +96,17 @@ computeMove oldWebNodeMap changedOrNewWebNodes webNode =
                   -- Oops, it does when a new button is introduced that gets the viewId of one that
                   -- disappeared
                   -- TODO: check whether this solution is ok
-                  case Map.lookup childViewId oldWebNodeMap of
+                  [ Move "a" (mkRef $ getWebNodeId childWebNode) 
+                              (mkRef $ getWebNodeId ocn) 
+                  ]
+                {- case Map.lookup childViewId oldWebNodeMap of
                      Just oldChildWebNode ->
                       [ Move "a" (mkRef $ getWebNodeId childWebNode) 
                                  (mkRef $ getWebNodeId oldChildWebNode)
-                      ]                                     
+                      ] -- this may not be right if child changed
                      Nothing ->
                       [ Move "a*" (mkRef $ getWebNodeId childWebNode) 
-                                  (mkRef $ getWebNodeId ocn) ] 
+                                  (mkRef $ getWebNodeId ocn) ] -} 
            | let childWebNodes = getTopLevelWebNodesForWebNode webNode
                  oldChildWebnodes = getTopLevelWebNodesForWebNode oldWebNode
            , (childWebNode,ocn) <- --trace ("\nchildren for "++(show $ getWebNodeViewId webNode) ++ 
@@ -173,7 +181,7 @@ getBreadthFirstWebNodes rootView =
 mkIncrementalUpdates oldViewMap rootView =
  do { let (newWebNodes, updates) = diffViews oldViewMap rootView
     ; putStrLn $ "\nChanged or new web nodes\n" ++ unlines (map shallowShowWebNode newWebNodes) 
-    --; putStrLn $ "\nUpdates\n" ++ unlines (map show updates)
+    ; putStrLn $ "\nUpdates\n" ++ unlines (map show updates)
     
     ; let responseHtml = thediv ! [identifier "updates"] <<
                            (map newWebNodeHtml newWebNodes +++
