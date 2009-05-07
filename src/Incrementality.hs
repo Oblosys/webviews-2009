@@ -98,11 +98,12 @@ computeMove oldWebNodeMap changedOrNewWebNodes webNode =
                       ]                                     
                      Nothing ->
                       [ Move "a*" (mkRef $ getWebNodeId childWebNode) 
-                                  (mkRef $ getWebNodeStubId childWebNode) ]
+                                  (mkRef $ getWebNodeId ocn) ] 
            | let childWebNodes = getTopLevelWebNodesForWebNode webNode
-           , childWebNode <- --trace ("\nchildren for "++(show $ getWebNodeViewId webNode) ++ 
+                 oldChildWebnodes = getTopLevelWebNodesForWebNode oldWebNode
+           , (childWebNode,ocn) <- --trace ("\nchildren for "++(show $ getWebNodeViewId webNode) ++ 
                              --        ":" ++ show (map shallowShowWebNode childWebNodes)) $ 
-                               childWebNodes
+                               zip childWebNodes oldChildWebnodes
            , let childViewId = getWebNodeViewId childWebNode
            ]
   
@@ -214,7 +215,7 @@ newWidgetHtml (_, (Id i),anyWidget) =
       (mkSpan (show i) $ present anyWidget)
 
 updateHtml :: Update -> Html
-updateHtml (Move _ (IdRef src) (IdRef dst)) = if src == dst then error "Source is destingation" else
+updateHtml (Move _ (IdRef src) (IdRef dst)) = if src == dst then error $ "Source is destination: "++show src else
     thediv![strAttr "op" "move", strAttr "src" (show src), strAttr "dst" (show dst)] << ""
 updateHtml _ = noHtml -- restoreId is not for producing html, but for adapting the rootView  
 

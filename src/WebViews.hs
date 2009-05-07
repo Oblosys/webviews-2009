@@ -278,7 +278,7 @@ mkCommentView commentId = mkWebView $ \user db viewMap vid ->
           (Comment _ author date text) =  unsafeLookup (allComments db) commentId
     
     ; editAction <- if edited
-                    then fmap Just $ mkEditAction $ AlertEdit "submit"
+                    then fmap Just $ mkEditAction $ mkViewEdit vid $ modifyEdited (const False)
                     else case  user of
                            Just (login, _) -> if login == author 
                                               then fmap Just $ mkEditAction $ mkViewEdit vid $ modifyEdited (const True)
