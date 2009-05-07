@@ -91,10 +91,8 @@ theDatabase = Database
                 , (PigId 4, Pig (PigId 4) (VisitId 2) "Piglet" [1,1,1] (Left 3)) 
                 , (PigId 5, Pig (PigId 5) (VisitId 2) "Pinky" [0,1,1] (Left 3)) 
                 ])
-  (Map.fromList [ (CommentId 1, Comment (CommentId 1) "martijn"
+  (Map.fromList [ (CommentId 1, Comment (CommentId 1) ""
                                         "7 May 2009, 18:30" "First comment")
-                , (CommentId 2, Comment (CommentId 2) "anonymous"
-                                        "7 May 2009, 18:35" "Second comment")
                 ])
 --                    ]
   

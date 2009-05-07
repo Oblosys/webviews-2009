@@ -11,7 +11,7 @@ import qualified Data.Map as Map
 import Control.Monad.State
 import Control.Monad.Identity
 
-import Happstack.Server 
+--import Happstack.Server 
 -- this imports the Typeable1 instance for StateT
 -- somehow we cannot import Happstack.State.Types (package is always hidden)
 -- Another weird thing is that in scion the instance is imported already

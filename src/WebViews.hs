@@ -70,8 +70,8 @@ mkVisitsView sessionId = mkWebView $
                        
      ; mAddCommentButton <- case user of 
                               Nothing -> return Nothing 
-                              Just (_,name) -> fmap Just $ mkButton "Add a comment" True $ 
-                                                 addComment name today
+                              Just (login,_) -> fmap Just $ mkButton "Add a comment" True $ 
+                                                 addComment login today
      ;  return $ VisitsView viewedVisit sessionId user
                  [ (zipCode visit, date visit) | visit <- visits ]
                  loginOutView selectionActions 
@@ -91,9 +91,9 @@ mkVisitsView sessionId = mkWebView $
                        ", "++show (ctHour ct) ++ ":" ++ show (ctMin ct)
             }
          
-       addComment name today = 
+       addComment login today = 
          DocEdit $ \db -> let ((Comment ncid _ _ _), db') = newComment db
-                          in  updateComment ncid (\v -> v { commentAuthor = name
+                          in  updateComment ncid (\v -> v { commentAuthor = login
                                                           , commentDate = today}) db'
 
 instance Presentable VisitsView where
@@ -274,7 +274,7 @@ instance Initial CommentView where
 modifyEdited fn (CommentView a edited b c d e f) = (CommentView a (fn edited) b c d e f)
 
 mkCommentView commentId = mkWebView $ \user db viewMap vid ->
- do { let (CommentView _ edited _ _ _ _ _) = getOldView vid viewMap
+ do { let (CommentView _ edited _ _ _ oldText oldMTextfield) = getOldView vid viewMap
           (Comment _ author date text) =  unsafeLookup (allComments db) commentId
     
     ; editAction <- if edited
@@ -306,7 +306,14 @@ mkCommentView commentId = mkWebView $ \user db viewMap vid ->
     }
 
 instance Storeable CommentView where
-  save _ = id
+  save (CommentView cid edited author date text _ mTextField) =
+    updateComment cid (\_ -> let text' = if edited
+                                        then case mTextField of
+                                               Just textField -> getStrVal textField
+                                               Nothing    -> text
+                                        else text
+                                        
+                             in Comment cid author date text')
 
 instance Presentable CommentView where
   present (CommentView _ edited author date text mEditAction mTextField) =
@@ -321,7 +328,8 @@ instance Presentable CommentView where
      ) +++ 
      (withBgColor (Color "white") $ 
        thespan![thestyle "margin:4px;"] $ 
-         case mTextField of 
-           Nothing -> stringToHtml text
-           Just textField -> present textField
-           )
+         if edited then case mTextField of 
+                          Nothing -> stringToHtml text
+                          Just textField -> present textField
+         else stringToHtml text
+       )    
