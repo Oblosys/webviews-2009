@@ -213,10 +213,8 @@ mkPigView parentViewId pignr i viewedPig = mkWebView $
 instance Presentable PigView where
   present (PigView pid _ _ b _ pignr name [] diagnosis) = stringToHtml "initial pig"
   present (PigView pid editAction imageUrl b viewedPig pignr name [co, ab, as] diagnosis) =
-    withEditAction editAction $
-    (withBgColor (if viewedPig == pignr then Rgb 200 200 200 else Rgb 225 225 225) $
-      boxed $
-        (center $ image $ imageUrl) +++
+      roundedBoxed (if viewedPig == pignr then Rgb 200 200 200 else Rgb 225 225 225) $
+        (center $ withEditAction editAction $ image imageUrl) +++
         (center $ " nr. " +++ show (pignr+1)) +++
         p << (center $ (present b)) +++
         p << ("Name:" +++ present name) +++
@@ -225,7 +223,7 @@ instance Presentable PigView where
         p << "Has had antibiotics: " +++
         present ab +++
         p << "Antibiotics successful: " +++
-        present as)
+        present as
     
 instance Storeable PigView where
   save (PigView pid _ _ _ _ _ name symptoms diagnosis) =

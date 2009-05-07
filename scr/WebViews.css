@@ -1,0 +1,12 @@
+.rounded_colhead
+{
+  border:solid; 
+  border-width:1px;
+  width: 95%;
+  margin: 0px;
+  padding: 4px 4px;
+  /* Rounded corner stuff starts here */
+  -webkit-border-radius: 6px;    /* for Safari */
+  -moz-border-radius: 6px;       /* for Firefox */
+}
+

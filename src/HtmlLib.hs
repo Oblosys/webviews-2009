@@ -20,8 +20,29 @@ mkSpan str elt = thespan![identifier str] << elt
 
 spaces i = primHtml $ concat $ replicate i "&nbsp;"
 
-boxed html = thediv![thestyle "border:solid; border-width:1px; padding:4px;"] << html
+boxed elt = thediv![thestyle "border:solid; border-width:1px; padding:4px;"] << elt
 
+roundedBoxed color elt = thediv![theclass "rounded_colhead", thestyle $ "background-color: "++htmlColor color] << 
+  (thespan![theclass"tl"] << noHtml +++ thespan![theclass"tr"] << noHtml +++ 
+   thespan![thestyle"width:95%"] << elt +++
+   thespan![theclass"bl"] << noHtml +++ thespan![theclass"br"] << noHtml)
+
+ {- 
+<div class="rounded_colhead" style="background-color: red;">
+  <div class="tl"></div><div class="tr"></div>
+    I'm pure CSS3 for maximum simplicity and speed in Firefox and Safari,
+    but I still look good in IE7 and above!
+    Thanks to the magic of conditional CSS and a small bit of
+    extra markup, it all comes together.
+    In IE6, I look square, but IE6 users, a dwindling breed, are used to ugliness.
+  <div class="bl"></div><div class="br"></div>
+</div>
+
+
+ -}
+  
+  
+  
 hList [] = noHtml
 hList views = simpleTable [] [] [ views ]
 
