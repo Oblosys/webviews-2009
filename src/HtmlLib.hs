@@ -22,7 +22,10 @@ spaces i = primHtml $ concat $ replicate i "&nbsp;"
 
 boxed elt = thediv![thestyle "border:solid; border-width:1px; padding:4px;"] << elt
 
-roundedBoxed color elt = thediv![theclass "rounded_colhead", thestyle $ "background-color: "++htmlColor color] << 
+roundedBoxed mColor elt =
+  thediv!(theclass "rounded_colhead" : 
+          case mColor of Nothing -> []
+                         Just color -> [thestyle $ "background-color: "++htmlColor color]) << 
   (thespan![theclass"tl"] << noHtml +++ thespan![theclass"tr"] << noHtml +++ 
    thespan![thestyle"width:95%"] << elt +++
    thespan![theclass"bl"] << noHtml +++ thespan![theclass"br"] << noHtml)
@@ -41,23 +44,36 @@ roundedBoxed color elt = thediv![theclass "rounded_colhead", thestyle $ "backgro
 
  -}
   
-  
-  
+-- TODO: name!!!
+leftRight e1 e2 =
+  mkTableEx [width "100%"] [] [valign "top"]
+       [[ ([],e1), ([align "right"],e2) ]]
+        
+
 hList [] = noHtml
 hList views = simpleTable [] [] [ views ]
 
 vList [] = noHtml
 vList views = simpleTable [] [] [ [v] | v <- views ]
 
-mkTable :: [HtmlAttr] -> [[HtmlAttr]] -> [[Html]] -> Html
-mkTable tableAttrs rowAttrss rows =
+mkTable :: [HtmlAttr] -> [[HtmlAttr]] -> [HtmlAttr] -> [[Html]] -> Html
+mkTable tableAttrs rowAttrss cellAttrs rows =
   table!tableAttrs << concatHtml
-    [ tr!rowAttrs << map td row 
+    [ tr!rowAttrs << map (td!cellAttrs) row 
+    | (rowAttrs, row) <- zip (rowAttrss++repeat []) rows
+    ] -- if no row attrss are given (or not enough), just assume no attrs ([])
+
+mkTableEx :: [HtmlAttr] -> [[HtmlAttr]] -> [HtmlAttr] -> [[([HtmlAttr],Html)]] -> Html
+mkTableEx tableAttrs rowAttrss allCellAttrs rows =
+  table!tableAttrs << concatHtml
+    [ tr!rowAttrs << [ td!(allCellAttrs++cellAttrs) << cell | (cellAttrs,cell)<-row] 
     | (rowAttrs, row) <- zip (rowAttrss++repeat []) rows
     ] -- if no row attrss are given (or not enough), just assume no attrs ([])
 
 data Color = Rgb Int Int Int
            | Color String deriving Show
+
+with_ attrs elt = thediv ! attrs << elt
 
 withColor color elt = thediv ! [colorAttr color] << elt
 

@@ -88,10 +88,17 @@ computeMove oldWebNodeMap changedOrNewWebNodes webNode =
              then -- child has not changed
                   []
              else -- child has changed (or is new, but that doesn't happen)
-                  let Just oldChildWebNode = Map.lookup childViewId oldWebNodeMap
-                  in  [ Move "a" (mkRef $ getWebNodeId childWebNode) 
+                  -- Oops, it does when a new button is introduced that gets the viewId of one that
+                  -- disappeared
+                  -- TODO: check whether this solution is ok
+                  case Map.lookup childViewId oldWebNodeMap of
+                     Just oldChildWebNode ->
+                      [ Move "a" (mkRef $ getWebNodeId childWebNode) 
                                  (mkRef $ getWebNodeId oldChildWebNode)
-                      ]                                      
+                      ]                                     
+                     Nothing ->
+                      [ Move "a*" (mkRef $ getWebNodeId childWebNode) 
+                                  (mkRef $ getWebNodeStubId childWebNode) ]
            | let childWebNodes = getTopLevelWebNodesForWebNode webNode
            , childWebNode <- --trace ("\nchildren for "++(show $ getWebNodeViewId webNode) ++ 
                              --        ":" ++ show (map shallowShowWebNode childWebNodes)) $ 

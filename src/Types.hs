@@ -247,6 +247,9 @@ instance Eq WebView where
 instance Initial () where
   initial = ()
   
+instance Initial Bool where
+  initial = False
+
 instance Initial [a] where
   initial = []
 
@@ -255,9 +258,6 @@ instance Initial (Maybe a) where
 
 instance Initial a => Initial (Either a b) where
   initial = Left initial
-
-instance Initial String where
-  initial = ""
 
 instance Initial Int where
   initial = 0

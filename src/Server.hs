@@ -33,9 +33,10 @@ import HtmlLib
 webViewsPort = 8085
 
 users :: Map String (String, String)
-users = Map.fromList [("martijn", ("p", "Martijn")), ("anonymous", ("", "gastgebruiker"))
+users = Map.fromList [("martijn", ("p", "Martijn"))
                      ,("alexey", ("mrchebas", "Pulpo")) 
                      ,("lambert", ("bla", "Lambert"))
+                     ,("", ("", "anonymous"))
                      ] 
 -- TODO: maybe this can be (a special) part of db?
 

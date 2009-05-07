@@ -29,19 +29,21 @@ mkRootView user db sessionId viewMap =
 
 
 
+
 -- Visits ----------------------------------------------------------------------  
 
 data VisitsView = 
   VisitsView Int Int User [(String,String)] 
                  WebView [EditAction] (Widget Button) (Widget Button) (Widget Button) (Widget Button) 
-                 (Maybe WebView)
+                 (Maybe WebView) [WebView] (Maybe (Widget Button))
     deriving (Eq, Show, Typeable, Data)
   
-modifyViewedVisit fn (VisitsView v a b c d e f g h i j) = VisitsView (fn v) a b c d e f g h i j
+modifyViewedVisit fn (VisitsView v a b c d e f g h i j k l) = 
+  VisitsView (fn v) a b c d e f g h i j k l
 
 mkVisitsView sessionId = mkWebView $
  \user db viewMap vid ->
-  do { let (VisitsView oldViewedVisit _ _ _ _ _ _ _ _ _ _) = getOldView vid viewMap
+  do { let (VisitsView oldViewedVisit _ _ _ _ _ _ _ _ _ _ _ _) = getOldView vid viewMap
            viewedVisit = constrain 0 (length visits - 1) oldViewedVisit
            (visitIds, visits) = unzip $ Map.toList $ allVisits db
      ; today <- liftIO getToday             
@@ -63,11 +65,17 @@ mkVisitsView sessionId = mkWebView $
                      else do { vw <- mkVisitView (visitIds !! viewedVisit) user db viewMap
                              ; return (Just vw)
                              }
-                             
+     ; commentViews <- sequence [ mkCommentView cid user db viewMap
+                                | cid <- Map.keys (allComments db) ]                    
+                       
+     ; mAddCommentButton <- case user of 
+                              Nothing -> return Nothing 
+                              Just (_,name) -> fmap Just $ mkButton "Add a comment" True $ 
+                                                 addComment name today
      ;  return $ VisitsView viewedVisit sessionId user
                  [ (zipCode visit, date visit) | visit <- visits ]
                  loginOutView selectionActions 
-                 prevB nextB addB removeB  visitView
+                 prevB nextB addB removeB  visitView commentViews mAddCommentButton
      }
  where prev vid = mkViewEdit vid $ modifyViewedVisit decrease
        next vid = mkViewEdit vid $ modifyViewedVisit increase
@@ -79,18 +87,25 @@ mkVisitsView sessionId = mkWebView $
        getToday =
          do { clockTime <-  getClockTime
             ; ct <- toCalendarTime clockTime
-            ; return $ show (ctDay ct) ++ "-" ++show (fromEnum (ctMonth ct) + 1) ++ "-" ++show (ctYear ct)
+            ; return $ show (ctDay ct) ++ "-" ++show (ctMonth ct) ++ "-" ++show (ctYear ct) ++
+                       ", "++show (ctHour ct) ++ ":" ++ show (ctMin ct)
             }
+         
+       addComment name today = 
+         DocEdit $ \db -> let ((Comment ncid _ _ _), db') = newComment db
+                          in  updateComment ncid (\v -> v { commentAuthor = name
+                                                          , commentDate = today}) db'
 
 instance Presentable VisitsView where
   present (VisitsView viewedVisit sessionId user visits loginoutView selectionActions  
-                      prev next add remove mv) =
-    withBgColor (Rgb 235 235 235) $ withPad 15 0 15 0 $
-      (case user of
-         Nothing -> present loginoutView 
-         Just (_,name) -> stringToHtml ("Hello "++name++".") +++ present loginoutView) +++
-      p << ("List of all visits     (session# "++show sessionId++")") +++         
-      p << (hList [ withBgColor (Rgb 250 250 250) $ boxed $ withSize 200 100 $ 
+                      prev next add remove mv commentViews mAddCommentButton) =
+    withBgColor (Rgb 235 235 235) $ withPad 5 0 5 0 $    
+    with_ [thestyle "font-family: arial"] $
+      mkTableEx [width "100%"] [] [valign "top"]
+       [[ ([],
+           (h2 << "Piglet 2.0")  +++
+           ("List of all visits     (session# "++show sessionId++")") +++         
+      p << (hList [ withBgColor (Rgb 250 250 250) $ roundedBoxed Nothing $ withSize 200 100 $ 
              (let rowAttrss = [] :
                               [ [withEditActionAttr selectionAction] ++
                                 if i == viewedVisit then [ fgbgColorAttr (Rgb 255 255 255) (Rgb 0 0 255)
@@ -103,21 +118,36 @@ instance Presentable VisitsView where
                          | (i, (zipCode, date)) <- zip [1..] visits
                          ]
               in  mkTable [strAttr "width" "100%", strAttr "cellPadding" "2", thestyle "border-collapse: collapse"] 
-                     rowAttrss rows
+                     rowAttrss [] rows
                
                  )])  +++
-      p << (present add +++ present remove) +++
+      p << (present add +++ present remove) 
+      )
+      ,([align "right"],
+     hList[
+      case user of
+         Nothing -> present loginoutView 
+         Just (_,name) -> stringToHtml ("Hello "++name++".") +++ br +++ br +++ present loginoutView
+      ] )]
+      ]
+     +++
       p << ((if null visits then "There are no visits. " else "Viewing visit nr. "++ show (viewedVisit+1) ++ ".") +++ 
              "    " +++ present prev +++ present next) +++ 
       boxed (case mv of
                Nothing -> stringToHtml "No visits."
                Just pv -> present pv)
-
+     +++
+      h2 << "Comments" +++
+      vList (map present commentViews)
+     +++ (case mAddCommentButton of 
+            Nothing -> stringToHtml "Log in to add a comment"
+            Just b  -> present b)
+      
 instance Storeable VisitsView where
   save _ = id
    
 instance Initial VisitsView where                 
-  initial = VisitsView 0 initial initial initial initial initial initial initial initial initial initial
+  initial = VisitsView 0 initial initial initial initial initial initial initial initial initial initial initial initial
   
 
 
@@ -177,7 +207,7 @@ instance Storeable VisitView where
                       Visit vid (getStrVal zipCode) (getStrVal date) pigIds)
 
 instance Initial VisitView where
-  initial = VisitView initial initial initial initial initial initial initial initial initial initial
+  initial = VisitView (VisitId initial) initial initial initial initial initial initial initial initial initial
                        
 
 
@@ -213,7 +243,7 @@ mkPigView parentViewId pignr i viewedPig = mkWebView $
 instance Presentable PigView where
   present (PigView pid _ _ b _ pignr name [] diagnosis) = stringToHtml "initial pig"
   present (PigView pid editAction imageUrl b viewedPig pignr name [co, ab, as] diagnosis) =
-      roundedBoxed (if viewedPig == pignr then Rgb 200 200 200 else Rgb 225 225 225) $
+       roundedBoxed (Just $ if viewedPig == pignr then Rgb 200 200 200 else Rgb 225 225 225) $
         (center $ withEditAction editAction $ image imageUrl) +++
         (center $ " nr. " +++ show (pignr+1)) +++
         p << (center $ (present b)) +++
@@ -231,4 +261,67 @@ instance Storeable PigView where
                     (Pig pid vid (getStrVal name) (map getSelection symptoms) diagnosis)) 
 
 instance Initial PigView where
-  initial = PigView initial initial "" initial initial initial initial initial initial
+  initial = PigView (PigId initial) initial "" initial initial initial initial initial initial
+
+
+data CommentView = CommentView CommentId Bool String String String
+                               (Maybe EditAction) (Maybe (Widget EString))--(Either (Maybe (Widget Button)) (Widget EString, Widget Button))
+                   deriving (Eq, Show, Typeable, Data)
+
+instance Initial CommentView where
+  initial = CommentView (CommentId initial) initial initial initial initial initial initial
+
+modifyEdited fn (CommentView a edited b c d e f) = (CommentView a (fn edited) b c d e f)
+
+mkCommentView commentId = mkWebView $ \user db viewMap vid ->
+ do { let (CommentView _ edited _ _ _ _ _) = getOldView vid viewMap
+          (Comment _ author date text) =  unsafeLookup (allComments db) commentId
+    
+    ; editAction <- if edited
+                    then fmap Just $ mkEditAction $ AlertEdit "submit"
+                    else case  user of
+                           Just (login, _) -> if login == author 
+                                              then fmap Just $ mkEditAction $ mkViewEdit vid $ modifyEdited (const True)
+                                              else return Nothing
+                           _               -> return Nothing
+ 
+    ; mTextField <- if edited
+                    then fmap Just $ mkTextField text
+                    else return $ Nothing
+{-    ; widgets <- if not edited then
+                   case user of
+                     Just (login, _) -> if login == author 
+                                        then fmap (Left . Just) $ 
+                                               mkButton "Edit" True $ 
+                                                 mkViewEdit vid $ modifyEdited (const True)
+                                        else return $ Left Nothing
+                     _               -> return $ Left Nothing
+                 else
+                  do { textEntry <- mkTextField text 
+                     ; submitB <- mkButton "Submit" True $ AlertEdit "Submit"
+                     ; return $ Right (textEntry, submitB)
+                     }
+-}    
+    ; return $ CommentView commentId edited author date text editAction mTextField
+    }
+
+instance Storeable CommentView where
+  save _ = id
+
+instance Presentable CommentView where
+  present (CommentView _ edited author date text mEditAction mTextField) =
+    thediv![thestyle "border:solid; border-width:1px; padding:0px; width:500px;"] $
+     (withBgColor (Rgb 225 225 225) $ thespan![thestyle "margin:4px;"] $
+        ("posted by " +++ stringToHtml author +++ " on " +++ stringToHtml date)
+       `leftRight`
+        (case mEditAction of
+           Just ea -> if edited then withEditAction ea $ stringToHtml "submit"
+                                else withEditAction ea $ stringToHtml "edit"
+           Nothing -> stringToHtml "")
+     ) +++ 
+     (withBgColor (Color "white") $ 
+       thespan![thestyle "margin:4px;"] $ 
+         case mTextField of 
+           Nothing -> stringToHtml text
+           Just textField -> present textField
+           )

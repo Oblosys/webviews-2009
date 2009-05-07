@@ -35,11 +35,6 @@ instance Storeable WebView where
 -- first save self, then children
 -- TODO: does this order matter?
 
--- should be with TH stuff for Database, like DatabaseUtils or something
-instance Initial VisitId where initial = VisitId (-1)
-
-instance Initial PigId where initial = PigId (-1)
-
 
 
 mkViewEdit i f = 
