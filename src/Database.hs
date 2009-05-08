@@ -89,6 +89,9 @@ updateComment i f db =
   let visit = unsafeLookup (allComments db) i
   in  db  { allComments = Map.insert i (f visit) (allComments db)
           }
+      
+removeComment :: CommentId -> Database -> Database
+removeComment i db = db { allComments = Map.delete i (allComments db) }
 
 theDatabase = Database 
   (Map.fromList [ (VisitId 1, Visit (VisitId 1) "3581" "27-3-2009"

@@ -270,42 +270,48 @@ instance Initial PigView where
 
 
 data CommentView = CommentView CommentId Bool String String String
-                               (Maybe (WebView)) (Maybe (Widget EString))--(Either (Maybe (Widget Button)) (Widget EString, Widget Button))
+                               (Maybe (WebView)) (Maybe (WebView)) (Maybe (Widget EString))
                    deriving (Eq, Show, Typeable, Data)
 
 instance Initial CommentView where
-  initial = CommentView (CommentId initial) initial initial initial initial initial initial
+  initial = CommentView (CommentId initial) initial initial initial initial initial initial initial
 
-modifyEdited fn (CommentView a edited b c d e f) = (CommentView a (fn edited) b c d e f)
+modifyEdited fn (CommentView a edited b c d e f g) = (CommentView a (fn edited) b c d e f g)
 
 mkCommentView commentId new = mkWebView $ \user db viewMap vid ->
- do { let (CommentView _ edited' _ _ _ oldText oldMTextfield) = getOldView vid viewMap
+ do { let (CommentView _ edited' _ _ _ _ _ oldMTextfield) = getOldView vid viewMap
           (Comment _ author date text) =  unsafeLookup (allComments db) commentId
     
           (_,name) = unsafeLookup users author
           
           edited = if new then True else edited' 
           
-    ; editAction <- if edited
+    ; mEditAction <- if edited
 --                    then fmap Just $ mkButton "Submit" True $ mkViewEdit vid $ modifyEdited (const False)
-                    then fmap Just $ mkLinkView "Submit" (mkViewEdit vid $ modifyEdited (const False))
+                     then fmap Just $ mkLinkView "Submit" (mkViewEdit vid $ modifyEdited (const False))
                                                 user db viewMap
-                    else case  user of
-                           Just (login, _) -> if login == author || login == "martijn" 
---                                              then fmap Just $ mkButton "Edit" True $ mkViewEdit vid $ modifyEdited (const True)
-                                              then fmap Just $ mkLinkView "Edit" (mkViewEdit vid $ modifyEdited (const True))
+                     else if userIsAuthorized author user 
+                          then fmap Just $ mkLinkView "Edit" (mkViewEdit vid $ modifyEdited (const True))
                                                                           user db viewMap
-                                              else return Nothing
-                           _               -> return Nothing
- 
+                          else return Nothing
+    
+    ; mRemoveAction <- if userIsAuthorized author user 
+                          then fmap Just $ mkLinkView "Remove" 
+                                            (ConfirmEdit ("Are you sure you want to remove this comment?") $ 
+                                               DocEdit $ removeComment commentId)
+                                             user db viewMap
+                          else return Nothing
+      
+                              
     ; mTextField <- if edited
                     then fmap Just $ mkTextField text
                     else return $ Nothing
-    ; return $ CommentView commentId edited name date text editAction mTextField
+    ; return $ CommentView commentId edited name date text mEditAction mRemoveAction mTextField
     }
-
+ where userIsAuthorized authorLogin (Just (login, _)) = login == authorLogin || login == "martijn" 
+       userIsAuthorized _           Nothing           = False
 instance Storeable CommentView where
-  save (CommentView cid edited _ date text _ mTextField) =
+  save (CommentView cid edited _ date text _ _ mTextField) =
     updateComment cid (\(Comment _ author _ _) -> 
                              let text' = if edited
                                         then case mTextField of
@@ -316,15 +322,20 @@ instance Storeable CommentView where
                              in  Comment cid author date text')
 
 instance Presentable CommentView where
-  present (CommentView _ edited author date text mEditAction mTextField) =
+  present (CommentView _ edited author date text mEditAction mRemoveAction mTextField) =
     thediv![thestyle "border:solid; border-width:1px; padding:0px; width:500px;"] $
      (withBgColor (Rgb 225 225 225) $ --  thespan![thestyle "margin:4px;"] $
         ("Posted by " +++ stringToHtml author +++ " on " +++ stringToHtml date)
         `leftRight`
-        (case mEditAction of
-           Just ea -> if edited then present ea -- withEditAction ea $ stringToHtml "submit"
-                                else present ea -- withEditAction ea $ stringToHtml "edit"
-           Nothing -> stringToHtml "")
+        ( withColor (Color "blue") $
+          case mEditAction of
+           Just ea -> present ea
+           Nothing -> stringToHtml ""
+         +++ " " +++
+         case mRemoveAction of
+           Just ra -> present ra
+           Nothing -> stringToHtml ""
+         )
      ) +++ 
      (withBgColor (Color "white") $ 
         thespan![thestyle "margin:2px;"] $ -- TODO: figure out why margin above creates too much space  
