@@ -33,17 +33,20 @@ mkRootView user db sessionId viewMap =
 -- Visits ----------------------------------------------------------------------  
 
 data VisitsView = 
-  VisitsView Int Int User [(String,String)] 
+  VisitsView Bool Int Int User [(String,String)] 
                  WebView [EditAction] (Widget Button) (Widget Button) (Widget Button) (Widget Button) 
-                 (Maybe WebView) [WebView] (Maybe (Widget Button))
+                 (Maybe WebView) [CommentId] [WebView] (Maybe (Widget Button))
     deriving (Eq, Show, Typeable, Data)
   
-modifyViewedVisit fn (VisitsView v a b c d e f g h i j k l) = 
-  VisitsView (fn v) a b c d e f g h i j k l
+instance Initial VisitsView where                 
+  initial = VisitsView True 0 initial initial initial initial initial initial initial initial initial initial initial initial initial
+
+modifyViewedVisit fn (VisitsView a v b c d e f g h i j k l m n) = 
+  VisitsView a (fn v) b c d e f g h i j k l m n
 
 mkVisitsView sessionId = mkWebView $
  \user db viewMap vid ->
-  do { let (VisitsView oldViewedVisit _ _ _ _ _ _ _ _ _ _ _ _) = getOldView vid viewMap
+  do { let (VisitsView fresh oldViewedVisit _ _ _ _ _  _ _ _ _ _ oldCommentIds _ _) = getOldView vid viewMap
            viewedVisit = constrain 0 (length visits - 1) oldViewedVisit
            (visitIds, visits) = unzip $ Map.toList $ allVisits db
      ; today <- liftIO getToday             
@@ -65,17 +68,22 @@ mkVisitsView sessionId = mkWebView $
                      else do { vw <- mkVisitView (visitIds !! viewedVisit) user db viewMap
                              ; return (Just vw)
                              }
-     ; commentViews <- sequence [ mkCommentView cid user db viewMap
-                                | cid <- Map.keys (allComments db) ]                    
+     ; let commentIds = Map.keys (allComments db)
+                                    
+     ; commentViews <- sequence 
+                          [ mkCommentView cid (not fresh && cid `notElem` oldCommentIds) 
+                                          user db viewMap -- if this view is not fresh, and an
+                          | cid <- commentIds             -- id was not in commentIds, it was
+                          ]                               -- added and will be in edit mode
                        
      ; mAddCommentButton <- case user of 
                               Nothing -> return Nothing 
                               Just (login,_) -> fmap Just $ mkButton "Add a comment" True $ 
                                                  addComment login today
-     ;  return $ VisitsView viewedVisit sessionId user
+     ;  return $ VisitsView False viewedVisit sessionId user
                  [ (zipCode visit, date visit) | visit <- visits ]
                  loginOutView selectionActions 
-                 prevB nextB addB removeB  visitView commentViews mAddCommentButton
+                 prevB nextB addB removeB  visitView commentIds commentViews mAddCommentButton
      }
  where prev vid = mkViewEdit vid $ modifyViewedVisit decrease
        next vid = mkViewEdit vid $ modifyViewedVisit increase
@@ -87,7 +95,7 @@ mkVisitsView sessionId = mkWebView $
        getToday =
          do { clockTime <-  getClockTime
             ; ct <- toCalendarTime clockTime
-            ; return $ show (ctDay ct) ++ "-" ++show (ctMonth ct) ++ "-" ++show (ctYear ct) ++
+            ; return $ show (ctDay ct) ++ " " ++show (ctMonth ct) ++ " " ++show (ctYear ct) ++
                        ", "++show (ctHour ct) ++ ":" ++ reverse (take 2 (reverse $ show (ctMin ct) ++ "0"))
             }
          
@@ -97,8 +105,8 @@ mkVisitsView sessionId = mkWebView $
                                                           , commentDate = today}) db'
 
 instance Presentable VisitsView where
-  present (VisitsView viewedVisit sessionId user visits loginoutView selectionActions  
-                      prev next add remove mv commentViews mAddCommentButton) =
+  present (VisitsView _ viewedVisit sessionId user visits loginoutView selectionActions  
+                      prev next add remove mv _ commentViews mAddCommentButton) =
     withBgColor (Rgb 235 235 235) $ withPad 5 0 5 0 $    
     with_ [thestyle "font-family: arial"] $
       mkTableEx [width "100%"] [] [valign "top"]
@@ -145,10 +153,7 @@ instance Presentable VisitsView where
       
 instance Storeable VisitsView where
   save _ = id
-   
-instance Initial VisitsView where                 
-  initial = VisitsView 0 initial initial initial initial initial initial initial initial initial initial initial initial
-  
+     
 
 
 
@@ -273,12 +278,14 @@ instance Initial CommentView where
 
 modifyEdited fn (CommentView a edited b c d e f) = (CommentView a (fn edited) b c d e f)
 
-mkCommentView commentId = mkWebView $ \user db viewMap vid ->
- do { let (CommentView _ edited _ _ _ oldText oldMTextfield) = getOldView vid viewMap
+mkCommentView commentId new = mkWebView $ \user db viewMap vid ->
+ do { let (CommentView _ edited' _ _ _ oldText oldMTextfield) = getOldView vid viewMap
           (Comment _ author date text) =  unsafeLookup (allComments db) commentId
     
           (_,name) = unsafeLookup users author
-            
+          
+          edited = if new then True else edited' 
+          
     ; editAction <- if edited
 --                    then fmap Just $ mkButton "Submit" True $ mkViewEdit vid $ modifyEdited (const False)
                     then fmap Just $ mkLinkView "Submit" (mkViewEdit vid $ modifyEdited (const False))
@@ -294,20 +301,6 @@ mkCommentView commentId = mkWebView $ \user db viewMap vid ->
     ; mTextField <- if edited
                     then fmap Just $ mkTextField text
                     else return $ Nothing
-{-    ; widgets <- if not edited then
-                   case user of
-                     Just (login, _) -> if login == author 
-                                        then fmap (Left . Just) $ 
-                                               mkButton "Edit" True $ 
-                                                 mkViewEdit vid $ modifyEdited (const True)
-                                        else return $ Left Nothing
-                     _               -> return $ Left Nothing
-                 else
-                  do { textEntry <- mkTextField text 
-                     ; submitB <- mkButton "Submit" True $ AlertEdit "Submit"
-                     ; return $ Right (textEntry, submitB)
-                     }
--}    
     ; return $ CommentView commentId edited name date text editAction mTextField
     }
 
