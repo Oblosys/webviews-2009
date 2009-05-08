@@ -363,6 +363,17 @@ handleCommand sessionStateRef (ButtonC id) =
           
     ; return response
     }
+handleCommand sessionStateRef (SubmitC id) =
+ do { (_, user, db, rootView, pendingEdit) <- readIORef sessionStateRef
+    ; let Text _ _ txt mAct = getTextById (Id id) rootView
+    ; putStrLn $ "Text #" ++ show id ++ ":" ++ txt ++ " was submitted"
+
+    ; response <- case mAct of 
+        Nothing  -> error "Internal error: text field with submission action has no associated action."
+        Just act -> performEditCommand sessionStateRef act
+          
+    ; return response
+    }
 handleCommand sessionStateRef (PerformEditActionC id) =
  do { (_, user, db, rootView, pendingEdit) <- readIORef sessionStateRef
     ; let EditAction _ act = getEditActionById (Id id) rootView

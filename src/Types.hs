@@ -26,6 +26,7 @@ getCommands _             = []
 data Command = Init | Refresh | Test 
              | SetC Int String 
              | ButtonC Int
+             | SubmitC Int
              | PerformEditActionC Int 
              | ConfirmDialogOk 
                deriving (Eq, Show, Read) 
@@ -60,22 +61,23 @@ instance Eq (Widget w) where
 
 data TextType = TextField | PasswordField | TextArea deriving (Eq, Show, Typeable, Data)
 
-data Text = Text { getStrId' :: Id, getTextType :: TextType, getStrVal' :: String } deriving (Show, Typeable, Data)
+data Text = Text { getStrId' :: Id, getTextType :: TextType, getStrVal' :: String 
+                 , getSubmitAction :: Maybe EditCommand } deriving (Show, Typeable, Data)
 
 instance Eq Text where
-  Text _ t1 str1 == Text _ t2 str2 = t1 == t2 && str1 == str2
+  Text _ t1 str1 _ == Text _ t2 str2 _ = t1 == t2 && str1 == str2
   
-getStrId (Widget _ _ _ (Text i h v)) = i
+getStrId (Widget _ _ _ (Text i h v _)) = i
 
-getStrVal (Widget _ _ _ (Text i h v)) = v
+getStrVal (Widget _ _ _ (Text i h v _)) = v
 
-textField viewId str = Widget viewId noId noId $ Text noId TextField str
+textField viewId str mSubmitAction = Widget viewId noId noId $ Text noId TextField str mSubmitAction
 
-passwordField viewId str = Widget viewId noId noId $ Text noId PasswordField str
+passwordField viewId str mSubmitAction = Widget viewId noId noId $ Text noId PasswordField str mSubmitAction
 
-textArea viewId str = Widget viewId noId noId $ Text noId TextArea str
+textArea viewId str = Widget viewId noId noId $ Text noId TextArea str Nothing
 
-strRef (Widget _ _ _ (Text (Id i) h _)) = IdRef i
+strRef (Widget _ _ _ (Text (Id i) h _ _)) = IdRef i
 
 data RadioView = RadioView { getIntId' :: Id, getItems :: [String], getSelection' :: Int 
                            , getRadioEnabled :: Bool 
@@ -270,7 +272,7 @@ instance Initial w => Initial (Widget w) where
   initial = Widget noViewId noId noId initial
   
 instance Initial Text where
-  initial = Text (Id $ -1) TextField ""
+  initial = Text (Id $ -1) TextField "" Nothing
 
 instance Initial RadioView where
   initial = RadioView (Id $ -1) [] 0 False
@@ -296,9 +298,18 @@ mkEditAction ac = return $ EditAction noId ac
 
 mkRadioView is s en = liftS $ \vidC -> (radioView (ViewId vidC) is s en, vidC +1)
 
-mkTextField str = liftS $ \vidC -> (textField (ViewId vidC) str, vidC + 1)
 
-mkPasswordField str = liftS $ \vidC -> (passwordField (ViewId vidC) str, vidC + 1)
+mkTextField str = mkTextFieldEx str Nothing
+
+mkTextFieldAct str act = mkTextFieldEx str $ Just act
+
+mkTextFieldEx str mEditAction = liftS $ \vidC -> (textField (ViewId vidC) str mEditAction, vidC + 1)
+
+mkPasswordField str = mkPasswordFieldEx str Nothing
+
+mkPasswordFieldAct str act = mkPasswordFieldEx str $ Just act
+
+mkPasswordFieldEx str mEditAction = liftS $ \vidC -> (passwordField (ViewId vidC) str mEditAction , vidC + 1)
 
 mkTextArea str = liftS $ \vidC -> (textArea (ViewId vidC) str, vidC + 1)
 

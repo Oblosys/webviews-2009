@@ -17,6 +17,7 @@ import Types
 import Database
 import Generics
 import HtmlLib
+import Control.Monad.Fix
 
 
 -- IDEA: use phantom types to enforce type structure on views
@@ -80,20 +81,21 @@ the update
 -- (or Done) on the iPhone.
 
 presentTextField :: Text -> Html
-presentTextField (Text (Id i) TextArea str) = 
+presentTextField (Text (Id i) TextArea str _) = 
    form![ thestyle "display: inline; width: 500px;"
-        , strAttr "onSubmit" $ "textFieldChanged('"++show i++"');return false"] $
+        , strAttr "onSubmit" $ "textFieldChanged('"++show i++"'); return false"] $
      textarea ! [ identifier (show i)
                 , thestyle "width: 100%; height: 100%;"
                 --, strAttr "onChange" $ "textFieldChanged('"++show i++"')"
                 , strAttr "onFocus" $ "elementGotFocus('"++show i++"')"
                 , strAttr "onBlur" $ "textFieldChanged('"++show i++"')"
                 ] << stringToHtml str
-presentTextField (Text (Id i) textType str) = 
+presentTextField (Text (Id i) textType str mEditAction) = 
   let inputField = case textType of TextField -> textfield ""
                                     PasswordField -> password ""
                                     
-  in form![ thestyle "display: inline", strAttr "onSubmit" $ "textFieldChanged('"++show i++"');return false"] $
+  in form![ thestyle "display: inline", strAttr "onSubmit" $ "textFieldChanged('"++show i++"');"++
+                               "queueCommand('SubmitC "++show i++"'); return false"] $
        inputField ! [identifier (show i), strAttr "value" str, width "100%"
                     --, strAttr "onChange" $ "textFieldChanged('"++show i++"')"
                     , strAttr "onFocus" $ "elementGotFocus('"++show i++"')"
@@ -150,7 +152,11 @@ instance Presentable AnyWidget where
 
 
 
-
+fixView :: (args -> WebViewM (v, args)) -> WebViewM v
+fixView mkv = 
+  do { (v, _) <- mfix (\(~(_,args)) -> mkv args)
+     ; return v
+     }
 
 -- Login -----------------------------------------------------------------------  
 
@@ -161,12 +167,14 @@ instance Initial LoginView where initial = LoginView initial initial initial
 
 mkLoginView = mkWebView $
   \user db viewMap vid ->
+   fixView $ \fixedAuthenticate ->
    do { let (LoginView name password b) = getOldView vid viewMap
-      ; nameT <- mkTextField $ getStrVal name 
-      ; passwordT <- mkPasswordField $ getStrVal password 
-      ; loginB <- mkButton "Login" True $ 
-                    AuthenticateEdit (widgetGetViewRef nameT) (widgetGetViewRef passwordT)
-      ; return $ LoginView nameT passwordT loginB
+      ; nameT <- mkTextFieldAct (getStrVal name) fixedAuthenticate 
+      ; passwordT <- mkPasswordFieldAct (getStrVal password) fixedAuthenticate 
+      ; let authenticate = AuthenticateEdit (widgetGetViewRef nameT) (widgetGetViewRef passwordT)
+      
+      ; loginB <- mkButton "Login" True authenticate                   
+      ; return $ (LoginView nameT passwordT loginB, authenticate)
       }
 
 instance Storeable LoginView where save _ = id

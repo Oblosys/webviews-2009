@@ -42,7 +42,7 @@ getTopLevelWebNodesWebView :: WebView -> [WebNode]
 getTopLevelWebNodesWebView (WebView _ _ _ _ v) =
   everythingTopLevel (Nothing `mkQ`  (\w@(WebView vwId sid id _ _) -> Just $ WebViewNode w) 
                               `extQ` (\w@(Widget vi stbid id x@(RadioView _ _ _ _))   -> Just $ WidgetNode vi stbid id (RadioViewWidget x))
-                              `extQ` (\w@(Widget vi stbid id x@(Text _ _ _)) -> Just $ WidgetNode vi stbid id (TextWidget x))
+                              `extQ` (\w@(Widget vi stbid id x@(Text _ _ _ _)) -> Just $ WidgetNode vi stbid id (TextWidget x))
                               `extQ` (\w@(Widget vi stbid id x@(Button _ _ _ _))   -> Just $ WidgetNode vi stbid id (ButtonWidget x))
                      ) v             -- TODO can we do this bettter?
 
@@ -52,7 +52,7 @@ getTopLevelWebNodesWebNode :: Data x => x -> [WebNode]
 getTopLevelWebNodesWebNode x = everythingTopLevel 
                      (Nothing `mkQ`  (\w@(WebView vwId sid id _ _) -> Just $ WebViewNode w) 
                               `extQ` (\w@(Widget vi stbid id x@(RadioView _ _ _ _))   -> Just $ WidgetNode vi stbid id (RadioViewWidget x))
-                              `extQ` (\w@(Widget vi stbid id x@(Text _ _ _)) -> Just $ WidgetNode vi stbid id (TextWidget x))
+                              `extQ` (\w@(Widget vi stbid id x@(Text _ _ _ _)) -> Just $ WidgetNode vi stbid id (TextWidget x))
                               `extQ` (\w@(Widget vi stbid id x@(Button _ _ _ _))   -> Just $ WidgetNode vi stbid id (ButtonWidget x))
                      ) x
 -- lookup the view id and if the associated view is of the desired type, return it. Otherwise
@@ -167,9 +167,9 @@ replace :: Data d => Updates -> d -> d
 replace updates v = (everywhere $ extT (mkT (replaceText updates))  (replaceRadioView updates)) v
 
 replaceText :: Updates -> Text -> Text
-replaceText updates x@(Text i h _) =
+replaceText updates x@(Text i h _ ea) =
   case Map.lookup i updates of
-    Just str -> (Text i h str)
+    Just str -> (Text i h str ea)
     Nothing -> x
 
 replaceRadioView :: Updates -> RadioView -> RadioView
@@ -197,6 +197,13 @@ getButtonById i view =
     [b] -> b
     []  -> error $ "internal error: no button with id "++show i
     _   -> error $ "internal error: multiple buttons with id "++show i
+
+getTextById :: Data d => Id -> d -> Text
+getTextById i view = 
+  case listify (\(Text i' _ _ _) -> i==i') view of
+    [b] -> b
+    []  -> error $ "internal error: no text with id "++show i
+    _   -> error $ "internal error: multiple texts with id "++show i
 
 getEditActionById :: Data d => Id -> d -> EditAction
 getEditActionById i view = 
@@ -236,4 +243,5 @@ getWebViewById i view =
 
 getTextByViewId :: Data v => ViewIdRef -> v -> Maybe String
 getTextByViewId (ViewIdRef i) view =
-  something (Nothing `mkQ` (\(Widget (ViewId i') _ _ (Text _ _ str)) -> if i == i' then Just str else Nothing)) view
+  something (Nothing `mkQ` (\(Widget (ViewId i') _ _ (Text _ _ str _)) -> 
+                             if i == i' then Just str else Nothing)) view

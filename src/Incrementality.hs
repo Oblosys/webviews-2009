@@ -167,7 +167,7 @@ getWebNodeStubId (WidgetNode _ si _ _) = si
 
 getWidgetInternalId :: AnyWidget -> Id
 getWidgetInternalId  (RadioViewWidget (RadioView id _ _ _)) = id
-getWidgetInternalId  (TextWidget (Text id _ _)) = id
+getWidgetInternalId  (TextWidget (Text id _ _ _)) = id
 getWidgetInternalId  (ButtonWidget (Button id _ _ _)) = id
 getWidgetInternalId  (EditActionWidget (EditAction id _)) = id
             
@@ -243,7 +243,7 @@ drawWebNodes webnode = drawTree $ treeFromView webnode
          Node ("("++show vid++", stub:" ++ show (unId sid) ++ ", id:" ++ show (unId id) ++ ") : " ++ showAnyWidget w) $
               map treeFromView $ getTopLevelWebNodesWebNode w
         where showAnyWidget (RadioViewWidget (RadioView id is i e))    = "RadioView " ++ show id ++" " ++ (show i) ++(if e then "enabled" else "disabled") ++ ": "++ show is
-              showAnyWidget (TextWidget (Text id t s)) = "Text"++ show id ++" "++(show t)++ " " ++ show s
+              showAnyWidget (TextWidget (Text id t s _)) = "Text"++ show id ++" "++(show t)++ " " ++ show s
               showAnyWidget (ButtonWidget (Button id _ _ _))  = "Button " ++ show id 
               showAnyWidget (EditActionWidget (EditAction id _))  = "EditAction " ++ show id
                  

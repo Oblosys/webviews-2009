@@ -106,7 +106,7 @@ theDatabase = Database
                 , (PigId 5, Pig (PigId 5) (VisitId 2) "Pinky" [0,1,1] (Left 3)) 
                 ])
   (Map.fromList [ (CommentId 1, Comment (CommentId 1) ""
-                                        "7 May 2009, 18:30" "First comment")
+                                        "7 May 2009, 18:30" "First comment\nWebViews is very cool.")
                 ])
 --                    ]
   
