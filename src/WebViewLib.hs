@@ -94,13 +94,16 @@ presentTextField (Text (Id i) textType str mEditAction) =
   let inputField = case textType of TextField -> textfield ""
                                     PasswordField -> password ""
                                     
-  in form![ thestyle "display: inline", strAttr "onSubmit" $ "textFieldChanged('"++show i++"');"++
-                               "queueCommand('SubmitC "++show i++"'); return false"] $
-       inputField ! [identifier (show i), strAttr "value" str, width "100%"
+  in form![ thestyle "display: inline"
+          , strAttr "onSubmit" $ "textFieldChanged('"++show i++"');" ++
+                                 (case mEditAction of
+                                    Nothing -> []
+                                    Just _  -> "queueCommand('SubmitC "++show i++"'); ")++
+                                 "return false"] $
+       inputField ! [ identifier (show i), strAttr "value" str, width "100%"
                     --, strAttr "onChange" $ "textFieldChanged('"++show i++"')"
                     , strAttr "onFocus" $ "elementGotFocus('"++show i++"')"
-                    , strAttr "onBlur" $ "textFieldChanged('"++show i++"')"
-                    ]
+                    , strAttr "onBlur" $ "textFieldChanged('"++show i++"')" ]
 
 -- seems like this one could be in Present
 presentButton :: Button -> Html
@@ -151,13 +154,6 @@ instance Presentable AnyWidget where
 
 
 
-
-fixView :: (args -> WebViewM (v, args)) -> WebViewM v
-fixView mkv = 
-  do { (v, _) <- mfix (\(~(_,args)) -> mkv args)
-     ; return v
-     }
-
 -- Login -----------------------------------------------------------------------  
 
 data LoginView = LoginView (Widget Text) (Widget Text) (Widget Button) 
@@ -169,8 +165,10 @@ mkLoginView = mkWebView $
   \user db viewMap vid ->
    fixView $ \fixedAuthenticate ->
    do { let (LoginView name password b) = getOldView vid viewMap
-      ; nameT <- mkTextFieldAct (getStrVal name) fixedAuthenticate 
-      ; passwordT <- mkPasswordFieldAct (getStrVal password) fixedAuthenticate 
+      ; nameT <- mkTextField (getStrVal name)
+      ; passwordT <- mkPasswordField (getStrVal password)
+--      ; nameT <- mkTextFieldAct (getStrVal name) fixedAuthenticate 
+--      ; passwordT <- mkPasswordFieldAct (getStrVal password) fixedAuthenticate 
       ; let authenticate = AuthenticateEdit (widgetGetViewRef nameT) (widgetGetViewRef passwordT)
       
       ; loginB <- mkButton "Login" True authenticate                   
@@ -207,6 +205,8 @@ instance Presentable LogoutView where
             
 
 
+-- LinkView ---------------------------------------------------------------------  
+
 -- This is a separate view for editActions. Putting edit actions inside a view that is changed
 -- may cause press events to get lost. This indirection solves the problem.
 data LinkView = LinkView String EditAction deriving (Eq, Show, Typeable, Data)
@@ -224,3 +224,12 @@ instance Storeable LinkView where save _ = id
 instance Presentable LinkView where
   present (LinkView linkText editAction) = withEditAction editAction $ stringToHtml linkText
 
+
+
+--------------- Utils ---------------
+
+fixView :: (args -> WebViewM (v, args)) -> WebViewM v
+fixView mkv = 
+  do { (v, _) <- mfix (\(~(_,args)) -> mkv args)
+     ; return v
+     }

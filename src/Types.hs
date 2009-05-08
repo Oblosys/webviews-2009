@@ -301,13 +301,13 @@ mkRadioView is s en = liftS $ \vidC -> (radioView (ViewId vidC) is s en, vidC +1
 
 mkTextField str = mkTextFieldEx str Nothing
 
-mkTextFieldAct str act = mkTextFieldEx str $ Just act
+--mkTextFieldAct str act = mkTextFieldEx str $ Just act
 
 mkTextFieldEx str mEditAction = liftS $ \vidC -> (textField (ViewId vidC) str mEditAction, vidC + 1)
 
 mkPasswordField str = mkPasswordFieldEx str Nothing
 
-mkPasswordFieldAct str act = mkPasswordFieldEx str $ Just act
+--mkPasswordFieldAct str act = mkPasswordFieldEx str $ Just act
 
 mkPasswordFieldEx str mEditAction = liftS $ \vidC -> (passwordField (ViewId vidC) str mEditAction , vidC + 1)
 

@@ -28,8 +28,6 @@ mkRootView user db sessionId viewMap =
 -- TODO Make a function for this (also used in mkinitialrootview)
 
 
-
-
 -- Visits ----------------------------------------------------------------------  
 
 data VisitsView = 
@@ -127,7 +125,6 @@ instance Presentable VisitsView where
                          ]
               in  mkTable [strAttr "width" "100%", strAttr "cellPadding" "2", thestyle "border-collapse: collapse"] 
                      rowAttrss [] rows
-               
                  )])  +++
       p << (present add +++ present remove) 
       )
@@ -137,19 +134,17 @@ instance Presentable VisitsView where
          Nothing -> present loginoutView 
          Just (_,name) -> stringToHtml ("Hello "++name++".") +++ br +++ br +++ present loginoutView
       ] )]
-      ]
-     +++
+      ] +++
       p << ((if null visits then "There are no visits. " else "Viewing visit nr. "++ show (viewedVisit+1) ++ ".") +++ 
              "    " +++ present prev +++ present next) +++ 
       boxed (case mv of
                Nothing -> stringToHtml "No visits."
-               Just pv -> present pv)
-     +++
+               Just pv -> present pv) +++
       h2 << "Comments" +++
-      vList (map present commentViews)
-     +++ nbsp +++ (case mAddCommentButton of 
-                     Nothing -> stringToHtml "Log in to add a comment"
-                     Just b  -> present b)
+      vList (map present commentViews) +++ 
+      nbsp +++ (case mAddCommentButton of 
+                  Nothing -> stringToHtml "Log in to add a comment"
+                  Just b  -> present b)
       
 instance Storeable VisitsView where
   save _ = id
@@ -302,7 +297,6 @@ mkCommentView commentId new = mkWebView $ \user db viewMap vid ->
                                              user db viewMap
                           else return Nothing
       
-                              
     ; mTextArea <- if edited
                     then fmap Just $ mkTextArea text
                     else return $ Nothing
@@ -310,6 +304,7 @@ mkCommentView commentId new = mkWebView $ \user db viewMap vid ->
     }
  where userIsAuthorized authorLogin (Just (login, _)) = login == authorLogin || login == "martijn" 
        userIsAuthorized _           Nothing           = False
+
 instance Storeable CommentView where
   save (CommentView cid edited _ date text _ _ mTextArea) =
     updateComment cid (\(Comment _ author _ _) -> 
@@ -342,7 +337,4 @@ instance Presentable CommentView where
          if edited then case mTextArea of 
                           Nothing -> multiLineStringToHtml text
                           Just textArea -> withHeight 100 $ present textArea
-         else multiLineStringToHtml text
-       )
-     
-  
+         else multiLineStringToHtml text)
