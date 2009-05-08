@@ -191,7 +191,7 @@ type ViewMap = Map.Map ViewId WebView
 data WebView = forall view . ( Data (StateT WebViewState IO view) 
                              , Initial view, Presentable view, Storeable view
                              , Show view, Eq view, Data view) => 
-                             WebView ViewId Id Id (User -> Database -> ViewMap -> ViewId -> WebViewM view) view
+                             WebView ViewId Id Id (ViewId -> WebViewM view) view
                              
                deriving Typeable
 -- (view->view) is the load view function. It is not in a class because we want to parameterize it
@@ -284,8 +284,23 @@ instance Initial EditAction where
   initial = EditAction noId (DocEdit id)  
 
 instance Initial WebView where
-  initial = WebView (ViewId (-1)) noId noId (\_ _ _ _ -> return ()) ()
+  initial = WebView (ViewId (-1)) noId noId (\_ -> return ()) ()
 
+
+
+data WebViewState = WebViewState User Database ViewMap Int deriving (Typeable, Data)
+
+type WebViewM a = StateT WebViewState IO a
+
+getUser :: WebViewM User 
+getUser = do { (WebViewState u _ _ _) <- get
+             ; return u
+             }
+
+
+liftS :: (Int -> (x,Int)) -> WebViewM x
+liftS f = StateT (\(WebViewState user db viewMap i) -> 
+                   (return $ let (x, i')= f i in (x, WebViewState user db viewMap i')))
 
 
 
@@ -315,28 +330,9 @@ mkTextArea str = liftS $ \vidC -> (textArea (ViewId vidC) str, vidC + 1)
 
 widgetGetViewRef (Widget (ViewId vid) _ _ _) = ViewIdRef vid
                   
-runWV :: Int -> WVMonad x -> (x, Int) 
-runWV i (WV f) = f i
 
-newtype WVMonad x = WV (Int -> (x, Int))
 
-instance Monad WVMonad where
-  return x = WV $ \i -> (x, i)   
   
-  (WV ma) >>= f = WV $ \i -> let (a,i')  = ma i 
-                                 (WV b) = f a 
-                             in  b i'
-  
-data WebViewState = WebViewState Int deriving (Typeable, Data)
-
-
-
-type WebViewM a = StateT WebViewState IO a
-
- 
-liftS :: (Int -> (x,Int)) -> WebViewM x
-liftS f = StateT (\(WebViewState i) -> (return $ let (x, i')= f i in (x, WebViewState i')))
-
 
 {-
 mkAction :: (v->v) -> ViewM v Int

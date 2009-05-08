@@ -33,6 +33,24 @@ instance Storeable WebView where
     let topLevelWebViews = getTopLevelWebViews v
     in  foldl (.) id $ save v : map save topLevelWebViews
 
+
+
+---- Monad stuff
+
+runWebView user db viewMap viewIdCounter wvm =
+ do { rv <- evalStateT wvm (WebViewState user db viewMap viewIdCounter)
+    ; return $ assignIds rv
+    }
+
+
+getOldView vid = do { (WebViewState _ _ viewMap _) <- get
+                    ; return $ lookupOldView vid viewMap
+                    }
+
+withDb f = do { (WebViewState _ db _ _) <- get
+              ; return $ f db
+              }
+
 -- first save self, then children
 -- TODO: does this order matter?
 
@@ -50,21 +68,21 @@ applyIfCorrectType f x = case cast f of
 -- the view matching on load can be done explicitly, following structure and checking ids, or
 -- maybe automatically, based on id. Maybe extra state can be in a separate data structure even,
 -- like in Proxima
-loadView :: User -> Database -> ViewMap -> WebView -> WebViewM WebView
-loadView user db viewMap (WebView _ si i mkView _) =
- do { WebViewState viewIdCounter <- get
+loadView :: WebView -> WebViewM WebView
+loadView (WebView _ si i mkView _) =
+ do { WebViewState user db viewMap viewIdCounter <- get
     ; let newViewId = ViewId viewIdCounter                             
-    ; put $ WebViewState $ viewIdCounter + 1
-    ; view <- mkView user db viewMap newViewId 
+    ; put $ WebViewState user db viewMap $ viewIdCounter + 1
+    ; view <- mkView newViewId 
     ; return $ WebView newViewId si i mkView view
     }
 
 mkWebView :: (Presentable v, Storeable v, Initial v, Show v, Eq v, Data v) =>
-             (User -> Database -> ViewMap -> ViewId -> WebViewM v) ->
-             User -> Database -> ViewMap -> WebViewM WebView
-mkWebView mkView user db viewMap =
+             (ViewId -> WebViewM v) ->
+             WebViewM WebView
+mkWebView mkView  =
  do { let initialWebView = WebView noViewId noId noId mkView initial
-    ; webView <- loadView user db viewMap initialWebView
+    ; webView <- loadView initialWebView
     ; return webView
     } 
 
@@ -162,9 +180,9 @@ data LoginView = LoginView (Widget Text) (Widget Text) (Widget Button)
 instance Initial LoginView where initial = LoginView initial initial initial
 
 mkLoginView = mkWebView $
-  \user db viewMap vid ->
+  \vid ->
    fixView $ \fixedAuthenticate ->
-   do { let (LoginView name password b) = getOldView vid viewMap
+   do { (LoginView name password b) <- getOldView vid
       ; nameT <- mkTextField (getStrVal name)
       ; passwordT <- mkPasswordField (getStrVal password)
 --      ; nameT <- mkTextFieldAct (getStrVal name) fixedAuthenticate 
@@ -193,8 +211,9 @@ data LogoutView = LogoutView (Widget Button) deriving (Eq, Show, Typeable, Data)
 instance Initial LogoutView where initial = LogoutView initial
 
 mkLogoutView = mkWebView $
-  \(Just (l,_)) db viewMap vid -> 
-   do { logoutB <- mkButton ("Logout " ++  l) True LogoutEdit
+  \vid -> 
+   do { (Just (l,_)) <- getUser
+      ; logoutB <- mkButton ("Logout " ++  l) True LogoutEdit
       ; return $ LogoutView logoutB
       }
 instance Storeable LogoutView where save _ = id
@@ -214,7 +233,7 @@ data LinkView = LinkView String EditAction deriving (Eq, Show, Typeable, Data)
 instance Initial LinkView where initial = LinkView initial initial
 
 mkLinkView linkText action = mkWebView $
-  \user db viewMap vid ->
+  \vid ->
    do { editAction <- mkEditAction action
       ; return $ LinkView linkText editAction
       }

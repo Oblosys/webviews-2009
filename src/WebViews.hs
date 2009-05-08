@@ -20,12 +20,9 @@ import HtmlLib
 import Control.Monad.State
 
 mkRootView :: User -> Database -> Int -> ViewMap -> IO WebView
-mkRootView user db sessionId viewMap = 
- do { let wvm = (mkVisitsView sessionId user db viewMap)
-    ; rv <- evalStateT wvm (WebViewState 0)
-    ; return $ assignIds rv
-    } -- TODO: id's here?
--- TODO Make a function for this (also used in mkinitialrootview)
+mkRootView user db sessionId viewMap =
+  fmap assignIds $ runWebView user db viewMap 0 $ mkVisitsView sessionId
+  -- TODO: id's here?
 
 
 -- Visits ----------------------------------------------------------------------  
@@ -43,10 +40,10 @@ modifyViewedVisit fn (VisitsView a v b c d e f g h i j k l m n) =
   VisitsView a (fn v) b c d e f g h i j k l m n
 
 mkVisitsView sessionId = mkWebView $
- \user db viewMap vid ->
-  do { let (VisitsView fresh oldViewedVisit _ _ _ _ _  _ _ _ _ _ oldCommentIds _ _) = getOldView vid viewMap
-           viewedVisit = constrain 0 (length visits - 1) oldViewedVisit
-           (visitIds, visits) = unzip $ Map.toList $ allVisits db
+ \vid ->
+  do { (VisitsView fresh oldViewedVisit _ _ _ _ _  _ _ _ _ _ oldCommentIds _ _) <- getOldView vid
+     ; (visitIds, visits) <- withDb $ (\db -> unzip $ Map.toList $ allVisits db)
+     ; let viewedVisit = constrain 0 (length visits - 1) oldViewedVisit
      ; today <- liftIO getToday             
      ; prevB   <- mkButton "Previous" (viewedVisit > 0)                   $ prev vid
      ; nextB   <- mkButton "Next"     (viewedVisit < (length visits - 1)) $ next vid 
@@ -58,21 +55,22 @@ mkVisitsView sessionId = mkWebView $
      ; selectionActions <- sequence [ mkEditAction $ selectVisit vid p 
                                     | p <- [0..length visits - 1 ]
                                     ]
-
-     ; loginOutView <- if user == Nothing then mkLoginView user db viewMap 
-                                          else mkLogoutView user db viewMap
+     ; user <- getUser
+               
+     ; loginOutView <- if user == Nothing then mkLoginView 
+                                          else mkLogoutView
      
      ; visitView <-  if null visits then return Nothing
-                     else do { vw <- mkVisitView (visitIds !! viewedVisit) user db viewMap
+                     else do { vw <- mkVisitView (visitIds !! viewedVisit)
                              ; return (Just vw)
                              }
-     ; let commentIds = Map.keys (allComments db)
+     ; commentIds <- withDb $ \db -> Map.keys (allComments db)
                                     
      ; commentViews <- sequence 
                           [ mkCommentView cid (not fresh && cid `notElem` oldCommentIds) 
-                                          user db viewMap -- if this view is not fresh, and an
-                          | cid <- commentIds             -- id was not in commentIds, it was
-                          ]                               -- added and will be in edit mode
+                                               -- if this view is not fresh, and an
+                          | cid <- commentIds  -- id was not in commentIds, it was
+                          ]                    -- added and will be in edit mode
                        
      ; mAddCommentButton <- case user of 
                               Nothing -> return Nothing 
@@ -94,7 +92,7 @@ mkVisitsView sessionId = mkWebView $
          do { clockTime <-  getClockTime
             ; ct <- toCalendarTime clockTime
             ; return $ show (ctDay ct) ++ " " ++show (ctMonth ct) ++ " " ++show (ctYear ct) ++
-                       ", "++show (ctHour ct) ++ ":" ++ reverse (take 2 (reverse $ show (ctMin ct) ++ "0"))
+                       ", "++show (ctHour ct) ++ ":" ++ reverse (take 2 (reverse $ "0" ++ show (ctMin ct)))
             }
          
        addComment login today = 
@@ -163,12 +161,12 @@ modifyViewedPig f (VisitView vid zipCode date viewedPig b1 b2 b3 pigs pignames m
   VisitView vid zipCode date (f viewedPig) b1 b2 b3 pigs pignames mSubview
 
 mkVisitView i = mkWebView $
-  \user db viewMap vid -> 
-    do { let (VisitView _ _ _ oldViewedPig _ _ _ _ _ mpigv) = getOldView vid viewMap
-             (Visit visd zipcode date pigIds) = unsafeLookup (allVisits db) i
-             nrOfPigs = length pigIds
+  \vid -> 
+    do { (VisitView _ _ _ oldViewedPig _ _ _ _ _ mpigv) <- getOldView vid
+       ; (Visit visd zipcode date pigIds) <- withDb $ \db -> unsafeLookup (allVisits db) i
+       ; let nrOfPigs = length pigIds
              viewedPig = constrain 0 (nrOfPigs - 1) $ oldViewedPig
-             pignames = map (pigName . unsafeLookup (allPigs db)) pigIds
+       ; pignames <- withDb $ \db -> map (pigName . unsafeLookup (allPigs db)) pigIds
        
        ; zipT  <- mkTextField zipcode 
        ; dateT <- mkTextField date
@@ -176,7 +174,7 @@ mkVisitView i = mkWebView $
        ; nextB <- mkButton "Next"     (viewedPig < (nrOfPigs - 1)) $ next vid
        ; addB  <- mkButton "Add"      True                         $ addPig visd
                  
-       ; pigViews <- sequence [ mkPigView vid i pigId viewedPig user db viewMap 
+       ; pigViews <- sequence [ mkPigView vid i pigId viewedPig
                               | (pigId,i) <- zip pigIds [0..] 
                               ]
                                      
@@ -219,8 +217,8 @@ data PigView = PigView PigId EditAction String (Widget Button) Int Int (Widget T
                deriving (Eq, Show, Typeable, Data)
 
 mkPigView parentViewId pignr i viewedPig = mkWebView $ 
-  \user db viewMap vid ->
-   do { let (Pig pid vid name [s0,s1,s2] diagnosis) = unsafeLookup (allPigs db) i
+  \vid ->
+   do { (Pig pid vid name [s0,s1,s2] diagnosis) <- withDb $ \db -> unsafeLookup (allPigs db) i
       ; selectAction <- mkEditAction $ mkViewEdit parentViewId $ modifyViewedPig (\_ -> pignr)
       ; removeB <- mkButton "remove" True $ 
                      ConfirmEdit ("Are you sure you want to remove pig "++show (pignr+1)++"?") $ 
@@ -273,28 +271,26 @@ instance Initial CommentView where
 
 modifyEdited fn (CommentView a edited b c d e f g) = (CommentView a (fn edited) b c d e f g)
 
-mkCommentView commentId new = mkWebView $ \user db viewMap vid ->
- do { let (CommentView _ edited' _ _ _ _ _ oldMTextfield) = getOldView vid viewMap
-          (Comment _ author date text) =  unsafeLookup (allComments db) commentId
+mkCommentView commentId new = mkWebView $ \vid ->
+ do { (CommentView _ edited' _ _ _ _ _ oldMTextfield) <- getOldView vid
+    ; (Comment _ author date text) <- withDb $ \db -> unsafeLookup (allComments db) commentId
     
-          (_,name) = unsafeLookup users author
+    ; let (_,name) = unsafeLookup users author
           
           edited = if new then True else edited' 
-          
+    
+    ; user <- getUser                
     ; mEditAction <- if edited
 --                    then fmap Just $ mkButton "Submit" True $ mkViewEdit vid $ modifyEdited (const False)
                      then fmap Just $ mkLinkView "Submit" (mkViewEdit vid $ modifyEdited (const False))
-                                                user db viewMap
                      else if userIsAuthorized author user 
                           then fmap Just $ mkLinkView "Edit" (mkViewEdit vid $ modifyEdited (const True))
-                                                                          user db viewMap
                           else return Nothing
     
     ; mRemoveAction <- if userIsAuthorized author user 
                           then fmap Just $ mkLinkView "Remove" 
                                             (ConfirmEdit ("Are you sure you want to remove this comment?") $ 
                                                DocEdit $ removeComment commentId)
-                                             user db viewMap
                           else return Nothing
       
     ; mTextArea <- if edited

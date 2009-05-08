@@ -57,8 +57,8 @@ getTopLevelWebNodesWebNode x = everythingTopLevel
                      ) x
 -- lookup the view id and if the associated view is of the desired type, return it. Otherwise
 -- return initial
-getOldView :: (Initial v, Typeable v) => ViewId -> ViewMap -> v
-getOldView vid viewMap = 
+lookupOldView :: (Initial v, Typeable v) => ViewId -> ViewMap -> v
+lookupOldView vid viewMap = 
   case Map.lookup vid viewMap of
     Nothing              -> initial
     Just (WebView _ _ _ _ aView) -> case cast aView of

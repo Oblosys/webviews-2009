@@ -172,12 +172,8 @@ parseCookieSessionId serverInstanceId =
     } -- TODO: this is nasty, maybe try to use the Happs function
  
 mkInitialRootView :: IO WebView
-mkInitialRootView = runWebView $ mkWebView (\_ _ _ _ -> return ()) Nothing theDatabase Map.empty 
+mkInitialRootView = runWebView Nothing theDatabase Map.empty 0 $ mkWebView (\_ -> return ()) 
 
-runWebView wvm =
- do { rv <- evalStateT wvm (WebViewState 0)
-    ; return $ assignIds rv
-    }
 -- this creates a WebView with stubid 0 and id 1
 -- for now, we count on that in the client
 -- TODO: change this to something more robust
@@ -200,6 +196,7 @@ createNewSessionState globalStateRef serverInstanceId =
     
     ; return sessionId
     }
+ 
 retrieveSessionState :: GlobalStateRef -> SessionId -> ServerPart SessionStateRef
 retrieveSessionState globalStateRef sessionId =
  do { (database, sessions, sessionCounter) <- liftIO $ readIORef globalStateRef
@@ -395,7 +392,7 @@ handleCommand sessionStateRef ConfirmDialogOk =
 reloadRootView :: SessionStateRef -> IO ()
 reloadRootView sessionStateRef =
  do { (sessionId, user, db, rootView, pendingEdit) <- readIORef sessionStateRef
-    ; rootView' <- evalStateT (loadView user db (mkViewMap rootView) rootView) (WebViewState 0)
+    ; rootView' <- evalStateT (loadView rootView) (WebViewState user db (mkViewMap rootView) 0)
  -- TODO this 0 does not seem right BUG
     ; writeIORef sessionStateRef (sessionId, user, db, rootView', pendingEdit)
     } 
