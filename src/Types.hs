@@ -315,6 +315,7 @@ data WebViewState = WebViewState Int deriving (Typeable, Data)
 
 type WebViewM a = StateT WebViewState IO a
 
+
 instance (Typeable st, Typeable1 m) => Typeable1 (StateT st m) where
     typeOf1 x = mkTyConApp (mkTyCon "Control.Monad.State.StateT") [typeOf (undefined :: st), typeOf1 (m x)]
         where m :: StateT st m a -> m a

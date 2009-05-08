@@ -277,14 +277,14 @@ mkCommentView commentId = mkWebView $ \user db viewMap vid ->
  do { let (CommentView _ edited _ _ _ oldText oldMTextfield) = getOldView vid viewMap
           (Comment _ author date text) =  unsafeLookup (allComments db) commentId
     
+          (_,name) = unsafeLookup users author
+            
     ; editAction <- if edited
---                    then fmap Just $ mkEditAction $ mkViewEdit vid $ modifyEdited (const False)
 --                    then fmap Just $ mkButton "Submit" True $ mkViewEdit vid $ modifyEdited (const False)
                     then fmap Just $ mkLinkView "Submit" (mkViewEdit vid $ modifyEdited (const False))
                                                 user db viewMap
                     else case  user of
-                           Just (login, _) -> if login == author 
---                                              then fmap Just $ mkEditAction $ mkViewEdit vid $ modifyEdited (const True)
+                           Just (login, _) -> if login == author || login == "martijn" 
 --                                              then fmap Just $ mkButton "Edit" True $ mkViewEdit vid $ modifyEdited (const True)
                                               then fmap Just $ mkLinkView "Edit" (mkViewEdit vid $ modifyEdited (const True))
                                                                           user db viewMap
@@ -308,18 +308,19 @@ mkCommentView commentId = mkWebView $ \user db viewMap vid ->
                      ; return $ Right (textEntry, submitB)
                      }
 -}    
-    ; return $ CommentView commentId edited author date text editAction mTextField
+    ; return $ CommentView commentId edited name date text editAction mTextField
     }
 
 instance Storeable CommentView where
-  save (CommentView cid edited author date text _ mTextField) =
-    updateComment cid (\_ -> let text' = if edited
+  save (CommentView cid edited _ date text _ mTextField) =
+    updateComment cid (\(Comment _ author _ _) -> 
+                             let text' = if edited
                                         then case mTextField of
                                                Just textField -> getStrVal textField
                                                Nothing    -> text
                                         else text
                                         
-                             in Comment cid author date text')
+                             in  Comment cid author date text')
 
 instance Presentable CommentView where
   present (CommentView _ edited author date text mEditAction mTextField) =

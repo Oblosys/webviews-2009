@@ -5,6 +5,17 @@ import Data.Generics
 import Data.Map (Map)
 import qualified Data.Map as Map 
 
+users :: Map String (String, String)
+users = Map.fromList [("martijn", ("p", "Martijn"))
+                     ,("alexey", ("mrchebas", "El Pulpo")) 
+                     ,("lambert", ("bla", "Lambert"))
+                     ,("doaitse", ("bla", "S. Doaitse Swierstra"))
+                     ,("afie",    ("", "Arjan"))
+                     ,("", ("", "Anonymous"))
+                     ] 
+-- TODO: maybe this can be (a special) part of db?
+
+
 newtype VisitId = VisitId Int deriving (Show, Read, Eq, Ord, Typeable, Data)
 
 newtype PigId = PigId Int deriving (Show, Read, Eq, Ord, Typeable, Data)
@@ -123,4 +134,6 @@ unsafeLookup map key =
 -- error handling database access
 -- Unclear: we need both pig ids and subview ids?
 -- make clear why we need an explicit view, and the html rep is not enough.
+
+
 
