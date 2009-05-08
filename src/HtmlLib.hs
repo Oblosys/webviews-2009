@@ -19,6 +19,9 @@ mkDiv str elt = thediv![identifier str] << elt
 
 mkSpan str elt = thespan![identifier str] << elt
 
+hSpace w = thediv![thestyle $ "width: "++show w++"px; height: 0px;"] << noHtml
+vSpace h = thediv![thestyle $ "height: "++show h++"px; width: 0px;"] << noHtml
+                 
 nbspaces i = primHtml $ concat $ replicate i "&nbsp;"
 
 multiLineStringToHtml text = 

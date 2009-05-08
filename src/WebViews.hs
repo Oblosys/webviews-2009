@@ -141,7 +141,7 @@ instance Presentable VisitsView where
       h2 << "Comments" +++
       vList (map present commentViews) +++ 
       nbsp +++ (case mAddCommentButton of 
-                  Nothing -> stringToHtml "Log in to add a comment"
+                  Nothing -> stringToHtml "Please log in to add a comment"
                   Just b  -> present b)
       
 instance Storeable VisitsView where
@@ -314,9 +314,9 @@ instance Storeable CommentView where
 
 instance Presentable CommentView where
   present (CommentView _ edited author date text mEditAction mRemoveAction mTextArea) =
-    thediv![thestyle "border:solid; border-width:1px; padding:0px; min-width: 500px;"] $
+    thediv![thestyle "border:solid; border-width:1px; padding:0px; min-width: 550px;"] $
      (withBgColor (Rgb 225 225 225) $ --  thespan![thestyle "margin:4px;"] $
-        ("Posted by " +++ stringToHtml author +++ " on " +++ stringToHtml date)
+        (thespan![thestyle "margin:4px;"] $ "Posted by " +++ stringToHtml author +++ " on " +++ stringToHtml date)
         `hDistribute`
         ( withColor (Color "blue") $
           case mEditAction of
@@ -325,12 +325,13 @@ instance Presentable CommentView where
          +++ nbspaces 2 +++
          case mRemoveAction of
            Just ra -> present ra
-           Nothing -> stringToHtml ""
-         )
+           Nothing -> stringToHtml "") -- TODO: why is it not possible to add spaces behind this?
      ) +++ 
      (withBgColor (Color "white") $ 
-        thespan![thestyle "padding:0;"] $ -- TODO: figure out why margin above creates too much space  
+        
          if edited then case mTextArea of 
-                          Nothing -> multiLineStringToHtml text
+                          Nothing -> thespan![thestyle "margin:4px;"] $ -- TODO: figure out why margin above creates too much space  
+                                       multiLineStringToHtml text
                           Just textArea -> withHeight 100 $ present textArea
-         else multiLineStringToHtml text)
+         else thespan![thestyle "margin:4px;"] $ -- TODO: figure out why margin above creates too much space  
+                multiLineStringToHtml text)
