@@ -88,7 +88,7 @@ mkVisitsView sessionId = mkWebView $
          do { clockTime <-  getClockTime
             ; ct <- toCalendarTime clockTime
             ; return $ show (ctDay ct) ++ "-" ++show (ctMonth ct) ++ "-" ++show (ctYear ct) ++
-                       ", "++show (ctHour ct) ++ ":" ++ show (ctMin ct)
+                       ", "++show (ctHour ct) ++ ":" ++ reverse (take 2 (reverse $ show (ctMin ct) ++ "0"))
             }
          
        addComment login today = 
