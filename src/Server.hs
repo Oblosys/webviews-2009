@@ -34,9 +34,11 @@ webViewsPort = 8085
 
 users :: Map String (String, String)
 users = Map.fromList [("martijn", ("p", "Martijn"))
-                     ,("alexey", ("mrchebas", "Pulpo")) 
+                     ,("alexey", ("mrchebas", "El Pulpo")) 
                      ,("lambert", ("bla", "Lambert"))
-                     ,("", ("", "anonymous"))
+                     ,("doaitse", ("bla", "S. Doaitse Swierstra"))
+                     ,("afie",    ("", "Arjan"))
+                     ,("", ("", "Anonymous"))
                      ] 
 -- TODO: maybe this can be (a special) part of db?
 

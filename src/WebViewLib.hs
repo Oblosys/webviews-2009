@@ -146,6 +146,8 @@ instance Presentable AnyWidget where
 data LoginView = LoginView (Widget EString) (Widget EString) (Widget Button) 
   deriving (Eq, Show, Typeable, Data)
 
+instance Initial LoginView where initial = LoginView initial initial initial
+
 mkLoginView = mkWebView $
   \user db viewMap vid ->
    do { let (LoginView name password b) = getOldView vid viewMap
@@ -165,13 +167,13 @@ instance Presentable LoginView where
                               , [ present loginbutton ]
                               ]
             
-instance Initial LoginView where initial = LoginView initial initial initial
-
 
 
 -- Logout ----------------------------------------------------------------------  
 
 data LogoutView = LogoutView (Widget Button) deriving (Eq, Show, Typeable, Data)
+
+instance Initial LogoutView where initial = LogoutView initial
 
 mkLogoutView = mkWebView $
   \(Just (l,_)) db viewMap vid -> 
@@ -184,4 +186,22 @@ instance Presentable LogoutView where
   present (LogoutView logoutbutton) = 
     present logoutbutton
             
-instance Initial LogoutView where initial = LogoutView initial
+
+
+-- This is a separate view for editActions. Putting edit actions inside a view that is changed
+-- may cause press events to get lost. This indirection solves the problem.
+data LinkView = LinkView String EditAction deriving (Eq, Show, Typeable, Data)
+
+instance Initial LinkView where initial = LinkView initial initial
+
+mkLinkView linkText action = mkWebView $
+  \user db viewMap vid ->
+   do { editAction <- mkEditAction action
+      ; return $ LinkView linkText editAction
+      }
+   
+instance Storeable LinkView where save _ = id
+
+instance Presentable LinkView where
+  present (LinkView linkText editAction) = withEditAction editAction $ stringToHtml linkText
+

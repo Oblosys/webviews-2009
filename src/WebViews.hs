@@ -265,7 +265,7 @@ instance Initial PigView where
 
 
 data CommentView = CommentView CommentId Bool String String String
-                               (Maybe EditAction) (Maybe (Widget EString))--(Either (Maybe (Widget Button)) (Widget EString, Widget Button))
+                               (Maybe (WebView)) (Maybe (Widget EString))--(Either (Maybe (Widget Button)) (Widget EString, Widget Button))
                    deriving (Eq, Show, Typeable, Data)
 
 instance Initial CommentView where
@@ -278,10 +278,16 @@ mkCommentView commentId = mkWebView $ \user db viewMap vid ->
           (Comment _ author date text) =  unsafeLookup (allComments db) commentId
     
     ; editAction <- if edited
-                    then fmap Just $ mkEditAction $ mkViewEdit vid $ modifyEdited (const False)
+--                    then fmap Just $ mkEditAction $ mkViewEdit vid $ modifyEdited (const False)
+--                    then fmap Just $ mkButton "Submit" True $ mkViewEdit vid $ modifyEdited (const False)
+                    then fmap Just $ mkLinkView "Submit" (mkViewEdit vid $ modifyEdited (const False))
+                                                user db viewMap
                     else case  user of
                            Just (login, _) -> if login == author 
-                                              then fmap Just $ mkEditAction $ mkViewEdit vid $ modifyEdited (const True)
+--                                              then fmap Just $ mkEditAction $ mkViewEdit vid $ modifyEdited (const True)
+--                                              then fmap Just $ mkButton "Edit" True $ mkViewEdit vid $ modifyEdited (const True)
+                                              then fmap Just $ mkLinkView "Edit" (mkViewEdit vid $ modifyEdited (const True))
+                                                                          user db viewMap
                                               else return Nothing
                            _               -> return Nothing
  
@@ -318,16 +324,16 @@ instance Storeable CommentView where
 instance Presentable CommentView where
   present (CommentView _ edited author date text mEditAction mTextField) =
     thediv![thestyle "border:solid; border-width:1px; padding:0px; width:500px;"] $
-     (withBgColor (Rgb 225 225 225) $ thespan![thestyle "margin:4px;"] $
-        ("posted by " +++ stringToHtml author +++ " on " +++ stringToHtml date)
-       `leftRight`
+     (withBgColor (Rgb 225 225 225) $ --  thespan![thestyle "margin:4px;"] $
+        ("Posted by " +++ stringToHtml author +++ " on " +++ stringToHtml date)
+        `leftRight`
         (case mEditAction of
-           Just ea -> if edited then withEditAction ea $ stringToHtml "submit"
-                                else withEditAction ea $ stringToHtml "edit"
+           Just ea -> if edited then present ea -- withEditAction ea $ stringToHtml "submit"
+                                else present ea -- withEditAction ea $ stringToHtml "edit"
            Nothing -> stringToHtml "")
      ) +++ 
      (withBgColor (Color "white") $ 
-       thespan![thestyle "margin:4px;"] $ 
+        thespan![thestyle "margin:2px;"] $ -- TODO: figure out why margin above creates too much space  
          if edited then case mTextField of 
                           Nothing -> stringToHtml text
                           Just textField -> present textField
