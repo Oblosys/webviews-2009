@@ -33,7 +33,7 @@ mkWebNodeMap :: Data d => d -> WebNodeMap
 mkWebNodeMap x = Map.fromList $ everything (++) 
   ([] `mkQ`  (\w@(WebView vid sid id _ _) -> [(vid, WebViewNode w)]) 
       `extQ` (\(Widget vid sid id w) -> [(vid, WidgetNode vid sid id $ RadioViewWidget w)])
-      `extQ` (\(Widget vid sid id w) -> [(vid, WidgetNode vid sid id $ EStringWidget w)])
+      `extQ` (\(Widget vid sid id w) -> [(vid, WidgetNode vid sid id $ TextWidget w)])
       `extQ` (\(Widget vid sid id w) -> [(vid, WidgetNode vid sid id $ ButtonWidget w)])
       `extQ` (\(Widget vid sid id w) -> [(vid, WidgetNode vid sid id $ EditActionWidget w)])
   ) x    
@@ -42,7 +42,7 @@ getTopLevelWebNodesWebView :: WebView -> [WebNode]
 getTopLevelWebNodesWebView (WebView _ _ _ _ v) =
   everythingTopLevel (Nothing `mkQ`  (\w@(WebView vwId sid id _ _) -> Just $ WebViewNode w) 
                               `extQ` (\w@(Widget vi stbid id x@(RadioView _ _ _ _))   -> Just $ WidgetNode vi stbid id (RadioViewWidget x))
-                              `extQ` (\w@(Widget vi stbid id x@(EString _ _ _)) -> Just $ WidgetNode vi stbid id (EStringWidget x))
+                              `extQ` (\w@(Widget vi stbid id x@(Text _ _ _)) -> Just $ WidgetNode vi stbid id (TextWidget x))
                               `extQ` (\w@(Widget vi stbid id x@(Button _ _ _ _))   -> Just $ WidgetNode vi stbid id (ButtonWidget x))
                      ) v             -- TODO can we do this bettter?
 
@@ -52,7 +52,7 @@ getTopLevelWebNodesWebNode :: Data x => x -> [WebNode]
 getTopLevelWebNodesWebNode x = everythingTopLevel 
                      (Nothing `mkQ`  (\w@(WebView vwId sid id _ _) -> Just $ WebViewNode w) 
                               `extQ` (\w@(Widget vi stbid id x@(RadioView _ _ _ _))   -> Just $ WidgetNode vi stbid id (RadioViewWidget x))
-                              `extQ` (\w@(Widget vi stbid id x@(EString _ _ _)) -> Just $ WidgetNode vi stbid id (EStringWidget x))
+                              `extQ` (\w@(Widget vi stbid id x@(Text _ _ _)) -> Just $ WidgetNode vi stbid id (TextWidget x))
                               `extQ` (\w@(Widget vi stbid id x@(Button _ _ _ _))   -> Just $ WidgetNode vi stbid id (ButtonWidget x))
                      ) x
 -- lookup the view id and if the associated view is of the desired type, return it. Otherwise
@@ -106,7 +106,7 @@ webViewGetInternalIds (WebView _ _ _ _ v) =
       isWebView _ = True
       isWidget1 :: Widget RadioView -> Bool
       isWidget1 _ = True
-      isWidget2 :: Widget EString -> Bool
+      isWidget2 :: Widget Text -> Bool
       isWidget2 _ = True
       isWidget3 :: Widget Button -> Bool
       isWidget3 _ = True
@@ -164,12 +164,12 @@ type Updates = Map Id String  -- maps id's to the string representation of the n
 
 -- update the datastructure at the id's in Updates 
 replace :: Data d => Updates -> d -> d
-replace updates v = (everywhere $ extT (mkT (replaceEString updates))  (replaceRadioView updates)) v
+replace updates v = (everywhere $ extT (mkT (replaceText updates))  (replaceRadioView updates)) v
 
-replaceEString :: Updates -> EString -> EString
-replaceEString updates x@(EString i h _) =
+replaceText :: Updates -> Text -> Text
+replaceText updates x@(Text i h _) =
   case Map.lookup i updates of
-    Just str -> (EString i h str)
+    Just str -> (Text i h str)
     Nothing -> x
 
 replaceRadioView :: Updates -> RadioView -> RadioView
@@ -234,6 +234,6 @@ getWebViewById i view =
     []  -> error $ "internal error: no button with id "
     _   -> error $ "internal error: multiple buttons with id "
 
-getEStringByViewId :: Data v => ViewIdRef -> v -> Maybe String
-getEStringByViewId (ViewIdRef i) view =
-  something (Nothing `mkQ` (\(Widget (ViewId i') _ _ (EString _ _ str)) -> if i == i' then Just str else Nothing)) view
+getTextByViewId :: Data v => ViewIdRef -> v -> Maybe String
+getTextByViewId (ViewIdRef i) view =
+  something (Nothing `mkQ` (\(Widget (ViewId i') _ _ (Text _ _ str)) -> if i == i' then Just str else Nothing)) view

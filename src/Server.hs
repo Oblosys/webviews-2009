@@ -428,8 +428,8 @@ performEditCommand sessionStateRef command =
 -- than when button was created?
 authenticate sessionStateRef userEStringViewId passwordEStringViewId =
  do { (sessionId, user, db, rootView, pendingEdit) <- readIORef sessionStateRef
-    ; let mUserName = getEStringByViewId userEStringViewId rootView
-          mEnteredPassword = getEStringByViewId passwordEStringViewId rootView
+    ; let mUserName = getTextByViewId userEStringViewId rootView
+          mEnteredPassword = getTextByViewId passwordEStringViewId rootView
     ; case (mUserName, mEnteredPassword) of
         (Just userName, Just enteredPassword) ->
            case Map.lookup userName users of

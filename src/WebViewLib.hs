@@ -79,11 +79,22 @@ the update
 -- textfields are in forms, that causes registering text field updates on pressing enter
 -- (or Done) on the iPhone.
 
-presentTextField :: EString -> Html
-presentTextField (EString (Id i) hidden str) = 
-  let inputField = if hidden then password "" else textfield ""
+presentTextField :: Text -> Html
+presentTextField (Text (Id i) TextArea str) = 
+   form![ thestyle "display: inline; width: 500px;"
+        , strAttr "onSubmit" $ "textFieldChanged('"++show i++"');return false"] $
+     textarea ! [ identifier (show i)
+                , thestyle "width: 100%; height: 100%;"
+                --, strAttr "onChange" $ "textFieldChanged('"++show i++"')"
+                , strAttr "onFocus" $ "elementGotFocus('"++show i++"')"
+                , strAttr "onBlur" $ "textFieldChanged('"++show i++"')"
+                ] << stringToHtml str
+presentTextField (Text (Id i) textType str) = 
+  let inputField = case textType of TextField -> textfield ""
+                                    PasswordField -> password ""
+                                    
   in form![ thestyle "display: inline", strAttr "onSubmit" $ "textFieldChanged('"++show i++"');return false"] $
-       inputField ! [identifier (show i), strAttr "value" str
+       inputField ! [identifier (show i), strAttr "value" str, width "100%"
                     --, strAttr "onChange" $ "textFieldChanged('"++show i++"')"
                     , strAttr "onFocus" $ "elementGotFocus('"++show i++"')"
                     , strAttr "onBlur" $ "textFieldChanged('"++show i++"')"
@@ -132,7 +143,7 @@ instance Presentable (Widget x) where
 -- todo button text and radio text needs to go into view
 instance Presentable AnyWidget where                          
   present (RadioViewWidget rv) = presentRadioBox rv 
-  present (EStringWidget es) = presentTextField es 
+  present (TextWidget es) = presentTextField es 
   present (ButtonWidget b) = presentButton b 
   present (EditActionWidget b) = stringToHtml "zakatoekoe"
 
@@ -143,7 +154,7 @@ instance Presentable AnyWidget where
 
 -- Login -----------------------------------------------------------------------  
 
-data LoginView = LoginView (Widget EString) (Widget EString) (Widget Button) 
+data LoginView = LoginView (Widget Text) (Widget Text) (Widget Button) 
   deriving (Eq, Show, Typeable, Data)
 
 instance Initial LoginView where initial = LoginView initial initial initial

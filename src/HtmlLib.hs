@@ -8,17 +8,23 @@ decrease x = x - 1
 
 increase x = x + 1
 
-
 updateReplaceHtml :: String -> Html -> Html
 updateReplaceHtml targetId newElement =
   thediv![strAttr "op" "replace", strAttr "targetId" targetId ] 
     << newElement
 
+nbsp = primHtml "&nbsp;"
+
 mkDiv str elt = thediv![identifier str] << elt
 
 mkSpan str elt = thespan![identifier str] << elt
 
-spaces i = primHtml $ concat $ replicate i "&nbsp;"
+nbspaces i = primHtml $ concat $ replicate i "&nbsp;"
+
+multiLineStringToHtml text = 
+  (intersperse br $ map stringToHtml $ lines text) +++
+  case text of "" -> []
+               txt -> if last txt == '\n' then [br+++nbsp] else []
 
 boxed elt = thediv![thestyle "border:solid; border-width:1px; padding:4px;"] << elt
 
@@ -45,8 +51,8 @@ roundedBoxed mColor elt =
  -}
   
 -- TODO: name!!!
-leftRight e1 e2 =
-  mkTableEx [width "100%"] [] [valign "top"]
+hDistribute e1 e2 =
+  mkTableEx [width "100%", border 0, cellpadding 0, thestyle "border-collapse: collapse;"] [] [valign "top"]
        [[ ([],e1), ([align "right"],e2) ]]
         
 

@@ -120,8 +120,8 @@ instance Presentable VisitsView where
                                                            ] else [] 
                               | (i,selectionAction) <- zip [0..] selectionActions 
                               ]
-                  rows = [ stringToHtml "Nr.    ", stringToHtml "Zip"+++spaces 3
-                         , (stringToHtml "Date"+++spaces 10) ]  :
+                  rows = [ stringToHtml "Nr.    ", stringToHtml "Zip"+++nbspaces 3
+                         , (stringToHtml "Date"+++nbspaces 10) ]  :
                          [ [stringToHtml $ show i, stringToHtml zipCode, stringToHtml date] 
                          | (i, (zipCode, date)) <- zip [1..] visits
                          ]
@@ -147,9 +147,9 @@ instance Presentable VisitsView where
      +++
       h2 << "Comments" +++
       vList (map present commentViews)
-     +++ (case mAddCommentButton of 
-            Nothing -> stringToHtml "Log in to add a comment"
-            Just b  -> present b)
+     +++ nbsp +++ (case mAddCommentButton of 
+                     Nothing -> stringToHtml "Log in to add a comment"
+                     Just b  -> present b)
       
 instance Storeable VisitsView where
   save _ = id
@@ -160,7 +160,7 @@ instance Storeable VisitsView where
 -- Visit -----------------------------------------------------------------------  
 
 data VisitView = 
-  VisitView VisitId (Widget EString) (Widget EString) Int (Widget Button) 
+  VisitView VisitId (Widget Text) (Widget Text) Int (Widget Button) 
            (Widget Button) (Widget Button) [PigId] [String] [WebView]
     deriving (Eq, Show, Typeable, Data)
 
@@ -220,7 +220,7 @@ instance Initial VisitView where
 
 -- Pig -------------------------------------------------------------------------  
 
-data PigView = PigView PigId EditAction String (Widget Button) Int Int (Widget EString) [Widget RadioView] (Either Int String) 
+data PigView = PigView PigId EditAction String (Widget Button) Int Int (Widget Text) [Widget RadioView] (Either Int String) 
                deriving (Eq, Show, Typeable, Data)
 
 mkPigView parentViewId pignr i viewedPig = mkWebView $ 
@@ -270,7 +270,7 @@ instance Initial PigView where
 
 
 data CommentView = CommentView CommentId Bool String String String
-                               (Maybe (WebView)) (Maybe (WebView)) (Maybe (Widget EString))
+                               (Maybe (WebView)) (Maybe (WebView)) (Maybe (Widget Text))
                    deriving (Eq, Show, Typeable, Data)
 
 instance Initial CommentView where
@@ -303,44 +303,46 @@ mkCommentView commentId new = mkWebView $ \user db viewMap vid ->
                           else return Nothing
       
                               
-    ; mTextField <- if edited
-                    then fmap Just $ mkTextField text
+    ; mTextArea <- if edited
+                    then fmap Just $ mkTextArea text
                     else return $ Nothing
-    ; return $ CommentView commentId edited name date text mEditAction mRemoveAction mTextField
+    ; return $ CommentView commentId edited name date text mEditAction mRemoveAction mTextArea
     }
  where userIsAuthorized authorLogin (Just (login, _)) = login == authorLogin || login == "martijn" 
        userIsAuthorized _           Nothing           = False
 instance Storeable CommentView where
-  save (CommentView cid edited _ date text _ _ mTextField) =
+  save (CommentView cid edited _ date text _ _ mTextArea) =
     updateComment cid (\(Comment _ author _ _) -> 
                              let text' = if edited
-                                        then case mTextField of
-                                               Just textField -> getStrVal textField
+                                        then case mTextArea of
+                                               Just textArea -> getStrVal textArea
                                                Nothing    -> text
                                         else text
                                         
                              in  Comment cid author date text')
 
 instance Presentable CommentView where
-  present (CommentView _ edited author date text mEditAction mRemoveAction mTextField) =
-    thediv![thestyle "border:solid; border-width:1px; padding:0px; width:500px;"] $
+  present (CommentView _ edited author date text mEditAction mRemoveAction mTextArea) =
+    thediv![thestyle "border:solid; border-width:1px; padding:0px; min-width: 500px;"] $
      (withBgColor (Rgb 225 225 225) $ --  thespan![thestyle "margin:4px;"] $
         ("Posted by " +++ stringToHtml author +++ " on " +++ stringToHtml date)
-        `leftRight`
+        `hDistribute`
         ( withColor (Color "blue") $
           case mEditAction of
            Just ea -> present ea
            Nothing -> stringToHtml ""
-         +++ " " +++
+         +++ nbspaces 2 +++
          case mRemoveAction of
            Just ra -> present ra
            Nothing -> stringToHtml ""
          )
      ) +++ 
      (withBgColor (Color "white") $ 
-        thespan![thestyle "margin:2px;"] $ -- TODO: figure out why margin above creates too much space  
-         if edited then case mTextField of 
-                          Nothing -> stringToHtml text
-                          Just textField -> present textField
-         else stringToHtml text
-       )    
+        thespan![thestyle "padding:0;"] $ -- TODO: figure out why margin above creates too much space  
+         if edited then case mTextArea of 
+                          Nothing -> multiLineStringToHtml text
+                          Just textArea -> withHeight 100 $ present textArea
+         else multiLineStringToHtml text
+       )
+     
+  
