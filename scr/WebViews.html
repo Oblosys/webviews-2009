@@ -25,11 +25,9 @@ var focusedElementId = '';
 
 
 function init()
-{
-  queueCommand('Init');
+{ queueCommand('Init');
 //  refresh();
 }
-
 function debug(message)
 {
   if (debugging)
@@ -93,6 +91,9 @@ function addCommand(command)
 { commandQueue = commandQueue + (commandQueue != '' ? ',' : '') + command;
 } // add command to queue, and if queue was not empty, put a comma in front
 
+
+var xmlhttp;
+
 // TODO we don't want empty commands sent to server
 function queueCommand(command)
 { if (command != '') addCommand(command);
@@ -123,7 +124,7 @@ function queueCommand(command)
   }
 }
 
-<!--
+/*
 // tricky to do these as regular commands in the command queue.
 function authenticate()
 { xmlhttp.onreadystatechange=state_Change;
@@ -136,7 +137,7 @@ function unauthenticate()
   xmlhttp.open("GET",'unauthenticate',true);
   xmlhttp.send(null);
 }
--->
+*/
 
 function state_Change()
 {
@@ -318,7 +319,7 @@ function removeChildren(elt)
 </table>
 -->
 
-<body onload="init()" style="padding:0px; margin:0px">
+<body onload="javascript: init();" style="padding:0px; margin:0px">
 <!-- <button onClick="debugAdd('click')" onfocus="debugAdd('focus')">click</button> -->
 <!-- <div style="border:solid; border-width:1px; margin:0px"> -->
 <div id="viewTree"></div>
