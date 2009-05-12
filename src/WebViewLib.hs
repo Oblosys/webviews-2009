@@ -243,7 +243,7 @@ instance Presentable AnyWidget where
   present (RadioViewWidget rv) = presentRadioBox rv 
   present (TextWidget es) = presentTextField es 
   present (ButtonWidget b) = presentButton b 
-  present (EditActionWidget b) = stringToHtml "zakatoekoe"
+  present (EditActionWidget b) = noHtml
 
 
 
