@@ -27,7 +27,33 @@ mkViewMap wv = let wvs = getAll wv
 -- webviews are to coarse for incrementality. We also need buttons, eints etc. as identifiable entities
 -- making these into webviews does not seem to be okay. Maybe a separate class is needed
 
-  
+webNodeQ :: Typeable a => a -> Maybe WebNode
+webNodeQ = (Nothing `mkQ`  (\w -> Just $ WebViewNode w) 
+                    `extQ` (\w@(Widget vi stbid id x) -> Just $ WidgetNode vi stbid id (RadioViewWidget x))
+                    `extQ` (\w@(Widget vi stbid id x) -> Just $ WidgetNode vi stbid id (TextWidget x))
+                    `extQ` (\w@(Widget vi stbid id x) -> Just $ WidgetNode vi stbid id (ButtonWidget x))
+           )              -- TODO can we do this bettter?
+                        
+                    
+webNodeLstQ :: Typeable a => a -> Maybe [WebNode]
+webNodeLstQ = (Nothing `mkQ`  (\ws -> Just [ WebViewNode w | w <- ws ]) 
+ `extQ` (\ws -> Just $ map (\w@(Widget vi stbid id x) -> WidgetNode vi stbid id (RadioViewWidget x)) ws)
+ `extQ` (\ws -> Just $ map (\w@(Widget vi stbid id x) -> WidgetNode vi stbid id (TextWidget x)) ws)
+ `extQ` (\ws -> Just $ map (\w@(Widget vi stbid id x) -> WidgetNode vi stbid id (ButtonWidget x)) ws)
+           )              -- TODO can we do this bettter?
+
+
+testQ :: Typeable a => a -> Maybe (Either () (Either Int Bool))
+testQ = (Nothing `mkQ` (\x -> Just $ Left x)
+                 `extQ` (\x -> Just $ Right (Left x))
+                 `extQ` (\x -> Just $ Right (Right x))
+        )
+
+testLstQ :: Typeable a => a -> Maybe [(Either () (Either Int Bool))]
+testLstQ = (Nothing `mkQ`  (\xs -> Just $ [ Left x | x <- xs ])
+                    `extQ` (\xs -> Just $ [ Right (Left x) | x <- xs ])
+                    `extQ` (\xs -> Just $ [ Right (Right x) | x <- xs ])
+        )
 
 mkWebNodeMap :: Data d => d -> WebNodeMap
 mkWebNodeMap x = Map.fromList $ everything (++) 
@@ -40,21 +66,13 @@ mkWebNodeMap x = Map.fromList $ everything (++)
 
 getTopLevelWebNodesWebView :: WebView -> [WebNode]
 getTopLevelWebNodesWebView (WebView _ _ _ _ v) =
-  everythingTopLevel (Nothing `mkQ`  (\w@(WebView vwId sid id _ _) -> Just $ WebViewNode w) 
-                              `extQ` (\w@(Widget vi stbid id x@(RadioView _ _ _ _))   -> Just $ WidgetNode vi stbid id (RadioViewWidget x))
-                              `extQ` (\w@(Widget vi stbid id x@(Text _ _ _ _)) -> Just $ WidgetNode vi stbid id (TextWidget x))
-                              `extQ` (\w@(Widget vi stbid id x@(Button _ _ _ _))   -> Just $ WidgetNode vi stbid id (ButtonWidget x))
-                     ) v             -- TODO can we do this bettter?
+  everythingTopLevel webNodeQ v
 
 -- make sure this one is not called on a WebView, but on its child view
 -- TODO: rename this one, it is not called on a WebNode
 getTopLevelWebNodesWebNode :: Data x => x -> [WebNode]
 getTopLevelWebNodesWebNode x = everythingTopLevel 
-                     (Nothing `mkQ`  (\w@(WebView vwId sid id _ _) -> Just $ WebViewNode w) 
-                              `extQ` (\w@(Widget vi stbid id x@(RadioView _ _ _ _))   -> Just $ WidgetNode vi stbid id (RadioViewWidget x))
-                              `extQ` (\w@(Widget vi stbid id x@(Text _ _ _ _)) -> Just $ WidgetNode vi stbid id (TextWidget x))
-                              `extQ` (\w@(Widget vi stbid id x@(Button _ _ _ _))   -> Just $ WidgetNode vi stbid id (ButtonWidget x))
-                     ) x
+                     webNodeQ x
 -- lookup the view id and if the associated view is of the desired type, return it. Otherwise
 -- return initial
 lookupOldView :: (Initial v, Typeable v) => ViewId -> ViewMap -> v
@@ -84,6 +102,37 @@ everythingTopLevel :: Data r => GenericQ (Maybe r) -> GenericQ [r]
 everythingTopLevel f x = case f x of
                       Just x  -> [x]
                       Nothing -> foldl (++) [] (gmapQ (everythingTopLevel f) x)
+
+
+-- all webviews and Web nodes are returned as a list with their corresponding path
+-- lists of webviews or widgets do not get indices for the elements. Moreover, only direct lists of 
+-- webviews or widgets are recognized. nested lists should be detected somehow and give an error.
+getTopLevelWebNodesWebViewWithPath :: WebView -> [(WebNode,[Int])]
+getTopLevelWebNodesWebViewWithPath (WebView _ _ _ _ v) =
+  everythingTopLevelWithPath [] webNodeLstQ webNodeQ v
+
+
+everythingTopLevelWithPath :: Data r => [Int] -> GenericQ (Maybe [r]) -> GenericQ (Maybe r) -> GenericQ [(r,[Int])]
+everythingTopLevelWithPath pth flst f x = 
+  case flst x of
+    Just lsts -> [ (lst,pth++[-2]) | lst <- lsts ]
+    Nothing -> case f x of Just x  -> [(x,pth)]
+                           Nothing -> concat $ gmapQIx (\i -> everythingTopLevelWithPath (pth++[i]) flst f) x
+                               
+ -- where isList = undefined :: Data a => [a] -> ()
+
+--- tricky stuff:
+
+-- | The type constructor used in definition of gmapQr
+data Qr r a = Qr Int (r -> r)
+
+gmapQIx :: Data a => (forall d. Data d => Int -> d -> r') -> a -> [(r')]
+gmapQIx f x0 = case (gfoldl k (const (Qr 0 id)) x0) of Qr _ res -> res []
+    where
+      k (Qr i c) x = Qr  (i+1) (\r -> c (f i x : r))
+
+
+
 
 getWebViewContainingId :: Id -> WebView -> Maybe WebView
 getWebViewContainingId (Id i) wv = 
@@ -245,3 +294,7 @@ getTextByViewId :: Data v => ViewIdRef -> v -> Maybe String
 getTextByViewId (ViewIdRef i) view =
   something (Nothing `mkQ` (\(Widget (ViewId i') _ _ (Text _ _ str _)) -> 
                              if i == i' then Just str else Nothing)) view
+  
+
+
+
