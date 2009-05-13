@@ -65,10 +65,10 @@ mkVisitsView sessionId = mkWebView $
                              }
      ; commentIds <- withDb $ \db -> Map.keys (allComments db)
                                     
-     ; commentViews <- sequence 
-                          [ mkCommentView cid (not fresh && cid `notElem` oldCommentIds) 
-                                               -- if this view is not fresh, and an
-                          | cid <- commentIds  -- id was not in commentIds, it was
+     ; commentViews <- uniqueIds 
+                          [ (uniqueId, mkCommentView cid (not fresh && cid `notElem` oldCommentIds)) 
+                                                                    -- if this view is not fresh, and an
+                          | cid@(CommentId uniqueId) <- commentIds  -- id was not in commentIds, it was
                           ]                    -- added and will be in edit mode
                                                -- BUG: unfortunately, this also happens when it
                                                -- was introduced by a different session :-(
@@ -174,9 +174,9 @@ mkVisitView i = mkWebView $
        ; nextB <- mkButton "Next"     (viewedPig < (nrOfPigs - 1)) $ next vid
        ; addB  <- mkButton "Add"      True                         $ addPig visd
                  
-       ; pigViews <- sequence [ mkPigView vid i pigId viewedPig
-                              | (pigId,i) <- zip pigIds [0..] 
-                              ]
+       ; pigViews <- uniqueIds $ [ (uniqueId, mkPigView vid i pigId viewedPig)
+                                 | (pigId@(PigId uniqueId),i) <- zip pigIds [0..] 
+                                 ]
                                      
        ; return $ VisitView i zipT dateT viewedPig prevB  nextB addB pigIds pignames pigViews 
        }
@@ -208,17 +208,14 @@ instance Initial VisitView where
   initial = VisitView (VisitId initial) initial initial initial initial initial initial initial initial initial
                        
 
-
-
-
 -- Pig -------------------------------------------------------------------------  
 
 data PigView = PigView PigId EditAction String (Widget Button) Int Int (Widget Text) (Widget Text) [Widget RadioView] (Either Int String) 
                deriving (Eq, Show, Typeable, Data)
 
-mkPigView parentViewId pignr i viewedPig = mkWebView $ 
+mkPigView parentViewId pignr pigId@(PigId pigInt) viewedPig = mkWebView $ 
   \vid (PigView _ _ _ _ _ _ oldViewStateT _ _ _) ->
-   do { (Pig pid vid name [s0,s1,s2] diagnosis) <- withDb $ \db -> unsafeLookup (allPigs db) i
+   do { (Pig pid vid name [s0,s1,s2] diagnosis) <- withDb $ \db -> unsafeLookup (allPigs db) pigId
       ; selectAction <- mkEditAction $ mkViewEdit parentViewId $ modifyViewedPig (\_ -> pignr)
       ; removeB <- mkButton "remove" True $ 
                      ConfirmEdit ("Are you sure you want to remove pig "++show (pignr+1)++"?") $ 

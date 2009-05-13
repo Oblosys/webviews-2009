@@ -22,14 +22,26 @@ import Control.Monad.Fix
 
 -- IDEA: use phantom types to enforce type structure on views
 --       GADTs?
--- TODO: figure out load stuff
---       use a monad for auto handling listeners to database
+-- TODO: use a monad for auto handling listeners to database
 
 {-
 
 initials really necessary?
 Related: When will oldview not be found during loadView, leading to using oldview' from the webView?
 Right now, initials have no viewId, so using them is dangerous.
+
+
+authenticate shows possible danger. if the refs are evaluated to get the name and password, and the structure
+has changed, then the refs will fail. This should not lead to an error. It will probably never happen
+since restructuring leads to recreation of the login view because of failure to reuse.
+
+TODO when doing loading on non-root, check how this works with the unique id stuff.
+
+TODO check noViewId, this is now a rootViewId
+TODO change liftS
+
+TODO somehow ensure that widgets/subviews are not conditional
+TODO unpresented widgets should not crash
 
 -}
 
@@ -152,15 +164,15 @@ applyIfCorrectType f x = case cast f of
 -- like in Proxima
 loadView :: WebView -> WebViewM WebView
 loadView (WebView _ si i mkView oldView') =
- do { WebViewState user db viewMap path viewIdCounter <- get
+ do { state@(WebViewState user db viewMap path viewIdCounter) <- get
     ; let newViewId = ViewId $ path ++ [viewIdCounter]                             
-    ; put $ WebViewState user db viewMap (path++[viewIdCounter]) viewIdCounter
+    ; put $ WebViewState user db viewMap (path++[viewIdCounter]) 0
     ; let oldView = case lookupOldView newViewId viewMap of
                       Just oldView -> oldView
                       Nothing      -> oldView' -- this will be initial
                       
     ; view <- mkView newViewId oldView -- path is one level deeper for children created here 
-    ; put $ WebViewState user db viewMap path $ viewIdCounter + 1 -- restore old path
+    ; modify $ \s -> s { getStatePath = path, getStateViewIdCounter = viewIdCounter + 1} -- restore old path
     ; return $ WebView newViewId si i mkView view    
     }
 mkWebView :: (Presentable v, Storeable v, Initial v, Show v, Eq v, Data v) =>
@@ -171,6 +183,59 @@ mkWebView mkView  =
     ; webView <- loadView initialWebView
     ; return webView
     } 
+
+
+{-
+id that is unique in parent guarantees no errors. What about uniqueness for pigs when switching visits?
+what about space leaks there?
+
+TODO: this seems only necessary for subviews, as these can have extra state
+for widgets, there may be a little less reuse, but no problem. Except maybe if a widget
+is created based on a list of elements, but does not take its content from these elements.
+
+nice to do it in pig itself, but then we need to remove it's ols unique id from the path and make sure
+that it's own unique id does not clash with generated id's or unique id's from other lists. We cannot
+include the generated unique id, because then the unique id does not identify the view by itself anymore
+
+widget [.., 0]
+widget [.., 1]
+views  [.., unique1]
+       [.., unique2]
+view   [.., 2]
+views  [.., unique3]
+views  [.., unique4]
+(uniques may not overlap with {0,1,2})
+
+doing it at the list is easier
+
+widget [.., 0]
+widget [.., 1]
+views  [..,2, unique1]
+       [..,2, unique2]
+view   [.., 3]
+views  [.., 4,unique1]
+views  [.., 4,unique2]
+
+Now the unique id's only have to be unique with regard to other elts in the list.
+
+Note that the zeros after the uniques are added due to the way mkWebview and load Webview work.
+-}
+uniqueIds :: [(Int, WebViewM WebView)] -> WebViewM [WebView]
+uniqueIds idsMkWvs =
+ do { state@(WebViewState user db viewMap path viewIdCounter) <- get
+    ; put $ state { getStatePath = path++[viewIdCounter], getStateViewIdCounter = 0 } 
+      -- 0 is not used, it will be replaced by the unique ids
+      
+    ; wvs <- sequence [ uniqueId id mkWv | (id, mkWv) <- idsMkWvs]
+    ; modify $ \s -> s { getStatePath = path, getStateViewIdCounter = viewIdCounter+1 }
+    ; return wvs
+    }
+ 
+uniqueId uniqueId wv =
+ do { modify $ \s -> s { getStateViewIdCounter = uniqueId } 
+    ; v <- wv
+    ; return v
+    }
 
 {-
 

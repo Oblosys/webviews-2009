@@ -303,6 +303,8 @@ instance Initial WebView where
 
 
 data WebViewState = 
-  WebViewState User Database ViewMap [Int] Int deriving (Typeable, Data)
+  WebViewState { getStateUser :: User, getStateDb :: Database, getStateViewMap :: ViewMap 
+               , getStatePath :: [Int], getStateViewIdCounter :: Int 
+               } deriving (Typeable, Data)
 
 type WebViewM a = StateT WebViewState IO a
