@@ -71,6 +71,8 @@ mkVisitsView sessionId = mkWebView $
                                                -- if this view is not fresh, and an
                           | cid <- commentIds  -- id was not in commentIds, it was
                           ]                    -- added and will be in edit mode
+                                               -- BUG: unfortunately, this also happens when it
+                                               -- was introduced by a different session :-(
                        
      ; mAddCommentButton <- case user of 
                               Nothing -> return Nothing 
@@ -213,22 +215,24 @@ instance Initial VisitView where
 
 -- Pig -------------------------------------------------------------------------  
 
-data PigView = PigView PigId EditAction String (Widget Button) Int Int (Widget Text) [Widget RadioView] (Either Int String) 
+data PigView = PigView PigId EditAction String (Widget Button) Int Int (Widget Text) (Widget Text) [Widget RadioView] (Either Int String) 
                deriving (Eq, Show, Typeable, Data)
 
 mkPigView parentViewId pignr i viewedPig = mkWebView $ 
   \vid ->
-   do { (Pig pid vid name [s0,s1,s2] diagnosis) <- withDb $ \db -> unsafeLookup (allPigs db) i
+   do { (PigView _ _ _ _ _ _ oldViewStateT _ _ _) <- getOldView vid
+      ; (Pig pid vid name [s0,s1,s2] diagnosis) <- withDb $ \db -> unsafeLookup (allPigs db) i
       ; selectAction <- mkEditAction $ mkViewEdit parentViewId $ modifyViewedPig (\_ -> pignr)
       ; removeB <- mkButton "remove" True $ 
                      ConfirmEdit ("Are you sure you want to remove pig "++show (pignr+1)++"?") $ 
                        removePigAlsoFromVisit pid vid              
       ; nameT <- mkTextField name                             
+      ; viewStateT <- mkTextField (getStrVal oldViewStateT)
       ; rv1 <- mkRadioView ["Pink", "Grey"] s0 True
       ; rv2 <- mkRadioView ["Yes", "No"]    s1 True
       ; rv3 <- mkRadioView ["Yes", "No"]    s2 (s1 == 0)
-      ; return $ PigView pid selectAction (imageUrl s0) removeB  viewedPig pignr nameT 
-                         [rv1, rv2, rv3] diagnosis
+      ; return $ PigView pid selectAction (imageUrl s0) removeB  viewedPig pignr 
+                         viewStateT nameT [rv1, rv2, rv3] diagnosis
       }
  where removePigAlsoFromVisit pid vid =
          DocEdit $ removePig pid . updateVisit vid (\v -> v { pigs = delete pid $ pigs v } )  
@@ -239,10 +243,11 @@ mkPigView parentViewId pignr i viewedPig = mkWebView $
                       else if viewedPig > pignr then "Right" else ""
 
 instance Presentable PigView where
-  present (PigView pid _ _ b _ pignr name [] diagnosis) = stringToHtml "initial pig"
-  present (PigView pid editAction imageUrl b viewedPig pignr name [co, ab, as] diagnosis) =
-       roundedBoxed (Just $ if viewedPig == pignr then Rgb 200 200 200 else Rgb 225 225 225) $
-        (center $ withEditAction editAction $ image imageUrl) +++
+  present (PigView pid _ _ b _ _ pignr name [] diagnosis) = stringToHtml "initial pig"
+  present (PigView pid editAction imageUrl b viewedPig pignr viewStateT name [co, ab, as] diagnosis) =
+    withEditAction editAction $    
+      roundedBoxed (Just $ if viewedPig == pignr then Rgb 200 200 200 else Rgb 225 225 225) $
+        (center $ image imageUrl) +++
         (center $ " nr. " +++ show (pignr+1)) +++
         p << (center $ (present b)) +++
         p << ("Name:" +++ present name) +++
@@ -251,15 +256,16 @@ instance Presentable PigView where
         p << "Has had antibiotics: " +++
         present ab +++
         p << "Antibiotics successful: " +++
-        present as
+        present as +++ br +++
+        "Note: " +++ present viewStateT
     
 instance Storeable PigView where
-  save (PigView pid _ _ _ _ _ name symptoms diagnosis) =
+  save (PigView pid _ _ _ _ _ _ name symptoms diagnosis) =
     updatePig pid (\(Pig _ vid _ _ diagnosis) -> 
                     (Pig pid vid (getStrVal name) (map getSelection symptoms) diagnosis)) 
 
 instance Initial PigView where
-  initial = PigView (PigId initial) initial "" initial initial initial initial initial initial
+  initial = PigView (PigId initial) initial "" initial initial initial initial initial initial initial
 
 
 data CommentView = CommentView CommentId Bool String String String
