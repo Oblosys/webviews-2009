@@ -83,13 +83,13 @@ mkRadioView is s en = liftS $ \path vidC -> (radioView (ViewId $ path ++ [vidC])
 
 mkTextField str = mkTextFieldEx str Nothing
 
---mkTextFieldAct str act = mkTextFieldEx str $ Just act
+mkTextFieldAct str act = mkTextFieldEx str $ Just act
 
 mkTextFieldEx str mEditAction = liftS $ \path vidC -> (textField (ViewId $ path ++ [vidC]) str mEditAction, vidC + 1)
 
 mkPasswordField str = mkPasswordFieldEx str Nothing
 
---mkPasswordFieldAct str act = mkPasswordFieldEx str $ Just act
+mkPasswordFieldAct str act = mkPasswordFieldEx str $ Just act
 
 mkPasswordFieldEx str mEditAction = liftS $ \path vidC -> (passwordField (ViewId $ path ++ [vidC]) str mEditAction , vidC + 1)
 
@@ -268,10 +268,10 @@ instance Initial LoginView where initial = LoginView initial initial initial
 mkLoginView = mkWebView $
   \vid (LoginView name password b) ->
    fixView $ \fixedAuthenticate ->
-   do { nameT <- mkTextField (getStrVal name)
-      ; passwordT <- mkPasswordField (getStrVal password)
---      ; nameT <- mkTextFieldAct (getStrVal name) fixedAuthenticate 
---      ; passwordT <- mkPasswordFieldAct (getStrVal password) fixedAuthenticate 
+   do { --nameT <- mkTextField (getStrVal name)
+      --; passwordT <- mkPasswordField (getStrVal password)
+      ; nameT <- mkTextFieldAct (getStrVal name) fixedAuthenticate 
+      ; passwordT <- mkPasswordFieldAct (getStrVal password) fixedAuthenticate 
       ; let authenticate = AuthenticateEdit (widgetGetViewRef nameT) (widgetGetViewRef passwordT)
       
       ; loginB <- mkButton "Login" True authenticate                   
