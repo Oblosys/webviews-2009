@@ -431,34 +431,27 @@ performEditCommand sessionStateRef command =
 
     }
 
-
--- TODO id's may not be right. what if views changed and the fields get assigned different id's
--- than when button was created?
 authenticate sessionStateRef userEStringViewId passwordEStringViewId =
  do { (sessionId, user, db, rootView, pendingEdit) <- readIORef sessionStateRef
-    ; let mUserName = getTextByViewIdRef userEStringViewId rootView
-          mEnteredPassword = getTextByViewIdRef passwordEStringViewId rootView
-    ; case (mUserName, mEnteredPassword) of
-        (userName, enteredPassword) ->  -- no monad necessary? no text now leads to error
-           case Map.lookup userName users of
-             Just (password, fullName) -> if password == enteredPassword  
-                                      then 
-                                       do { putStrLn $ "User "++userName++" authenticated"
-                                          ; writeIORef sessionStateRef 
-                                              (sessionId, Just (userName, fullName)
-                                              , db, rootView, pendingEdit)
-                                          ; reloadRootView sessionStateRef
-                                          ; return ViewUpdate
-                                          }
-                                      else
-                                       do { putStrLn $ "User "++userName++" entered a wrong password"
-                                          ; return $ Alert "Incorect password"
-                                          }
-             Nothing -> do { putStrLn $ "User "++userName++" entered a wrong password"
-                           ; return $ Alert $ "Unknown username: "++userName
-                           }
---        _ -> error $ "Internal error: at least one referenced ViewId not in rootView" ++
---                     show [userEStringViewId, passwordEStringViewId]
+    ; let userName = getTextByViewIdRef userEStringViewId rootView
+          enteredPassword = getTextByViewIdRef passwordEStringViewId rootView
+    ; case Map.lookup userName users of
+        Just (password, fullName) -> if password == enteredPassword  
+                                     then 
+                                      do { putStrLn $ "User "++userName++" authenticated"
+                                         ; writeIORef sessionStateRef 
+                                             (sessionId, Just (userName, fullName)
+                                             , db, rootView, pendingEdit)
+                                         ; reloadRootView sessionStateRef
+                                         ; return ViewUpdate
+                                         }
+                                     else
+                                      do { putStrLn $ "User "++userName++" entered a wrong password"
+                                         ; return $ Alert "Incorect password"
+                                         }
+        Nothing -> do { putStrLn $ "User "++userName++" entered a wrong password"
+                      ; return $ Alert $ "Unknown username: "++userName
+                      }
     }
 logout sessionStateRef =
  do { (sessionId, user, db, rootView, pendingEdit) <- readIORef sessionStateRef
@@ -466,7 +459,6 @@ logout sessionStateRef =
     ; reloadRootView sessionStateRef
     ; return ViewUpdate
     }  
-
 
 -- Utils
 
