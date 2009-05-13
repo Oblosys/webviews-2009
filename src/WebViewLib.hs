@@ -29,7 +29,7 @@ import Control.Monad.Fix
 
 initials really necessary?
 Related: When will oldview not be found during loadView, leading to using oldview' from the webView?
-
+Right now, initials have no viewId, so using them is dangerous.
 
 -}
 
@@ -76,7 +76,7 @@ mkButton :: String -> Bool -> EditCommand -> WebViewM (Widget Button)
 mkButton str en ac = liftS $  \path vidC -> (button (ViewId $ path ++ [vidC]) str en ac, vidC + 1)
 
 -- no need to be in monad
-mkEditAction ac = return $ EditAction noId ac
+mkEditAction ac = liftS $ \path vidC -> (EditAction (ViewId $ path ++ [vidC]) ac, vidC +1)
 
 mkRadioView is s en = liftS $ \path vidC -> (radioView (ViewId $ path ++ [vidC]) is s en, vidC +1)
 
@@ -185,36 +185,36 @@ the update
 -- (or Done) on the iPhone.
 
 presentTextField :: Text -> Html
-presentTextField (Text (Id i) TextArea str _) = 
+presentTextField (Text viewId TextArea str _) = 
    form![ thestyle "display: inline; width: 500px;"
-        , strAttr "onSubmit" $ "textFieldChanged('"++show i++"'); return false"] $
-     textarea ! [ identifier (show i)
+        , strAttr "onSubmit" $ "textFieldChanged('"++show viewId++"'); return false"] $
+     textarea ! [ identifier (show viewId)
                 , thestyle "width: 100%; height: 100%;"
                 --, strAttr "onChange" $ "textFieldChanged('"++show i++"')"
-                , strAttr "onFocus" $ "elementGotFocus('"++show i++"')"
-                , strAttr "onBlur" $ "textFieldChanged('"++show i++"')"
+                , strAttr "onFocus" $ "elementGotFocus('"++show viewId++"')"
+                , strAttr "onBlur" $ "textFieldChanged('"++show viewId++"')"
                 ] << stringToHtml str
-presentTextField (Text (Id i) textType str mEditAction) = 
+presentTextField (Text viewId textType str mEditAction) = 
   let inputField = case textType of TextField -> textfield ""
                                     PasswordField -> password ""
                                     
   in form![ thestyle "display: inline"
-          , strAttr "onSubmit" $ "textFieldChanged('"++show i++"');" ++
+          , strAttr "onSubmit" $ "textFieldChanged('"++show viewId++"');" ++
                                  (case mEditAction of
                                     Nothing -> []
-                                    Just _  -> "queueCommand('SubmitC "++show i++"'); ")++
+                                    Just _  -> "queueCommand('SubmitC ("++show viewId++")'); ")++
                                  "return false"] $
-       inputField ! [ identifier (show i), strAttr "value" str, width "100%"
+       inputField ! [ identifier (show viewId), strAttr "value" str, width "100%"
                     --, strAttr "onChange" $ "textFieldChanged('"++show i++"')"
-                    , strAttr "onFocus" $ "elementGotFocus('"++show i++"')"
-                    , strAttr "onBlur" $ "textFieldChanged('"++show i++"')" ]
+                    , strAttr "onFocus" $ "elementGotFocus('"++show viewId++"')"
+                    , strAttr "onBlur" $ "textFieldChanged('"++show viewId++"')" ]
 
 -- seems like this one could be in Present
 presentButton :: Button -> Html
-presentButton (Button (Id i) txt enabled _) = 
-   primHtml $ "<button id=\""++ show i++"\" "++ (if enabled then "" else "disabled ") ++
-                            "onclick=\"queueCommand('ButtonC "++show i++"')\" "++
-                            "onfocus=\"elementGotFocus('"++show i++"')\">"++txt++"</button>"
+presentButton (Button viewId txt enabled _) = 
+   primHtml $ "<button id=\""++ show viewId++"\" "++ (if enabled then "" else "disabled ") ++
+                            "onclick=\"queueCommand('ButtonC ("++show viewId++")')\" "++
+                            "onfocus=\"elementGotFocus('"++show viewId++"')\">"++txt++"</button>"
 -- TODO: text should be escaped
 
 
@@ -223,24 +223,24 @@ presentButton (Button (Id i) txt enabled _) =
 -- a descriptive text field can be added to the action, to let the server be able to show
 -- which button was pressed. However, it is not sure if this works okay with restoring id's
 -- though it probably works out, as the ea id is the only one needing restoration.
-withEditAction (EditAction (Id i) _) elt = 
-  thespan![ identifier $ show i 
-          , strAttr "onClick" $ "queueCommand('PerformEditActionC "++show i++"')"] << elt
+withEditAction (EditAction viewId _) elt = 
+  thespan![ identifier $ show viewId
+          , strAttr "onClick" $ "queueCommand('PerformEditActionC ("++show viewId++")')"] << elt
 
-withEditActionAttr (EditAction (Id i) _) = 
-  strAttr "onClick" $ "queueCommand('PerformEditActionC "++show i++"')"
+withEditActionAttr (EditAction viewId _) = 
+  strAttr "onClick" $ "queueCommand('PerformEditActionC ("++show viewId++")')"
 
 presentRadioBox :: RadioView -> Html
-presentRadioBox (RadioView (Id id) items selectedIx enabled) = thespan << 
-  [ radio (show id) (show i) ! ( [ identifier eltId 
-                          , strAttr "onChange" ("queueCommand('SetC "++show id++" %22"++show i++"%22')") 
+presentRadioBox (RadioView viewId items selectedIx enabled) = thespan << 
+  [ radio (show viewId) (show i) ! ( [ identifier eltId 
+                          , strAttr "onChange" ("queueCommand('SetC ("++show viewId++") %22"++show i++"%22')") 
                           , strAttr "onFocus" ("elementGotFocus('"++eltId++"')")
                           ]
                           ++ (if enabled && i == selectedIx then [strAttr "checked" ""] else []) 
                           ++ (if not enabled then [strAttr "disabled" ""] else [])) 
                           +++ item +++ br 
   | (i, item) <- zip [0..] items 
-  , let eltId = "radio"++show id++"button"++show i ] -- these must be unique for setting focus
+  , let eltId = "radio"++show viewId++"button"++show i ] -- these must be unique for setting focus
 
 instance Presentable WebView where
   present (WebView _ (Id stubId) _ _ _) = mkSpan (show stubId) << "ViewStub"

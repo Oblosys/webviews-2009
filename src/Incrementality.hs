@@ -86,9 +86,9 @@ computeMove oldWebNodeMap changedOrNewWebNodes webNode =
   then -- parent has not changed
        let Just oldWebNode = Map.lookup (getWebNodeViewId webNode) oldWebNodeMap 
        in  [RestoreId (mkRef $ getWebNodeId webNode) (mkRef $ getWebNodeId oldWebNode)] ++
-           restoreInternalIds oldWebNode webNode ++ concat
            -- restore id's for parent
            
+           concat
            [ if childViewId `notElem` changedOrNewWebNodes 
              then -- child has not changed
                   []
@@ -137,14 +137,6 @@ computeMove oldWebNodeMap changedOrNewWebNodes webNode =
 getTopLevelWebNodesForWebNode (WidgetNode _ _ _ wn) = []
 getTopLevelWebNodesForWebNode (WebViewNode (WebView _ _ _ _ v)) = getTopLevelWebNodesWebNode v
 
-restoreInternalIds (WidgetNode _ _ _ oldW) (WidgetNode _ _ _ newW) =  
-  [ RestoreId (mkRef $ getWidgetInternalId newW) (mkRef $ getWidgetInternalId oldW) ]
-restoreInternalIds (WebViewNode oldWv) (WebViewNode newWv) =  
-  [ RestoreId (mkRef $ newId) (mkRef $ oldId)
-  | (oldId, newId) <- zip (webViewGetInternalIds oldWv) (webViewGetInternalIds newWv)
-  ]
-  
-restoreInternalIds _ _ = error "Internal error: restoreInternalIds, WebNode mismatch"
 
 
 
@@ -165,7 +157,7 @@ getWebNodeStubId (WebViewNode (WebView _ si _ _ _)) = si
 getWebNodeStubId (WidgetNode _ si _ _) = si
 
 
-getWidgetInternalId :: AnyWidget -> Id
+getWidgetInternalId :: AnyWidget -> ViewId
 getWidgetInternalId  (RadioViewWidget (RadioView id _ _ _)) = id
 getWidgetInternalId  (TextWidget (Text id _ _ _)) = id
 getWidgetInternalId  (ButtonWidget (Button id _ _ _)) = id

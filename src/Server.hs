@@ -338,11 +338,11 @@ handleCommand sessionStateRef Test =
  do { (_, user, db, rootView, _) <- readIORef sessionStateRef
     ; return ViewUpdate
     }
-handleCommand sessionStateRef (SetC id value) =
+handleCommand sessionStateRef (SetC viewId value) =
  do { (sessionId, user, db, rootView, pendingEdit) <- readIORef sessionStateRef      
-    ; putStrLn $ show id ++ " value is " ++ show value
+    ; putStrLn $ show viewId ++ " value is " ++ show value
 
-    ; let rootView' = replace (Map.fromList [(Id id, value)]) (assignIds rootView)
+    ; let rootView' = replace (Map.fromList [(viewId, value)]) (assignIds rootView)
     --; putStrLn $ "Updated rootView:\n" ++ show rootView'
     ; let db' = save rootView' db
       -- TODO: check if mkViewMap has correct arg
@@ -351,19 +351,19 @@ handleCommand sessionStateRef (SetC id value) =
     ; reloadRootView sessionStateRef
     ; return ViewUpdate
     }
-handleCommand sessionStateRef (ButtonC id) =
+handleCommand sessionStateRef (ButtonC viewId) =
  do { (_, user, db, rootView, pendingEdit) <- readIORef sessionStateRef
-    ; let Button _ txt _ act = getButtonById (Id id) rootView
-    ; putStrLn $ "Button #" ++ show id ++ ":" ++ txt ++ " was clicked"
+    ; let Button _ txt _ act = getButtonByViewId viewId rootView
+    ; putStrLn $ "Button #" ++ show viewId ++ ":" ++ txt ++ " was clicked"
 
     ; response <- performEditCommand sessionStateRef act
           
     ; return response
     }
-handleCommand sessionStateRef (SubmitC id) =
+handleCommand sessionStateRef (SubmitC viewId) =
  do { (_, user, db, rootView, pendingEdit) <- readIORef sessionStateRef
-    ; let Text _ _ txt mAct = getTextById (Id id) rootView
-    ; putStrLn $ "Text #" ++ show id ++ ":" ++ txt ++ " was submitted"
+    ; let Text _ _ txt mAct = getTextByViewId viewId rootView
+    ; putStrLn $ "Text #" ++ show viewId ++ ":" ++ txt ++ " was submitted"
 
     ; response <- case mAct of 
         Nothing  -> error "Internal error: text field with submission action has no associated action."
@@ -371,10 +371,10 @@ handleCommand sessionStateRef (SubmitC id) =
           
     ; return response
     }
-handleCommand sessionStateRef (PerformEditActionC id) =
+handleCommand sessionStateRef (PerformEditActionC viewId) =
  do { (_, user, db, rootView, pendingEdit) <- readIORef sessionStateRef
-    ; let EditAction _ act = getEditActionById (Id id) rootView
-    ; putStrLn $ "EditAction with Id "++show id ++ " was executed"
+    ; let EditAction _ act = getEditActionByViewId viewId rootView
+    ; putStrLn $ "EditAction with ViewId "++show viewId ++ " was executed"
 
     ; response <- performEditCommand sessionStateRef act
           
@@ -436,8 +436,8 @@ performEditCommand sessionStateRef command =
 -- than when button was created?
 authenticate sessionStateRef userEStringViewId passwordEStringViewId =
  do { (sessionId, user, db, rootView, pendingEdit) <- readIORef sessionStateRef
-    ; let mUserName = getTextByViewId userEStringViewId rootView
-          mEnteredPassword = getTextByViewId passwordEStringViewId rootView
+    ; let mUserName = getTextByViewIdRef userEStringViewId rootView
+          mEnteredPassword = getTextByViewIdRef passwordEStringViewId rootView
     ; case (mUserName, mEnteredPassword) of
         (Just userName, Just enteredPassword) ->
            case Map.lookup userName users of

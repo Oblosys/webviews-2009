@@ -24,17 +24,17 @@ getCommands (Commands cs) = cs
 getCommands _             = []
 
 data Command = Init | Refresh | Test 
-             | SetC Int String 
-             | ButtonC Int
-             | SubmitC Int
-             | PerformEditActionC Int 
+             | SetC ViewId String 
+             | ButtonC ViewId
+             | SubmitC ViewId
+             | PerformEditActionC ViewId 
              | ConfirmDialogOk 
                deriving (Eq, Show, Read) 
 
 -- view id's are for identifying views and widgets with regard to incrementality
 -- they remain constant over the view's/widget's life
 -- for now, we assign them at mkView
-newtype ViewId = ViewId [Int] deriving (Show, Eq, Ord, Typeable, Data)
+newtype ViewId = ViewId [Int] deriving (Show, Read, Eq, Ord, Typeable, Data)
 
 noViewId = ViewId []
 
@@ -61,7 +61,7 @@ instance Eq (Widget w) where
 
 data TextType = TextField | PasswordField | TextArea deriving (Eq, Show, Typeable, Data)
 
-data Text = Text { getStrId' :: Id, getTextType :: TextType, getStrVal' :: String 
+data Text = Text { getStrId' :: ViewId, getTextType :: TextType, getStrVal' :: String 
                  , getSubmitAction :: Maybe EditCommand } deriving (Show, Typeable, Data)
 
 instance Eq Text where
@@ -71,15 +71,15 @@ getStrId (Widget _ _ _ (Text i h v _)) = i
 
 getStrVal (Widget _ _ _ (Text i h v _)) = v
 
-textField viewId str mSubmitAction = Widget viewId noId noId $ Text noId TextField str mSubmitAction
+textField viewId str mSubmitAction = Widget viewId noId noId $ Text viewId TextField str mSubmitAction
 
-passwordField viewId str mSubmitAction = Widget viewId noId noId $ Text noId PasswordField str mSubmitAction
+passwordField viewId str mSubmitAction = Widget viewId noId noId $ Text viewId PasswordField str mSubmitAction
 
-textArea viewId str = Widget viewId noId noId $ Text noId TextArea str Nothing
+textArea viewId str = Widget viewId noId noId $ Text viewId TextArea str Nothing
 
-strRef (Widget _ _ _ (Text (Id i) h _ _)) = IdRef i
+strRef (Widget _ _ _ (Text (ViewId i) h _ _)) = ViewIdRef i
 
-data RadioView = RadioView { getIntId' :: Id, getItems :: [String], getSelection' :: Int 
+data RadioView = RadioView { getIntId' :: ViewId, getItems :: [String], getSelection' :: Int 
                            , getRadioEnabled :: Bool 
                            } deriving (Show, Typeable, Data)
 
@@ -96,19 +96,19 @@ getIntId (Widget _ _ _ (RadioView i is v _)) = i
 
 getSelection (Widget _ _ _ (RadioView i is v _)) = v
 
-radioView viewId its i enabled = Widget viewId noId noId $ RadioView noId its i enabled
+radioView viewId its i enabled = Widget viewId noId noId $ RadioView viewId its i enabled
 
-data Button = Button { getButtonId' :: Id, buttonText :: String, getButtonEnabled :: Bool
+data Button = Button { getButtonId' :: ViewId, buttonText :: String, getButtonEnabled :: Bool
                      , getCommand' :: EditCommand 
                      } deriving (Show, Typeable, Data)
 
 instance Eq Button where
   Button _ txt1 enabled1 _ == Button _ txt2 enabled2 _ = txt1 == txt2 && enabled1 == enabled2
 
-button viewId txt enabled cmd = Widget viewId noId noId $ Button noId txt enabled cmd
+button viewId txt enabled cmd = Widget viewId noId noId $ Button viewId txt enabled cmd
 
 
-data EditAction = EditAction { getActionId :: Id, getCommand :: EditCommand 
+data EditAction = EditAction { getActionId :: ViewId, getCommand :: EditCommand 
                              } deriving (Show, Typeable, Data)
 
 instance Eq EditAction where
@@ -272,16 +272,16 @@ instance Initial w => Initial (Widget w) where
   initial = Widget noViewId noId noId initial
   
 instance Initial Text where
-  initial = Text (Id $ -1) TextField "" Nothing
+  initial = Text noViewId TextField "" Nothing
 
 instance Initial RadioView where
-  initial = RadioView (Id $ -1) [] 0 False
+  initial = RadioView noViewId [] 0 False
 
 instance Initial Button where
-  initial = Button noId "<button>" False (DocEdit id)
+  initial = Button noViewId "<button>" False (DocEdit id)
 
 instance Initial EditAction where
-  initial = EditAction noId (DocEdit id)  
+  initial = EditAction noViewId (DocEdit id)  
 
 instance Initial WebView where
   initial = WebView (ViewId []) noId noId (\_ _ -> return ()) ()

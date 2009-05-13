@@ -207,7 +207,7 @@ assignId = mkAccT $ \ids (Id id) -> if (id == -1)
                                     else (ids, Id id)
 
 
-type Updates = Map Id String  -- maps id's to the string representation of the new value
+type Updates = Map ViewId String  -- maps id's to the string representation of the new value
 
 -- update the datastructure at the id's in Updates 
 replace :: Data d => Updates -> d -> d
@@ -238,22 +238,22 @@ replaceWebViewById i wv rootView =
  where replaceWebView wv'@(WebView i' _ _ _ _) = if i == i' then wv else wv' 
 --getWebViews x = listify (\(WebView i' :: WebView) -> True) x 
 
-getButtonById :: Data d => Id -> d -> Button
-getButtonById i view = 
+getButtonByViewId :: Data d => ViewId -> d -> Button
+getButtonByViewId i view = 
   case listify (\(Button i' _ _ _) -> i==i') view of
     [b] -> b
     []  -> error $ "internal error: no button with id "++show i
     _   -> error $ "internal error: multiple buttons with id "++show i
 
-getTextById :: Data d => Id -> d -> Text
-getTextById i view = 
+getTextByViewId :: Data d => ViewId -> d -> Text
+getTextByViewId i view = 
   case listify (\(Text i' _ _ _) -> i==i') view of
     [b] -> b
     []  -> error $ "internal error: no text with id "++show i
     _   -> error $ "internal error: multiple texts with id "++show i
 
-getEditActionById :: Data d => Id -> d -> EditAction
-getEditActionById i view = 
+getEditActionByViewId :: Data d => ViewId -> d -> EditAction
+getEditActionByViewId i view = 
   case listify (\(EditAction i' _) -> i==i') view of
     [b] -> b
     []  -> error $ "internal error: no edit action with id "++show i
@@ -288,8 +288,8 @@ getWebViewById i view =
     []  -> error $ "internal error: no button with id "
     _   -> error $ "internal error: multiple buttons with id "
 
-getTextByViewId :: Data v => ViewIdRef -> v -> Maybe String
-getTextByViewId (ViewIdRef i) view =
+getTextByViewIdRef :: Data v => ViewIdRef -> v -> Maybe String
+getTextByViewIdRef (ViewIdRef i) view =
   something (Nothing `mkQ` (\(Widget (ViewId i') _ _ (Text _ _ str _)) -> 
                              if i == i' then Just str else Nothing)) view
   
