@@ -29,17 +29,17 @@ mkViewMap wv = let wvs = getAll wv
 
 webNodeQ :: Typeable a => a -> Maybe WebNode
 webNodeQ = (Nothing `mkQ`  (\w -> Just $ WebViewNode w) 
-                    `extQ` (\w@(Widget vi stbid id x) -> Just $ WidgetNode vi stbid id (RadioViewWidget x))
-                    `extQ` (\w@(Widget vi stbid id x) -> Just $ WidgetNode vi stbid id (TextWidget x))
-                    `extQ` (\w@(Widget vi stbid id x) -> Just $ WidgetNode vi stbid id (ButtonWidget x))
+                    `extQ` (\w@(Widget stbid id x) -> Just $ let vi = getViewId x in WidgetNode vi stbid id (RadioViewWidget x))
+                    `extQ` (\w@(Widget stbid id x) -> Just $ let vi = getViewId x in WidgetNode vi stbid id (TextWidget x))
+                    `extQ` (\w@(Widget stbid id x) -> Just $ let vi = getViewId x in WidgetNode vi stbid id (ButtonWidget x))
            )              -- TODO can we do this bettter?
                         
                     
 webNodeLstQ :: Typeable a => a -> Maybe [WebNode]
 webNodeLstQ = (Nothing `mkQ`  (\ws -> Just [ WebViewNode w | w <- ws ]) 
- `extQ` (\ws -> Just $ map (\w@(Widget vi stbid id x) -> WidgetNode vi stbid id (RadioViewWidget x)) ws)
- `extQ` (\ws -> Just $ map (\w@(Widget vi stbid id x) -> WidgetNode vi stbid id (TextWidget x)) ws)
- `extQ` (\ws -> Just $ map (\w@(Widget vi stbid id x) -> WidgetNode vi stbid id (ButtonWidget x)) ws)
+ `extQ` (\ws -> Just $ map (\w@(Widget stbid id x) -> let vi = getViewId x in WidgetNode vi stbid id (RadioViewWidget x)) ws)
+ `extQ` (\ws -> Just $ map (\w@(Widget stbid id x) -> let vi = getViewId x in WidgetNode vi stbid id (TextWidget x)) ws)
+ `extQ` (\ws -> Just $ map (\w@(Widget stbid id x) -> let vi = getViewId x in WidgetNode vi stbid id (ButtonWidget x)) ws)
            )              -- TODO can we do this bettter?
 
 
@@ -58,10 +58,10 @@ testLstQ = (Nothing `mkQ`  (\xs -> Just $ [ Left x | x <- xs ])
 mkWebNodeMap :: Data d => d -> WebNodeMap
 mkWebNodeMap x = Map.fromList $ everything (++) 
   ([] `mkQ`  (\w@(WebView vid sid id _ _) -> [(vid, WebViewNode w)]) 
-      `extQ` (\(Widget vid sid id w) -> [(vid, WidgetNode vid sid id $ RadioViewWidget w)])
-      `extQ` (\(Widget vid sid id w) -> [(vid, WidgetNode vid sid id $ TextWidget w)])
-      `extQ` (\(Widget vid sid id w) -> [(vid, WidgetNode vid sid id $ ButtonWidget w)])
-      `extQ` (\(Widget vid sid id w) -> [(vid, WidgetNode vid sid id $ EditActionWidget w)])
+      `extQ` (\(Widget sid id w) -> let vid = getViewId w in [(vid, WidgetNode vid sid id $ RadioViewWidget w)])
+      `extQ` (\(Widget sid id w) -> let vid = getViewId w in [(vid, WidgetNode vid sid id $ TextWidget w)])
+      `extQ` (\(Widget sid id w) -> let vid = getViewId w in [(vid, WidgetNode vid sid id $ ButtonWidget w)])
+      `extQ` (\(Widget sid id w) -> let vid = getViewId w in [(vid, WidgetNode vid sid id $ EditActionWidget w)])
   ) x    
 
 getTopLevelWebNodesWebView :: WebView -> [WebNode]
@@ -287,12 +287,12 @@ getWebViewById i view =
     [b] -> b
     []  -> error $ "internal error: no button with id "
     _   -> error $ "internal error: multiple buttons with id "
-
-getTextByViewIdRef :: Data v => ViewIdRef -> v -> Maybe String
+-- TODO: this error does not correspond to function name
+    
+getTextByViewIdRef :: Data v => ViewIdRef -> v -> String
 getTextByViewIdRef (ViewIdRef i) view =
-  something (Nothing `mkQ` (\(Widget (ViewId i') _ _ (Text _ _ str _)) -> 
-                             if i == i' then Just str else Nothing)) view
-  
+  let (Text _ _ str _) = getTextByViewId (ViewId i) view
+  in  str
 
 
 

@@ -439,7 +439,7 @@ authenticate sessionStateRef userEStringViewId passwordEStringViewId =
     ; let mUserName = getTextByViewIdRef userEStringViewId rootView
           mEnteredPassword = getTextByViewIdRef passwordEStringViewId rootView
     ; case (mUserName, mEnteredPassword) of
-        (Just userName, Just enteredPassword) ->
+        (userName, enteredPassword) ->  -- no monad necessary? no text now leads to error
            case Map.lookup userName users of
              Just (password, fullName) -> if password == enteredPassword  
                                       then 
@@ -457,8 +457,8 @@ authenticate sessionStateRef userEStringViewId passwordEStringViewId =
              Nothing -> do { putStrLn $ "User "++userName++" entered a wrong password"
                            ; return $ Alert $ "Unknown username: "++userName
                            }
-        _ -> error $ "Internal error: at least one referenced ViewId not in rootView" ++
-                     show [userEStringViewId, passwordEStringViewId]
+--        _ -> error $ "Internal error: at least one referenced ViewId not in rootView" ++
+--                     show [userEStringViewId, passwordEStringViewId]
     }
 logout sessionStateRef =
  do { (sessionId, user, db, rootView, pendingEdit) <- readIORef sessionStateRef

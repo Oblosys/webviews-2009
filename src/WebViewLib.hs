@@ -95,7 +95,7 @@ mkPasswordFieldEx str mEditAction = liftS $ \path vidC -> (passwordField (ViewId
 
 mkTextArea str = liftS $ \path vidC -> (textArea (ViewId $ path ++ [vidC]) str, vidC + 1)
 
-widgetGetViewRef (Widget (ViewId vid) _ _ _) = ViewIdRef vid
+widgetGetViewRef (Widget _ _ w) = mkViewRef $ getViewId w
                   
 
 {-
@@ -246,7 +246,7 @@ instance Presentable WebView where
   present (WebView _ (Id stubId) _ _ _) = mkSpan (show stubId) << "ViewStub"
   
 instance Presentable (Widget x) where
-  present (Widget _ (Id stubId) _ _) = mkSpan (show stubId) << "WidgetStub"
+  present (Widget (Id stubId) _ _) = mkSpan (show stubId) << "WidgetStub"
 
 
 -- todo button text and radio text needs to go into view

@@ -53,7 +53,7 @@ mkViewRef (ViewId i) = ViewIdRef i
 
 mkRef (Id i) = IdRef i
 
-data Widget w = Widget { getWidgetViewId :: ViewId, getWidgetStubId :: Id, getWidgetId :: Id, getWidgetWidget :: w }
+data Widget w = Widget { getWidgetStubId :: Id, getWidgetId :: Id, getWidgetWidget :: w }
               deriving (Show, Typeable, Data)
                        
 instance Eq (Widget w) where
@@ -67,36 +67,36 @@ data Text = Text { getStrViewId' :: ViewId, getTextType :: TextType, getStrVal' 
 instance Eq Text where
   Text _ t1 str1 _ == Text _ t2 str2 _ = t1 == t2 && str1 == str2
   
-getStrViewId (Widget _ _ _ (Text vi h v _)) = vi
+getStrViewId (Widget _ _ (Text vi h v _)) = vi
 
-getStrVal (Widget _ _ _ (Text vi h v _)) = v
+getStrVal (Widget _ _ (Text vi h v _)) = v
 
-textField viewId str mSubmitAction = Widget viewId noId noId $ Text viewId TextField str mSubmitAction
+textField viewId str mSubmitAction = Widget noId noId $ Text viewId TextField str mSubmitAction
 
-passwordField viewId str mSubmitAction = Widget viewId noId noId $ Text viewId PasswordField str mSubmitAction
+passwordField viewId str mSubmitAction = Widget noId noId $ Text viewId PasswordField str mSubmitAction
 
-textArea viewId str = Widget viewId noId noId $ Text viewId TextArea str Nothing
+textArea viewId str = Widget noId noId $ Text viewId TextArea str Nothing
 
-strRef (Widget _ _ _ (Text (ViewId i) h _ _)) = ViewIdRef i
+strRef (Widget _ _ (Text (ViewId i) h _ _)) = ViewIdRef i
 
-data RadioView = RadioView { getIntViewId' :: ViewId, getItems :: [String], getSelection' :: Int 
+data RadioView = RadioView { getRadioViewViewId' :: ViewId, getItems :: [String], getSelection' :: Int 
                            , getRadioEnabled :: Bool 
                            } deriving (Show, Typeable, Data)
 
 setSelection' :: Int -> RadioView -> RadioView 
 setSelection' s (RadioView vi its _ en) = RadioView vi its s en
 
-setSelection s (Widget vi si i rv) = Widget vi si i $ setSelection' s rv
+setSelection s (Widget si i rv) = Widget si i $ setSelection' s rv
 
 instance Eq RadioView where
   RadioView _ items1 int1 enabled1 == RadioView _ items2 int2 enabled2 = 
     items1 == items2 && int1 == int2 && enabled1 == enabled2
 
-getIntViewId (Widget _ _ _ (RadioView vi is v _)) = vi
+getRadioViewViewId (Widget _ _ (RadioView vi is v _)) = vi
 
-getSelection (Widget _ _ _ (RadioView i is v _)) = v
+getSelection (Widget _ _ (RadioView i is v _)) = v
 
-radioView viewId its i enabled = Widget viewId noId noId $ RadioView viewId its i enabled
+radioView viewId its i enabled = Widget noId noId $ RadioView viewId its i enabled
 
 data Button = Button { getButtonViewId' :: ViewId, buttonText :: String, getButtonEnabled :: Bool
                      , getCommand' :: EditCommand 
@@ -105,7 +105,7 @@ data Button = Button { getButtonViewId' :: ViewId, buttonText :: String, getButt
 instance Eq Button where
   Button _ txt1 enabled1 _ == Button _ txt2 enabled2 _ = txt1 == txt2 && enabled1 == enabled2
 
-button viewId txt enabled cmd = Widget viewId noId noId $ Button viewId txt enabled cmd
+button viewId txt enabled cmd = Widget noId noId $ Button viewId txt enabled cmd
 
 
 data EditAction = EditAction { getActionViewId :: ViewId, getCommand :: EditCommand 
@@ -125,6 +125,21 @@ data EditCommand = DocEdit (Database -> Database)
                  
 instance Eq EditCommand where -- only changing the edit command does not
   c1 == c2 = True
+
+class HasViewId v where
+  getViewId :: v -> ViewId
+
+instance HasViewId Text where
+  getViewId = getStrViewId'
+
+instance HasViewId RadioView where
+  getViewId = getRadioViewViewId'
+
+instance HasViewId Button where
+  getViewId = getButtonViewId'
+
+instance HasViewId EditAction where
+  getViewId = getActionViewId
 
 --instance Show (a->a) where
 --  show f = "<function>"
@@ -269,7 +284,7 @@ instance Initial Int where
   initial = 0
 
 instance Initial w => Initial (Widget w) where
-  initial = Widget noViewId noId noId initial
+  initial = Widget noId noId initial
   
 instance Initial Text where
   initial = Text noViewId TextField "" Nothing
