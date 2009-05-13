@@ -37,56 +37,56 @@ instance Storeable WebView where
 
 ---- Monad stuff
 
-runWebView user db viewMap viewIdCounter wvm =
- do { rv <- evalStateT wvm (WebViewState user db viewMap viewIdCounter)
+runWebView user db viewMap path viewIdCounter wvm =
+ do { rv <- evalStateT wvm (WebViewState user db viewMap path viewIdCounter)
     ; return $ assignIds rv
     }
 
 
-getOldView vid = do { (WebViewState _ _ viewMap _) <- get
+getOldView vid = do { (WebViewState _ _ viewMap _ _) <- get
                     ; return $ lookupOldView vid viewMap
                     }
 
-withDb f = do { (WebViewState _ db _ _) <- get
+withDb f = do { (WebViewState _ db _ _ _) <- get
               ; return $ f db
               }
 
 
 getUser :: WebViewM User 
-getUser = do { (WebViewState u _ _ _) <- get
+getUser = do { (WebViewState u _ _ _ _) <- get
              ; return u
              }
 
 
-liftS :: (Int -> (x,Int)) -> WebViewM x
-liftS f = StateT (\(WebViewState user db viewMap i) -> 
-                   (return $ let (x, i')= f i in (x, WebViewState user db viewMap i')))
+liftS :: ([Int] -> Int -> (x,Int)) -> WebViewM x
+liftS f = StateT (\(WebViewState user db viewMap path i) -> 
+                   (return $ let (x, i')= f path i in (x, WebViewState user db viewMap path i')))
 
 
 
 
 mkButton :: String -> Bool -> EditCommand -> WebViewM (Widget Button)
-mkButton str en ac = liftS $  \vidC -> (button (ViewId vidC) str en ac, vidC + 1)
+mkButton str en ac = liftS $  \path vidC -> (button (ViewId $ path ++ [vidC]) str en ac, vidC + 1)
 
 -- no need to be in monad
 mkEditAction ac = return $ EditAction noId ac
 
-mkRadioView is s en = liftS $ \vidC -> (radioView (ViewId vidC) is s en, vidC +1)
+mkRadioView is s en = liftS $ \path vidC -> (radioView (ViewId $ path ++ [vidC]) is s en, vidC +1)
 
 
 mkTextField str = mkTextFieldEx str Nothing
 
 --mkTextFieldAct str act = mkTextFieldEx str $ Just act
 
-mkTextFieldEx str mEditAction = liftS $ \vidC -> (textField (ViewId vidC) str mEditAction, vidC + 1)
+mkTextFieldEx str mEditAction = liftS $ \path vidC -> (textField (ViewId $ path ++ [vidC]) str mEditAction, vidC + 1)
 
 mkPasswordField str = mkPasswordFieldEx str Nothing
 
 --mkPasswordFieldAct str act = mkPasswordFieldEx str $ Just act
 
-mkPasswordFieldEx str mEditAction = liftS $ \vidC -> (passwordField (ViewId vidC) str mEditAction , vidC + 1)
+mkPasswordFieldEx str mEditAction = liftS $ \path vidC -> (passwordField (ViewId $ path ++ [vidC]) str mEditAction , vidC + 1)
 
-mkTextArea str = liftS $ \vidC -> (textArea (ViewId vidC) str, vidC + 1)
+mkTextArea str = liftS $ \path vidC -> (textArea (ViewId $ path ++ [vidC]) str, vidC + 1)
 
 widgetGetViewRef (Widget (ViewId vid) _ _ _) = ViewIdRef vid
                   
@@ -145,10 +145,11 @@ applyIfCorrectType f x = case cast f of
 -- like in Proxima
 loadView :: WebView -> WebViewM WebView
 loadView (WebView _ si i mkView _) =
- do { WebViewState user db viewMap viewIdCounter <- get
-    ; let newViewId = ViewId viewIdCounter                             
-    ; put $ WebViewState user db viewMap $ viewIdCounter + 1
-    ; view <- mkView newViewId 
+ do { WebViewState user db viewMap path viewIdCounter <- get
+    ; let newViewId = ViewId $ path ++ [viewIdCounter]                             
+    ; put $ WebViewState user db viewMap (path++[viewIdCounter]) viewIdCounter
+    ; view <- mkView newViewId  -- path is one level deeper for children created here 
+    ; put $ WebViewState user db viewMap path $ viewIdCounter + 1 -- restore old path
     ; return $ WebView newViewId si i mkView view
     }
 

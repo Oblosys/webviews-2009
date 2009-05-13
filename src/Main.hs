@@ -7,4 +7,4 @@ import Types
 import Generics -- for testing in ghci
 
 main :: IO ()
-main = server                                                                       
+main = server                                                                

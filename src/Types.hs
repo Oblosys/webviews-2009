@@ -34,9 +34,9 @@ data Command = Init | Refresh | Test
 -- view id's are for identifying views and widgets with regard to incrementality
 -- they remain constant over the view's/widget's life
 -- for now, we assign them at mkView
-newtype ViewId = ViewId Int deriving (Show, Eq, Ord, Typeable, Data)
+newtype ViewId = ViewId [Int] deriving (Show, Eq, Ord, Typeable, Data)
 
-noViewId = ViewId (-1)
+noViewId = ViewId []
 
 newtype Id = Id { unId :: Int } deriving (Show, Eq, Ord, Data, Typeable)
 
@@ -45,7 +45,7 @@ noId = Id (-1)
 
 -- refs are different kind, because they may be part of view tree, and SYB id assignment functions 
 -- should not affect them
-newtype ViewIdRef = ViewIdRef Int deriving (Show, Eq, Ord, Data, Typeable)
+newtype ViewIdRef = ViewIdRef [Int] deriving (Show, Eq, Ord, Data, Typeable)
 
 newtype IdRef = IdRef Int deriving (Show, Eq, Ord, Data, Typeable)
 
@@ -284,9 +284,10 @@ instance Initial EditAction where
   initial = EditAction noId (DocEdit id)  
 
 instance Initial WebView where
-  initial = WebView (ViewId (-1)) noId noId (\_ -> return ()) ()
+  initial = WebView (ViewId []) noId noId (\_ -> return ()) ()
 
 
-data WebViewState = WebViewState User Database ViewMap Int deriving (Typeable, Data)
+data WebViewState = 
+  WebViewState User Database ViewMap [Int] Int deriving (Typeable, Data)
 
 type WebViewM a = StateT WebViewState IO a

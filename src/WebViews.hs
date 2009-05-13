@@ -21,7 +21,7 @@ import Control.Monad.State
 
 mkRootView :: User -> Database -> Int -> ViewMap -> IO WebView
 mkRootView user db sessionId viewMap =
-  fmap assignIds $ runWebView user db viewMap 0 $ mkVisitsView sessionId
+  fmap assignIds $ runWebView user db viewMap [] 0 $ mkVisitsView sessionId
   -- TODO: id's here?
 
 
@@ -279,23 +279,27 @@ mkCommentView commentId new = mkWebView $ \vid ->
           
           edited = if new then True else edited' 
     
+    ; submitButton <- mkLinkView "Submit" (mkViewEdit vid $ modifyEdited (const False))
+    ; editButton <- mkLinkView "Edit" (mkViewEdit vid $ modifyEdited (const True))
     ; user <- getUser                
-    ; mEditAction <- if edited
+    ; let mEditAction = if edited
 --                    then fmap Just $ mkButton "Submit" True $ mkViewEdit vid $ modifyEdited (const False)
-                     then fmap Just $ mkLinkView "Submit" (mkViewEdit vid $ modifyEdited (const False))
+                     then Just submitButton
                      else if userIsAuthorized author user 
-                          then fmap Just $ mkLinkView "Edit" (mkViewEdit vid $ modifyEdited (const True))
-                          else return Nothing
-    
-    ; mRemoveAction <- if userIsAuthorized author user 
-                          then fmap Just $ mkLinkView "Remove" 
-                                            (ConfirmEdit ("Are you sure you want to remove this comment?") $ 
-                                               DocEdit $ removeComment commentId)
-                          else return Nothing
+                          then Just editButton
+                          else Nothing
+    ; removeAction <- mkLinkView "Remove" 
+                        (ConfirmEdit ("Are you sure you want to remove this comment?") $ 
+                          DocEdit $ removeComment commentId)
+    ; let mRemoveAction = if userIsAuthorized author user 
+                          then Just removeAction
+                          else Nothing
       
-    ; mTextArea <- if edited
-                    then fmap Just $ mkTextArea text
-                    else return $ Nothing
+    ; textArea <- mkTextArea text
+    ; let mTextArea = if edited
+                      then Just textArea
+                      else Nothing
+    
     ; return $ CommentView commentId edited name date text mEditAction mRemoveAction mTextArea
     }
  where userIsAuthorized authorLogin (Just (login, _)) = login == authorLogin || login == "martijn" 
