@@ -28,6 +28,7 @@ import Control.Monad.Fix
 {-
 
 initials really necessary?
+Related: When will oldview not be found during loadView, leading to using oldview' from the webView?
 
 
 -}
@@ -52,10 +53,6 @@ runWebView user db viewMap path viewIdCounter wvm =
     ; return $ assignIds rv
     }
 
-
-getOldView vid = do { (WebViewState _ _ viewMap _ _) <- get
-                    ; return $ lookupOldView vid viewMap
-                    }
 
 withDb f = do { (WebViewState _ db _ _ _) <- get
               ; return $ f db
@@ -154,11 +151,14 @@ applyIfCorrectType f x = case cast f of
 -- maybe automatically, based on id. Maybe extra state can be in a separate data structure even,
 -- like in Proxima
 loadView :: WebView -> WebViewM WebView
-loadView (WebView _ si i mkView _) =
+loadView (WebView _ si i mkView oldView') =
  do { WebViewState user db viewMap path viewIdCounter <- get
     ; let newViewId = ViewId $ path ++ [viewIdCounter]                             
     ; put $ WebViewState user db viewMap (path++[viewIdCounter]) viewIdCounter
-    ; let oldView = lookupOldView newViewId viewMap
+    ; let oldView = case lookupOldView newViewId viewMap of
+                      Just oldView -> oldView
+                      Nothing      -> oldView' -- this will be initial
+                      
     ; view <- mkView newViewId oldView -- path is one level deeper for children created here 
     ; put $ WebViewState user db viewMap path $ viewIdCounter + 1 -- restore old path
     ; return $ WebView newViewId si i mkView view    
@@ -167,7 +167,7 @@ mkWebView :: (Presentable v, Storeable v, Initial v, Show v, Eq v, Data v) =>
              (ViewId -> v -> WebViewM v) ->
              WebViewM WebView
 mkWebView mkView  =
- do { let initialWebView = WebView noViewId noId noId mkView initial -- this one is never used
+ do { let initialWebView = WebView noViewId noId noId mkView initial
     ; webView <- loadView initialWebView
     ; return webView
     } 

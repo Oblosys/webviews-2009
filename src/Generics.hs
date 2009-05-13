@@ -73,15 +73,13 @@ getTopLevelWebNodesWebView (WebView _ _ _ _ v) =
 getTopLevelWebNodesWebNode :: Data x => x -> [WebNode]
 getTopLevelWebNodesWebNode x = everythingTopLevel 
                      webNodeQ x
--- lookup the view id and if the associated view is of the desired type, return it. Otherwise
--- return initial
-lookupOldView :: (Initial v, Typeable v) => ViewId -> ViewMap -> v
+                     
+-- lookup the view id and if the associated view is of the desired type, return it. Otherwise return Nothing
+lookupOldView :: (Initial v, Typeable v) => ViewId -> ViewMap -> Maybe v
 lookupOldView vid viewMap = 
   case Map.lookup vid viewMap of
-    Nothing              -> initial
-    Just (WebView _ _ _ _ aView) -> case cast aView of
-                                  Nothing      -> initial
-                                  Just oldView -> oldView
+    Nothing              -> Nothing
+    Just (WebView _ _ _ _ aView) -> cast aView
 
 getAll :: (Data a, Data b) => a -> [b]
 getAll = listify (const True)
