@@ -69,7 +69,7 @@ mkVisitsView sessionId = mkWebView $
                           [ (uniqueId, mkCommentView cid (not fresh && cid `notElem` oldCommentIds)) 
                                                                     -- if this view is not fresh, and an
                           | cid@(CommentId uniqueId) <- commentIds  -- id was not in commentIds, it was
-                          ]                    -- added and will be in edit mode
+                          ]                                         -- added and will be in edit mode
                                                -- BUG: unfortunately, this also happens when it
                                                -- was introduced by a different session :-(
                        
