@@ -50,6 +50,7 @@ inView attr that sets the scrollbars (also nested) so elt with attr is in view
 save scroll state of all scrollers, and restore after reload
 separate specific from generic part
 tabbed views, also with separate urls
+templates from files in presentation
 monad for editing
 cleanup
 -}
