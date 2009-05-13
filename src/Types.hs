@@ -191,10 +191,10 @@ type ViewMap = Map.Map ViewId WebView
 data WebView = forall view . ( Data (StateT WebViewState IO view) 
                              , Initial view, Presentable view, Storeable view
                              , Show view, Eq view, Data view) => 
-                             WebView ViewId Id Id (ViewId -> WebViewM view) view
+                             WebView ViewId Id Id (ViewId -> view -> WebViewM view) view
                              
                deriving Typeable
--- (view->view) is the load view function. It is not in a class because we want to parameterize it
+-- (viewId -> view -> WebViewM view) is the load view function. the parameters are the id and the old view (or initial)
 -- view is the actual view (which is 'updated')
 -- viewid is to identify the view and it's extra state.
 -- first id is stub id, only used when presenting the first instance of the view
@@ -284,7 +284,7 @@ instance Initial EditAction where
   initial = EditAction noId (DocEdit id)  
 
 instance Initial WebView where
-  initial = WebView (ViewId []) noId noId (\_ -> return ()) ()
+  initial = WebView (ViewId []) noId noId (\_ _ -> return ()) ()
 
 
 data WebViewState = 

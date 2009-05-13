@@ -40,9 +40,8 @@ modifyViewedVisit fn (VisitsView a v b c d e f g h i j k l m n) =
   VisitsView a (fn v) b c d e f g h i j k l m n
 
 mkVisitsView sessionId = mkWebView $
- \vid ->
-  do { (VisitsView fresh oldViewedVisit _ _ _ _ _  _ _ _ _ _ oldCommentIds _ _) <- getOldView vid
-     ; (visitIds, visits) <- withDb $ (\db -> unzip $ Map.toList $ allVisits db)
+ \vid (VisitsView fresh oldViewedVisit _ _ _ _ _  _ _ _ _ _ oldCommentIds _ _) ->
+  do { (visitIds, visits) <- withDb $ (\db -> unzip $ Map.toList $ allVisits db)
      ; let viewedVisit = constrain 0 (length visits - 1) oldViewedVisit
      ; today <- liftIO getToday             
      ; prevB   <- mkButton "Previous" (viewedVisit > 0)                   $ prev vid
@@ -163,9 +162,8 @@ modifyViewedPig f (VisitView vid zipCode date viewedPig b1 b2 b3 pigs pignames m
   VisitView vid zipCode date (f viewedPig) b1 b2 b3 pigs pignames mSubview
 
 mkVisitView i = mkWebView $
-  \vid -> 
-    do { (VisitView _ _ _ oldViewedPig _ _ _ _ _ mpigv) <- getOldView vid
-       ; (Visit visd zipcode date pigIds) <- withDb $ \db -> unsafeLookup (allVisits db) i
+  \vid (VisitView _ _ _ oldViewedPig _ _ _ _ _ mpigv) -> 
+    do { (Visit visd zipcode date pigIds) <- withDb $ \db -> unsafeLookup (allVisits db) i
        ; let nrOfPigs = length pigIds
              viewedPig = constrain 0 (nrOfPigs - 1) $ oldViewedPig
        ; pignames <- withDb $ \db -> map (pigName . unsafeLookup (allPigs db)) pigIds
@@ -219,9 +217,8 @@ data PigView = PigView PigId EditAction String (Widget Button) Int Int (Widget T
                deriving (Eq, Show, Typeable, Data)
 
 mkPigView parentViewId pignr i viewedPig = mkWebView $ 
-  \vid ->
-   do { (PigView _ _ _ _ _ _ oldViewStateT _ _ _) <- getOldView vid
-      ; (Pig pid vid name [s0,s1,s2] diagnosis) <- withDb $ \db -> unsafeLookup (allPigs db) i
+  \vid (PigView _ _ _ _ _ _ oldViewStateT _ _ _) ->
+   do { (Pig pid vid name [s0,s1,s2] diagnosis) <- withDb $ \db -> unsafeLookup (allPigs db) i
       ; selectAction <- mkEditAction $ mkViewEdit parentViewId $ modifyViewedPig (\_ -> pignr)
       ; removeB <- mkButton "remove" True $ 
                      ConfirmEdit ("Are you sure you want to remove pig "++show (pignr+1)++"?") $ 
@@ -277,9 +274,8 @@ instance Initial CommentView where
 
 modifyEdited fn (CommentView a edited b c d e f g) = (CommentView a (fn edited) b c d e f g)
 
-mkCommentView commentId new = mkWebView $ \vid ->
- do { (CommentView _ edited' _ _ _ _ _ oldMTextfield) <- getOldView vid
-    ; (Comment _ author date text) <- withDb $ \db -> unsafeLookup (allComments db) commentId
+mkCommentView commentId new = mkWebView $ \vid (CommentView _ edited' _ _ _ _ _ oldMTextfield) ->
+ do { (Comment _ author date text) <- withDb $ \db -> unsafeLookup (allComments db) commentId
     
     ; let (_,name) = unsafeLookup users author
           

@@ -25,6 +25,16 @@ import Control.Monad.Fix
 -- TODO: figure out load stuff
 --       use a monad for auto handling listeners to database
 
+{-
+
+initials really necessary?
+
+
+-}
+
+
+
+
 
 -- When loading from different point than root, make sure Id's are not messed up
 
@@ -148,16 +158,16 @@ loadView (WebView _ si i mkView _) =
  do { WebViewState user db viewMap path viewIdCounter <- get
     ; let newViewId = ViewId $ path ++ [viewIdCounter]                             
     ; put $ WebViewState user db viewMap (path++[viewIdCounter]) viewIdCounter
-    ; view <- mkView newViewId  -- path is one level deeper for children created here 
+    ; let oldView = lookupOldView newViewId viewMap
+    ; view <- mkView newViewId oldView -- path is one level deeper for children created here 
     ; put $ WebViewState user db viewMap path $ viewIdCounter + 1 -- restore old path
-    ; return $ WebView newViewId si i mkView view
+    ; return $ WebView newViewId si i mkView view    
     }
-
 mkWebView :: (Presentable v, Storeable v, Initial v, Show v, Eq v, Data v) =>
-             (ViewId -> WebViewM v) ->
+             (ViewId -> v -> WebViewM v) ->
              WebViewM WebView
 mkWebView mkView  =
- do { let initialWebView = WebView noViewId noId noId mkView initial
+ do { let initialWebView = WebView noViewId noId noId mkView initial -- this one is never used
     ; webView <- loadView initialWebView
     ; return webView
     } 
@@ -256,10 +266,9 @@ data LoginView = LoginView (Widget Text) (Widget Text) (Widget Button)
 instance Initial LoginView where initial = LoginView initial initial initial
 
 mkLoginView = mkWebView $
-  \vid ->
+  \vid (LoginView name password b) ->
    fixView $ \fixedAuthenticate ->
-   do { (LoginView name password b) <- getOldView vid
-      ; nameT <- mkTextField (getStrVal name)
+   do { nameT <- mkTextField (getStrVal name)
       ; passwordT <- mkPasswordField (getStrVal password)
 --      ; nameT <- mkTextFieldAct (getStrVal name) fixedAuthenticate 
 --      ; passwordT <- mkPasswordFieldAct (getStrVal password) fixedAuthenticate 
@@ -287,7 +296,7 @@ data LogoutView = LogoutView (Widget Button) deriving (Eq, Show, Typeable, Data)
 instance Initial LogoutView where initial = LogoutView initial
 
 mkLogoutView = mkWebView $
-  \vid -> 
+  \vid _ -> 
    do { (Just (l,_)) <- getUser
       ; logoutB <- mkButton ("Logout " ++  l) True LogoutEdit
       ; return $ LogoutView logoutB
@@ -309,7 +318,7 @@ data LinkView = LinkView String EditAction deriving (Eq, Show, Typeable, Data)
 instance Initial LinkView where initial = LinkView initial initial
 
 mkLinkView linkText action = mkWebView $
-  \vid ->
+  \vid _ ->
    do { editAction <- mkEditAction action
       ; return $ LinkView linkText editAction
       }
