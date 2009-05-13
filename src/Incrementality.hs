@@ -212,16 +212,6 @@ newWebNodeHtml (WidgetNode _ _ (Id i) w) =
     thediv![strAttr "op" "new"] << 
       (mkSpan (show i) $ present w)
 
-newViewHtml :: WebView -> Html
-newViewHtml (WebView _ _ (Id i) _ v) = 
-    thediv![strAttr "op" "new"] << 
-      (mkSpan (show i) $ present v)
-
-newWidgetHtml :: (Id, Id, AnyWidget) -> Html
-newWidgetHtml (_, (Id i),anyWidget) = 
-    thediv![strAttr "op" "new"] << 
-      (mkSpan (show i) $ present anyWidget)
-
 updateHtml :: Update -> Html
 updateHtml (Move _ (IdRef src) (IdRef dst)) = if src == dst then error $ "Source is destination: "++show src else
     thediv![strAttr "op" "move", strAttr "src" (show src), strAttr "dst" (show dst)] << ""
