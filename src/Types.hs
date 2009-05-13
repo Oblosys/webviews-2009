@@ -61,15 +61,15 @@ instance Eq (Widget w) where
 
 data TextType = TextField | PasswordField | TextArea deriving (Eq, Show, Typeable, Data)
 
-data Text = Text { getStrId' :: ViewId, getTextType :: TextType, getStrVal' :: String 
+data Text = Text { getStrViewId' :: ViewId, getTextType :: TextType, getStrVal' :: String 
                  , getSubmitAction :: Maybe EditCommand } deriving (Show, Typeable, Data)
 
 instance Eq Text where
   Text _ t1 str1 _ == Text _ t2 str2 _ = t1 == t2 && str1 == str2
   
-getStrId (Widget _ _ _ (Text i h v _)) = i
+getStrViewId (Widget _ _ _ (Text vi h v _)) = vi
 
-getStrVal (Widget _ _ _ (Text i h v _)) = v
+getStrVal (Widget _ _ _ (Text vi h v _)) = v
 
 textField viewId str mSubmitAction = Widget viewId noId noId $ Text viewId TextField str mSubmitAction
 
@@ -79,12 +79,12 @@ textArea viewId str = Widget viewId noId noId $ Text viewId TextArea str Nothing
 
 strRef (Widget _ _ _ (Text (ViewId i) h _ _)) = ViewIdRef i
 
-data RadioView = RadioView { getIntId' :: ViewId, getItems :: [String], getSelection' :: Int 
+data RadioView = RadioView { getIntViewId' :: ViewId, getItems :: [String], getSelection' :: Int 
                            , getRadioEnabled :: Bool 
                            } deriving (Show, Typeable, Data)
 
 setSelection' :: Int -> RadioView -> RadioView 
-setSelection' s (RadioView i its _ en) = RadioView i its s en
+setSelection' s (RadioView vi its _ en) = RadioView vi its s en
 
 setSelection s (Widget vi si i rv) = Widget vi si i $ setSelection' s rv
 
@@ -92,13 +92,13 @@ instance Eq RadioView where
   RadioView _ items1 int1 enabled1 == RadioView _ items2 int2 enabled2 = 
     items1 == items2 && int1 == int2 && enabled1 == enabled2
 
-getIntId (Widget _ _ _ (RadioView i is v _)) = i
+getIntViewId (Widget _ _ _ (RadioView vi is v _)) = vi
 
 getSelection (Widget _ _ _ (RadioView i is v _)) = v
 
 radioView viewId its i enabled = Widget viewId noId noId $ RadioView viewId its i enabled
 
-data Button = Button { getButtonId' :: ViewId, buttonText :: String, getButtonEnabled :: Bool
+data Button = Button { getButtonViewId' :: ViewId, buttonText :: String, getButtonEnabled :: Bool
                      , getCommand' :: EditCommand 
                      } deriving (Show, Typeable, Data)
 
@@ -108,7 +108,7 @@ instance Eq Button where
 button viewId txt enabled cmd = Widget viewId noId noId $ Button viewId txt enabled cmd
 
 
-data EditAction = EditAction { getActionId :: ViewId, getCommand :: EditCommand 
+data EditAction = EditAction { getActionViewId :: ViewId, getCommand :: EditCommand 
                              } deriving (Show, Typeable, Data)
 
 instance Eq EditAction where
