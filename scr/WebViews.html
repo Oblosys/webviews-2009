@@ -29,6 +29,13 @@ function init()
 { queueCommand('Init');
   refresh();
 }
+
+function startRefreshTimer()
+{
+// setRefreshTimer(1000);
+}
+
+
 function debug(message)
 {
   if (debugging)
@@ -46,9 +53,6 @@ function setRefreshTimer(ms)
     timer = setTimeout('refresh()',ms);
 }
 
-function startRefreshTimer()
-{ setRefreshTimer(1000);
-}
 
 function stopRefreshTimer()
 { clearTimeout(timer);
