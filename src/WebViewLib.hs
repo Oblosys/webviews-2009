@@ -342,16 +342,13 @@ instance Initial LoginView where initial = LoginView initial initial initial
 
 mkLoginView = mkWebView $
   \vid (LoginView name password b) ->
-   fixView $ \fixedAuthenticate ->
-   do { --nameT <- mkTextField (getStrVal name)
-      --; passwordT <- mkPasswordField (getStrVal password)
-      ; nameT <- mkTextFieldAct (getStrVal name) fixedAuthenticate 
-      ; passwordT <- mkPasswordFieldAct (getStrVal password) fixedAuthenticate 
-      ; let authenticate = AuthenticateEdit (widgetGetViewRef nameT) (widgetGetViewRef passwordT)
+   mdo {nameT <- mkTextFieldAct (getStrVal name) authenticate 
+       ; passwordT <- mkPasswordFieldAct (getStrVal password) authenticate 
+       ; let authenticate = AuthenticateEdit (widgetGetViewRef nameT) (widgetGetViewRef passwordT)
       
-      ; loginB <- mkButton "Login" True authenticate                   
-      ; return $ (LoginView nameT passwordT loginB, authenticate)
-      }
+       ; loginB <- mkButton "Login" True authenticate                   
+       ; return $ LoginView nameT passwordT loginB
+       }
 
 instance Storeable LoginView where save _ = id
                                    
@@ -402,13 +399,3 @@ instance Storeable LinkView where save _ = id
 
 instance Presentable LinkView where
   present (LinkView linkText editAction) = withEditAction editAction $ stringToHtml linkText
-
-
-
---------------- Utils ---------------
-
-fixView :: (args -> WebViewM (v, args)) -> WebViewM v
-fixView mkv = 
-  do { (v, _) <- mfix (\(~(_,args)) -> mkv args)
-     ; return v
-     }
