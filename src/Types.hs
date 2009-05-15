@@ -129,6 +129,9 @@ instance Eq EditCommand where -- only changing the edit command does not
 class HasViewId v where
   getViewId :: v -> ViewId
 
+instance HasViewId WebView where
+  getViewId (WebView viewId _ _ _ _) = viewId 
+  
 instance HasViewId Text where
   getViewId = getStrViewId'
 

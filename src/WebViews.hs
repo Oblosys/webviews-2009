@@ -24,13 +24,13 @@ mkRootView user db sessionId viewMap =
   fmap assignIds $ runWebView user db viewMap [] 0 $ mkVisitsView sessionId
   -- TODO: id's here?
 
-
+    
 -- Visits ----------------------------------------------------------------------  
 
 data VisitsView = 
   VisitsView Bool Int Int User [(String,String)] 
                  WebView [EditAction] (Widget Button) (Widget Button) (Widget Button) (Widget Button) 
-                 (Maybe WebView) [CommentId] [WebView] (Maybe (Widget Button))
+                 WebView [CommentId] [WebView] (Maybe (Widget Button))
     deriving (Eq, Show, Typeable, Data)
   
 instance Initial VisitsView where                 
@@ -58,11 +58,17 @@ mkVisitsView sessionId = mkWebView $
                
      ; loginOutView <- if user == Nothing then mkLoginView 
                                           else mkLogoutView
-     
-     ; visitView <-  if null visits then return Nothing
+     ; labels <- withDb $ \db -> map (zipCode . unsafeLookup (allVisits db)) visitIds
+       
+     ; visitViews <- uniqueIds $ [ (uniqueId, mkVisitView visitId)
+                                 | (visitId@(VisitId uniqueId),i) <- zip visitIds [0..] 
+                                 ]
+                 {- <-  if null visits then return Nothing
                      else do { vw <- mkVisitView (visitIds !! viewedVisit)
                              ; return (Just vw)
-                             }
+                             } -}
+     ; tabbedVisits <- mkTabbedView $ zip labels visitViews
+                  
      ; commentIds <- withDb $ \db -> Map.keys (allComments db)
                                     
      ; commentViews <- uniqueIds 
@@ -80,7 +86,7 @@ mkVisitsView sessionId = mkWebView $
      ;  return $ VisitsView False viewedVisit sessionId user
                  [ (zipCode visit, date visit) | visit <- visits ]
                  loginOutView selectionActions 
-                 prevB nextB addB removeB  visitView commentIds commentViews mAddCommentButton
+                 prevB nextB addB removeB  tabbedVisits commentIds commentViews mAddCommentButton
      }
  where prev vid = mkViewEdit vid $ modifyViewedVisit decrease
        next vid = mkViewEdit vid $ modifyViewedVisit increase
@@ -103,14 +109,14 @@ mkVisitsView sessionId = mkWebView $
 
 instance Presentable VisitsView where
   present (VisitsView _ viewedVisit sessionId user visits loginoutView selectionActions  
-                      prev next add remove mv _ commentViews mAddCommentButton) =
+                      prev next add remove tabbedVisits _ commentViews mAddCommentButton) =
     withBgColor (Rgb 235 235 235) $ withPad 5 0 5 0 $    
     with_ [thestyle "font-family: arial"] $
       mkTableEx [width "100%"] [] [valign "top"]
        [[ ([],
            (h2 << "Piglet 2.0")  +++
            ("List of all visits     (session# "++show sessionId++")") +++         
-      p << (hList [ withBgColor (Rgb 250 250 250) $ roundedBoxed Nothing $ withSize 200 100 $ 
+      p << (hList [ withBgColor (Rgb 250 250 250) $ roundedBoxed Nothing $ withSize 230 100 $ 
              (let rowAttrss = [] :
                               [ [withEditActionAttr selectionAction] ++
                                 if i == viewedVisit then [ fgbgColorAttr (Rgb 255 255 255) (Rgb 0 0 255)
@@ -136,9 +142,11 @@ instance Presentable VisitsView where
       ] +++
       p << ((if null visits then "There are no visits. " else "Viewing visit nr. "++ show (viewedVisit+1) ++ ".") +++ 
              "    " +++ present prev +++ present next) +++ 
-      boxed (case mv of
-               Nothing -> stringToHtml "No visits."
-               Just pv -> present pv) +++
+      present tabbedVisits
+      {-
+          boxed (case mv of
+               [] -> stringToHtml "No visits."
+               visitVs -> concatHtml $ map present visitVs) -} +++
       h2 << "Comments" +++
       vList (map present commentViews) +++ 
       nbsp +++ (case mAddCommentButton of 
@@ -190,7 +198,8 @@ addNewPig vid db = let ((Pig newPigId _ _ _ _), db') = newPig vid db
 
 instance Presentable VisitView where
   present (VisitView vid zipCode date viewedPig b1 b2 b3 pigs pignames subviews) =
-    p << ("Visit at zip code "+++ present zipCode +++" on " +++ present date) +++
+    withBgColor (Color white) $
+    ("Visit at zip code "+++ present zipCode +++" on " +++ present date) +++ br +++
     p << ("Visited "++ show (length pigs) ++ " pig" ++  pluralS (length pigs) ++ ": " ++ 
           listCommaAnd pignames) +++
     p << ((if null pigs 

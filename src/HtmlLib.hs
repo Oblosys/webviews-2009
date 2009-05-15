@@ -35,10 +35,11 @@ roundedBoxed mColor elt =
   thediv!(theclass "rounded_colhead" : 
           case mColor of Nothing -> []
                          Just color -> [thestyle $ "background-color: "++htmlColor color]) << 
-  (thespan![theclass"tl"] << noHtml +++ thespan![theclass"tr"] << noHtml +++ 
+    elt
+{-  (thespan![theclass"tl"] << noHtml +++ thespan![theclass"tr"] << noHtml +++ 
    thespan![thestyle"width:95%"] << elt +++
    thespan![theclass"bl"] << noHtml +++ thespan![theclass"br"] << noHtml)
-
+-}
  {- 
 <div class="rounded_colhead" style="background-color: red;">
   <div class="tl"></div><div class="tr"></div>

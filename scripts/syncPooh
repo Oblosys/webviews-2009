@@ -1,6 +1,7 @@
-# copy sources with scp instead of using svn
+# copy sources with scp instead of using svn (from scr, only copy html and css)
 scp ../WebViews.cabal martijn@pooh.zoo.cs.uu.nl:WebViews
-scp ../scr/* martijn@pooh.zoo.cs.uu.nl:WebViews/scr
+scp ../scr/*.html martijn@pooh.zoo.cs.uu.nl:WebViews/scr
+scp ../scr/*.css martijn@pooh.zoo.cs.uu.nl:WebViews/scr
 scp ../img/* martijn@pooh.zoo.cs.uu.nl:WebViews/img
 scp ../src/* martijn@pooh.zoo.cs.uu.nl:WebViews/src
 

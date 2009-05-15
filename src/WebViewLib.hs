@@ -399,3 +399,54 @@ instance Storeable LinkView where save _ = id
 
 instance Presentable LinkView where
   present (LinkView linkText editAction) = withEditAction editAction $ stringToHtml linkText
+
+
+
+-- TabbedView ---------------------------------------------------------------------  
+  
+data TabbedView = TabbedView Int [WebView] [WebView] deriving (Eq, Show, Typeable, Data)
+
+instance Initial TabbedView where
+  initial = TabbedView 0 initial initial
+
+mkTabbedView labelsTabViews = mkWebView $
+ \vid (TabbedView selectedTab _ _) ->
+  do { let (labels,tabViews) = unzip labelsTabViews
+           
+     ; selectionViews <- sequence [ mkLinkView label $ mkViewEdit vid $
+                                        \(TabbedView _ sas twvs) -> TabbedView i sas twvs
+                                  | (i,label) <- zip [0..] labels
+                                  ]
+     ; return $ TabbedView selectedTab selectionViews tabViews
+     }
+  
+instance Storeable TabbedView where
+  save (TabbedView _ _ tabViews) = foldl (.) id $ map save tabViews
+
+instance Presentable TabbedView where
+  present (TabbedView selectedTab selectionViews tabViews) = 
+    hList [ thespan![ theclass "tab"
+                    , thestyle ("background-color: "++color)
+                    ] $ present selectionView 
+          | (i,selectionView) <- zip [0..] selectionViews
+          , let color = htmlColor $ if i == selectedTab then Color white else Rgb 200 200 200
+          ] +++
+    (roundedBoxed (Just $ Color white) $
+     concatHtml [ thediv![attr] $ present tabView 
+                | (i,tabView) <- zip [0..] tabViews 
+                , let attr = thestyle $ "display: " ++ if i == selectedTab 
+                                                       then "visible"
+                                                       else "none"
+                ])
+
+{- version that uses jQuery tabs. Does weird things with font and buttons
+instance Presentable TabbedView where
+  present (TabbedView _ tabViews) = 
+    thediv![theclass "tabbed"] <<
+      ((ulist $ concatHtml [li $ anchor![href $ "#"++escapeId webView] $ stringToHtml label 
+                           | (webView,label)  <- zip tabViews ["een","twee","drie"] ] ) +++
+       (concatHtml [ mkDiv (escapeId tabView) $ present tabView | tabView <- tabViews ] ))
+
+escapeId wv = let ViewId path = getViewId wv
+              in  [ if c `elem` "[,]" then '-' else c | c <- show path ]
+-}

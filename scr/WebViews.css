@@ -10,3 +10,19 @@
   -moz-border-radius: 6px;       /* for Firefox */
 }
 
+.tab
+{
+  font-size: 70%;
+  border:solid; 
+  border-width:1px;
+  border-bottom-width:0px;
+  width: 95%;
+  margin: 0px;
+  padding: 5px 10px;
+  /* Rounded corner stuff starts here */
+  -webkit-border-top-left-radius: 6px;    /* for Safari */
+  -moz-border-radius-topleft: 6px;       /* for Firefox */
+  -webkit-border-top-right-radius: 6px;    /* for Safari */
+  -moz-border-radius-topright: 6px;       /* for Firefox */
+}
+
