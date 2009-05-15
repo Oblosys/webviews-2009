@@ -279,14 +279,14 @@ mkCommentView commentId new = mkWebView $ \vid (CommentView _ edited' _ _ _ _ _ 
           edited = if new then True else edited' 
     
     ; submitButton <- mkLinkView "Submit" (mkViewEdit vid $ modifyEdited (const False))
-    ; editButton <- mkLinkView "Edit" (mkViewEdit vid $ modifyEdited (const True))
+    ; editButton   <- mkLinkView "Edit"   (mkViewEdit vid $ modifyEdited (const True))
     ; user <- getUser                
     ; let mEditAction = if edited
 --                    then fmap Just $ mkButton "Submit" True $ mkViewEdit vid $ modifyEdited (const False)
-                     then Just submitButton
-                     else if userIsAuthorized author user 
-                          then Just editButton
-                          else Nothing
+                      then Just submitButton
+                      else if userIsAuthorized author user 
+                           then Just editButton
+                           else Nothing
     ; removeAction <- mkLinkView "Remove" 
                         (ConfirmEdit ("Are you sure you want to remove this comment?") $ 
                           DocEdit $ removeComment commentId)
@@ -295,9 +295,7 @@ mkCommentView commentId new = mkWebView $ \vid (CommentView _ edited' _ _ _ _ _ 
                           else Nothing
       
     ; textArea <- mkTextArea text
-    ; let mTextArea = if edited
-                      then Just textArea
-                      else Nothing
+    ; let mTextArea = if edited then Just textArea else Nothing
     
     ; return $ CommentView commentId edited name date text mEditAction mRemoveAction mTextArea
     }
@@ -307,12 +305,8 @@ mkCommentView commentId new = mkWebView $ \vid (CommentView _ edited' _ _ _ _ _ 
 instance Storeable CommentView where
   save (CommentView cid edited _ date text _ _ mTextArea) =
     updateComment cid (\(Comment _ author _ _) -> 
-                             let text' = if edited
-                                        then case mTextArea of
-                                               Just textArea -> getStrVal textArea
-                                               Nothing    -> text
-                                        else text
-                                        
+                             let text' | edited, Just textArea <- mTextArea = getStrVal textArea       
+                                       | otherwise                          = text
                              in  Comment cid author date text')
 
 instance Presentable CommentView where
@@ -321,7 +315,7 @@ instance Presentable CommentView where
      (withBgColor (Rgb 225 225 225) $ --  thespan![thestyle "margin:4px;"] $
         (thespan![thestyle "margin:4px;"] $ "Posted by " +++ stringToHtml author +++ " on " +++ stringToHtml date)
         `hDistribute`
-        ( withColor (Color "blue") $
+        (withColor (Color "blue") $
           case mEditAction of
            Just ea -> present ea
            Nothing -> stringToHtml ""
