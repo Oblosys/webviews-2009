@@ -12,8 +12,8 @@
 
 <script type="text/javascript">
 <!--// < this comment keeps emacs from thinking the whole block is a comment
-var debugging = false;
-//var debugging = true;
+//var debugging = false;
+var debugging = true;
 var drawingViewTree = false;
 //var drawingViewTree = true;
 
@@ -204,11 +204,11 @@ if (xmlhttp.readyState==4)
     else
       debugAdd("failed");
 
-    $("[class='tabbed']").tabs(); // register tabbed views
+//    $("[class='tabbed']").tabs(); // register tabbed views
 
     // start refresh timer again
-    startRefreshTimer();
-
+  //  startRefreshTimer();
+    sendRandomCommand();
    }
   else
     {
@@ -269,11 +269,12 @@ function updateTree(update)
   } 
  else if (op === 'alert')
   { var text = update.getAttribute('text');
-    alert(text);
+    //alert(text);
   } 
  else if (op === 'confirm')
   { var text = update.getAttribute('text');
-    if (confirm(text)) queueCommand('ConfirmDialogOk');;
+    //if (confirm(text))
+      queueCommand('ConfirmDialogOk');
   } 
  else if (op === 'authenticate')
   {  authenticate();
@@ -341,10 +342,24 @@ function removeChildren(elt)
 { while (elt.firstChild)
     elt.removeChild(elt.firstChild);
 }
+
+function sendRandomCommand()
+{ debugAdd("random command");
+  allButtons = $("button");
+  i = Math.floor( Math.random()*allButtons.length);
+  
+  randomButton = $("button:eq("+i+")").attr('id');
+ //randomButton = allButtons[ i ];
+  randomCommand = "ButtonC ("+randomButton+")";
+  debugAdd(randomCommand);
+  queueCommand(randomCommand);
+
+}
+
 -->
 </script>
+<button onclick="sendRandomCommand()">Test</button>
 <!--
-<button onclick="stopRefreshTimer()">Test</button>
 <table cellpadding="0" style="border-collapse: collapse;">
   <tr><td>bladddfdfk</td><td>bla</td></tr>
   <tr style="background-color: red; color: white"><td style="cell-width: 100%">bla</td><td>bla</td></tr>

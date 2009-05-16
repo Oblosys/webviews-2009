@@ -127,6 +127,21 @@ handlers serverSessionId globalStateRef =
 {- TODO: why does exactdir "/handle" not work?
    TODO: fix syntax error in command
 
+this get command works (there should not be an unescaped space between Commands and [Init]
+GET /handle?commands=Commands[Init] HTTP/1.1
+
+Response:
+HTTP/1.1 200 OK
+Connection: Keep-Alive
+Content-Length: 32597
+Content-Type: text/html
+Date: Sat, 16 May 2009 18:22:28 GMT
+Server: Happstack/0.2.1
+Set-Cookie: webviews="(1242497513,2)";Max-Age=3600;Path=/;Version="1"
+
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 3.2 FINAL//EN">
+...
+
 -}
 
 type SessionCookie = (String, String)
