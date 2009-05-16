@@ -1,0 +1,9 @@
+# copy sources with scp instead of using svn (including entire scr directory)
+scp ../WebViews.cabal martijn@pooh.zoo.cs.uu.nl:WebViews
+scp -r ../scr/* martijn@pooh.zoo.cs.uu.nl:WebViews/scr
+scp -r ../img/* martijn@pooh.zoo.cs.uu.nl:WebViews/img
+scp -r ../src/* martijn@pooh.zoo.cs.uu.nl:WebViews/src
+
+poohcabal configure
+poohcabal build
+runPooh
