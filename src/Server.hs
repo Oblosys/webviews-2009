@@ -404,8 +404,8 @@ performEditCommand sessionStateRef command =
             AuthenticateEdit userViewId passwordViewId -> authenticate sessionStateRef userViewId passwordViewId
             LogoutEdit -> logout sessionStateRef
             Edit edit -> performEdit sessionStateRef edit
-
     }
+ 
 performEdit :: SessionStateRef -> EditM () -> IO ServerResponse
 performEdit sessionStateRef edit  =
  do { state <- readIORef sessionStateRef
@@ -415,26 +415,6 @@ performEdit sessionStateRef edit  =
     ; return $ ViewUpdate
     }
 
-{- do { (sessionId, user, db, rootView, pendingEdit) <- readIORef sessionStateRef
-    ; (db', rootView') <-
-      case command of
-        DocEdit docedit -> 
-          let db' = docedit db
-          in  return (db', rootView)
-                 
-        ViewEdit i viewedit -> 
-          let wv = getWebViewById i rootView
-              wv' = viewedit wv
-              rootView' = replaceWebViewById i wv' rootView 
-          in  return (save rootView' db, rootView')
-    
-    ; writeIORef sessionStateRef (sessionId, user, db', rootView', pendingEdit)
-    ; reloadRootView sessionStateRef
-    --; putStrLn $ "\n\n\n\view before edit:" ++ show rootView
-    --; putStrLn $ "\nview after edit:" ++ show rootView'
-    ; return ViewUpdate
-    }
--}
 authenticate sessionStateRef userEStringViewId passwordEStringViewId =
  do { (sessionId, user, db, rootView, pendingEdit) <- readIORef sessionStateRef
     ; let userName = getTextByViewIdRef userEStringViewId rootView

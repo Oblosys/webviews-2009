@@ -178,11 +178,11 @@ viewEdit vid viewUpdate =
           wv' = webViewUpdate wv
           rootView' = replaceWebViewById vid wv' rootView 
                           
-    ; put (sessionId, user, db, rootView', pendingEdit)
+    ; put (sessionId, user, save rootView' db, rootView', pendingEdit)
     }
 
-
-
+-- TODO save automatically, or maybe require explicit save? (after several view updates)
+-- for now, just after every viewEdit
 
 applyIfCorrectType :: (Typeable y, Typeable x) => (y -> y) -> x -> x
 applyIfCorrectType f x = case cast f of 
