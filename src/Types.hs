@@ -115,8 +115,7 @@ instance Eq EditAction where
   EditAction _ _ == EditAction _ _ = True
   
 
-data EditCommand = DocEdit (Database -> Database)
-                 | ViewEdit (ViewId) (WebView -> WebView)
+data EditCommand = Edit (EditM ())
                  | AlertEdit String 
                  | ConfirmEdit String EditCommand
                  | AuthenticateEdit ViewIdRef ViewIdRef
@@ -233,7 +232,7 @@ instance Data WebView where
 ty_WebView = mkDataType "Views.WebView" [con_WebView]
 con_WebView = mkConstr ty_WebView "WebView" [] Prefix
 
-instance (Typeable v) => Data (StateT WebViewState IO v) where
+instance (Data state, Typeable state, Typeable x) =>Data (StateT state IO x) where
   gfoldl k z (StateT x) = z StateT `k` x
   gunfold k z c = error "gunfold not defined for StateT"
      
@@ -243,8 +242,6 @@ instance (Typeable v) => Data (StateT WebViewState IO v) where
   
 ty_StateT = mkDataType "Control.Monad.StateT" [con_StateT]
 con_StateT = mkConstr ty_StateT "StateT" [] Prefix
-
-
 
 instance Show WebView where
   show (WebView (ViewId i) _ _ _ v) = "<" ++ show i ++ ":" ++ show v ++ ">"
@@ -296,10 +293,10 @@ instance Initial RadioView where
   initial = RadioView noViewId [] 0 False
 
 instance Initial Button where
-  initial = Button noViewId "<button>" False (DocEdit id)
+  initial = Button noViewId "<button>" False (Edit $ return ())
 
 instance Initial EditAction where
-  initial = EditAction noViewId (DocEdit id)  
+  initial = EditAction noViewId (Edit $ return ())  
 
 instance Initial WebView where
   initial = WebView (ViewId []) noId noId (\_ _ -> return ()) ()
@@ -311,3 +308,15 @@ data WebViewState =
                } deriving (Typeable, Data)
 
 type WebViewM a = StateT WebViewState IO a
+
+
+type SessionId = Int
+
+type SessionState = (SessionId, User, Database, WebView, Maybe EditCommand) 
+
+type EditM = StateT SessionState IO 
+-- TODO: maybe call this one SessionM or something like that?
+--       it seems like we could use it in most of the functions in Server as well.
+
+instance Show (EditM a) where
+  show _ = "{EditM _}"

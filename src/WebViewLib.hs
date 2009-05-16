@@ -117,6 +117,9 @@ mkPasswordFieldEx str mEditAction = liftS $ \path vidC -> (passwordField (ViewId
 
 mkTextArea str = liftS $ \path vidC -> (textArea (ViewId $ path ++ [vidC]) str, vidC + 1)
 
+
+
+
 widgetGetViewRef (Widget _ _ w) = mkViewRef $ getViewId w
                   
 
@@ -157,11 +160,28 @@ mkTestView v = mkView $
 -}
 
 
+--- Edit Monad
 
 
+docEdit :: (Database -> Database) -> EditM ()
+docEdit docUpdate =
+ do { (sessionId, user, db, rootView, pendingEdit) <- get
+    ; put (sessionId, user, docUpdate db, rootView, pendingEdit)
+    }
 
-mkViewEdit i f = 
-  ViewEdit i $ \(WebView vi si i lv v) -> WebView vi si i lv $ applyIfCorrectType f v
+viewEdit :: Data v => ViewId -> (v -> v) -> EditM ()
+viewEdit vid viewUpdate =
+  do{ (sessionId, user, db, rootView, pendingEdit) <- get
+    ; let webViewUpdate = \(WebView vi si i lv v) ->
+                            WebView vi si i lv $ applyIfCorrectType viewUpdate v
+          wv = getWebViewById vid rootView
+          wv' = webViewUpdate wv
+          rootView' = replaceWebViewById vid wv' rootView 
+                          
+    ; put (sessionId, user, db, rootView', pendingEdit)
+    }
+
+
 
 
 applyIfCorrectType :: (Typeable y, Typeable x) => (y -> y) -> x -> x
@@ -413,7 +433,7 @@ mkTabbedView labelsTabViews = mkWebView $
  \vid (TabbedView selectedTab _ _) ->
   do { let (labels,tabViews) = unzip labelsTabViews
            
-     ; selectionViews <- sequence [ mkLinkView label $ mkViewEdit vid $
+     ; selectionViews <- sequence [ mkLinkView label $ Edit $ viewEdit vid $
                                         \(TabbedView _ sas twvs) -> TabbedView i sas twvs
                                   | (i,label) <- zip [0..] labels
                                   ]

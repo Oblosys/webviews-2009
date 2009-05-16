@@ -49,7 +49,7 @@ mkVisitsView sessionId = mkWebView $
      ; addB    <- mkButton "Add"      True                                $ addNewVisit today
      ; removeB <- mkButton "Remove" (not $ null visits) $
                     ConfirmEdit ("Are you sure you want to remove this visit?") $ 
-                      DocEdit $ removeVisit (visitIds !! viewedVisit)
+                      Edit $ docEdit $ removeVisit (visitIds !! viewedVisit)
                   
      ; selectionActions <- sequence [ mkEditAction $ selectVisit vid p 
                                     | p <- [0..length visits - 1 ]
@@ -88,12 +88,12 @@ mkVisitsView sessionId = mkWebView $
                  loginOutView selectionActions 
                  prevB nextB addB removeB  tabbedVisits commentIds commentViews mAddCommentButton
      }
- where prev vid = mkViewEdit vid $ modifyViewedVisit decrease
-       next vid = mkViewEdit vid $ modifyViewedVisit increase
+ where prev vid = Edit $ viewEdit vid $ modifyViewedVisit decrease
+       next vid = Edit $ viewEdit vid $ modifyViewedVisit increase
        
-       addNewVisit today = DocEdit $ \db -> let ((Visit nvid _ _ _),db') = newVisit db 
-                                            in  updateVisit nvid (\v -> v {date = today}) db' 
-       selectVisit vi v = mkViewEdit vi $ modifyViewedVisit (const v)
+       addNewVisit today = Edit $ docEdit $ \db -> let ((Visit nvid _ _ _),db') = newVisit db 
+                                                   in  updateVisit nvid (\v -> v {date = today}) db' 
+       selectVisit vi v = Edit $ viewEdit vi $ modifyViewedVisit (const v)
 
        getToday =
          do { clockTime <-  getClockTime
@@ -103,7 +103,7 @@ mkVisitsView sessionId = mkWebView $
             }
          
        addComment login today = 
-         DocEdit $ \db -> let ((Comment ncid _ _ _), db') = newComment db
+         Edit $ docEdit $ \db -> let ((Comment ncid _ _ _), db') = newComment db
                           in  updateComment ncid (\v -> v { commentAuthor = login
                                                           , commentDate = today}) db'
 
@@ -189,9 +189,9 @@ mkVisitView i = mkWebView $
        ; return $ VisitView i zipT dateT viewedPig prevB  nextB addB pigIds pignames pigViews 
        }
  where -- next and previous may cause out of bounds, but on reload, this is constrained
-       previous vi = mkViewEdit vi $ modifyViewedPig decrease
-       next vi = mkViewEdit vi $ modifyViewedPig increase
-       addPig i = DocEdit $ addNewPig i 
+       previous vi = Edit $ viewEdit vi $ modifyViewedPig decrease
+       next vi = Edit $ viewEdit vi $ modifyViewedPig increase
+       addPig i = Edit $ docEdit $ addNewPig i 
       
 addNewPig vid db = let ((Pig newPigId _ _ _ _), db') = newPig vid db      
                    in  (updateVisit vid $ \v -> v { pigs = pigs v ++ [newPigId] }) db'
@@ -225,7 +225,7 @@ data PigView = PigView PigId EditAction String (Widget Button) Int Int (Widget T
 mkPigView parentViewId pignr pigId@(PigId pigInt) viewedPig = mkWebView $ 
   \vid (PigView _ _ _ _ _ _ oldViewStateT _ _ _) ->
    do { (Pig pid vid name [s0,s1,s2] diagnosis) <- withDb $ \db -> unsafeLookup (allPigs db) pigId
-      ; selectAction <- mkEditAction $ mkViewEdit parentViewId $ modifyViewedPig (\_ -> pignr)
+      ; selectAction <- mkEditAction $ Edit $ viewEdit parentViewId $ modifyViewedPig (\_ -> pignr)
       ; removeB <- mkButton "remove" True $ 
                      ConfirmEdit ("Are you sure you want to remove pig "++show (pignr+1)++"?") $ 
                        removePigAlsoFromVisit pid vid              
@@ -238,7 +238,7 @@ mkPigView parentViewId pignr pigId@(PigId pigInt) viewedPig = mkWebView $
                          viewStateT nameT [rv1, rv2, rv3] diagnosis
       }
  where removePigAlsoFromVisit pid vid =
-         DocEdit $ removePig pid . updateVisit vid (\v -> v { pigs = delete pid $ pigs v } )  
+         Edit $ docEdit $ removePig pid . updateVisit vid (\v -> v { pigs = delete pid $ pigs v } )  
        
        imageUrl s0 = "pig"++pigColor s0++pigDirection++".png" 
        pigColor s0 = if s0 == 1 then "Grey" else ""
@@ -287,8 +287,8 @@ mkCommentView commentId new = mkWebView $ \vid (CommentView _ edited' _ _ _ _ _ 
           
           edited = if new then True else edited' 
     
-    ; submitButton <- mkLinkView "Submit" (mkViewEdit vid $ modifyEdited (const False))
-    ; editButton   <- mkLinkView "Edit"   (mkViewEdit vid $ modifyEdited (const True))
+    ; submitButton <- mkLinkView "Submit" (Edit $ viewEdit vid $ modifyEdited (const False))
+    ; editButton   <- mkLinkView "Edit"   (Edit $ viewEdit vid $ modifyEdited (const True))
     ; user <- getUser                
     ; let mEditAction = if edited
 --                    then fmap Just $ mkButton "Submit" True $ mkViewEdit vid $ modifyEdited (const False)
@@ -298,7 +298,7 @@ mkCommentView commentId new = mkWebView $ \vid (CommentView _ edited' _ _ _ _ _ 
                            else Nothing
     ; removeAction <- mkLinkView "Remove" 
                         (ConfirmEdit ("Are you sure you want to remove this comment?") $ 
-                          DocEdit $ removeComment commentId)
+                          Edit $ docEdit $ removeComment commentId)
     ; let mRemoveAction = if userIsAuthorized author user 
                           then Just removeAction
                           else Nothing

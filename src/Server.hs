@@ -56,13 +56,9 @@ type GlobalStateRef = IORef GlobalState
 
 type ServerInstanceId = EpochTime
 
-type SessionId = Int
-
 type SessionCounter = Int
 
 type Sessions = IntMap (User, WebView, Maybe EditCommand) 
-
-type SessionState = (SessionId, User, Database, WebView, Maybe EditCommand)
 
 type SessionStateRef = IORef SessionState
 
@@ -407,30 +403,38 @@ performEditCommand sessionStateRef command =
                 }
             AuthenticateEdit userViewId passwordViewId -> authenticate sessionStateRef userViewId passwordViewId
             LogoutEdit -> logout sessionStateRef
-            _ ->
-             do { (db', rootView') <-
-                  case command of
-                    DocEdit docedit -> 
-                      let db' = docedit db
-                      in  return (db', rootView)
-                             
-                    ViewEdit i viewedit -> 
-                      let wv = getWebViewById i rootView
-                          wv' = viewedit wv
-                          rootView' = replaceWebViewById i wv' rootView 
-                                       -- TODO: check if mkViewMap has correct arg
-                                       --       make function for loading rootView
-                      in  return (save rootView' db, rootView')
-                
-                ; writeIORef sessionStateRef (sessionId, user, db', rootView', pendingEdit)
-                ; reloadRootView sessionStateRef
-                --; putStrLn $ "\n\n\n\view before edit:" ++ show rootView
-                --; putStrLn $ "\nview after edit:" ++ show rootView'
-                ; return ViewUpdate
-                }
+            Edit edit -> performEdit sessionStateRef edit
 
     }
+performEdit :: SessionStateRef -> EditM () -> IO ServerResponse
+performEdit sessionStateRef edit  =
+ do { state <- readIORef sessionStateRef
+    ; state' <- execStateT edit state
+    ; writeIORef sessionStateRef state'
+    ; reloadRootView sessionStateRef
+    ; return $ ViewUpdate
+    }
 
+{- do { (sessionId, user, db, rootView, pendingEdit) <- readIORef sessionStateRef
+    ; (db', rootView') <-
+      case command of
+        DocEdit docedit -> 
+          let db' = docedit db
+          in  return (db', rootView)
+                 
+        ViewEdit i viewedit -> 
+          let wv = getWebViewById i rootView
+              wv' = viewedit wv
+              rootView' = replaceWebViewById i wv' rootView 
+          in  return (save rootView' db, rootView')
+    
+    ; writeIORef sessionStateRef (sessionId, user, db', rootView', pendingEdit)
+    ; reloadRootView sessionStateRef
+    --; putStrLn $ "\n\n\n\view before edit:" ++ show rootView
+    --; putStrLn $ "\nview after edit:" ++ show rootView'
+    ; return ViewUpdate
+    }
+-}
 authenticate sessionStateRef userEStringViewId passwordEStringViewId =
  do { (sessionId, user, db, rootView, pendingEdit) <- readIORef sessionStateRef
     ; let userName = getTextByViewIdRef userEStringViewId rootView
