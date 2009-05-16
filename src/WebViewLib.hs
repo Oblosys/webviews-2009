@@ -184,6 +184,7 @@ viewEdit vid viewUpdate =
 -- TODO save automatically, or maybe require explicit save? (after several view updates)
 -- for now, just after every viewEdit
 
+
 applyIfCorrectType :: (Typeable y, Typeable x) => (y -> y) -> x -> x
 applyIfCorrectType f x = case cast f of 
                            Just fx -> fx x
@@ -429,13 +430,18 @@ data TabbedView = TabbedView Int [WebView] [WebView] deriving (Eq, Show, Typeabl
 instance Initial TabbedView where
   initial = TabbedView 0 initial initial
 
-mkTabbedView labelsTabViews = mkWebView $
+mkTabbedView labelsEditActionsTabViews = mkWebView $
  \vid (TabbedView selectedTab _ _) ->
-  do { let (labels,tabViews) = unzip labelsTabViews
+  do { let (labels, mEditActions,tabViews) = unzip3 labelsEditActionsTabViews
            
-     ; selectionViews <- sequence [ mkLinkView label $ Edit $ viewEdit vid $
-                                        \(TabbedView _ sas twvs) -> TabbedView i sas twvs
-                                  | (i,label) <- zip [0..] labels
+     ; selectionViews <- sequence [ mkLinkView label $ Edit $ 
+                                     do { viewEdit vid $
+                                            \(TabbedView _ sas twvs) -> TabbedView i sas twvs
+                                        ; case mEditAction of
+                                            Nothing -> return ()
+                                            Just ea -> ea
+                                        }
+                                  | (i, label, mEditAction) <- zip3 [0..] labels mEditActions
                                   ]
      ; return $ TabbedView selectedTab selectionViews tabViews
      }

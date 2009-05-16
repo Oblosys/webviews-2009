@@ -51,9 +51,10 @@ mkVisitsView sessionId = mkWebView $
                     ConfirmEdit ("Are you sure you want to remove this visit?") $ 
                       Edit $ docEdit $ removeVisit (visitIds !! viewedVisit)
                   
-     ; selectionActions <- sequence [ mkEditAction $ selectVisit vid p 
-                                    | p <- [0..length visits - 1 ]
-                                    ]
+     ; let selectionEdits = [ selectVisit vid v | v <- [0..length visits - 1 ] ]
+                                    
+     ; selectionActions <- mapM  (mkEditAction . Edit) selectionEdits
+                           
      ; user <- getUser
                
      ; loginOutView <- if user == Nothing then mkLoginView 
@@ -63,11 +64,7 @@ mkVisitsView sessionId = mkWebView $
      ; visitViews <- uniqueIds $ [ (uniqueId, mkVisitView visitId)
                                  | (visitId@(VisitId uniqueId),i) <- zip visitIds [0..] 
                                  ]
-                 {- <-  if null visits then return Nothing
-                     else do { vw <- mkVisitView (visitIds !! viewedVisit)
-                             ; return (Just vw)
-                             } -}
-     ; tabbedVisits <- mkTabbedView $ zip labels visitViews
+     ; tabbedVisits <- mkTabbedView $ zip3 labels (map Just selectionEdits) visitViews
                   
      ; commentIds <- withDb $ \db -> Map.keys (allComments db)
                                     
@@ -93,7 +90,7 @@ mkVisitsView sessionId = mkWebView $
        
        addNewVisit today = Edit $ docEdit $ \db -> let ((Visit nvid _ _ _),db') = newVisit db 
                                                    in  updateVisit nvid (\v -> v {date = today}) db' 
-       selectVisit vi v = Edit $ viewEdit vi $ modifyViewedVisit (const v)
+       selectVisit vi v = viewEdit vi $ modifyViewedVisit (const v)
 
        getToday =
          do { clockTime <-  getClockTime
