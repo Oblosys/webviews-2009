@@ -30,7 +30,7 @@ mkRootView user db sessionId viewMap =
 data VisitsView = 
   VisitsView Bool Int Int User [(String,String)] 
                  WebView [EditAction] (Widget Button) (Widget Button) (Widget Button) (Widget Button) 
-                 WebView [CommentId] [WebView] (Maybe (Widget Button))
+                 [WebView] [CommentId] [WebView] (Maybe (Widget Button))
     deriving (Eq, Show, Typeable, Data)
   
 instance Initial VisitsView where                 
@@ -64,8 +64,8 @@ mkVisitsView sessionId = mkWebView $
      ; visitViews <- uniqueIds $ [ (uniqueId, mkVisitView visitId)
                                  | (visitId@(VisitId uniqueId),i) <- zip visitIds [0..] 
                                  ]
-     ; tabbedVisits <- mkTabbedView $ zip3 labels (map Just selectionEdits) visitViews
-                  
+     --; tabbedVisits <- mkTabbedView $ zip3 labels (map Just selectionEdits) visitViews
+     ; let tabbedVisits = visitViews             
      ; commentIds <- withDb $ \db -> Map.keys (allComments db)
                                     
      ; commentViews <- uniqueIds 
@@ -139,7 +139,7 @@ instance Presentable VisitsView where
       ] +++
       p << ((if null visits then "There are no visits. " else "Viewing visit nr. "++ show (viewedVisit+1) ++ ".") +++ 
              "    " +++ present prev +++ present next) +++ 
-      present tabbedVisits
+      vList (map present tabbedVisits)
       {-
           boxed (case mv of
                [] -> stringToHtml "No visits."
@@ -203,7 +203,7 @@ instance Presentable VisitView where
            then stringToHtml $ "Not viewing any pigs.   " 
            else "Viewing pig nr. " +++ show (viewedPig+1) +++ ".   ")
            +++ present b1 +++ present b2) +++
-    withPad 15 0 0 0 (hList $ map present subviews ++ [present b3] )
+    withPad 15 0 0 0 (hList' $ map present subviews )+++ present b3 
 
 instance Storeable VisitView where
   save (VisitView vid zipCode date _ _ _ _ pigs pignames _) =
@@ -231,7 +231,8 @@ mkPigView parentViewId pignr pigId@(PigId pigInt) viewedPig = mkWebView $
       ; rv1 <- mkRadioView ["Pink", "Grey"] s0 True
       ; rv2 <- mkRadioView ["Yes", "No"]    s1 True
       ; rv3 <- mkRadioView ["Yes", "No"]    s2 (s1 == 0)
-      ; return $ PigView pid selectAction (imageUrl s0) removeB  viewedPig pignr 
+             
+      ; return $ PigView pid selectAction (imageUrl s0) removeB viewedPig pignr 
                          viewStateT nameT [rv1, rv2, rv3] diagnosis
       }
  where removePigAlsoFromVisit pid vid =
