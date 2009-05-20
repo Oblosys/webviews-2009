@@ -196,10 +196,10 @@ instance Eq WebNode where
       Just wv1' -> wv1' == wv2
   _ == _ = False             
 
-data AnyWidget = RadioViewWidget RadioView 
-               | TextWidget Text 
-               | ButtonWidget Button  
-               | EditActionWidget EditAction
+data AnyWidget = RadioViewWidget !RadioView 
+               | TextWidget !Text 
+               | ButtonWidget !Button  
+               | EditActionWidget !EditAction
                  deriving (Eq, Show, Typeable, Data)
                           
 type ViewMap = Map.Map ViewId WebView
@@ -208,7 +208,7 @@ type ViewMap = Map.Map ViewId WebView
 data WebView = forall view . ( Data (StateT WebViewState IO view) 
                              , Initial view, Presentable view, Storeable view
                              , Show view, Eq view, Data view) => 
-                             WebView ViewId Id Id (ViewId -> view -> WebViewM view) view
+                             WebView !ViewId !Id !Id (ViewId -> view -> WebViewM view) !view
                              
                deriving Typeable
 -- (viewId -> view -> WebViewM view) is the load view function. the parameters are the id and the old view (or initial)
