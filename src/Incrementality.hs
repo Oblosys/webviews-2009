@@ -172,8 +172,8 @@ getBreadthFirstWebNodes rootView =
        
 mkIncrementalUpdates oldViewMap rootView =
  do { let (newWebNodes, updates) = diffViews oldViewMap rootView
-    ; putStrLn $ "\nChanged or new web nodes\n" ++ unlines (map shallowShowWebNode newWebNodes) 
-    ; putStrLn $ "\nUpdates\n" ++ unlines (map show updates)
+    --; putStrLn $ "\nChanged or new web nodes\n" ++ unlines (map shallowShowWebNode newWebNodes) 
+    --; putStrLn $ "\nUpdates\n" ++ unlines (map show updates)
     
     ; let responseHtml = thediv ! [identifier "updates"] <<
                            (map newWebNodeHtml newWebNodes +++
@@ -184,7 +184,7 @@ mkIncrementalUpdates oldViewMap rootView =
                                     Move _ _ _ -> []
                                 | upd <- updates
                                 ]
-    ; putStrLn $ "Id updates on rootView:" ++ show subs
+    --; putStrLn $ "Id updates on rootView:" ++ show subs
     -- todo: check restoration on views, and esp. on root.
     
     ; let rootView' = substituteIds subs rootView
