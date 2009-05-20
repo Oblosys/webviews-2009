@@ -238,11 +238,11 @@ replaceWebViewById i wv rootView =
  where replaceWebView wv'@(WebView i' _ _ _ _) = if i == i' then wv else wv' 
 --getWebViews x = listify (\(WebView i' :: WebView) -> True) x 
 
-getButtonByViewId :: Data d => ViewId -> d -> Button
+getButtonByViewId :: Data d => ViewId -> d -> Maybe Button
 getButtonByViewId i view = 
   case listify (\(Button i' _ _ _) -> i==i') view of
-    [b] -> b
-    []  -> error $ "internal error: no button with id "++show i
+    [b] -> Just b
+    []  -> Nothing
     _   -> error $ "internal error: multiple buttons with id "++show i
 
 getTextByViewId :: Data d => ViewId -> d -> Text

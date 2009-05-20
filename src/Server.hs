@@ -48,6 +48,15 @@ the monad, but it will only do something if the header is not set in the out par
 
 Header modifications must therefore be applied to out rather than be fmapped to the monad.
 -}
+
+{-
+
+Buttons that are not found are ignored
+ConfirmDialog is ignored if dialog is not here
+TODO: make confirmDialog more robust
+
+
+-}
 type GlobalState = (Database, Sessions, SessionCounter)
 
 initGlobalState = (theDatabase, IntMap.empty, 0)
@@ -271,8 +280,8 @@ sessionHandler sessionStateRef cmds = liftIO $
             --; putStrLn $ "rootView:\n" ++ show rootView'
             ; setRootView sessionStateRef rootView'
             --; putStrLn $ "database:\n" ++ show db
-            ; putStrLn $ "\n\n\nresponse = \n" ++ show responseHtml
-            ; putStrLn $ "View tree':\n" ++ drawWebNodes (WebViewNode rootView') 
+            --; putStrLn $ "\n\n\nresponse = \n" ++ show responseHtml
+            --; putStrLn $ "View tree':\n" ++ drawWebNodes (WebViewNode rootView') 
             --; putStrLn $ "Sending response sent to client: " ++
             --              take 10 responseHTML ++ "..."
             ; seq (length (show responseHtml)) $ return ()
@@ -291,15 +300,16 @@ sessionHandler sessionStateRef cmds = liftIO $
     
     ; return responseHtml
     } `Control.Exception.catch` \(exc :: SomeException) ->
-       do { let exceptionTxt = 
+       do { let exceptionText = 
                   "\n\n\n\n###########################################\n\n\n" ++
                   "Exception: " ++ show exc ++ "\n\n\n" ++
                   "###########################################" 
           
-          ; putStrLn exceptionTxt
+          ; putStrLn exceptionText
           ; return $ thediv ! [identifier "updates"] <<
-                       updateReplaceHtml "root" 
-                        (mkDiv "root" $ map (p . stringToHtml) $ lines exceptionTxt)
+                      (thediv![ strAttr "op" "exception"
+                              , strAttr "text" exceptionText
+                              ] << noHtml)                       
           }
  where evaluateDbAndRootView sessionStateRef =
         do { dbRootView <- liftIO $ readIORef sessionStateRef
@@ -364,13 +374,20 @@ handleCommand sessionStateRef (SetC viewId value) =
     }
 handleCommand sessionStateRef (ButtonC viewId) =
  do { (_, user, db, rootView, pendingEdit) <- readIORef sessionStateRef
-    ; let Button _ txt _ act = getButtonByViewId viewId rootView
-    ; putStrLn $ "Button #" ++ show viewId ++ ":" ++ txt ++ " was clicked"
+    ; case getButtonByViewId viewId rootView of
+        Just (Button _ txt _ act) ->    
+         do { putStrLn $ "Button #" ++ show viewId ++ ":" ++ txt ++ " was clicked"
 
-    ; response <- performEditCommand sessionStateRef act
+            ; response <- performEditCommand sessionStateRef act
           
-    ; return response
+            ; return response
+            }
+        Nothing ->
+         do { putStrLn $ "Button #"++show viewId++" not present in view"
+            ; return ViewUpdate
+            }
     }
+ 
 handleCommand sessionStateRef (SubmitC viewId) =
  do { (_, user, db, rootView, pendingEdit) <- readIORef sessionStateRef
     ; let Text _ _ txt mAct = getTextByViewId viewId rootView
@@ -395,7 +412,7 @@ handleCommand sessionStateRef ConfirmDialogOk =
  do { (sessionId, user, db, rootView, pendingEdit) <- readIORef sessionStateRef
     ; writeIORef sessionStateRef (sessionId, user, db, rootView, Nothing) -- clear it, also in case of error
     ; response <- case pendingEdit of
-                    Nothing -> error "ConfirmDialogOk event without active dialog"
+                    Nothing -> return ViewUpdate -- error "ConfirmDialogOk event without active dialog"
                     Just ec -> performEditCommand sessionStateRef ec
     ; return response
     }
