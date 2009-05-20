@@ -59,9 +59,11 @@ hDistribute e1 e2 =
   mkTableEx [width "100%", border 0, cellpadding 0, thestyle "border-collapse: collapse;"] [] [valign "top"]
        [[ ([],e1), ([align "right"],e2) ]]
         
+hList' elts = ulist![theclass "hList"] << [ li << elt | elt <- elts ]
+
 
 hList [] = noHtml
-hList views = simpleTable [] [] [ views ]
+hList views = simpleTable [] [theclass "draggable"] [ views ]
 
 vList [] = noHtml
 vList views = simpleTable [] [] [ [v] | v <- views ]
