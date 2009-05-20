@@ -3,19 +3,31 @@
 <title>Piglet 2.0</title>
 <link href="scr/WebViews.css" rel="stylesheet" type="text/css" />
 
-<link type="text/css" href="scr/themes/base/ui.all.css" rel="stylesheet" />
+<!-- <link type="text/css" href="scr/themes/base/ui.all.css" rel="stylesheet" /> -->
 <script type="text/javascript" src="scr/jquery-1.3.2.js"></script>
-<script type="text/javascript" src="scr/jquery-ui-1.7.1.custom.min.js"></script>
+<!--<script type="text/javascript" src="scr/jquery-ui-1.7.1.custom.min.js"></script> -->
+
+  <link type="text/css" href="http://jqueryui.com/latest/themes/base/ui.all.css" rel="stylesheet" />
+
+  <script type="text/javascript" src="http://jqueryui.com/latest/ui/ui.core.js"></script>
+  <script type="text/javascript" src="http://jqueryui.com/latest/ui/ui.sortable.js"></script>
 
 
 </head>
 
 <script type="text/javascript">
 <!--// < this comment keeps emacs from thinking the whole block is a comment
-//var debugging = false;
-var debugging = true;
-var drawingViewTree = false;
+//var debugging = true;
+var debugging = false;
+
 //var drawingViewTree = true;
+var drawingViewTree = false;
+
+//var sendingCommands = true;
+var sendingCommands = false;
+
+//var autoRefresh = true;
+var autoRefresh = false;
 
 // for easily setting a breakpoint in the move operation
 function breakpointCheck()
@@ -39,8 +51,9 @@ function init()
 }
 
 function startRefreshTimer()
-{
-// setRefreshTimer(1000);
+{ if (autoRefresh)
+  { setRefreshTimer(1000);
+  }
 }
 
 
@@ -205,11 +218,26 @@ if (xmlhttp.readyState==4)
       debugAdd("failed");
 
 //    $("[class='tabbed']").tabs(); // register tabbed views
+//    $("[class='draggable']").draggable({refreshPositions: true});
+//    $("[class='sortable']").draggable({refreshPositions: true});
+ $(function() {
+ $(".hList").disableSelection();
+ $(".vList").disableSelection();
+
+ $(".hList").sortable({connectWith: '.vList, .hList'});
+ $(".vList").sortable({connectWith: '.vList, .hList'});
+});
+
+
 
     // start refresh timer again
-  //  startRefreshTimer();
-    sendRandomCommand();
-   }
+    if (commandQueue == '') // only if command handling did not queue any new commands
+      if (sendingCommands)
+        sendRandomCommand();
+      else
+        startRefreshTimer();
+
+  }
   else
     {
     debug("Problem retrieving data:" + xmlhttp.statusText);
@@ -266,14 +294,26 @@ function updateTree(update)
     else
       debugAdd("failed");
     debugAdd ("end of special");
-  } 
- else if (op === 'alert')
+  }
+ else if (op === 'exception')
   { var text = update.getAttribute('text');
-    //alert(text);
+    sendingCommands = false;
+    autoRefresh = false;
+    alert(text);
+    init();
+  } 
+else if (op === 'alert')
+  { var text = update.getAttribute('text');
+    if (!sendingCommands)  // don't let dialogs interrupt auto command sequence
+      alert(text);
   } 
  else if (op === 'confirm')
   { var text = update.getAttribute('text');
-    //if (confirm(text))
+    if (!sendingCommands)  // don't let dialogs interrupt auto command sequence
+    {  if (confirm(text))
+        queueCommand('ConfirmDialogOk');
+    }
+    else
       queueCommand('ConfirmDialogOk');
   } 
  else if (op === 'authenticate')
@@ -345,24 +385,75 @@ function removeChildren(elt)
 
 function sendRandomCommand()
 { debugAdd("random command");
-  allButtons = $("button");
+  /* allButtons = $("button");
   i = Math.floor( Math.random()*allButtons.length);
   
   randomButton = $("button:eq("+i+")").attr('id');
- //randomButton = allButtons[ i ];
   randomCommand = "ButtonC ("+randomButton+")";
-  debugAdd(randomCommand);
-  queueCommand(randomCommand);
+*/
+  allRadios= $("input[type='radio']");
+  i = Math.floor( Math.random()*allRadios.length);
+  
+  randomRadioName = $("input[type='radio']:eq("+i+")").attr('name');
+  radioButtons = $("input[type='radio'][name="+randomRadioName+"]");
 
+  alert('Radio '+randomRadioName+radioButtons+' '+radioButtons.length);
+// TODO why do we get this alert twice?
+
+//debugAdd(randomCommand);
+  //queueCommand(randomCommand);
 }
 
 -->
+/* for drag to float, add min-height to ul
+   and make sure connectWith is not set on both hlist and vlist, or
+   drag will be buggy
+*/
+ $(function() {
+ $(".vList").disableSelection();
+
+$(".hList").disableSelection();
+
+ $(".hList").sortable({connectWith: '.hList'});
+});
+ 
+
+/*tables are trickier, as the dragged object is either a tr or a td, which requires some
+changes when dropping or hovering
+
+still causes bugs:
+$(".vList").sortable({connectWith: '.vList, .hList'});
+
+*/	
 </script>
-<button onclick="sendRandomCommand()">Test</button>
+<style type="text/css">
+.vList { list-style-type: none; margin: 0; padding: 0 }
+.vList li {margin: 3px 3px 3px 0; padding: 1px; float: none; }
+.hList { list-style-type: none; margin: 0; padding: 0; min-height: 600px; }
+.hList li {margin: 3px 3px 3px 0; padding: 1px; float: left; width: 300px;}
+.hList li:first-child { clear: left }
+</style>
+
+<body onload="javascript: init();" style="padding:0px; margin:0px">
+
+<ul class="vList">
+<li style = "background: red; margin: 10px; width:40px">een</li>
+<li style = "left; background: blue; margin: 10px; width:40px">twee</li>
+<li style = "left; background: black; margin: 10px; width:40px">drie</li>
+</ul>
+
+<ul class="hList">
+<li style = "background: red; margin: 10px;">aaa</li>
+<li style = "left; background: blue; margin: 10px;">bbbbbb</li>
+<li style = "left; background: black; margin: 10px;">ccc</li>
+</ul>
+<br>
+
+<!--
+<div onclick="sendingCommands = true">Test</div> -->
 <!--
 <table cellpadding="0" style="border-collapse: collapse;">
-  <tr><td>bladddfdfk</td><td>bla</td></tr>
-  <tr style="background-color: red; color: white"><td style="cell-width: 100%">bla</td><td>bla</td></tr>
+  <tr><span class="draggable"> <td>zaza</td></span><td>bla</td></tr>
 </table>
 -->
 <!--
@@ -383,7 +474,6 @@ drie
     </div>
 </div>
 -->
-<body onload="javascript: init();" style="padding:0px; margin:0px">
 <!-- <button onClick="debugAdd('click')" onfocus="debugAdd('focus')">click</button> -->
 <!-- <div style="border:solid; border-width:1px; margin:0px"> -->
 <div id="viewTree"></div>
