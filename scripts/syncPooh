@@ -1,3 +1,5 @@
+cd "`dirname \"$0\"`" # cd to script dir
+
 # copy sources with scp instead of using svn (from scr, only copy html and css)
 scp ../WebViews.cabal martijn@pooh.zoo.cs.uu.nl:WebViews
 scp ../scr/*.html martijn@pooh.zoo.cs.uu.nl:WebViews/scr
