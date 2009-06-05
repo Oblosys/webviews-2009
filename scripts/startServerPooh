@@ -1,0 +1,3 @@
+# script to launch WebViews server in correct directory. To be called from pooh.zoo.cs.uu.nl.
+cd /home/martijn/WebViews
+nohup dist/build/WebViews/WebViews  < /dev/null > /dev/null 2>&1 &
