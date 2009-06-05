@@ -26,8 +26,8 @@ var drawingViewTree = false;
 //var sendingCommands = true;
 var sendingCommands = false;
 
-//var autoRefresh = true;
-var autoRefresh = false;
+var autoRefresh = true;
+//var autoRefresh = false;
 
 // for easily setting a breakpoint in the move operation
 function breakpointCheck()
@@ -220,13 +220,13 @@ if (xmlhttp.readyState==4)
 //    $("[class='tabbed']").tabs(); // register tabbed views
 //    $("[class='draggable']").draggable({refreshPositions: true});
 //    $("[class='sortable']").draggable({refreshPositions: true});
- $(function() {
- $(".hList").disableSelection();
- $(".vList").disableSelection();
+// $(function() {
+// $(".hList").disableSelection();
+// $(".vList").disableSelection();
 
- $(".hList").sortable({connectWith: '.vList, .hList'});
- $(".vList").sortable({connectWith: '.vList, .hList'});
-});
+// $(".hList").sortable({connectWith: '.vList, .hList'});
+// $(".vList").sortable({connectWith: '.vList, .hList'});
+//});
 
 
 
@@ -435,7 +435,7 @@ $(".vList").sortable({connectWith: '.vList, .hList'});
 </style>
 
 <body onload="javascript: init();" style="padding:0px; margin:0px">
-
+<!--
 <ul class="vList">
 <li style = "background: red; margin: 10px; width:40px">een</li>
 <li style = "left; background: blue; margin: 10px; width:40px">twee</li>
@@ -446,8 +446,9 @@ $(".vList").sortable({connectWith: '.vList, .hList'});
 <li style = "background: red; margin: 10px;">aaa</li>
 <li style = "left; background: blue; margin: 10px;">bbbbbb</li>
 <li style = "left; background: black; margin: 10px;">ccc</li>
-</ul> <!-- TODO: left? forgotten float? -->
-<br>
+</ul>
+-->
+<!-- TODO: left? forgotten float? -->
 
 <!--
 <div onclick="sendingCommands = true">Test</div> -->
