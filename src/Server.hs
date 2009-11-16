@@ -189,8 +189,8 @@ parseCookieSessionId serverInstanceId =
                                      then Nothing  -- * cookie from previous WebViews run
                                      else Just key -- * correct cookie for this run
     ; return mCookieSessionId
-    } -- TODO: this is nasty, maybe try to use the Happs function
- 
+    }
+
 mkInitialRootView :: IO WebView
 mkInitialRootView = runWebView Nothing theDatabase Map.empty [] 0 $ mkWebView (\_ _ -> return ()) 
 
