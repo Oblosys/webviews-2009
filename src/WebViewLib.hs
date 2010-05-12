@@ -1,3 +1,4 @@
+{-# LANGUAGE CPP #-}
 module WebViewLib where
 
 import Control.Monad.State
@@ -363,10 +364,17 @@ instance Initial LoginView where initial = LoginView initial initial initial
 
 mkLoginView = mkWebView $
   \vid (LoginView name password b) ->
-   mdo {nameT <- mkTextFieldAct (getStrVal name) authenticate 
-       ; passwordT <- mkPasswordFieldAct (getStrVal password) authenticate 
-       ; let authenticate = AuthenticateEdit (widgetGetViewRef nameT) (widgetGetViewRef passwordT)
-      
+#if __GLASGOW_HASKELL__ >= 612
+    do { rec { nameT <- mkTextFieldAct (getStrVal name) authenticate 
+             ; passwordT <- mkPasswordFieldAct (getStrVal password) authenticate 
+             ; let authenticate = AuthenticateEdit (widgetGetViewRef nameT) (widgetGetViewRef passwordT)
+             }
+#else
+    mdo { nameT <- mkTextFieldAct (getStrVal name) authenticate 
+        ; passwordT <- mkPasswordFieldAct (getStrVal password) authenticate 
+        ; let authenticate = AuthenticateEdit (widgetGetViewRef nameT) (widgetGetViewRef passwordT)
+#endif
+
        ; loginB <- mkButton "Login" True authenticate                   
        ; return $ LoginView nameT passwordT loginB
        }
