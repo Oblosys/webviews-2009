@@ -15,9 +15,9 @@ Build-Depends:    base >= 4.0,
 		  containers,
 		  bytestring,
 		  html,
-		  happstack-server == 0.2.1,
-		  happstack-state == 0.2.1,
-                  happstack-helpers == 0.22.1,
+		  happstack-server == 0.5.0,
+		  happstack-state == 0.5.0,
+                  happstack-helpers == 0.51,
 		  old-time,
 		  unix
                  
