@@ -1,0 +1,6 @@
+cd ~/svn/Oblomov/WebViews
+dist/build/WebViews/WebViews > serverOutput.txt 2>&1 &
+echo WebViews server started
+
+# when put in crontab, use:
+#    @reboot ~/svn/Oblomov/WebViews/startServer >/dev/null 2>&1
