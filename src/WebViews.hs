@@ -30,7 +30,7 @@ mkRootView user db sessionId viewMap =
 data VisitsView = 
   VisitsView Bool Int Int User [(String,String)] 
                  WebView [EditAction] (Widget Button) (Widget Button) (Widget Button) (Widget Button) 
-                 [WebView] [CommentId] [WebView] (Maybe (Widget Button))
+                 WebView [CommentId] [WebView] (Maybe (Widget Button))
     deriving (Eq, Show, Typeable, Data)
   
 instance Initial VisitsView where                 
@@ -64,8 +64,9 @@ mkVisitsView sessionId = mkWebView $
      ; visitViews <- uniqueIds $ [ (uniqueId, mkVisitView visitId)
                                  | (visitId@(VisitId uniqueId),i) <- zip visitIds [0..] 
                                  ]
-     --; tabbedVisits <- mkTabbedView $ zip3 labels (map Just selectionEdits) visitViews
-     ; let tabbedVisits = visitViews             
+     ; tabbedVisits <- mkTabbedView $ zip3 labels (map Just selectionEdits) visitViews
+     --; let tabbedVisits = visitViews             
+     --; let tabbedVisits = visitViews !! viewedVisit
      ; commentIds <- withDb $ \db -> Map.keys (allComments db)
                                     
      ; commentViews <- uniqueIds 
@@ -139,8 +140,9 @@ instance Presentable VisitsView where
       ] +++
       p << ((if null visits then "There are no visits. " else "Viewing visit nr. "++ show (viewedVisit+1) ++ ".") +++ 
              "    " +++ present prev +++ present next) +++ 
-      vList (map present tabbedVisits)
-      {-
+      --vList (map present tabbedVisits)
+      present tabbedVisits
+{-
           boxed (case mv of
                [] -> stringToHtml "No visits."
                visitVs -> concatHtml $ map present visitVs) -} +++
@@ -203,7 +205,7 @@ instance Presentable VisitView where
            then stringToHtml $ "Not viewing any pigs.   " 
            else "Viewing pig nr. " +++ show (viewedPig+1) +++ ".   ")
            +++ present b1 +++ present b2) +++
-    withPad 15 0 0 0 (hList' $ map present subviews )+++ present b3 
+    withPad 15 0 0 0 (hList' $ map present subviews) +++ present b3
 
 instance Storeable VisitView where
   save (VisitView vid zipCode date _ _ _ _ pigs pignames _) =
