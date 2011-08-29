@@ -5,9 +5,13 @@ import Database
 import Server
 import Types
 import Generics -- for testing in ghci
+import System.IO
 
 main :: IO ()
-main = server                                                                
+main = do { hSetBuffering stdout NoBuffering -- necessary to run server in Eclipse
+          ; server 
+          }    
+                                                                  
 
 {-
 Check lenses
