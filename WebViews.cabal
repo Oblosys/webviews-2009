@@ -4,26 +4,30 @@ Synopsis:     	  Simplified Proxima Framework for web applications
 Category:         Network, Web
 License:          AllRightsReserved
 Author:           Martijn Schrage
-Maintainer:       martijn@oblomov.biz
+Maintainer:       martijn@oblomov.com
 Stability:        experimental
 Build-Type:       Simple
-Build-Depends:    base >= 4.0,
-                  syb,
-                  network,
-		  mtl,
-                  base64-string,
-		  containers,
-		  bytestring,
-		  html,
-		  happstack-server >= 0.5.0.2,
-		  happstack-state >= 0.5.0.2,
-                  happstack-helpers >= 0.51,
-		  old-time,
-		  unix
+Cabal-Version:  >= 1.2
                  
+Executable WebViews
+  Main-is:	      Main.hs
 
-Executable:       WebViews
-Main-is:	  Main.hs
-GHC-Options:      -fglasgow-exts
-HS-Source-Dirs:   src
+  -- Build-Depends needs to be in Executable for EclipseFP's Scion
+  Build-Depends:  base,
+                  syb == 0.3.3,
+                  network,
+                  mtl,
+                  base64-string,
+                  containers,
+                  bytestring,
+                  html,
+                  happstack-server,
+                  happstack-state,
+                  old-time,
+                  unix
 
+  GHC-Options: 
+  Extensions: DeriveDataTypeable DoRec FlexibleInstances
+  HS-Source-Dirs:  src
+  Other-Modules: WebViewLib Database Generics HtmlLib Incrementality Server Types WebViews
+  -- need to mention all modules explicitly for EclipseFP's Scion
