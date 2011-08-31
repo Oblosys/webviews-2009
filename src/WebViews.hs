@@ -1,4 +1,4 @@
-{-# OPTIONS -XDeriveDataTypeable #-}
+{-# OPTIONS -XDeriveDataTypeable -XPatternGuards #-}
 module WebViews where
 
 import Data.List
