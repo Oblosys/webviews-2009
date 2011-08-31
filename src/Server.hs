@@ -13,6 +13,7 @@ import Data.Map (Map)
 import qualified Data.Map as Map 
 import Data.IntMap (IntMap)
 import qualified Data.IntMap as IntMap 
+import System.Time (getClockTime)
 import System.Posix.Time
 import System.Posix.Types
 import Text.Html
@@ -82,7 +83,9 @@ setRootView sessionStateRef rootView =
     }
  
 server =
- do { serverSessionId <- epochTime
+ do { time <- getClockTime
+    ; putStrLn $ "\n\n### Started WebViews server (port "++show webViewsPort++"): "++show time ++"\n"
+    ; serverSessionId <- epochTime
     ; globalStateRef <- newIORef initGlobalState
     
     ; dbStr <-
