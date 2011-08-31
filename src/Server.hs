@@ -1,4 +1,3 @@
-{-# OPTIONS -fglasgow-exts #-}
 module Server where
 
 import Happstack.Server
@@ -92,9 +91,9 @@ server =
           ; seq (length dbStr) $ return ()
           ; hClose fh
           ; return dbStr
-          } `Control.Exception.catch` \(exc :: SomeException) ->
+          } `Control.Exception.catch` \exc ->
        do { putStrLn $ "On opening Database.txt:\n"
-          ; putStrLn $ "Exception "++ show exc
+          ; putStrLn $ "Exception "++ show (exc :: SomeException)
           ; putStrLn $ "\nUsing default database."
           ; return ""
           }
@@ -187,9 +186,9 @@ parseCookieSessionId serverInstanceId =
     ; let cookieMap = rqCookies rq
     ; let mCookieSessionId = case lookup "webviews" cookieMap of
                       Nothing -> Nothing -- * no webviews cookie on the client
-                      Just c  -> case safeRead (cookieValue c) of
+                      Just c  -> case safeRead (cookieValue c) :: Maybe (EpochTime, Int) of
                                    Nothing               -> Nothing -- * ill formed cookie on client
-                                   Just (serverTime::EpochTime,key::Int) -> 
+                                   Just (serverTime, key) -> 
                                      if serverTime /= serverInstanceId
                                      then Nothing  -- * cookie from previous WebViews run
                                      else Just key -- * correct cookie for this run
@@ -304,10 +303,10 @@ sessionHandler sessionStateRef cmds = liftIO $
                             ] << noHtml) 
     
     ; return responseHtml
-    } `Control.Exception.catch` \(exc :: SomeException) ->
+    } `Control.Exception.catch` \exc ->
        do { let exceptionText = 
                   "\n\n\n\n###########################################\n\n\n" ++
-                  "Exception: " ++ show exc ++ "\n\n\n" ++
+                  "Exception: " ++ show (exc :: SomeException) ++ "\n\n\n" ++
                   "###########################################" 
           
           ; putStrLn exceptionText

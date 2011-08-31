@@ -1,4 +1,4 @@
-{-# OPTIONS -fglasgow-exts #-}
+{-# OPTIONS -XDeriveDataTypeable #-}
 module Database where
 
 import Data.Generics

@@ -27,7 +27,7 @@ Executable WebViews
                   unix
 
   GHC-Options: 
-  Extensions: DeriveDataTypeable DoRec FlexibleInstances
+  Extensions:
   HS-Source-Dirs:  src
   Other-Modules: WebViewLib Database Generics HtmlLib Incrementality Server Types WebViews
   -- need to mention all modules explicitly for EclipseFP's Scion

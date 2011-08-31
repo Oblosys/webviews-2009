@@ -1,4 +1,4 @@
-{-# OPTIONS -fglasgow-exts #-}
+{-# OPTIONS -XDeriveDataTypeable #-}
 module WebViews where
 
 import Data.List

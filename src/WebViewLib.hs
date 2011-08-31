@@ -1,4 +1,5 @@
 {-# LANGUAGE CPP #-}
+{-# OPTIONS -XDoRec -XDeriveDataTypeable #-}
 module WebViewLib where
 
 import Control.Monad.State

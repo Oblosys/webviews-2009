@@ -1,4 +1,4 @@
-{-# OPTIONS -fglasgow-exts #-}
+{-# OPTIONS -XExistentialQuantification -XRankNTypes -XDeriveDataTypeable #-}
 module Generics where
 
 import Types
