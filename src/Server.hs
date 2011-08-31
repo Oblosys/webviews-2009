@@ -121,18 +121,14 @@ logWebViewAccess clientIP b _ c d e f g =
 
 handlers :: ServerInstanceId -> GlobalStateRef -> [ServerPart Response]
 handlers serverSessionId globalStateRef = 
-  [ dir "favicon.ico" $
-      methodSP GET $ fileServe ["favicon.ico"] "."
-  , dir "scr" $
-      fileServe [] "scr"  
-  , dir "img" $
-      fileServe [] "img"  
-  , --debugFilter $ 
-      dir "handle" $ 
-        withData (\cmds -> methodSP GET $ session serverSessionId globalStateRef cmds)
+  [ dir "favicon.ico" $ serveDirectory DisableBrowsing [] "favicon.ico"
+  , dir "scr" $ serveDirectory DisableBrowsing [] "scr"  
+  , dir "img" $ serveDirectory DisableBrowsing [] "img"  
+  , dir "handle" $ 
+      withData (\cmds -> methodSP GET $ session serverSessionId globalStateRef cmds)
   , methodSP GET $
      do { liftIO $ putStrLn "Root requested"
-        ; fileServe ["scr/WebViews.html"] "."
+        ; serveDirectory DisableBrowsing [] "scr/WebViews.html"
         }
   ]
 {-
