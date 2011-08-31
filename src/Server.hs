@@ -2,7 +2,6 @@
 module Server where
 
 import Happstack.Server
-import Happstack.Helpers hiding (HtmlString)
 import System.IO
 import Data.List
 import Data.IORef
@@ -104,36 +103,42 @@ server =
         Just db -> modifyIORef globalStateRef $
                      \(_, sessions, sessionCounter) -> (db, sessions, sessionCounter)
         Nothing -> return ()
-    ; simpleHTTP (Conf webViewsPort Nothing) $ 
+    ; simpleHTTP nullConf { port = webViewsPort, logAccess = Nothing {-Just logWebViewAccess-} } $ 
         msum (handlers serverSessionId globalStateRef)
     }
-
 {-
 handle:
-http://<server url>/                    response: <executable dir>/WebViews.html
 http://<server url>/favicon.ico         response: <executable dir>/favicon.icome>
 http://<server url>/handle?commands=Commands ..                    
                                         response: from handleCommands
+http://<server url>/                    response: <executable dir>/WebViews.html
 -}
 
+-- todo: maybe we can use this for debugging
+logWebViewAccess :: String -> String -> t -> String -> Int -> Integer -> String -> String -> IO ()
+logWebViewAccess clientIP b _ c d e f g =
+ do { putStrLn $ show clientIP ++ " " ++ show b ++ " " ++ show c ++ " " ++ show d ++ " " ++ show e ++ " " ++ show g ++ " " ++ show g
+    }
 
 handlers :: ServerInstanceId -> GlobalStateRef -> [ServerPart Response]
 handlers serverSessionId globalStateRef = 
-  [ exactdir "/" $
-     do { liftIO $ putStrLn "Root requested"
-        ; fileServe ["scr/WebViews.html"] "."
-        }
-  , dir "favicon.ico" $
+  [ dir "favicon.ico" $
       methodSP GET $ fileServe ["favicon.ico"] "."
   , dir "scr" $
       fileServe [] "scr"  
   , dir "img" $
       fileServe [] "img"  
-  , debugFilter $ 
+  , --debugFilter $ 
       dir "handle" $ 
         withData (\cmds -> methodSP GET $ session serverSessionId globalStateRef cmds)
+  , methodSP GET $
+     do { liftIO $ putStrLn "Root requested"
+        ; fileServe ["scr/WebViews.html"] "."
+        }
   ]
-{- TODO: why does exactdir "/handle" not work?
+{-
+This stuff may not hold for HappStack 6
+ TODO: why does exactdir "/handle" not work?
    TODO: fix syntax error in command
 
 this get command works (there should not be an unescaped space between Commands and [Init]
@@ -204,7 +209,7 @@ createNewSessionState globalStateRef serverInstanceId =
  do { (database, sessions,sessionCounter) <- liftIO $ readIORef globalStateRef
     ; let sessionId = sessionCounter
     ; lputStrLn $ "New session: "++show sessionId
-    ; addCookie 3600 (mkCookie "webviews" $ show (serverInstanceId, sessionId))
+    ; addCookie Session (mkCookie "webviews" $ show (serverInstanceId, sessionId))
     -- cookie lasts for one hour
  
     ; initialRootView <- liftIO $ mkInitialRootView
