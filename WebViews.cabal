@@ -13,7 +13,7 @@ Flag piglet
   description:  Build WebViews Piglet
   default:      True        
 
-Flag test
+Flag reservations
   description:  Build WebViews test
   default:      True        
     
@@ -46,7 +46,7 @@ Executable Piglet
   else
     buildable:  False
 
-Executable Test
+Executable Reservations
   Main-is:	  Main.hs 
   -- Build-Depends needs to be in Executable for EclipseFP's Scion
   Build-Depends:  base,
@@ -64,9 +64,9 @@ Executable Test
 
   GHC-Options: 
   Extensions:
-  HS-Source-Dirs:  src src/Test
-  Other-Modules: WebViewLib, Generics, HtmlLib, Incrementality, Server, Types, Test.Database
-  if flag(test)
+  HS-Source-Dirs:  src, src/Reservations
+  Other-Modules: WebViewLib, Generics, HtmlLib, Incrementality, Server, Types
+  if flag(reservations)
     buildable:  True
 
   else
