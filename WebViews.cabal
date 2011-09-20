@@ -37,7 +37,7 @@ Executable Piglet
   GHC-Options: 
   Extensions:
   HS-Source-Dirs:  src src/Piglet
-  Other-Modules: WebViewLib, Generics, HtmlLib, Incrementality, Server, Types, Database
+  Other-Modules: WebViewLib, Generics, HtmlLib, Incrementality, Server, Types, Piglet.Database
   if flag(piglet)
     buildable:  True
 
@@ -63,7 +63,7 @@ Executable Test
   GHC-Options: 
   Extensions:
   HS-Source-Dirs:  src src/Test
-  Other-Modules: WebViewLib, Generics, HtmlLib, Incrementality, Server, Types, Database
+  Other-Modules: WebViewLib, Generics, HtmlLib, Incrementality, Server, Types, Test.Database
   if flag(test)
     buildable:  True
 
