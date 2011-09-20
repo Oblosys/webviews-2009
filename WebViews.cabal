@@ -19,7 +19,7 @@ Flag test
     
 -- Mains are in separate dirs, cannot use Main-is: Main1.hs etc., since scion demands that the module name is the file name (and ghc demands that the main module is called Main)
 Executable Piglet
-  Main-is:	  Piglet/Main.hs 
+  Main-is:	  Main.hs 
   -- Build-Depends needs to be in Executable for EclipseFP's Scion
   Build-Depends:  base,
                   syb == 0.3.3,
@@ -36,8 +36,8 @@ Executable Piglet
 
   GHC-Options: 
   Extensions:
-  HS-Source-Dirs:  src
-  Other-Modules: WebViewLib, Generics, HtmlLib, Incrementality, Server, Types, Piglet.Database
+  HS-Source-Dirs:  src src/Piglet
+  Other-Modules: WebViewLib, Generics, HtmlLib, Incrementality, Server, Types, Database
   if flag(piglet)
     buildable:  True
 
@@ -45,7 +45,7 @@ Executable Piglet
     buildable:  False
 
 Executable Test
-  Main-is:	  Test/Main.hs 
+  Main-is:	  Main.hs 
   -- Build-Depends needs to be in Executable for EclipseFP's Scion
   Build-Depends:  base,
                   syb == 0.3.3,
@@ -62,8 +62,8 @@ Executable Test
 
   GHC-Options: 
   Extensions:
-  HS-Source-Dirs:  src
-  Other-Modules: WebViewLib, Generics, HtmlLib, Incrementality, Server, Types, Test.Database
+  HS-Source-Dirs:  src src/Test
+  Other-Modules: WebViewLib, Generics, HtmlLib, Incrementality, Server, Types, Database
   if flag(test)
     buildable:  True
 
