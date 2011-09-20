@@ -1,3 +1,4 @@
+{-# OPTIONS -XScopedTypeVariables #-}
 module Incrementality where
 
 import Control.Monad.Trans
@@ -14,7 +15,6 @@ import Data.Tree
 import Debug.Trace
 
 import Types
-import Database
 import Generics
 import WebViewLib
 import HtmlLib
@@ -42,7 +42,7 @@ isMove _          = False
 
 -- TODO: no need to compute new or changed first, can be put in Update list
 --       do have to take into account addChangedViewChildren then
-diffViews :: WebView-> WebView -> ([WebNode], [Update])
+diffViews :: Data db => WebView db -> WebView db -> ([WebNode db], [Update])
 diffViews oldRootView rootView = 
   let newWebNodeMap = mkWebNodeMap rootView
       oldWebNodeMap = mkWebNodeMap oldRootView
@@ -52,7 +52,7 @@ diffViews oldRootView rootView =
     ( newOrChangedWebNodes
     , computeMoves oldRootView oldWebNodeMap newOrChangedWebNodeIds rootView)
 
-getNewOrChangedIdsWebNodes :: WebNodeMap -> WebNodeMap -> [(ViewId, WebNode)]
+getNewOrChangedIdsWebNodes :: Data db => WebNodeMap db -> WebNodeMap db -> [(ViewId, WebNode db)]
 getNewOrChangedIdsWebNodes oldWebNodeMap newWebNodeMap =
  -- trace ("newWebNodeMap: "++ show (Map.keys newWebNodeMap))$
   filter isNewOrChanged $ Map.toList newWebNodeMap
@@ -61,7 +61,7 @@ getNewOrChangedIdsWebNodes oldWebNodeMap newWebNodeMap =
            Nothing -> True
            Just oldWebNode -> oldWebNode /= webNode
           
-computeMoves :: WebView -> WebNodeMap -> [ViewId] -> WebView -> [Update]           
+computeMoves :: Data db => WebView db -> WebNodeMap db -> [ViewId] -> WebView db -> [Update]           
 computeMoves oldRootViewrootView@(WebView _ _ oldRootId _ _) 
              oldWebNodeMap changedOrNewWebNodes rootView@(WebView rootVid stubId rootId _ _) = 
   (if rootVid `elem` changedOrNewWebNodes 
@@ -70,7 +70,7 @@ computeMoves oldRootViewrootView@(WebView _ _ oldRootId _ _)
   concatMap (computeMove oldWebNodeMap changedOrNewWebNodes)
     (getBreadthFirstWebNodes rootView)
 
-showWebNodeMap :: WebNodeMap -> String
+showWebNodeMap :: WebNodeMap db -> String
 showWebNodeMap wnmap = unlines [ "<"++show k++":"++shallowShowWebNode wn++">" 
                                | (k,wn) <- Map.toList wnmap ] 
 
@@ -80,7 +80,7 @@ showWebNodeMap wnmap = unlines [ "<"++show k++":"++shallowShowWebNode wn++">"
 
 -- if we do the comparison here, also take into account moving the immediate children of a changed
 -- view
-computeMove :: WebNodeMap -> [ViewId] -> WebNode -> [Update]
+computeMove :: forall db . Data db => WebNodeMap db -> [ViewId] -> WebNode db -> [Update]
 computeMove oldWebNodeMap changedOrNewWebNodes webNode =  
   if getWebNodeViewId webNode `notElem` changedOrNewWebNodes 
   then -- parent has not changed
@@ -107,8 +107,8 @@ computeMove oldWebNodeMap changedOrNewWebNodes webNode =
                      Nothing ->
                       [ Move "a*" (mkRef $ getWebNodeId childWebNode) 
                                   (mkRef $ getWebNodeId ocn) ] -} 
-           | let childWebNodes = getTopLevelWebNodesForWebNode webNode
-                 oldChildWebnodes = getTopLevelWebNodesForWebNode oldWebNode
+           | let childWebNodes :: [WebNode db] = getTopLevelWebNodesForWebNode webNode
+                 oldChildWebnodes :: [WebNode db] = getTopLevelWebNodesForWebNode oldWebNode
            , (childWebNode,ocn) <- --trace ("\nchildren for "++(show $ getWebNodeViewId webNode) ++ 
                              --        ":" ++ show (map shallowShowWebNode childWebNodes)) $ 
                                zip childWebNodes oldChildWebnodes
@@ -127,7 +127,7 @@ computeMove oldWebNodeMap changedOrNewWebNodes webNode =
                   [ Move "c" (mkRef $ getWebNodeId childWebNode) 
                              (mkRef $ getWebNodeStubId childWebNode)
                   ]                                      
-           | let childWebNodes = getTopLevelWebNodesForWebNode webNode
+           | let childWebNodes :: [WebNode db] = getTopLevelWebNodesForWebNode webNode
            , childWebNode <- --trace ("\nchildren for "++(show $ getWebNodeViewId webNode) ++ 
                              --        ":" ++ show (map shallowShowWebNode childWebNodes)) $ 
                                childWebNodes
@@ -157,21 +157,22 @@ getWebNodeStubId (WebViewNode (WebView _ si _ _ _)) = si
 getWebNodeStubId (WidgetNode _ si _ _) = si
 
 
-getWidgetInternalId :: AnyWidget -> ViewId
+getWidgetInternalId :: AnyWidget db -> ViewId
 getWidgetInternalId  (RadioViewWidget (RadioView id _ _ _)) = id
 getWidgetInternalId  (TextWidget (Text id _ _ _)) = id
 getWidgetInternalId  (ButtonWidget (Button id _ _ _)) = id
 getWidgetInternalId  (EditActionWidget (EditAction id _)) = id
             
-getBreadthFirstWebNodes :: WebView -> [WebNode]
+getBreadthFirstWebNodes :: Data db => WebView db -> [WebNode db]
 getBreadthFirstWebNodes rootView =
   concat $ takeWhile (not . null) $ iterate (concatMap getTopLevelWebNodes) 
                                        [WebViewNode rootView]
  where getTopLevelWebNodes (WebViewNode wv) = getTopLevelWebNodesWebView wv
        getTopLevelWebNodes _ = []
        
-mkIncrementalUpdates oldViewMap rootView =
- do { let (newWebNodes, updates) = diffViews oldViewMap rootView
+mkIncrementalUpdates :: forall db . Data db => WebView db -> WebView db -> IO (Html, WebView db)
+mkIncrementalUpdates oldRootView rootView =
+ do { let (newWebNodes :: [WebNode db], updates) = diffViews oldRootView rootView
     --; putStrLn $ "\nChanged or new web nodes\n" ++ unlines (map shallowShowWebNode newWebNodes) 
     --; putStrLn $ "\nUpdates\n" ++ unlines (map show updates)
     
@@ -196,7 +197,7 @@ mkIncrementalUpdates oldViewMap rootView =
 showViewMap viewMap = unlines $ "ViewMap:" : [ show k ++ shallowShowWebView wv | (k, wv) <- Map.toList viewMap ]
 
 
-newWebNodeHtml :: WebNode -> Html
+newWebNodeHtml :: WebNode db -> Html
 newWebNodeHtml (WebViewNode (WebView _ _ (Id i) _ v)) = 
     thediv![strAttr "op" "new"] << 
       (mkSpan (show i) $ present v)
@@ -214,7 +215,7 @@ updateHtml _ = noHtml -- restoreId is not for producing html, but for adapting t
 shallowShowWebNode (WebViewNode wv) = "WebNode: " ++ shallowShowWebView wv
 shallowShowWebNode (WidgetNode _ _ _ w) = "WebNode: " ++ show w 
 
-shallowShowWebView (WebView  vid sid id _ v) =
+shallowShowWebView (WebView vid sid id _ v) =
   "<WebView: "++show vid ++ ", stub:" ++ show (unId sid) ++ ", id:" ++ show (unId id) ++ " " ++ show (typeOf v)++ ">"
 
 drawWebNodes webnode = drawTree $ treeFromView webnode

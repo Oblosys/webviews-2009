@@ -1,8 +1,7 @@
-{-# OPTIONS -XExistentialQuantification -XFlexibleContexts -XTypeSynonymInstances -XFlexibleInstances -XDeriveDataTypeable #-}
+{-# OPTIONS -XExistentialQuantification -XFlexibleContexts -XTypeSynonymInstances -XFlexibleInstances -XDeriveDataTypeable -XMultiParamTypeClasses #-}
 module Types where
 
 import Data.Generics
-import Database
 
 import Text.Html
 import Text.Show.Functions
@@ -61,10 +60,10 @@ instance Eq (Widget w) where
 
 data TextType = TextField | PasswordField | TextArea deriving (Eq, Show, Typeable, Data)
 
-data Text = Text { getStrViewId' :: ViewId, getTextType :: TextType, getStrVal' :: String 
-                 , getSubmitAction :: Maybe EditCommand } deriving (Show, Typeable, Data)
+data Text db = Text { getStrViewId' :: ViewId, getTextType :: TextType, getStrVal' :: String 
+                   , getSubmitAction :: Maybe (EditCommand db) } deriving (Show, Typeable, Data)
 
-instance Eq Text where
+instance Eq (Text db) where
   Text _ t1 str1 _ == Text _ t2 str2 _ = t1 == t2 && str1 == str2
   
 getStrViewId (Widget _ _ (Text vi h v _)) = vi
@@ -98,49 +97,49 @@ getSelection (Widget _ _ (RadioView i is v _)) = v
 
 radioView viewId its i enabled = Widget noId noId $ RadioView viewId its i enabled
 
-data Button = Button { getButtonViewId' :: ViewId, buttonText :: String, getButtonEnabled :: Bool
-                     , getCommand' :: EditCommand 
-                     } deriving (Show, Typeable, Data)
+data Button db = Button { getButtonViewId' :: ViewId, buttonText :: String, getButtonEnabled :: Bool
+                        , getCommand' :: EditCommand db 
+                        } deriving (Show, Typeable, Data)
 
-instance Eq Button where
+instance Eq (Button db) where
   Button _ txt1 enabled1 _ == Button _ txt2 enabled2 _ = txt1 == txt2 && enabled1 == enabled2
 
 button viewId txt enabled cmd = Widget noId noId $ Button viewId txt enabled cmd
 
 
-data EditAction = EditAction { getActionViewId :: ViewId, getCommand :: EditCommand 
+data EditAction db = EditAction { getActionViewId :: ViewId, getCommand :: EditCommand db 
                              } deriving (Show, Typeable, Data)
 
-instance Eq EditAction where
+instance Eq (EditAction db) where
   EditAction _ _ == EditAction _ _ = True
   
 
-data EditCommand = Edit (EditM ())
+data EditCommand db = Edit (EditM db ())
                  | AlertEdit String 
-                 | ConfirmEdit String EditCommand
+                 | ConfirmEdit String (EditCommand db)
                  | AuthenticateEdit ViewIdRef ViewIdRef
                  | LogoutEdit
                  deriving (Show, Typeable, Data)
                  
-instance Eq EditCommand where -- only changing the edit command does not
+instance Eq (EditCommand db) where -- only changing the edit command does not
   c1 == c2 = True
 
 class HasViewId v where
   getViewId :: v -> ViewId
 
-instance HasViewId WebView where
+instance HasViewId (WebView db) where
   getViewId (WebView viewId _ _ _ _) = viewId 
   
-instance HasViewId Text where
+instance HasViewId (Text db) where
   getViewId = getStrViewId'
 
 instance HasViewId RadioView where
   getViewId = getRadioViewViewId'
 
-instance HasViewId Button where
+instance HasViewId (Button db) where
   getViewId = getButtonViewId'
 
-instance HasViewId EditAction where
+instance HasViewId (EditAction db) where
   getViewId = getActionViewId
 
 --instance Show (a->a) where
@@ -173,21 +172,21 @@ class Presentable v => Viewable v where
   save :: v -> (Database -> Database)
 -}
 
-class Storeable v where
-  save :: v -> Database -> Database
+class Storeable db v where
+  save :: v -> db -> db
 
-instance Storeable () where
+instance Storeable db () where
   save () = id
 
 type User = Maybe (String, String)
 
-type WebNodeMap = Map.Map ViewId WebNode
+type WebNodeMap db = Map.Map ViewId (WebNode db)
 
-data WebNode = WebViewNode WebView
-             | WidgetNode  ViewId Id Id AnyWidget
-               deriving (Show, Typeable, Data)
+data WebNode db = WebViewNode (WebView db)
+                | WidgetNode  ViewId Id Id (AnyWidget db)
+                  deriving (Show, Typeable, Data)
 
-instance Eq WebNode where
+instance Eq (WebNode db) where
   (WidgetNode _ _ _ w1) == (WidgetNode _ _ _ w2) = w1 == w2
 -- WebViews are always equal for diff, so descend into them to do a real eq.
   (WebViewNode (WebView _ _ _ _ wv1)) == (WebViewNode (WebView _ _ _ _ wv2)) = 
@@ -196,19 +195,19 @@ instance Eq WebNode where
       Just wv1' -> wv1' == wv2
   _ == _ = False             
 
-data AnyWidget = RadioViewWidget !RadioView 
-               | TextWidget !Text 
-               | ButtonWidget !Button  
-               | EditActionWidget !EditAction
-                 deriving (Eq, Show, Typeable, Data)
+data AnyWidget db = RadioViewWidget !RadioView 
+                  | TextWidget !(Text db)
+                  | ButtonWidget !(Button db) 
+                  | EditActionWidget !(EditAction db)
+                    deriving (Eq, Show, Typeable, Data)
                           
-type ViewMap = Map.Map ViewId WebView
+type ViewMap db = Map.Map ViewId (WebView db)
 
 -- no class viewable, because mkView has parameters
-data WebView = forall view . ( Data (StateT WebViewState IO view) 
-                             , Initial view, Presentable view, Storeable view
-                             , Show view, Eq view, Data view) => 
-                             WebView !ViewId !Id !Id (ViewId -> view -> WebViewM view) !view
+data WebView db = forall view . ( Data (StateT (WebViewState db) IO view) 
+                                , Initial view, Presentable view, Storeable db view
+                                , Show view, Eq view, Data view) => 
+                                WebView !ViewId !Id !Id (ViewId -> view -> WebViewM db view) !view
                              
                deriving Typeable
 -- (viewId -> view -> WebViewM view) is the load view function. the parameters are the id and the old view (or initial)
@@ -221,7 +220,7 @@ data WebView = forall view . ( Data (StateT WebViewState IO view)
 
 -- gunfold seems impossible! (maybe we don't need it)
 -- recipe from this instance is from Data.Generics documentation
-instance Data WebView where
+instance (Data db, Typeable db) => Data (WebView db) where
   gfoldl k z (WebView vi si i f v) = z WebView `k` vi `k` si `k` i `k` f `k` v
      
   gunfold k z c = error "gunfold not defined for WebView"
@@ -243,7 +242,7 @@ instance (Data state, Typeable state, Typeable x) =>Data (StateT state IO x) whe
 ty_StateT = mkDataType "Control.Monad.StateT" [con_StateT]
 con_StateT = mkConstr ty_StateT "StateT" [] Prefix
 
-instance Show WebView where
+instance Show (WebView db) where
   show (WebView (ViewId i) _ _ _ v) = "<" ++ show i ++ ":" ++ show v ++ ">"
 
 {- this one is not possible
@@ -259,7 +258,7 @@ instance Presentable () where
 
 
 
-instance Eq WebView where
+instance Eq (WebView db) where
   _ == _ = True
 
 -- webviews are always equal, so equality on views is not based on its sub views
@@ -286,37 +285,37 @@ instance Initial Int where
 instance Initial w => Initial (Widget w) where
   initial = Widget noId noId initial
   
-instance Initial Text where
+instance Initial (Text db) where
   initial = Text noViewId TextField "" Nothing
 
 instance Initial RadioView where
   initial = RadioView noViewId [] 0 False
 
-instance Initial Button where
+instance Initial (Button db) where
   initial = Button noViewId "<button>" False (Edit $ return ())
 
-instance Initial EditAction where
+instance Initial (EditAction db) where
   initial = EditAction noViewId (Edit $ return ())  
 
-instance Initial WebView where
+instance Data db => Initial (WebView db) where
   initial = WebView (ViewId []) noId noId (\_ _ -> return ()) ()
 
 
-data WebViewState = 
-  WebViewState { getStateUser :: User, getStateDb :: Database, getStateViewMap :: ViewMap 
+data WebViewState db = 
+  WebViewState { getStateUser :: User, getStateDb :: db, getStateViewMap :: (ViewMap db) 
                , getStatePath :: [Int], getStateViewIdCounter :: Int 
                } deriving (Typeable, Data)
 
-type WebViewM a = StateT WebViewState IO a
+type WebViewM db a = StateT (WebViewState db) IO a
 
 
 type SessionId = Int
 
-type SessionState = (SessionId, User, Database, WebView, Maybe EditCommand) 
+type SessionState db = (SessionId, User, db, WebView db, Maybe (EditCommand db)) 
 
-type EditM = StateT SessionState IO 
+type EditM db = StateT (SessionState db) IO 
 -- TODO: maybe call this one SessionM or something like that?
 --       it seems like we could use it in most of the functions in Server as well.
 
-instance Show (EditM a) where
+instance Show (EditM db a) where
   show _ = "{EditM _}"

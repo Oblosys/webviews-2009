@@ -1,5 +1,5 @@
-{-# OPTIONS -XDeriveDataTypeable -XPatternGuards #-}
-module WebViews where
+{-# OPTIONS -XDeriveDataTypeable -XPatternGuards -XMultiParamTypeClasses #-}
+module Main where
 
 import Data.List
 import Text.Html hiding (image)
@@ -13,13 +13,18 @@ import qualified Data.IntMap as IntMap
 import Debug.Trace
 import System.Time
 import Types
-import Database
+import Piglet.Database
 import Generics
 import WebViewLib
 import HtmlLib
 import Control.Monad.State
 
-mkRootView :: User -> Database -> Int -> ViewMap -> IO WebView
+import Server
+
+main :: IO ()
+main = server mkRootView theDatabase users
+
+mkRootView :: User -> Database -> Int -> ViewMap Database -> IO (WebView Database)
 mkRootView user db sessionId viewMap =
   fmap assignIds $ runWebView user db viewMap [] 0 $ mkVisitsView sessionId
   -- TODO: id's here?
@@ -29,8 +34,8 @@ mkRootView user db sessionId viewMap =
 
 data VisitsView = 
   VisitsView Bool Int Int User [(String,String)] 
-                 WebView [EditAction] (Widget Button) (Widget Button) (Widget Button) (Widget Button) 
-                 WebView [CommentId] [WebView] (Maybe (Widget Button))
+                 (WebView Database) [EditAction Database] (Widget (Button Database)) (Widget (Button Database)) (Widget (Button Database)) (Widget (Button Database)) 
+                 (WebView Database) [CommentId] [WebView Database] (Maybe (Widget (Button Database)))
     deriving (Eq, Show, Typeable, Data)
   
 instance Initial VisitsView where                 
@@ -152,7 +157,7 @@ instance Presentable VisitsView where
                   Nothing -> stringToHtml "Please log in to add a comment"
                   Just b  -> present b)
       
-instance Storeable VisitsView where
+instance Storeable Database VisitsView where
   save _ = id
      
 
@@ -161,8 +166,8 @@ instance Storeable VisitsView where
 -- Visit -----------------------------------------------------------------------  
 
 data VisitView = 
-  VisitView VisitId (Widget Text) (Widget Text) Int (Widget Button) 
-           (Widget Button) (Widget Button) [PigId] [String] [WebView]
+  VisitView VisitId (Widget (Text Database)) (Widget (Text Database)) Int (Widget (Button Database)) 
+           (Widget (Button Database)) (Widget (Button Database)) [PigId] [String] [WebView Database]
     deriving (Eq, Show, Typeable, Data)
 
 modifyViewedPig f (VisitView vid zipCode date viewedPig b1 b2 b3 pigs pignames mSubview) =
@@ -207,7 +212,7 @@ instance Presentable VisitView where
            +++ present b1 +++ present b2) +++
     withPad 15 0 0 0 (hList' $ map present subviews) +++ present b3
 
-instance Storeable VisitView where
+instance Storeable Database VisitView where
   save (VisitView vid zipCode date _ _ _ _ pigs pignames _) =
     updateVisit vid (\(Visit _ _ _ pigIds) ->
                       Visit vid (getStrVal zipCode) (getStrVal date) pigIds)
@@ -218,7 +223,7 @@ instance Initial VisitView where
 
 -- Pig -------------------------------------------------------------------------  
 
-data PigView = PigView PigId EditAction String (Widget Button) Int Int (Widget Text) (Widget Text) [Widget RadioView] (Either Int String) 
+data PigView = PigView PigId (EditAction Database) String (Widget (Button Database)) Int Int (Widget (Text Database)) (Widget (Text Database)) [Widget RadioView] (Either Int String) 
                deriving (Eq, Show, Typeable, Data)
 
 mkPigView parentViewId pignr pigId@(PigId pigInt) viewedPig = mkWebView $ 
@@ -262,7 +267,7 @@ instance Presentable PigView where
         present as +++ br +++
         "Note: " +++ present viewStateT
     
-instance Storeable PigView where
+instance Storeable Database PigView where
   save (PigView pid _ _ _ _ _ _ name symptoms diagnosis) =
     updatePig pid (\(Pig _ vid _ _ diagnosis) -> 
                     (Pig pid vid (getStrVal name) (map getSelection symptoms) diagnosis)) 
@@ -272,7 +277,7 @@ instance Initial PigView where
 
 
 data CommentView = CommentView CommentId Bool String String String
-                               (Maybe (WebView)) (Maybe (WebView)) (Maybe (Widget Text))
+                               (Maybe (WebView Database)) (Maybe (WebView Database)) (Maybe (Widget (Text Database)))
                    deriving (Eq, Show, Typeable, Data)
 
 instance Initial CommentView where
@@ -311,7 +316,7 @@ mkCommentView commentId new = mkWebView $ \vid (CommentView _ edited' _ _ _ _ _ 
  where userIsAuthorized authorLogin (Just (login, _)) = login == authorLogin || login == "martijn" 
        userIsAuthorized _           Nothing           = False
 
-instance Storeable CommentView where
+instance Storeable Database CommentView where
   save (CommentView cid edited _ date text _ _ mTextArea) =
     updateComment cid (\(Comment _ author _ _) -> 
                              let text' | edited, Just textArea <- mTextArea = getStrVal textArea       

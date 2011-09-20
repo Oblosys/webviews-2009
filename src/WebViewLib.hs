@@ -1,5 +1,5 @@
 {-# LANGUAGE CPP #-}
-{-# OPTIONS -XDoRec -XDeriveDataTypeable #-}
+{-# OPTIONS -XDoRec -XDeriveDataTypeable -XFlexibleInstances -XMultiParamTypeClasses -XScopedTypeVariables #-}
 module WebViewLib where
 
 import Control.Monad.State
@@ -16,7 +16,6 @@ import qualified Data.IntMap as IntMap
 import Data.Tree
 import Debug.Trace
 import Types
-import Database
 import Generics
 import HtmlLib
 import Control.Monad.Fix
@@ -63,9 +62,9 @@ cleanup
 
 -- When loading from different point than root, make sure Id's are not messed up
 
-instance Storeable WebView where
+instance Data db => Storeable db (WebView db) where
   save (WebView _ _ _ _ v) =
-    let topLevelWebViews = getTopLevelWebViews v
+    let topLevelWebViews :: [WebView db] = getTopLevelWebViews v
     in  foldl (.) id $ save v : map save topLevelWebViews
 
 
@@ -83,24 +82,25 @@ withDb f = do { (WebViewState _ db _ _ _) <- get
               }
 
 
-getUser :: WebViewM User 
+getUser :: WebViewM db User 
 getUser = do { (WebViewState u _ _ _ _) <- get
              ; return u
              }
 
 
-liftS :: ([Int] -> Int -> (x,Int)) -> WebViewM x
+liftS :: ([Int] -> Int -> (x,Int)) -> WebViewM db x
 liftS f = StateT (\(WebViewState user db viewMap path i) -> 
                    (return $ let (x, i')= f path i in (x, WebViewState user db viewMap path i')))
 
 
 
 
-mkButton :: String -> Bool -> EditCommand -> WebViewM (Widget Button)
+mkButton :: String -> Bool -> EditCommand db -> WebViewM db (Widget (Button db))
 mkButton str en ac = liftS $  \path vidC -> (button (ViewId $ path ++ [vidC]) str en ac, vidC + 1)
 
 -- no need to be in monad
-mkEditAction ac = liftS $ \path vidC -> (EditAction (ViewId $ path ++ [vidC]) ac, vidC +1)
+mkEditAction :: EditCommand db -> WebViewM db (EditAction db) 
+mkEditAction ec = liftS $ \path vidC -> (EditAction (ViewId $ path ++ [vidC]) ec, vidC +1)
 
 mkRadioView is s en = liftS $ \path vidC -> (radioView (ViewId $ path ++ [vidC]) is s en, vidC +1)
 
@@ -165,13 +165,13 @@ mkTestView v = mkView $
 --- Edit Monad
 
 
-docEdit :: (Database -> Database) -> EditM ()
+docEdit :: (db -> db) -> EditM db ()
 docEdit docUpdate =
  do { (sessionId, user, db, rootView, pendingEdit) <- get
     ; put (sessionId, user, docUpdate db, rootView, pendingEdit)
     }
 
-viewEdit :: Data v => ViewId -> (v -> v) -> EditM ()
+viewEdit :: (Typeable db, Data db, Data v) => ViewId -> (v -> v) -> EditM db ()
 viewEdit vid viewUpdate =
   do{ (sessionId, user, db, rootView, pendingEdit) <- get
     ; let webViewUpdate = \(WebView vi si i lv v) ->
@@ -195,7 +195,7 @@ applyIfCorrectType f x = case cast f of
 -- the view matching on load can be done explicitly, following structure and checking ids, or
 -- maybe automatically, based on id. Maybe extra state can be in a separate data structure even,
 -- like in Proxima
-loadView :: WebView -> WebViewM WebView
+loadView :: WebView db -> WebViewM db (WebView db)
 loadView (WebView _ si i mkView oldView') =
  do { state@(WebViewState user db viewMap path viewIdCounter) <- get
     ; let newViewId = ViewId $ path ++ [viewIdCounter]                             
@@ -208,9 +208,9 @@ loadView (WebView _ si i mkView oldView') =
     ; modify $ \s -> s { getStatePath = path, getStateViewIdCounter = viewIdCounter + 1} -- restore old path
     ; return $ WebView newViewId si i mkView view    
     }
-mkWebView :: (Presentable v, Storeable v, Initial v, Show v, Eq v, Data v) =>
-             (ViewId -> v -> WebViewM v) ->
-             WebViewM WebView
+mkWebView :: Data db => (Presentable v, Storeable db v, Initial v, Show v, Eq v, Data v) =>
+             (ViewId -> v -> WebViewM db v) ->
+             WebViewM db (WebView db)
 mkWebView mkView  =
  do { let initialWebView = WebView noViewId noId noId mkView initial
     ; webView <- loadView initialWebView
@@ -253,7 +253,7 @@ Now the unique id's only have to be unique with regard to other elts in the list
 
 Note that the zeros after the uniques are added due to the way mkWebview and load Webview work.
 -}
-uniqueIds :: [(Int, WebViewM WebView)] -> WebViewM [WebView]
+uniqueIds :: [(Int, WebViewM db (WebView db))] -> WebViewM db [WebView db]
 uniqueIds idsMkWvs =
  do { state@(WebViewState user db viewMap path viewIdCounter) <- get
     ; put $ state { getStatePath = path++[viewIdCounter], getStateViewIdCounter = 0 } 
@@ -282,7 +282,7 @@ the update
 -- textfields are in forms, that causes registering text field updates on pressing enter
 -- (or Done) on the iPhone.
 
-presentTextField :: Text -> Html
+presentTextField :: Text db -> Html
 presentTextField (Text viewId TextArea str _) = 
    form![ thestyle "display: inline; width: 500px;"
         , strAttr "onSubmit" $ "textFieldChanged('"++show viewId++"'); return false"] $
@@ -308,7 +308,7 @@ presentTextField (Text viewId textType str mEditAction) =
                     , strAttr "onBlur" $ "textFieldChanged('"++show viewId++"')" ]
 
 -- seems like this one could be in Present
-presentButton :: Button -> Html
+presentButton :: Button db -> Html
 presentButton (Button viewId txt enabled _) = 
    primHtml $ "<button id=\""++ show viewId++"\" "++ (if enabled then "" else "disabled ") ++
                             "onclick=\"queueCommand('ButtonC ("++show viewId++")')\" "++
@@ -340,7 +340,7 @@ presentRadioBox (RadioView viewId items selectedIx enabled) = thespan <<
   | (i, item) <- zip [0..] items 
   , let eltId = "radio"++show viewId++"button"++show i ] -- these must be unique for setting focus
 
-instance Presentable WebView where
+instance Presentable (WebView db) where
   present (WebView _ (Id stubId) _ _ _) = mkSpan (show stubId) << "ViewStub"
   
 instance Presentable (Widget x) where
@@ -348,7 +348,7 @@ instance Presentable (Widget x) where
 
 
 -- todo button text and radio text needs to go into view
-instance Presentable AnyWidget where                          
+instance Presentable (AnyWidget db) where                          
   present (RadioViewWidget rv) = presentRadioBox rv 
   present (TextWidget es) = presentTextField es 
   present (ButtonWidget b) = presentButton b 
@@ -358,11 +358,12 @@ instance Presentable AnyWidget where
 
 -- Login -----------------------------------------------------------------------  
 
-data LoginView = LoginView (Widget Text) (Widget Text) (Widget Button) 
+data LoginView db = LoginView (Widget (Text db)) (Widget (Text db)) (Widget (Button db)) 
   deriving (Eq, Show, Typeable, Data)
 
-instance Initial LoginView where initial = LoginView initial initial initial
+instance Initial (LoginView db) where initial = LoginView initial initial initial
 
+mkLoginView :: Data db => WebViewM db (WebView db)
 mkLoginView = mkWebView $
   \vid (LoginView name password b) ->
 #if __GLASGOW_HASKELL__ >= 612
@@ -380,9 +381,9 @@ mkLoginView = mkWebView $
        ; return $ LoginView nameT passwordT loginB
        }
 
-instance Storeable LoginView where save _ = id
+instance Storeable db (LoginView db) where save _ = id
                                    
-instance Presentable LoginView where
+instance Presentable (LoginView db) where
   present (LoginView name password loginbutton) = 
     boxed $ simpleTable [] [] [ [ stringToHtml "Login:", present name]
                               , [ stringToHtml "Password:", present password]
@@ -393,19 +394,20 @@ instance Presentable LoginView where
 
 -- Logout ----------------------------------------------------------------------  
 
-data LogoutView = LogoutView (Widget Button) deriving (Eq, Show, Typeable, Data)
+data LogoutView db = LogoutView (Widget (Button db)) deriving (Eq, Show, Typeable, Data)
 
-instance Initial LogoutView where initial = LogoutView initial
+instance Initial (LogoutView db) where initial = LogoutView initial
 
+mkLogoutView :: Data db => WebViewM db (WebView db)
 mkLogoutView = mkWebView $
   \vid _ -> 
    do { (Just (l,_)) <- getUser
       ; logoutB <- mkButton ("Logout " ++  l) True LogoutEdit
       ; return $ LogoutView logoutB
       }
-instance Storeable LogoutView where save _ = id
+instance Storeable db (LogoutView db) where save _ = id
                                    
-instance Presentable LogoutView where
+instance Presentable (LogoutView db) where
   present (LogoutView logoutbutton) = 
     present logoutbutton
             
@@ -415,9 +417,9 @@ instance Presentable LogoutView where
 
 -- This is a separate view for editActions. Putting edit actions inside a view that is changed
 -- may cause press events to get lost. This indirection solves the problem.
-data LinkView = LinkView String EditAction deriving (Eq, Show, Typeable, Data)
+data LinkView db = LinkView String (EditAction db) deriving (Eq, Show, Typeable, Data)
 
-instance Initial LinkView where initial = LinkView initial initial
+instance Initial (LinkView db) where initial = LinkView initial initial
 
 mkLinkView linkText action = mkWebView $
   \vid _ ->
@@ -425,27 +427,28 @@ mkLinkView linkText action = mkWebView $
       ; return $ LinkView linkText editAction
       }
    
-instance Storeable LinkView where save _ = id
+instance Storeable db (LinkView db) where save _ = id
 
-instance Presentable LinkView where
+instance Presentable (LinkView db) where
   present (LinkView linkText editAction) = withEditAction editAction $ stringToHtml linkText
 
 
 
 -- TabbedView ---------------------------------------------------------------------  
   
-data TabbedView = TabbedView Int [WebView] [WebView] deriving (Eq, Show, Typeable, Data)
+data TabbedView db = TabbedView Int [WebView db] [WebView db] deriving (Eq, Show, Typeable, Data)
 
-instance Initial TabbedView where
+instance Initial (TabbedView db) where
   initial = TabbedView 0 initial initial
 
+mkTabbedView :: forall db . Data db => [(String, Maybe (EditM db ()), WebView db)] -> WebViewM db (WebView db)
 mkTabbedView labelsEditActionsTabViews = mkWebView $
  \vid (TabbedView selectedTab _ _) ->
   do { let (labels, mEditActions,tabViews) = unzip3 labelsEditActionsTabViews
            
      ; selectionViews <- sequence [ mkLinkView label $ Edit $ 
                                      do { viewEdit vid $
-                                            \(TabbedView _ sas twvs) -> TabbedView i sas twvs
+                                            \((TabbedView _ sas twvs) :: TabbedView db) -> TabbedView i sas twvs
                                         ; case mEditAction of
                                             Nothing -> return ()
                                             Just ea -> ea
@@ -455,10 +458,10 @@ mkTabbedView labelsEditActionsTabViews = mkWebView $
      ; return $ TabbedView selectedTab selectionViews tabViews
      }
   
-instance Storeable TabbedView where
+instance Data db => Storeable db (TabbedView db) where
   save (TabbedView _ _ tabViews) = foldl (.) id $ map save tabViews
 
-instance Presentable TabbedView where
+instance Presentable (TabbedView db) where
   present (TabbedView selectedTab selectionViews tabViews) = 
     hList [ thespan![ theclass "tab"
                     , thestyle ("background-color: "++color)

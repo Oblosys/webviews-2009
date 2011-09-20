@@ -1,5 +1,5 @@
 {-# OPTIONS -XDeriveDataTypeable #-}
-module Database where
+module Piglet.Database where
 
 import Data.Generics
 import Data.Map (Map)

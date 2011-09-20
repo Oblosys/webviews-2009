@@ -8,10 +8,18 @@ Maintainer:       martijn@oblomov.com
 Stability:        experimental
 Build-Type:       Simple
 Cabal-Version:  >= 1.2
-                 
-Executable WebViews
-  Main-is:	      Main.hs
+     
+Flag piglet
+  description:  Build WebViews Piglet
+  default:      True        
 
+Flag test
+  description:  Build WebViews test
+  default:      True        
+    
+-- Mains are in separate dirs, cannot use Main-is: Main1.hs etc., since scion demands that the module name is the file name (and ghc demands that the main module is called Main)
+Executable Piglet
+  Main-is:	  Piglet/Main.hs 
   -- Build-Depends needs to be in Executable for EclipseFP's Scion
   Build-Depends:  base,
                   syb == 0.3.3,
@@ -29,5 +37,35 @@ Executable WebViews
   GHC-Options: 
   Extensions:
   HS-Source-Dirs:  src
-  Other-Modules: WebViewLib Database Generics HtmlLib Incrementality Server Types WebViews
-  -- need to mention all modules explicitly for EclipseFP's Scion
+  Other-Modules: WebViewLib, Generics, HtmlLib, Incrementality, Server, Types, Piglet.Database
+  if flag(piglet)
+    buildable:  True
+
+  else
+    buildable:  False
+
+Executable Test
+  Main-is:	  Test/Main.hs 
+  -- Build-Depends needs to be in Executable for EclipseFP's Scion
+  Build-Depends:  base,
+                  syb == 0.3.3,
+                  network,
+                  mtl,
+                  base64-string,
+                  containers,
+                  bytestring,
+                  html,
+                  happstack-server,
+                  happstack-state,
+                  old-time,
+                  unix
+
+  GHC-Options: 
+  Extensions:
+  HS-Source-Dirs:  src
+  Other-Modules: WebViewLib, Generics, HtmlLib, Incrementality, Server, Types, Test.Database
+  if flag(test)
+    buildable:  True
+
+  else
+    buildable:  False

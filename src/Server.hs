@@ -9,6 +9,7 @@ import Control.Monad
 import Control.Monad.Trans
 import Control.Monad.Reader
 import Control.Monad.State
+import Data.Generics
 import Data.Map (Map)
 import qualified Data.Map as Map 
 import Data.IntMap (IntMap)
@@ -23,8 +24,6 @@ import qualified Codec.Binary.Base64.String as Base64
 
 import Types
 import Generics
-import Database
-import WebViews
 import WebViewLib
 import Incrementality
 import HtmlLib
@@ -33,6 +32,19 @@ webViewsPort = 8090
 
 
 {-
+TODO: why are there so many theDatabase refs? when is this thing initialized and when is it read from disk?
+see if passing down mkRootView, theDatabase and users can be improved (maybe in state?)
+             
+
+maybe use type class?
+
+check dummy args (witnesses?) in Generics for replace and getTextByViewIdRef
+
+Check lenses
+Check relation to google toolkit. Maybe we can use stuff from it?
+
+
+
 Happstack notes
 Server error: Prelude.last: empty list
 is the error you get when fileServe cannot find a file
@@ -56,37 +68,39 @@ TODO: make confirmDialog more robust
 
 
 -}
-type GlobalState = (Database, Sessions, SessionCounter)
+type GlobalState db = (db, Sessions db, SessionCounter)
 
-initGlobalState = (theDatabase, IntMap.empty, 0)
+initGlobalState theDatabase = (theDatabase, IntMap.empty, 0)
 
-type GlobalStateRef = IORef GlobalState
+type GlobalStateRef db = IORef (GlobalState db)
 
 type ServerInstanceId = EpochTime
 
 type SessionCounter = Int
 
-type Sessions = IntMap (User, WebView, Maybe EditCommand) 
+type Sessions db = IntMap (User, WebView db, Maybe (EditCommand db))
 
-type SessionStateRef = IORef SessionState
+type SessionStateRef db = IORef (SessionState db)
 
-getRootView :: SessionStateRef -> IO WebView
+getRootView :: SessionStateRef db -> IO (WebView db)
 getRootView sessionStateRef =
  do { (_, _, _, rootView, _) <- readIORef sessionStateRef
     ; return rootView
     }
  
-setRootView :: SessionStateRef -> WebView -> IO ()
+setRootView :: SessionStateRef db -> WebView db -> IO ()
 setRootView sessionStateRef rootView =
  do { (sessionId, user, db, _, pendingEdit) <- readIORef sessionStateRef
     ; writeIORef sessionStateRef (sessionId, user, db, rootView, pendingEdit)
     }
  
-server =
- do { time <- getClockTime
+server :: (Data db, Typeable db, Show db, Read db, Eq db) => (User -> db -> Int -> ViewMap db -> IO (WebView db)) -> db -> Map String (String, String) -> IO ()
+server mkRootView theDatabase users =
+ do { hSetBuffering stdout NoBuffering -- necessary to run server in Eclipse
+    ; time <- getClockTime
     ; putStrLn $ "\n\n### Started WebViews server (port "++show webViewsPort++"): "++show time ++"\n"
     ; serverSessionId <- epochTime
-    ; globalStateRef <- newIORef initGlobalState
+    ; globalStateRef <- newIORef $ initGlobalState theDatabase
     
     ; dbStr <-
        do { fh <- openFile "Database.txt" ReadMode
@@ -105,8 +119,8 @@ server =
         Just db -> modifyIORef globalStateRef $
                      \(_, sessions, sessionCounter) -> (db, sessions, sessionCounter)
         Nothing -> return ()
-    ; simpleHTTP nullConf { port = webViewsPort, logAccess = Nothing {-Just logWebViewAccess-} } $ 
-        msum (handlers serverSessionId globalStateRef)
+    ; simpleHTTP nullConf { port = webViewsPort, logAccess = Just logWebViewAccess } $ 
+        msum (handlers mkRootView theDatabase users serverSessionId globalStateRef)
     }
 {-
 handle:
@@ -122,13 +136,13 @@ logWebViewAccess clientIP b _ c d e f g =
  do { putStrLn $ show clientIP ++ " " ++ show b ++ " " ++ show c ++ " " ++ show d ++ " " ++ show e ++ " " ++ show g ++ " " ++ show g
     }
 
-handlers :: ServerInstanceId -> GlobalStateRef -> [ServerPart Response]
-handlers serverSessionId globalStateRef = 
+handlers :: (Data db, Show db, Eq db) => (User -> db -> Int -> ViewMap db -> IO (WebView db)) -> db -> Map String (String, String) -> ServerInstanceId -> GlobalStateRef db -> [ServerPart Response]
+handlers mkRootView theDatabase users serverSessionId globalStateRef = 
   [ dir "favicon.ico" $ serveDirectory DisableBrowsing [] "favicon.ico"
   , dir "scr" $ serveDirectory DisableBrowsing [] "scr"  
   , dir "img" $ serveDirectory DisableBrowsing [] "img"  
   , dir "handle" $ 
-      withData (\cmds -> methodSP GET $ session serverSessionId globalStateRef cmds)
+      withData (\cmds -> methodSP GET $ session mkRootView theDatabase users serverSessionId globalStateRef cmds)
   , methodSP GET $
      do { liftIO $ putStrLn "Root requested"
         ; serveDirectory DisableBrowsing [] "scr/WebViews.html"
@@ -158,20 +172,20 @@ Set-Cookie: webviews="(1242497513,2)";Max-Age=3600;Path=/;Version="1"
 
 type SessionCookie = (String, String)
 
-session :: ServerInstanceId -> GlobalStateRef -> Commands -> ServerPart Response
-session serverInstanceId globalStateRef cmds =
+session :: (Data db, Show db, Eq db) => (User -> db -> Int -> ViewMap db -> IO (WebView db)) -> db -> Map String (String, String) -> ServerInstanceId -> GlobalStateRef db -> Commands -> ServerPart Response
+session mkRootView theDatabase users serverInstanceId globalStateRef cmds =
  do { mCookieSessionId <- parseCookieSessionId serverInstanceId
       
 --        ; lputStrLn $ show rq
         ; sessionId <- case mCookieSessionId of 
-            Nothing  -> createNewSessionState globalStateRef serverInstanceId
+            Nothing  -> createNewSessionState theDatabase globalStateRef serverInstanceId
             Just key -> do { lputStrLn $ "Existing session "++show key
                            ; return key
                            }
              
         ; sessionStateRef <- retrieveSessionState globalStateRef sessionId 
                                   
-        ; responseHtml <- sessionHandler sessionStateRef cmds              
+        ; responseHtml <- sessionHandler mkRootView theDatabase users sessionStateRef cmds              
         
         ; storeSessionState globalStateRef sessionId sessionStateRef
         
@@ -194,23 +208,23 @@ parseCookieSessionId serverInstanceId =
     ; return mCookieSessionId
     }
 
-mkInitialRootView :: IO WebView
-mkInitialRootView = runWebView Nothing theDatabase Map.empty [] 0 $ mkWebView (\_ _ -> return ()) 
+mkInitialRootView :: (Data db, Typeable db) => db -> IO (WebView db)
+mkInitialRootView theDatabase = runWebView Nothing theDatabase Map.empty [] 0 $ mkWebView (\_ _ -> return ()) 
 
 -- this creates a WebView with stubid 0 and id 1
 -- for now, we count on that in the client
 -- TODO: change this to something more robust
 -- todo: use different id
 
-createNewSessionState :: GlobalStateRef -> ServerInstanceId -> ServerPart SessionId
-createNewSessionState globalStateRef serverInstanceId = 
+createNewSessionState :: Data db => db -> GlobalStateRef db -> ServerInstanceId -> ServerPart SessionId
+createNewSessionState theDatabase globalStateRef serverInstanceId = 
  do { (database, sessions,sessionCounter) <- liftIO $ readIORef globalStateRef
     ; let sessionId = sessionCounter
     ; lputStrLn $ "New session: "++show sessionId
     ; addCookie Session (mkCookie "webviews" $ show (serverInstanceId, sessionId))
     -- cookie lasts for one hour
  
-    ; initialRootView <- liftIO $ mkInitialRootView
+    ; initialRootView <- liftIO $ mkInitialRootView theDatabase
                          
     ; let newSession = (Nothing, initialRootView, Nothing)
     ; let sessions' = IntMap.insert sessionId newSession sessions
@@ -220,7 +234,7 @@ createNewSessionState globalStateRef serverInstanceId =
     ; return sessionId
     }
  
-retrieveSessionState :: GlobalStateRef -> SessionId -> ServerPart SessionStateRef
+retrieveSessionState :: GlobalStateRef db -> SessionId -> ServerPart (SessionStateRef db)
 retrieveSessionState globalStateRef sessionId =
  do { (database, sessions, sessionCounter) <- liftIO $ readIORef globalStateRef
     ; lputStrLn $ "\n\nNumber of active sessions: " ++ show sessionCounter                                          
@@ -233,7 +247,7 @@ retrieveSessionState globalStateRef sessionId =
     ; liftIO $ newIORef sessionState
     }      
  
-storeSessionState :: GlobalStateRef -> SessionId -> SessionStateRef -> ServerPart ()
+storeSessionState :: GlobalStateRef db -> SessionId -> SessionStateRef db -> ServerPart ()
 storeSessionState globalStateRef sessionId sessionStateRef =
  do { (_, sessions, sessionCounter) <- liftIO $ readIORef globalStateRef
     ; (_, user', database', rootView', pendingEdit') <- liftIO $ readIORef sessionStateRef
@@ -241,19 +255,19 @@ storeSessionState globalStateRef sessionId sessionStateRef =
     ; liftIO $ writeIORef globalStateRef (database', sessions', sessionCounter)
     }
  
-sessionHandler :: SessionStateRef -> Commands -> ServerPart Html
-sessionHandler sessionStateRef cmds = liftIO $  
+sessionHandler :: (Data db, Show db, Eq db) => (User -> db -> Int -> ViewMap db -> IO (WebView db)) -> db -> Map String (String, String) -> SessionStateRef db -> Commands -> ServerPart Html
+sessionHandler mkRootView theDatabase users sessionStateRef cmds = liftIO $  
  do { putStrLn $ "Received commands" ++ show cmds
     
     ; (_, _, db, oldRootView', _) <- readIORef sessionStateRef
     
     -- TODO: this elem construction is not so nice if Init is part of multiple commands
     ; oldRootView <- if Init `elem` getCommands cmds 
-                     then mkInitialRootView 
+                     then mkInitialRootView theDatabase 
                      else return oldRootView' 
 
           
-    ; response <- handleCommands sessionStateRef cmds
+    ; response <- handleCommands mkRootView users sessionStateRef cmds
     -- handleCommands modifies the state              
                   
     ; responseHtml <- case response of
@@ -330,11 +344,11 @@ readCommand s = case safeRead s of
 data ServerResponse = ViewUpdate | Alert String | Confirm String deriving (Show, Eq)
 
 -- handle each command in commands and send the updates back
-handleCommands sessionStateRef (SyntaxError cmdStr) =
+handleCommands mkRootView users sessionStateRef (SyntaxError cmdStr) =
   error $ "Syntax error in commands from client: "++cmdStr 
-handleCommands sessionStateRef (Commands [command]) = handleCommand sessionStateRef command
-handleCommands sessionStateRef (Commands commands) = 
- do { responses <- mapM (handleCommand sessionStateRef) commands
+handleCommands mkRootView users sessionStateRef (Commands [command]) = handleCommand mkRootView users sessionStateRef command
+handleCommands mkRootView users sessionStateRef (Commands commands) = 
+ do { responses <- mapM (handleCommand mkRootView users sessionStateRef) commands
     ;  case dropWhile (== ViewUpdate) responses of
          []         -> return ViewUpdate
          [response] -> return response
@@ -344,8 +358,8 @@ handleCommands sessionStateRef (Commands commands) =
       --       make sure that id's are not generated between commands
 
 
-handleCommand :: SessionStateRef -> Command -> IO ServerResponse
-handleCommand sessionStateRef Init =
+handleCommand :: Data db => (User -> db -> Int -> ViewMap db -> IO (WebView db)) -> Map String (String, String) -> SessionStateRef db -> Command -> IO ServerResponse
+handleCommand mkRootView _ sessionStateRef Init =
  do { putStrLn "Init"
     ; (sessionId, user, db, oldRootView, _) <- readIORef sessionStateRef
     ; rootView <- liftIO $ mkRootView user db sessionId (mkViewMap oldRootView)
@@ -353,20 +367,20 @@ handleCommand sessionStateRef Init =
      
     ; return ViewUpdate
     }
-handleCommand sessionStateRef Refresh =
+handleCommand _ _ sessionStateRef Refresh =
  do { putStrLn "Refresh"
     ; reloadRootView sessionStateRef
     ; return ViewUpdate
     }
-handleCommand sessionStateRef Test =
+handleCommand _ _ sessionStateRef Test =
  do { (_, user, db, rootView, _) <- readIORef sessionStateRef
     ; return ViewUpdate
     }
-handleCommand sessionStateRef (SetC viewId value) =
+handleCommand _ _ sessionStateRef (SetC viewId value) =
  do { (sessionId, user, db, rootView, pendingEdit) <- readIORef sessionStateRef      
     ; putStrLn $ show viewId ++ " value is " ++ show value
 
-    ; let rootView' = replace (Map.fromList [(viewId, value)]) (assignIds rootView)
+    ; let rootView' = replace db{- dummy arg -} (Map.fromList [(viewId, value)]) (assignIds rootView)
     --; putStrLn $ "Updated rootView:\n" ++ show rootView'
     ; let db' = save rootView' db
       -- TODO: check if mkViewMap has correct arg
@@ -375,13 +389,13 @@ handleCommand sessionStateRef (SetC viewId value) =
     ; reloadRootView sessionStateRef
     ; return ViewUpdate
     }
-handleCommand sessionStateRef (ButtonC viewId) =
+handleCommand _  users sessionStateRef (ButtonC viewId) =
  do { (_, user, db, rootView, pendingEdit) <- readIORef sessionStateRef
     ; case getButtonByViewId viewId rootView of
         Just (Button _ txt _ act) ->    
          do { putStrLn $ "Button #" ++ show viewId ++ ":" ++ txt ++ " was clicked"
 
-            ; response <- performEditCommand sessionStateRef act
+            ; response <- performEditCommand users  sessionStateRef act
           
             ; return response
             }
@@ -390,37 +404,36 @@ handleCommand sessionStateRef (ButtonC viewId) =
             ; return ViewUpdate
             }
     }
- 
-handleCommand sessionStateRef (SubmitC viewId) =
+handleCommand _ users sessionStateRef (SubmitC viewId) =
  do { (_, user, db, rootView, pendingEdit) <- readIORef sessionStateRef
     ; let Text _ _ txt mAct = getTextByViewId viewId rootView
     ; putStrLn $ "Text #" ++ show viewId ++ ":" ++ txt ++ " was submitted"
 
     ; response <- case mAct of 
         Nothing  -> error "Internal error: text field with submission action has no associated action."
-        Just act -> performEditCommand sessionStateRef act
+        Just act -> performEditCommand users sessionStateRef act
           
     ; return response
     }
-handleCommand sessionStateRef (PerformEditActionC viewId) =
+handleCommand _ users sessionStateRef (PerformEditActionC viewId) =
  do { (_, user, db, rootView, pendingEdit) <- readIORef sessionStateRef
     ; let EditAction _ act = getEditActionByViewId viewId rootView
     ; putStrLn $ "EditAction with ViewId "++show viewId ++ " was executed"
 
-    ; response <- performEditCommand sessionStateRef act
+    ; response <- performEditCommand users sessionStateRef act
           
     ; return response
     }
-handleCommand sessionStateRef ConfirmDialogOk =
+handleCommand _ users sessionStateRef ConfirmDialogOk =
  do { (sessionId, user, db, rootView, pendingEdit) <- readIORef sessionStateRef
     ; writeIORef sessionStateRef (sessionId, user, db, rootView, Nothing) -- clear it, also in case of error
     ; response <- case pendingEdit of
                     Nothing -> return ViewUpdate -- error "ConfirmDialogOk event without active dialog"
-                    Just ec -> performEditCommand sessionStateRef ec
+                    Just ec -> performEditCommand users sessionStateRef ec
     ; return response
     }
  
-reloadRootView :: SessionStateRef -> IO ()
+reloadRootView :: Data db => SessionStateRef db -> IO ()
 reloadRootView sessionStateRef =
  do { (sessionId, user, db, rootView, pendingEdit) <- readIORef sessionStateRef
     ; rootView' <- evalStateT (loadView rootView) (WebViewState user db (mkViewMap rootView) [] 0)
@@ -428,7 +441,7 @@ reloadRootView sessionStateRef =
     ; writeIORef sessionStateRef (sessionId, user, db, rootView', pendingEdit)
     } 
  
-performEditCommand sessionStateRef command =
+performEditCommand users  sessionStateRef command =
  do { (sessionId, user, db, rootView, pendingEdit) <- readIORef sessionStateRef
     ; case command of  
             AlertEdit str -> return $ Alert str
@@ -436,12 +449,12 @@ performEditCommand sessionStateRef command =
              do { writeIORef sessionStateRef (sessionId, user, db, rootView, Just ec)
                 ; return $ Confirm str
                 }
-            AuthenticateEdit userViewId passwordViewId -> authenticate sessionStateRef userViewId passwordViewId
+            AuthenticateEdit userViewId passwordViewId -> authenticate users  sessionStateRef userViewId passwordViewId
             LogoutEdit -> logout sessionStateRef
             Edit edit -> performEdit sessionStateRef edit
     }
  
-performEdit :: SessionStateRef -> EditM () -> IO ServerResponse
+performEdit :: Data db => SessionStateRef db -> EditM db () -> IO ServerResponse
 performEdit sessionStateRef edit  =
  do { state <- readIORef sessionStateRef
     ; state' <- execStateT edit state
@@ -450,10 +463,10 @@ performEdit sessionStateRef edit  =
     ; return $ ViewUpdate
     }
 
-authenticate sessionStateRef userEStringViewId passwordEStringViewId =
+authenticate users sessionStateRef userEStringViewId passwordEStringViewId =
  do { (sessionId, user, db, rootView, pendingEdit) <- readIORef sessionStateRef
-    ; let userName = getTextByViewIdRef userEStringViewId rootView
-          enteredPassword = getTextByViewIdRef passwordEStringViewId rootView
+    ; let userName = getTextByViewIdRef db{-dummy arg-} userEStringViewId rootView
+          enteredPassword = getTextByViewIdRef db{-dummy arg-} passwordEStringViewId rootView
     ; case Map.lookup userName users of
         Just (password, fullName) -> if password == enteredPassword  
                                      then 

@@ -1,4 +1,4 @@
-{-# OPTIONS -XExistentialQuantification -XRankNTypes -XDeriveDataTypeable #-}
+{-# OPTIONS -XExistentialQuantification -XRankNTypes -XDeriveDataTypeable -XScopedTypeVariables #-}
 module Generics where
 
 import Types
@@ -20,14 +20,14 @@ data Tree4 = FirstTree4 Tree  deriving (Show, Data, Typeable)
 
 mytree = Bin (Bin (Leaf 'a') (Leaf 'b')) (Leaf 'c')
 
-mkViewMap :: WebView -> ViewMap
+mkViewMap :: Data db => WebView db -> ViewMap db
 mkViewMap wv = let wvs = getAll wv
                     in  Map.fromList [ (i, wv) | wv@(WebView i _ _ _ _) <- wvs]
 
 -- webviews are to coarse for incrementality. We also need buttons, eints etc. as identifiable entities
 -- making these into webviews does not seem to be okay. Maybe a separate class is needed
 
-webNodeQ :: Typeable a => a -> Maybe WebNode
+webNodeQ :: (Typeable db, Typeable a) => a -> Maybe (WebNode db)
 webNodeQ = (Nothing `mkQ`  (\w -> Just $ WebViewNode w) 
                     `extQ` (\w@(Widget stbid id x) -> Just $ let vi = getViewId x in WidgetNode vi stbid id (RadioViewWidget x))
                     `extQ` (\w@(Widget stbid id x) -> Just $ let vi = getViewId x in WidgetNode vi stbid id (TextWidget x))
@@ -35,7 +35,7 @@ webNodeQ = (Nothing `mkQ`  (\w -> Just $ WebViewNode w)
            )              -- TODO can we do this bettter?
                         
                     
-webNodeLstQ :: Typeable a => a -> Maybe [WebNode]
+webNodeLstQ :: (Typeable db, Typeable a) => a -> Maybe [WebNode db]
 webNodeLstQ = (Nothing `mkQ`  (\ws -> Just [ WebViewNode w | w <- ws ]) 
  `extQ` (\ws -> Just $ map (\w@(Widget stbid id x) -> let vi = getViewId x in WidgetNode vi stbid id (RadioViewWidget x)) ws)
  `extQ` (\ws -> Just $ map (\w@(Widget stbid id x) -> let vi = getViewId x in WidgetNode vi stbid id (TextWidget x)) ws)
@@ -55,7 +55,7 @@ testLstQ = (Nothing `mkQ`  (\xs -> Just $ [ Left x | x <- xs ])
                     `extQ` (\xs -> Just $ [ Right (Right x) | x <- xs ])
         )
 
-mkWebNodeMap :: Data d => d -> WebNodeMap
+mkWebNodeMap :: (Typeable db, Data d) => d -> WebNodeMap db
 mkWebNodeMap x = Map.fromList $ everything (++) 
   ([] `mkQ`  (\w@(WebView vid sid id _ _) -> [(vid, WebViewNode w)]) 
       `extQ` (\(Widget sid id w) -> let vid = getViewId w in [(vid, WidgetNode vid sid id $ RadioViewWidget w)])
@@ -64,18 +64,18 @@ mkWebNodeMap x = Map.fromList $ everything (++)
       `extQ` (\(Widget sid id w) -> let vid = getViewId w in [(vid, WidgetNode vid sid id $ EditActionWidget w)])
   ) x    
 
-getTopLevelWebNodesWebView :: WebView -> [WebNode]
+getTopLevelWebNodesWebView :: Data db => WebView db -> [WebNode db]
 getTopLevelWebNodesWebView (WebView _ _ _ _ v) =
   everythingTopLevel webNodeQ v
 
 -- make sure this one is not called on a WebView, but on its child view
 -- TODO: rename this one, it is not called on a WebNode
-getTopLevelWebNodesWebNode :: Data x => x -> [WebNode]
+getTopLevelWebNodesWebNode :: (Data db, Data x) => x -> [WebNode db]
 getTopLevelWebNodesWebNode x = everythingTopLevel 
                      webNodeQ x
                      
 -- lookup the view id and if the associated view is of the desired type, return it. Otherwise return Nothing
-lookupOldView :: (Initial v, Typeable v) => ViewId -> ViewMap -> Maybe v
+lookupOldView :: (Initial v, Typeable v) => ViewId -> ViewMap db -> Maybe v
 lookupOldView vid viewMap = 
   case Map.lookup vid viewMap of
     Nothing              -> Nothing
@@ -84,7 +84,7 @@ lookupOldView vid viewMap =
 getAll :: (Data a, Data b) => a -> [b]
 getAll = listify (const True)
 
-getTopLevelWebViews :: Data a => a -> [WebView]
+getTopLevelWebViews :: (Data db, Data a) => a -> [WebView db]
 getTopLevelWebViews wv = everythingTopLevel (Nothing `mkQ` Just) wv
 -- the type sig specifies the term type
 
@@ -105,7 +105,7 @@ everythingTopLevel f x = case f x of
 -- all webviews and Web nodes are returned as a list with their corresponding path
 -- lists of webviews or widgets do not get indices for the elements. Moreover, only direct lists of 
 -- webviews or widgets are recognized. nested lists should be detected somehow and give an error.
-getTopLevelWebNodesWebViewWithPath :: WebView -> [(WebNode,[Int])]
+getTopLevelWebNodesWebViewWithPath :: Data db => WebView db -> [(WebNode db,[Int])]
 getTopLevelWebNodesWebViewWithPath (WebView _ _ _ _ v) =
   everythingTopLevelWithPath [] webNodeLstQ webNodeQ v
 
@@ -132,7 +132,7 @@ gmapQIx f x0 = case (gfoldl k (const (Qr 0 id)) x0) of Qr _ res -> res []
 
 
 
-getWebViewContainingId :: Id -> WebView -> Maybe WebView
+getWebViewContainingId :: Data db => Id -> WebView db -> Maybe (WebView db)
 getWebViewContainingId (Id i) wv = 
   case somethingAcc Nothing (Nothing `mkQ` Just) (Nothing `mkQ` isId) wv of
     Just (_, Just wv') -> Just wv'
@@ -142,20 +142,20 @@ getWebViewContainingId (Id i) wv =
 
 
 -- return internal id's but don't descend past Widgets or WebViews
-webViewGetInternalIds :: WebView -> [Id]        
+webViewGetInternalIds :: forall db . Data db => WebView db -> [Id]        
 webViewGetInternalIds (WebView _ _ _ _ v) = 
   let --stopcond = (False `mkQ` (((\wv@(WebView _ _ _ _ _) -> True) :: WebView -> Bool))) 
       isId :: Id -> Bool
       isId _ = True
       stop :: GenericQ Bool
       stop = False `mkQ` isWebView `extQ` isWidget1 `extQ` isWidget2 `extQ` isWidget3
-      isWebView :: WebView -> Bool -- TODO: aargh! just one is tricky with the type var in widget
+      isWebView :: WebView  db -> Bool -- TODO: aargh! just one is tricky with the type var in widget
       isWebView _ = True
       isWidget1 :: Widget RadioView -> Bool
       isWidget1 _ = True
-      isWidget2 :: Widget Text -> Bool
+      isWidget2 :: Widget (Text db) -> Bool
       isWidget2 _ = True
-      isWidget3 :: Widget Button -> Bool
+      isWidget3 :: Widget (Button db) -> Bool
       isWidget3 _ = True
 
   in  listifyBut isId stop v 
@@ -210,10 +210,11 @@ assignId = mkAccT $ \ids (Id id) -> if (id == -1)
 type Updates = Map ViewId String  -- maps id's to the string representation of the new value
 
 -- update the datastructure at the id's in Updates 
-replace :: Data d => Updates -> d -> d
-replace updates v = (everywhere $ extT (mkT (replaceText updates))  (replaceRadioView updates)) v
+-- TODO is dummy db arg necessary?
+replace :: forall db d . (Typeable db, Data d) => db -> Updates -> d -> d
+replace _ updates v = (everywhere $ extT (mkT (replaceText updates :: Text db -> Text db))  (replaceRadioView updates)) v
 
-replaceText :: Updates -> Text -> Text
+replaceText :: Updates -> Text db -> Text db
 replaceText updates x@(Text i h _ ea) =
   case Map.lookup i updates of
     Just str -> (Text i h str ea)
@@ -232,27 +233,27 @@ substituteIds subs wv =
                                Nothing -> id
                                Just id' -> id'
        
-replaceWebViewById :: (ViewId) -> WebView -> WebView -> WebView
+replaceWebViewById :: Data db => (ViewId) -> WebView db -> WebView db -> WebView db
 replaceWebViewById i wv rootView =
  (everywhere $ mkT replaceWebView) rootView
  where replaceWebView wv'@(WebView i' _ _ _ _) = if i == i' then wv else wv' 
 --getWebViews x = listify (\(WebView i' :: WebView) -> True) x 
 
-getButtonByViewId :: Data d => ViewId -> d -> Maybe Button
+getButtonByViewId :: (Typeable db, Data d) => ViewId -> d -> Maybe (Button db)
 getButtonByViewId i view = 
   case listify (\(Button i' _ _ _) -> i==i') view of
     [b] -> Just b
     []  -> Nothing
     _   -> error $ "internal error: multiple buttons with id "++show i
 
-getTextByViewId :: Data d => ViewId -> d -> Text
+getTextByViewId :: (Typeable db, Data d) => ViewId -> d -> Text db
 getTextByViewId i view = 
   case listify (\(Text i' _ _ _) -> i==i') view of
     [b] -> b
     []  -> error $ "internal error: no text with id "++show i
     _   -> error $ "internal error: multiple texts with id "++show i
 
-getEditActionByViewId :: Data d => ViewId -> d -> EditAction
+getEditActionByViewId :: (Typeable db, Data d) => ViewId -> d -> EditAction db
 getEditActionByViewId i view = 
   case listify (\(EditAction i' _) -> i==i') view of
     [b] -> b
@@ -289,9 +290,9 @@ getWebViewById i view =
     _   -> error $ "internal error: multiple buttons with id "
 -- TODO: this error does not correspond to function name
     
-getTextByViewIdRef :: Data v => ViewIdRef -> v -> String
-getTextByViewIdRef (ViewIdRef i) view =
-  let (Text _ _ str _) = getTextByViewId (ViewId i) view
+getTextByViewIdRef :: forall db v . (Typeable db, Data v) => db -> ViewIdRef -> v -> String
+getTextByViewIdRef _ (ViewIdRef i) view =
+  let (Text _ _ str _) :: Text db = getTextByViewId (ViewId i) view
   in  str
 
 
