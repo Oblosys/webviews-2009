@@ -57,14 +57,14 @@ instance Storeable Database MainView where
 -- Main ----------------------------------------------------------------------  
 
 data RestaurantView = 
-  RestaurantView Date [[(Date,EditAction Database)]]
+  RestaurantView Date String [[(Date,EditAction Database)]]
     deriving (Eq, Show, Typeable, Data)
   
 instance Initial RestaurantView where                 
-  initial = RestaurantView (initial, initial, initial) []
+  initial = RestaurantView (initial, initial, initial) initial []
 
 mkRestaurantView = mkWebView $
- \vid (RestaurantView selectedDate _) ->
+ \vid (RestaurantView selectedDate _ _) ->
   do { clockTime <-  liftIO getClockTime
      ; ct <- liftIO $ toCalendarTime clockTime
      ; let currentDay = ctDay ct
@@ -78,26 +78,35 @@ mkRestaurantView = mkWebView $
      ; firstDayOfMonth <- weekdayForDate (1, 1+fromEnum (ctMonth ct), ctYear ct)
      
      ; let daysOfLastMonth = reverse $ take (firstDayOfMonth-1) [nrOfDaysInLastMonth,nrOfDaysInLastMonth-1..]
-     ; let daysOfThisMonth = map (\d->(d, currentMonth,currentYear)) $ [1..nrOfDaysInThisMonth]
-     ; let daysOfNextMonth = map (\d->(d, currentMonth+1,currentYear)) $ take (7 - ((length daysOfLastMonth + length daysOfThisMonth) `mod` 7)) [1..]
+     ; let daysOfThisMonth = [1..nrOfDaysInThisMonth]
+     ; let daysOfNextMonth = take (7 - ((length daysOfLastMonth + length daysOfThisMonth) `mod` 7)) [1..]
      ; let calendarDaysOfLastMonth = [(d,lastMonth, lastMonthYear) | d <- daysOfLastMonth] 
-     ; let calendarDaysOfThisMonth = [(d,currentMonth, currentYear) | d <- daysOfLastMonth]
-     ; let calendarDaysOfNextMonth = [(d,nextMonth, nextMonthYear) | d <- daysOfLastMonth]
+     ; let calendarDaysOfThisMonth = [(d,currentMonth, currentYear) | d <- daysOfThisMonth]
+     ; let calendarDaysOfNextMonth = [(d,nextMonth, nextMonthYear) | d <- daysOfNextMonth]
      ; let calendarDays = calendarDaysOfLastMonth ++ calendarDaysOfThisMonth ++ calendarDaysOfNextMonth 
      ; selects <- mapM (selectDateEdit vid) calendarDays
      
+     ; reservations <- withDb $ \db -> allReservations db
+     ; let reservationsToday = concat [ show h++"."++show m++": "++nm++" "
+                                      | Reservation _ d (h,m) nm nr <- Map.elems reservations, d==selectedDate ]
+     
      ; let weeks = daysToWeeks $ zip calendarDays selects
-     ; return $ RestaurantView selectedDate weeks
+     
+     ; return $ RestaurantView selectedDate reservationsToday weeks
      }
- where selectDateEdit vid d = mkEditAction . Edit $ viewEdit vid $ \(RestaurantView _ weeks) -> RestaurantView d weeks
+ where selectDateEdit vid d = mkEditAction . Edit $ viewEdit vid $ \(RestaurantView _ r weeks) -> RestaurantView d r weeks
  
+{- day: mark today
+mark different months, mark appointments
+ -}
 instance Presentable RestaurantView where
-  present (RestaurantView selectedDate@(selDay, selMonth, selYear) weeks) = 
+  present (RestaurantView selectedDate@(selDay, selMonth, selYear) reservationsToday weeks) = 
     mkTableEx [] [] [] [ [ ([ bgColorAttr $ if date == selectedDate then (Rgb 150 150 150) else (Rgb 240 240 240)
                             , withEditActionAttr selectionAction], stringToHtml (show day)) 
                          | (date@(day, month, year), selectionAction) <- week] 
                      | week <- weeks ] +++
-    p << stringToHtml (show selectedDate)
+    p << stringToHtml (show selectedDate) +++
+    p << stringToHtml reservationsToday
   {-
     withBgColor (Rgb 235 235 235) $ withPad 5 0 5 0 $    
     with_ [thestyle "font-family: arial"] $
