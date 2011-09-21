@@ -12,6 +12,7 @@ import Data.IntMap (IntMap)
 import qualified Data.IntMap as IntMap 
 import Debug.Trace
 import System.Time
+import Data.Time.Calendar
 import Types
 import Generics
 import WebViewLib
@@ -62,15 +63,25 @@ data RestaurantView =
 instance Initial RestaurantView where                 
   initial = RestaurantView initial []
 
-daysToWeeks days = if length days < 7 then [days]
-                   else take 7 days : daysToWeeks (drop 7 days)
-
 mkRestaurantView = mkWebView $
  \vid (RestaurantView viewedDay _) ->
-  do { let days = [1..31]
-     ; selects <- mapM (selectDayEdit vid) days
+  do { clockTime <-  liftIO getClockTime
+     ; ct <- liftIO $ toCalendarTime clockTime
+     ; let currentDay = ctDay ct
+           currentMonth = 1+fromEnum (ctMonth ct)
+           currentYear = ctYear ct
+           now   = (ctHour ct, ctMin ct)
+           nrOfDaysInThisMonth = gregorianMonthLength (fromIntegral currentYear) currentMonth
+           nrOfDaysInLastMonth = if currentMonth == 1 then 31 else gregorianMonthLength (fromIntegral currentYear) (currentMonth-1) 
+     ; firstDayOfMonth <- weekdayForDate (1, 1+fromEnum (ctMonth ct), ctYear ct)
      
-     ; let weeks = daysToWeeks $ zip days selects
+     ; let daysOfLastMonth = reverse $ take (firstDayOfMonth-1) [nrOfDaysInLastMonth,nrOfDaysInLastMonth-1..]
+     ; let daysOfThisMonth = [1..nrOfDaysInThisMonth]
+     ; let daysOfNextMonth = take (7 - ((length daysOfLastMonth + length daysOfThisMonth) `mod` 7)) [1..]
+     ; let calendarDays = daysOfLastMonth ++ daysOfThisMonth ++ daysOfNextMonth 
+     ; selects <- mapM (selectDayEdit vid) calendarDays
+     
+     ; let weeks = daysToWeeks $ zip calendarDays selects
      ;
      ; return $ RestaurantView viewedDay weeks
      }
@@ -132,3 +143,17 @@ instance Storeable Database RestaurantView where
   save _ = id
      
 
+
+--- Utils
+
+daysToWeeks days = if length days < 7 then [days]
+                   else take 7 days : daysToWeeks (drop 7 days)
+
+weekdayForDate (day, month, year) = liftIO $
+ do { clockTime <-  getClockTime -- first need to get a calendar time in this time zone
+    ; today <- toCalendarTime clockTime
+    ; let ct = today {ctDay= day, ctMonth = toEnum $ month-1, ctYear = year, ctHour = 12, ctMin = 0, ctPicosec = 0}
+    ; ctWithWeekday <- toCalendarTime $ toClockTime ct
+    ; return $ (fromEnum (ctWDay ctWithWeekday) -1) `mod` 7 + 1 -- in enum, Sunday is 0 and Monday is 1, we want Monday = 1 and Sunday = 7
+    } 
+ 

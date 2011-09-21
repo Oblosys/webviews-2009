@@ -58,7 +58,8 @@ Executable Reservations
                   happstack-server,
                   happstack-state,
                   old-time,
-                  unix
+                  unix,
+                  time
   GHC-Options: 
   Extensions:
   HS-Source-Dirs:  src
