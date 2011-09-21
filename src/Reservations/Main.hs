@@ -57,7 +57,7 @@ instance Storeable Database MainView where
 -- Main ----------------------------------------------------------------------  
 
 data RestaurantView = 
-  RestaurantView Date String [[(Date,EditAction Database)]]
+  RestaurantView Date String [[(WebView Database,EditAction Database)]]
     deriving (Eq, Show, Typeable, Data)
   
 instance Initial RestaurantView where                 
@@ -70,6 +70,7 @@ mkRestaurantView = mkWebView $
      ; let currentDay = ctDay ct
            currentMonth = 1+fromEnum (ctMonth ct)
            currentYear = ctYear ct
+           today = (currentDay, currentMonth, currentYear)
            now   = (ctHour ct, ctMin ct)
            (lastMonth, lastMonthYear) = if currentMonth == 1 then (12,currentYear-1) else (currentMonth-1,currentYear)
            (nextMonth, nextMonthYear) = if currentMonth == 12 then (1,currentYear+1) else (currentMonth+1,currentYear)
@@ -86,11 +87,16 @@ mkRestaurantView = mkWebView $
      ; let calendarDays = calendarDaysOfLastMonth ++ calendarDaysOfThisMonth ++ calendarDaysOfNextMonth 
      ; selects <- mapM (selectDateEdit vid) calendarDays
      
-     ; reservations <- withDb $ \db -> allReservations db
-     ; let reservationsToday = concat [ show h++"."++show m++": "++nm++" "
-                                      | Reservation _ d (h,m) nm nr <- Map.elems reservations, d==selectedDate ]
+     ; reservations <- fmap Map.elems $ withDb $ \db -> allReservations db
      
-     ; let weeks = daysToWeeks $ zip calendarDays selects
+     ; let calendarDayViewForDate date@(_,m,_) = mkCalendarDayView date (date==selectedDate) (date==today) (m==currentMonth) $
+                                           [r | r@(Reservation _ d _ _ _) <- reservations, date==d]  
+     
+     ; calendarDayViews <- mapM calendarDayViewForDate calendarDays
+     ; let reservationsToday = concat [ show h++"."++show m++": "++nm++" "
+                                      | Reservation _ d (h,m) nm nr <- reservations, d==selectedDate ]
+     
+     ; let weeks = daysToWeeks $ zip calendarDayViews selects
      
      ; return $ RestaurantView selectedDate reservationsToday weeks
      }
@@ -101,61 +107,53 @@ mark different months, mark appointments
  -}
 instance Presentable RestaurantView where
   present (RestaurantView selectedDate@(selDay, selMonth, selYear) reservationsToday weeks) = 
-    mkTableEx [] [] [] [ [ ([ bgColorAttr $ if date == selectedDate then (Rgb 150 150 150) else (Rgb 240 240 240)
-                            , withEditActionAttr selectionAction], stringToHtml (show day)) 
-                         | (date@(day, month, year), selectionAction) <- week] 
-                     | week <- weeks ] +++
+    mkTableEx [cellpadding 0, cellspacing 0, thestyle "border-collapse:collapse; font-family:Arial; text-align:center"] [] [thestyle "border: 1px solid #909090"]  
+              (header :
+               [ [ ([withEditActionAttr selectionAction], present dayView) 
+                 | (dayView, selectionAction) <- week] 
+               | week <- weeks ]) +++
     p << stringToHtml (show selectedDate) +++
     p << stringToHtml reservationsToday
-  {-
+   where header = [ ([], stringToHtml d) | d <- ["ma", "di", "wo", "do", "vr", "za", "zo"] ] 
+instance Storeable Database RestaurantView where
+  save _ = id
+   
+-- CalendarDay ----------------------------------------------------------------------  
+     
+     
+data CalendarDayView = 
+  CalendarDayView Date Bool Bool Bool [Reservation]
+    deriving (Eq, Show, Typeable, Data)
+  
+instance Initial CalendarDayView where                 
+  initial = CalendarDayView (initial, initial, initial) initial initial initial initial
+
+mkCalendarDayView date isSelected isToday isThisMonth reservations = mkWebView $
+ \vid (CalendarDayView _ _ _ _ _) ->
+  do { return $ CalendarDayView date isSelected isToday isThisMonth reservations
+     }
+
+selectedDayColor = Rgb 0x80 0xb0 0xff
+instance Presentable CalendarDayView where
+  present (CalendarDayView date@(day, month, year) isSelected isToday isThisMonth reservations) = 
+    withBgColor (if isToday then Rgb 0x90 0x90 0x90 else if isSelected then selectedDayColor else Rgb 240 240 240) $
+    -- we use a margin of 3 together with the varying cell background to show today
+    -- doing this with borders is awkward as they resize the table
+      mkTableEx [ width "40px", height 40, cellpadding 0, cellspacing 0 
+                , thestyle $ "margin:2px; background-color:" ++ if isSelected then htmlColor selectedDayColor else htmlColor (Rgb 240 240 240) ] [] [] 
+        [[ ([valign "top"] ++ if isThisMonth then [] else [thestyle "color: #808080"], stringToHtml (show day)) ]
+        ,[ ([],             stringToHtml $ if null reservations then "" else "o") ]
+        ]
+--      p << stringToHtml (if null reservations then "." else "o")
+    -- TODO: make Rgb for standard html colors, make rgbH for (rgbH 0xffffff)
+ {-
     withBgColor (Rgb 235 235 235) $ withPad 5 0 5 0 $    
     with_ [thestyle "font-family: arial"] $
       mkTableEx [width "100%"] [] [valign "top"]
        [[ ([],
-           (h2 << "Piglet 2.0 different version")  +++
-           ("List of all visits     (session# "++show sessionId++")") +++         
-      p << (hList [ withBgColor (Rgb 250 250 250) $ roundedBoxed Nothing $ withSize 230 100 $ 
-             (let rowAttrss = [] :
-                              [ [withEditActionAttr selectionAction] ++
-                                if i == viewedVisit then [ fgbgColorAttr (Rgb 255 255 255) (Rgb 0 0 255)
-                                                           ] else [] 
-                              | (i,selectionAction) <- zip [0..] selectionActions 
-                              ]
-                  rows = [ stringToHtml "Nr.    ", stringToHtml "Zip"+++nbspaces 3
-                         , (stringToHtml "Date"+++nbspaces 10) ]  :
-                         [ [stringToHtml $ show i, stringToHtml zipCode, stringToHtml date] 
-                         | (i, (zipCode, date)) <- zip [1..] visits
-                         ]
-              in  mkTable [strAttr "width" "100%", strAttr "cellPadding" "2", thestyle "border-collapse: collapse"] 
-                     rowAttrss [] rows
-                 )])  +++
-      p << (present add +++ present remove) 
-      )
-      ,([align "right"],
-     hList[
-      case user of
-         Nothing -> present loginoutView 
-         Just (_,name) -> stringToHtml ("Hello "++name++".") +++ br +++ br +++ present loginoutView
-      ] )]
-      ] +++
-      p << ((if null visits then "There are no visits. " else "Viewing visit nr. "++ show (viewedVisit+1) ++ ".") +++ 
-             "    " +++ present prev +++ present next) +++ 
-      --vList (map present tabbedVisits)
-      present tabbedVisits
-{-
-          boxed (case mv of
-               [] -> stringToHtml "No visits."
-               visitVs -> concatHtml $ map present visitVs) -} +++
-      h2 << "Comments" +++
-      vList (map present commentViews) +++ 
-      nbsp +++ (case mAddCommentButton of 
-                  Nothing -> stringToHtml "Please log in to add a comment"
-                  Just b  -> present b)
-      -}
-instance Storeable Database RestaurantView where
+-}
+instance Storeable Database CalendarDayView where
   save _ = id
-     
-
 
 --- Utils
 
@@ -170,3 +168,10 @@ weekdayForDate (day, month, year) = liftIO $
     ; return $ (fromEnum (ctWDay ctWithWeekday) -1) `mod` 7 + 1 -- in enum, Sunday is 0 and Monday is 1, we want Monday = 1 and Sunday = 7
     } 
  
+ 
+ 
+ {-
+ Ideas:
+ 
+ Standard tables that have css stuff for alignment etc. so no need to specify styles for each td
+ -}
