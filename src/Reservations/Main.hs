@@ -146,6 +146,8 @@ instance Presentable CalendarDayView where
         ]
 --      p << stringToHtml (if null reservations then "." else "o")
     -- TODO: make Rgb for standard html colors, make rgbH for (rgbH 0xffffff)
+    
+    -- check slow down after running for a while
  {-
     withBgColor (Rgb 235 235 235) $ withPad 5 0 5 0 $    
     with_ [thestyle "font-family: arial"] $
