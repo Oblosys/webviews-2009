@@ -18,7 +18,6 @@ Flag reservations
   default:      True        
     
 -- Mains are in separate dirs, cannot use Main-is: Main1.hs etc., since scion demands that the module name is the file name (and ghc demands that the main module is called Main)
--- Somehow the modules in the instance subdirs need to be qualified, even though they appear unqualified in Other-Modules and are accessible through HS-Source-Dirs: src    src/Instance
 
 Executable Piglet
   Main-is:	  Main.hs 
@@ -35,7 +34,6 @@ Executable Piglet
                   happstack-state,
                   old-time,
                   unix
-
   GHC-Options: 
   Extensions:
   HS-Source-Dirs:  src src/Piglet
@@ -60,7 +58,6 @@ Executable Reservations
                   happstack-state,
                   old-time,
                   unix
-
   GHC-Options: 
   Extensions:
   HS-Source-Dirs:  src, src/Reservations
