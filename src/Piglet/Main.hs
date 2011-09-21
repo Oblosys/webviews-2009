@@ -13,13 +13,13 @@ import qualified Data.IntMap as IntMap
 import Debug.Trace
 import System.Time
 import Types
-import Piglet.Database
 import Generics
 import WebViewLib
 import HtmlLib
 import Control.Monad.State
-
 import Server
+
+import Database
 
 main :: IO ()
 main = server mkRootView theDatabase users

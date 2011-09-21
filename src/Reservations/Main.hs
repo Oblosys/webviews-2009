@@ -13,7 +13,7 @@ import qualified Data.IntMap as IntMap
 import Debug.Trace
 import System.Time
 import Types
-import Piglet.Database
+import Database
 import Generics
 import WebViewLib
 import HtmlLib
