@@ -57,43 +57,47 @@ instance Storeable Database MainView where
 -- Main ----------------------------------------------------------------------  
 
 data RestaurantView = 
-  RestaurantView Int [[(Int,EditAction Database)]]
+  RestaurantView Date [[(Date,EditAction Database)]]
     deriving (Eq, Show, Typeable, Data)
   
 instance Initial RestaurantView where                 
-  initial = RestaurantView initial []
+  initial = RestaurantView (initial, initial, initial) []
 
 mkRestaurantView = mkWebView $
- \vid (RestaurantView viewedDay _) ->
+ \vid (RestaurantView selectedDate _) ->
   do { clockTime <-  liftIO getClockTime
      ; ct <- liftIO $ toCalendarTime clockTime
      ; let currentDay = ctDay ct
            currentMonth = 1+fromEnum (ctMonth ct)
            currentYear = ctYear ct
            now   = (ctHour ct, ctMin ct)
+           (lastMonth, lastMonthYear) = if currentMonth == 1 then (12,currentYear-1) else (currentMonth-1,currentYear)
+           (nextMonth, nextMonthYear) = if currentMonth == 12 then (1,currentYear+1) else (currentMonth+1,currentYear)
+           nrOfDaysInLastMonth = gregorianMonthLength (fromIntegral lastMonthYear) lastMonth 
            nrOfDaysInThisMonth = gregorianMonthLength (fromIntegral currentYear) currentMonth
-           nrOfDaysInLastMonth = if currentMonth == 1 then 31 else gregorianMonthLength (fromIntegral currentYear) (currentMonth-1) 
      ; firstDayOfMonth <- weekdayForDate (1, 1+fromEnum (ctMonth ct), ctYear ct)
      
      ; let daysOfLastMonth = reverse $ take (firstDayOfMonth-1) [nrOfDaysInLastMonth,nrOfDaysInLastMonth-1..]
-     ; let daysOfThisMonth = [1..nrOfDaysInThisMonth]
-     ; let daysOfNextMonth = take (7 - ((length daysOfLastMonth + length daysOfThisMonth) `mod` 7)) [1..]
-     ; let calendarDays = daysOfLastMonth ++ daysOfThisMonth ++ daysOfNextMonth 
-     ; selects <- mapM (selectDayEdit vid) calendarDays
+     ; let daysOfThisMonth = map (\d->(d, currentMonth,currentYear)) $ [1..nrOfDaysInThisMonth]
+     ; let daysOfNextMonth = map (\d->(d, currentMonth+1,currentYear)) $ take (7 - ((length daysOfLastMonth + length daysOfThisMonth) `mod` 7)) [1..]
+     ; let calendarDaysOfLastMonth = [(d,lastMonth, lastMonthYear) | d <- daysOfLastMonth] 
+     ; let calendarDaysOfThisMonth = [(d,currentMonth, currentYear) | d <- daysOfLastMonth]
+     ; let calendarDaysOfNextMonth = [(d,nextMonth, nextMonthYear) | d <- daysOfLastMonth]
+     ; let calendarDays = calendarDaysOfLastMonth ++ calendarDaysOfThisMonth ++ calendarDaysOfNextMonth 
+     ; selects <- mapM (selectDateEdit vid) calendarDays
      
      ; let weeks = daysToWeeks $ zip calendarDays selects
-     ;
-     ; return $ RestaurantView viewedDay weeks
+     ; return $ RestaurantView selectedDate weeks
      }
- where selectDayEdit vid newDay = mkEditAction . Edit $ viewEdit vid $ \(RestaurantView _ weeks) -> RestaurantView newDay weeks
+ where selectDateEdit vid d = mkEditAction . Edit $ viewEdit vid $ \(RestaurantView _ weeks) -> RestaurantView d weeks
  
 instance Presentable RestaurantView where
-  present (RestaurantView viewedDay weeks) = 
-    mkTableEx [] [] [] [ [ ([ bgColorAttr $ if day == viewedDay then (Rgb 150 150 150) else (Rgb 240 240 240)
+  present (RestaurantView selectedDate@(selDay, selMonth, selYear) weeks) = 
+    mkTableEx [] [] [] [ [ ([ bgColorAttr $ if date == selectedDate then (Rgb 150 150 150) else (Rgb 240 240 240)
                             , withEditActionAttr selectionAction], stringToHtml (show day)) 
-                         | (day, selectionAction) <- week] 
+                         | (date@(day, month, year), selectionAction) <- week] 
                      | week <- weeks ] +++
-    p << stringToHtml (show viewedDay)
+    p << stringToHtml (show selectedDate)
   {-
     withBgColor (Rgb 235 235 235) $ withPad 5 0 5 0 $    
     with_ [thestyle "font-family: arial"] $
