@@ -19,7 +19,7 @@ import HtmlLib
 import Control.Monad.State
 import Server
 
-import Database
+import Piglet.Database
 
 main :: IO ()
 main = server mkRootView theDatabase users

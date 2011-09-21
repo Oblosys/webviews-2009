@@ -18,9 +18,10 @@ Flag reservations
   default:      True        
     
 -- Mains are in separate dirs, cannot use Main-is: Main1.hs etc., since scion demands that the module name is the file name (and ghc demands that the main module is called Main)
+-- Main is not qualified, since GHC doesn't even allow Module.Main as main.
 
 Executable Piglet
-  Main-is:	  Main.hs 
+  Main-is:	  Piglet/Main.hs 
   -- Build-Depends needs to be in Executable for EclipseFP's Scion
   Build-Depends:  base,
                   syb == 0.3.3,
@@ -36,15 +37,15 @@ Executable Piglet
                   unix
   GHC-Options: 
   Extensions:
-  HS-Source-Dirs:  src src/Piglet
-  Other-Modules: WebViewLib, Generics, HtmlLib, Incrementality, Server, Types, Database
+  HS-Source-Dirs:  src
+  Other-Modules: WebViewLib, Generics, HtmlLib, Incrementality, Server, Types, Piglet.Database
   if flag(piglet)
     buildable:  True
   else
     buildable:  False
 
 Executable Reservations
-  Main-is:	  Main.hs 
+  Main-is:	  Reservations/Main.hs 
   -- Build-Depends needs to be in Executable for EclipseFP's Scion
   Build-Depends:  base,
                   syb == 0.3.3,
@@ -60,8 +61,8 @@ Executable Reservations
                   unix
   GHC-Options: 
   Extensions:
-  HS-Source-Dirs:  src, src/Reservations
-  Other-Modules: WebViewLib, Generics, HtmlLib, Incrementality, Server, Types, Database
+  HS-Source-Dirs:  src
+  Other-Modules: WebViewLib, Generics, HtmlLib, Incrementality, Server, Types, Reservations.Database
   if flag(reservations)
     buildable:  True
   else

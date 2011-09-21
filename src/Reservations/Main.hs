@@ -13,13 +13,13 @@ import qualified Data.IntMap as IntMap
 import Debug.Trace
 import System.Time
 import Types
-import Database
 import Generics
 import WebViewLib
 import HtmlLib
 import Control.Monad.State
-
 import Server
+
+import Reservations.Database
 
 main :: IO ()
 main = server mkRootView theDatabase users
