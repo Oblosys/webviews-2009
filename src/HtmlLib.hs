@@ -58,18 +58,20 @@ roundedBoxed mColor elt =
 hDistribute e1 e2 =
   mkTableEx [width "100%", border 0, cellpadding 0, thestyle "border-collapse: collapse;"] [] [valign "top"]
        [[ ([],e1), ([align "right"],e2) ]]
-        
+
+hCenter elt = with [thestyle "text-align:center"] elt
+
 hList' elts = ulist![theclass "hList"] << [ li << elt | elt <- elts ]
 
-hList vs = hListEx [] vs
+hList elts = hListEx [] elts
 
 hListEx attrs [] = noHtml
-hListEx attrs  views = simpleTable ([cellpadding 0, cellspacing 0] ++ attrs) [theclass "draggable"] [ views ]
+hListEx attrs  elts = simpleTable ([cellpadding 0, cellspacing 0] ++ attrs) [theclass "draggable"] [ elts ]
 
-vList vs = vListEx [] vs
+vList elts = vListEx [] elts
 
 vListEx attrs  [] = noHtml
-vListEx attrs  views = simpleTable ([cellpadding 0, cellspacing 0] ++ attrs) [] [ [v] | v <- views ]
+vListEx attrs  elts = simpleTable ([cellpadding 0, cellspacing 0] ++ attrs) [] [ [e] | e <- elts ]
 
 mkTable :: [HtmlAttr] -> [[HtmlAttr]] -> [HtmlAttr] -> [[Html]] -> Html
 mkTable tableAttrs rowAttrss cellAttrs rows =
