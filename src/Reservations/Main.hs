@@ -48,7 +48,7 @@ mkMainView sessionId = mkWebView $
      }
  
 instance Presentable MainView where
-  present (MainView v) = present v 
+  present (MainView v) = with [thestyle "font-family:arial"] $ present v 
 
 instance Storeable Database MainView where
   save _ = id
@@ -99,6 +99,7 @@ mkRestaurantView = mkWebView $
       
      ; let weeks = daysToWeeks $ zip calendarDayViews selects
      
+     -- todo: set selections (date on today)
      -- todo: split these, check where selected date should live
 
      ; dayView <- mkDayView vid mSelectedHour reservationsSelectedDay
@@ -116,9 +117,11 @@ getWebViewId (WebView vid _ _ _ _) = vid
 mark different months, mark appointments
  -}
 instance Presentable RestaurantView where
-  present (RestaurantView selectedDate selectedHour selectedReservation weeks dayView hourView reservationView) = 
+  present (RestaurantView mSelectedDate mSelectedHour mSelectedReservation weeks dayView hourView reservationView) = 
     vList $ 
-      [ mkTableEx [cellpadding 0, cellspacing 0, thestyle "border-collapse:collapse; font-family:Arial; text-align:center"] [] [thestyle "border: 1px solid #909090"]  
+      [ with [thestyle "text-align:center; font-weight:bold"] $ stringToHtml $ maybe "no selection" (\(_,m,y)->showMonth m ++ " "++show y) mSelectedDate
+      , vSpace 5
+      , mkTableEx [cellpadding 0, cellspacing 0, thestyle "border-collapse:collapse; text-align:center"] [] [thestyle "border: 1px solid #909090"]  
                   (header :
                    [ [ ([withEditActionAttr selectionAction], present dayView) 
                      | (dayView, selectionAction) <- week] 
@@ -126,7 +129,13 @@ instance Presentable RestaurantView where
                    )
       ] ++
       [ present dayView
-      , stringToHtml (show selectedDate)
+      , vSpace 15
+      , with [thestyle "font-size:80%"] $
+          case (mSelectedDate, mSelectedHour) of
+            (Just (d,m,_), Just selectedHour) -> stringToHtml $ "Reservations on "++show d++" "++showMonth m ++
+                                                                     " between "++show selectedHour ++ "h and "++show (selectedHour+1)++"h"
+            _                                      -> nbsp
+      , vSpace 8
       , present hourView
       , present reservationView 
       ]
@@ -188,16 +197,16 @@ mkDayView restaurantViewId mSelectedHour dayReservations = mkWebView $
  
 instance Presentable DayView where
   present (DayView mSelectedHour selectHourActions dayReservations) =
-    mkTableEx [width "100%", cellpadding 0, cellspacing 0, thestyle "border-collapse:collapse; font-size:80%; font-family:Arial"] [] [] 
+    mkTableEx [width "100%", cellpadding 0, cellspacing 0, thestyle "border-collapse:collapse; font-size:80%"] [] [] 
       [[ ([withEditActionAttr sa, thestyle $ "border: 1px solid #909090; background-color: "++
                                              if Just hr==mSelectedHour then htmlColor selectedDayColor else "#d0d0d0"]
          , presentHour hr) | (sa,hr) <- zip selectHourActions [18..24] ]]
 
---    mkTableEx [cellpadding 0, cellspacing 0, thestyle "border-collapse:collapse; font-family:Arial; text-align:center"] [] [thestyle "border: 1px solid #909090"]  
+--    mkTableEx [cellpadding 0, cellspacing 0, thestyle "border-collapse:collapse; text-align:center"] [] [thestyle "border: 1px solid #909090"]  
    where presentHour hr =
            vListEx [width "100%"] 
                  [ stringToHtml $ show hr++"h"
-                 , with [thestyle "font-size:80%; font-family:Arial; text-align:center; color:#0000ff"] $ 
+                 , with [thestyle "font-size:80%; text-align:center; color:#0000ff"] $ 
                      let ressAtHr = filter ((==hr) . fst . time) dayReservations
                      in  if not $ null ressAtHr then stringToHtml $ show (length ressAtHr) ++ " (" ++ show (sum $ map nrOfPeople ressAtHr)++")" else nbsp 
                  ]
@@ -223,7 +232,7 @@ mkHourView restaurantViewId mSelectedReservation mSelectedHour hourReservations 
  
 instance Presentable HourView where
   present (HourView mSelectedReservation mSelectedHour selectReservationActions hourReservations) = 
-    mkTableEx [width "100%", cellpadding 0, cellspacing 0, thestyle "border-collapse:collapse; font-family:Arial"] [] [] 
+    mkTableEx [width "100%", cellpadding 0, cellspacing 0, thestyle "border-collapse:collapse"] [] [] 
       [[ ([withEditActionAttr sa, thestyle $ "border: 1px solid #909090; background-color: "++
                                              if Just r==mSelectedReservation then htmlColor selectedDayColor else "#f8f8f8"]
          , stringToHtml $ showTime tm ++ " -   "++nm++" ("++show nr++")") ]
@@ -264,6 +273,8 @@ instance Storeable Database ReservationView where
 
 
 --- Utils
+showMonth m = show (toEnum (m-1) :: System.Time.Month)
+showDate (d,m,y) = show d ++ " " ++ showMonth m ++ " " ++ show y
 showTime (h,m) = (if h<10 then " " else "") ++ show h ++ ":" ++ (if m<10 then "0" else "") ++ show m
 
 daysToWeeks days = if length days < 7 then [days]
