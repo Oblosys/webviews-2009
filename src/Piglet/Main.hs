@@ -114,7 +114,7 @@ instance Presentable VisitsView where
   present (VisitsView _ viewedVisit sessionId user visits loginoutView selectionActions  
                       prev next add remove tabbedVisits _ commentViews mAddCommentButton) =
     withBgColor (Rgb 235 235 235) $ withPad 5 0 5 0 $    
-    with_ [thestyle "font-family: arial"] $
+    with [thestyle "font-family: arial"] $
       mkTableEx [width "100%"] [] [valign "top"]
        [[ ([],
            (h2 << "Piglet 2.0")  +++

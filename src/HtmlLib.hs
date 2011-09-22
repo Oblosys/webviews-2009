@@ -61,12 +61,15 @@ hDistribute e1 e2 =
         
 hList' elts = ulist![theclass "hList"] << [ li << elt | elt <- elts ]
 
+hList vs = hListEx [] vs
 
-hList [] = noHtml
-hList views = simpleTable [] [theclass "draggable"] [ views ]
+hListEx attrs [] = noHtml
+hListEx attrs  views = simpleTable ([cellpadding 0, cellspacing 0] ++ attrs) [theclass "draggable"] [ views ]
 
-vList [] = noHtml
-vList views = simpleTable [] [] [ [v] | v <- views ]
+vList vs = vListEx [] vs
+
+vListEx attrs  [] = noHtml
+vListEx attrs  views = simpleTable ([cellpadding 0, cellspacing 0] ++ attrs) [] [ [v] | v <- views ]
 
 mkTable :: [HtmlAttr] -> [[HtmlAttr]] -> [HtmlAttr] -> [[Html]] -> Html
 mkTable tableAttrs rowAttrss cellAttrs rows =
@@ -85,7 +88,7 @@ mkTableEx tableAttrs rowAttrss allCellAttrs rows =
 data Color = Rgb Int Int Int
            | Color String deriving Show
 
-with_ attrs elt = thediv ! attrs << elt
+with attrs elt = thediv ! attrs << elt
 
 withColor color elt = thediv ! [colorAttr color] << elt
 
