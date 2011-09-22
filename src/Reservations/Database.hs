@@ -63,7 +63,10 @@ unsafeLookup map key =
 
 
 theDatabase = Database $ Map.fromList $ addIds 0 $
-                [ ((22,9,2011), (20,00), "Martijn", 2, "No comments")
+                [ ((22,9,2011), (20,00), "Martijn", 2, "Long comment that exceeds the line width and spans\nmultiple\nlines\nto\nsee\nif\nthat\nworks\nLong comment that exceeds the line width and spans\nmultiple\nlines\nto\nsee\nif\nthat\nworks\nLong comment that exceeds the line width and spans\nmultiple\nlines\nto\nsee\nif\nthat\nworks")
+                , ((22,9,2011), (20,00), "Tommie", 3, "")
+                , ((22,9,2011), (20,00), "Bert", 2, "")
+                , ((22,9,2011), (20,30), "Elmo", 2, "")
                 , ((22,9,2011), (20,30), "Karel", 4, "Karel says hi")
                 , ((22,9,2011), (21,00), "Karel 2", 3, "dinner at nine")
                 , ((24,9,2011), (18,00), "Pino", 3, "Please provide bird seed")
