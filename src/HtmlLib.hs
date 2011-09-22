@@ -29,7 +29,9 @@ multiLineStringToHtml text =
   case text of "" -> []
                txt -> if last txt == '\n' then [br+++nbsp] else []
 
-boxed elt = thediv![thestyle "border:solid; border-width:1px; padding:4px;"] << elt
+boxed elt = boxedEx 4 elt
+
+boxedEx padding elt = thediv![thestyle $ "border:solid; border-width:1px; padding:"++show padding++"px;"] << elt
 
 roundedBoxed mColor elt =
   mkTable attrs [] [] [[elt]]
