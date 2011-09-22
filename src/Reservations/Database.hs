@@ -36,6 +36,7 @@ data Reservation =
               , comment :: String
               } deriving (Eq, Show, Read, Typeable, Data)
 
+-- not safe, requires that id in reservation is respected by f
 updateReservation :: ReservationId -> (Reservation -> Reservation) -> Database -> Database
 updateReservation i f db = 
   let reservation = unsafeLookup (allReservations db) i
