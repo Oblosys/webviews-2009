@@ -140,6 +140,7 @@ instance Presentable RestaurantView where
             _                                      -> nbsp
       , vSpace 6
       , present hourView
+      , vSpace 15
       , present reservationView 
       ]
    where header = [ ([], stringToHtml d) | d <- ["ma", "di", "wo", "do", "vr", "za", "zo"] ] 
@@ -235,42 +236,49 @@ mkHourView restaurantViewId mSelectedReservation mSelectedHour hourReservations 
  
 instance Presentable HourView where
   present (HourView mSelectedReservation mSelectedHour selectReservationActions hourReservations) = 
-    mkTableEx [width "100%", cellpadding 0, cellspacing 0, thestyle "border-collapse:collapse"] [] [] 
-      [[ ([withEditActionAttr sa, thestyle $ "border: 1px solid #909090; background-color: "++
-                                             if Just r==mSelectedReservation then htmlColor selectedDayColor else "#f8f8f8"]
-         , stringToHtml $ showTime tm ++ " -   "++nm++" ("++show nr++")") ]
-      | (sa,r@(Reservation _ _ tm nm nr _)) <- zip selectReservationActions hourReservations 
-      ]
+    boxedEx 0 $ with [thestyle "height:90px;overflow:auto"] $
+      mkTableEx [width "100%", cellpadding 0, cellspacing 0, thestyle "border-collapse:collapse"] [] [] $ 
+        [ [ ([withEditActionAttr sa, thestyle $ "border: 1px solid #909090; background-color: "++
+                                                if Just r==mSelectedReservation then htmlColor selectedDayColor else "#f8f8f8"]
+            , hList [hSpace 2, stringToHtml $ showTime tm ++ " -   "++nm++" ("++show nr++")"]) ]
+        | (sa,r@(Reservation _ _ tm nm nr _)) <- zip selectReservationActions hourReservations 
+        ]
 instance Storeable Database HourView where
   save _ = id
 
 -----------------------------------------------------------------------------
 
 data ReservationView = 
-  ReservationView String Int String
+  ReservationView (Maybe Reservation)
     deriving (Eq, Show, Typeable, Data)
   
 instance Initial ReservationView where                 
-  initial = ReservationView initial initial initial
+  initial = ReservationView initial
 
 
 mkReservationView mReservation = mkWebView $
- \vid (ReservationView _ _ _) ->
-  do { case mReservation of
-         Just (Reservation _ _ _ name nrOfPeople comment) ->
-           return $ ReservationView name nrOfPeople comment
-         Nothing -> 
-           return $ ReservationView "no reservation" 0 ""
+ \vid (ReservationView _) ->
+  do { return $ ReservationView mReservation
      }
  
+-- todo comment has hard-coded width. make constant for this
 instance Presentable ReservationView where
-  present (ReservationView name nrOfPeople comment) = boxed $
-    simpleTable [] [] 
-      [ [stringToHtml "name: ", stringToHtml name]
-      , [stringToHtml "nrOfPeople: ", stringToHtml $ show nrOfPeople ]
-      , [stringToHtml comment ]
+  present (ReservationView mReservation) = with [thestyle "background-color:#f0f0f0"] $ boxed $ 
+    vListEx [] 
+      [ hList [stringToHtml "Reservation date: ",nbsp, with [colorAttr reservationColor] $ stringToHtml date]
+      , hList [stringToHtml "Time:",nbsp, with [colorAttr reservationColor] $ stringToHtml time]
+      , hList [stringToHtml "Name:",nbsp, with [colorAttr reservationColor] $ stringToHtml name]
+      , hList [stringToHtml "Nr. of people:",nbsp, with [colorAttr reservationColor] $ stringToHtml $ nrOfPeople ]
+      , stringToHtml "Comment:" 
+      , boxedEx 0 $ with [thestyle $ "padding-left:4px;height:70px; width:300px; overflow:auto; color:" ++ htmlColor reservationColor] $ 
+          stringToHtml $ if comment == "" then "<no comment>" else  comment
       ]  
-
+   where (date, time, name, nrOfPeople, comment) =
+           case mReservation of
+             Just (Reservation _ date time name nrOfPeople comment) -> (showDate date, showTime time, name, show nrOfPeople, comment)
+             Nothing                                        -> ("", "", "", "", "") 
+         reservationColor = Rgb 0x00 0x00 0xff
+ 
 instance Storeable Database ReservationView where
   save _ = id
 
