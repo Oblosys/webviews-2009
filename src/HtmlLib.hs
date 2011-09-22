@@ -64,7 +64,7 @@ hDistribute e1 e2 =
 
 hCenter elt = with [thestyle "text-align:center"] elt
 
-hList' elts = ulist![theclass "hList"] << [ li << elt | elt <- elts ]
+hList' elts = ulist![theclass "hList"] << [ li << elt | elt <- elts ] -- for drag & drop experiments
 
 hList elts = hListEx [] elts
 
