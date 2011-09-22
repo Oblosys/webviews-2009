@@ -256,22 +256,26 @@ instance Storeable Database HourView where
 -----------------------------------------------------------------------------
 
 data ReservationView = 
-  ReservationView (Maybe Reservation)
+  ReservationView (Maybe Reservation) (Widget (Button Database))
     deriving (Eq, Show, Typeable, Data)
   
 instance Initial ReservationView where                 
-  initial = ReservationView initial
+  initial = ReservationView initial initial
 
 mkReservationView mReservation = mkWebView $
- \vid (ReservationView _) ->
-  do { return $ ReservationView mReservation
+ \vid (ReservationView _ _) ->
+  do { removeButton <- mkButton "x" (isJust mReservation) $ 
+         Edit $ docEdit $ maybe id (\res -> removeReservation $ reservationId res ) mReservation
+     ; return $ ReservationView mReservation removeButton
      }
  
 -- todo comment has hard-coded width. make constant for this
 instance Presentable ReservationView where
-  present (ReservationView mReservation) = with [thestyle "background-color:#f0f0f0"] $ boxed $ 
+  present (ReservationView mReservation removeButton) = with [thestyle "background-color:#f0f0f0"] $ boxed $ 
     vListEx [] 
-      [ hList [stringToHtml "Reservation date: ",nbsp, with [colorAttr reservationColor] $ stringToHtml date]
+      [ hListEx [width "100%"] [ stringToHtml "Reservation date: ",nbsp
+                               , with [colorAttr reservationColor] $ stringToHtml date
+                               , with [align "right"] $ present removeButton]
       , hList [stringToHtml "Time:",nbsp, with [colorAttr reservationColor] $ stringToHtml time]
       , hList [stringToHtml "Name:",nbsp, with [colorAttr reservationColor] $ stringToHtml name]
       , hList [stringToHtml "Nr. of people:",nbsp, with [colorAttr reservationColor] $ stringToHtml $ nrOfPeople ]
