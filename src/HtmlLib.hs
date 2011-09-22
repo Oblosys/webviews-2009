@@ -32,10 +32,11 @@ multiLineStringToHtml text =
 boxed elt = thediv![thestyle "border:solid; border-width:1px; padding:4px;"] << elt
 
 roundedBoxed mColor elt =
-  thediv!(theclass "rounded_colhead" : 
-          case mColor of Nothing -> []
-                         Just color -> [thestyle $ "background-color: "++htmlColor color]) << 
-    elt
+  mkTable attrs [] [] [[elt]]
+ where attrs = theclass "roundedBorder" : 
+               case mColor of Nothing -> []
+                              Just color -> [thestyle $ "background-color: "++htmlColor color] 
+
 {-  (thespan![theclass"tl"] << noHtml +++ thespan![theclass"tr"] << noHtml +++ 
    thespan![thestyle"width:95%"] << elt +++
    thespan![theclass"bl"] << noHtml +++ thespan![theclass"br"] << noHtml)
