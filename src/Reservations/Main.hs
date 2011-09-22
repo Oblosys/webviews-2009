@@ -100,17 +100,20 @@ mkRestaurantView = mkWebView $
       
      ; let weeks = daysToWeeks $ zip calendarDayViews selects
      
-     ; let selectedDate = maybe today id mSelectedDate
-     ; let mSelectedDate = Just selectedDate 
+     ; let mSelectedDate' = Just $ maybe today id mSelectedDate
+     ; let mSelectedReservation' = case mSelectedReservation of
+                                     Just reservation -> if reservation `elem` reservationsSelectedHour then Just reservation else Nothing
+                                     Nothing          -> Nothing
+     
      -- todo: set selections (date on today is now a hack, whole calendar should be based on selected rather than today)
      -- todo: split these, check where selected date should live
 
      ; dayView <- mkDayView vid mSelectedHour reservationsSelectedDay
      ; hourView <- mkHourView vid mSelectedReservation mSelectedHour reservationsSelectedHour
-     ; reservationView <- mkReservationView mSelectedReservation
+     ; reservationView <- mkReservationView mSelectedReservation'
 
      
-     ; return $ RestaurantView mSelectedDate mSelectedHour mSelectedReservation weeks dayView hourView reservationView
+     ; return $ RestaurantView mSelectedDate' mSelectedHour mSelectedReservation' weeks dayView hourView reservationView
      }
  where selectDateEdit vid d = mkEditAction . Edit $ viewEdit vid $ \(RestaurantView _ h r weeks dayView hourView reservationView) -> RestaurantView (Just d) h r weeks dayView hourView reservationView
 
@@ -207,8 +210,8 @@ instance Presentable DayView where
          , presentHour hr) | (sa,hr) <- zip selectHourActions [18..24] ]]
 
 --    mkTableEx [cellpadding 0, cellspacing 0, thestyle "border-collapse:collapse; text-align:center"] [] [thestyle "border: 1px solid #909090"]  
-   where presentHour hr =
-           vListEx [width "100%"] 
+   where presentHour hr = --withBgColor (Rgb 255 255 0) $
+           vListEx [width "40px"] -- needs to be smaller than alotted hour cell, but larger than width of "xx(xx)"
                  [ stringToHtml $ show hr++"h"
                  , with [thestyle "font-size:80%; text-align:center; color:#0000ff"] $ 
                      let ressAtHr = filter ((==hr) . fst . time) dayReservations
@@ -303,6 +306,9 @@ weekdayForDate (day, month, year) = liftIO $
  
  {-
  Ideas:
+ Maybe change background when nothing is selected (or foreground for reservation fields)
+ 
+ Hover!
  
  Standard tables that have css stuff for alignment etc. so no need to specify styles for each td
  -}
