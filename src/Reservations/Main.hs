@@ -46,9 +46,10 @@ mkMainView sessionId = mkWebView $
   do { restaurantView <- mkRestaurantView                                            
      ; return $ MainView restaurantView
      }
- 
+
+appBgColor = Rgb 0xf8 0xf8 0xf8
 instance Presentable MainView where
-  present (MainView v) = with [thestyle "font-family:arial"] $ present v 
+  present (MainView v) = with [thestyle "font-family:arial"] $ roundedBoxed (Just $ appBgColor) $ with [width "0px"] $ present v 
 
 instance Storeable Database MainView where
   save _ = id
@@ -263,7 +264,7 @@ mkReservationView mReservation = mkWebView $
      }
  
 instance Presentable ReservationView where
-  present (ReservationView name nrOfPeople comment) = 
+  present (ReservationView name nrOfPeople comment) = boxed $
     simpleTable [] [] 
       [ [stringToHtml "name: ", stringToHtml name]
       , [stringToHtml "nrOfPeople: ", stringToHtml $ show nrOfPeople ]
