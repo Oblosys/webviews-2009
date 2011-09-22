@@ -6,6 +6,7 @@ import Text.Html hiding (image)
 import qualified Text.Html as Html
 import Data.Generics
 import Data.Char
+import Data.Maybe
 import Data.Map (Map)
 import qualified Data.Map as Map 
 import Data.IntMap (IntMap)
@@ -289,32 +290,37 @@ instance Storeable Database ReservationView where
 
 
 data ClientView = 
-  ClientView (Widget (Button Database))
+  ClientView (Maybe Date) (Widget (Button Database)) (Widget (Button Database)) (Widget (Button Database)) String
     deriving (Eq, Show, Typeable, Data)
   
 instance Initial ClientView where                 
-  initial = ClientView initial
+  initial = ClientView initial initial initial initial initial
 
 mkClientView = mkWebView $
- \vid (ClientView _) ->
+ \vid (ClientView mDate _ _ _ _) ->
   do { clockTime <-  liftIO getClockTime -- this stuff is duplicated
      ; ct <- liftIO $ toCalendarTime clockTime
      ; let currentDay = ctDay ct
            currentMonth = 1+fromEnum (ctMonth ct)
            currentYear = ctYear ct
            today = (currentDay, currentMonth, currentYear)
+           tomorrow = (currentDay+1, currentMonth, currentYear)
            now   = (ctHour ct, ctMin ct)
-           
-     ;  confirmButton <- mkButton "Confirm" True  $
-        Edit $ docEdit $ \db -> let (Reservation rid _ _ _ _ _, db') = newReservation db
-                                    db'' = updateReservation rid (const $ Reservation rid (currentDay,currentMonth,currentYear) (18,0) "Oblomov" 8 "Automatic") db
-                                in db'' 
-     ; return $ ClientView confirmButton
+     ; todayButton <- mkButton "Today" True $ Edit $ viewEdit vid $ \(ClientView _ b1 b2 b3 s) -> ClientView (Just today) b1 b2 b3 s
+     ; tomorrowButton <- mkButton "Tomorrow" True $ Edit $ viewEdit vid $ \(ClientView _ b1 b2 b3 s) -> ClientView (Just tomorrow) b1 b2 b3 s
+     ; confirmButton <- mkButton "Confirm" (isJust mDate)  $
+         Edit $ docEdit $ \db -> let (Reservation rid _ _ _ _ _, db') = newReservation db
+                                     db'' = updateReservation rid (const $ Reservation rid (maybe (0,0,0) id mDate) (18,0) "Oblomov" 8 "Automatic") db
+                                 in  db''
+     ; let status = "all ok" 
+     ; return $ ClientView mDate todayButton tomorrowButton confirmButton status
      }
  
 -- todo comment has hard-coded width. make constant for this
 instance Presentable ClientView where
-  present (ClientView confirmButton) = present confirmButton
+  present (ClientView mDate todayButton tomorrowButton confirmButton status) = 
+    vList [ stringToHtml $ maybe "No date chosen" (\d -> showDate d) mDate
+          , present todayButton, present tomorrowButton, present confirmButton, stringToHtml status]
  
 instance Storeable Database ClientView where
   save _ = id
@@ -366,7 +372,11 @@ weekdayForDate (day, month, year) = liftIO $
  Please select a time (red is not available)
  Enter a comment or (confirm reservation)
  
+ add time that reservation was made
+ 
  Ideas:
+ 
+ 
  Maybe change background when nothing is selected (or foreground for reservation fields)
  
  Hover!
