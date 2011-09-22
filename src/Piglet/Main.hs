@@ -22,7 +22,7 @@ import Server
 import Piglet.Database
 
 main :: IO ()
-main = server mkRootView theDatabase users
+main = server mkRootView "PigletDB.txt" theDatabase users
 
 mkRootView :: User -> Database -> Int -> ViewMap Database -> IO (WebView Database)
 mkRootView user db sessionId viewMap =

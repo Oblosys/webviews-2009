@@ -33,7 +33,7 @@ webViewsPort = 8090
 
 {-
 TODO: why are there so many theDatabase refs? when is this thing initialized and when is it read from disk?
-see if passing down mkRootView, theDatabase and users can be improved (maybe in state?)
+see if passing down mkRootView, dbFilename, theDatabase and users can be improved (maybe in state?)
              
 
 maybe use type class?
@@ -94,8 +94,9 @@ setRootView sessionStateRef rootView =
     ; writeIORef sessionStateRef (sessionId, user, db, rootView, pendingEdit)
     }
  
-server :: (Data db, Typeable db, Show db, Read db, Eq db) => (User -> db -> Int -> ViewMap db -> IO (WebView db)) -> db -> Map String (String, String) -> IO ()
-server mkRootView theDatabase users =
+server :: (Data db, Typeable db, Show db, Read db, Eq db) =>
+          (User -> db -> Int -> ViewMap db -> IO (WebView db)) -> String -> db -> Map String (String, String) -> IO ()
+server mkRootView dbFilename theDatabase users =
  do { hSetBuffering stdout NoBuffering -- necessary to run server in Eclipse
     ; time <- getClockTime
     ; putStrLn $ "\n\n### Started WebViews server (port "++show webViewsPort++"): "++show time ++"\n"
@@ -103,13 +104,13 @@ server mkRootView theDatabase users =
     ; globalStateRef <- newIORef $ initGlobalState theDatabase
     
     ; dbStr <-
-       do { fh <- openFile "Database.txt" ReadMode
+       do { fh <- openFile dbFilename ReadMode
           ; dbStr <- hGetContents fh 
           ; seq (length dbStr) $ return ()
           ; hClose fh
           ; return dbStr
           } `Control.Exception.catch` \exc ->
-       do { putStrLn $ "On opening Database.txt:\n"
+       do { putStrLn $ "On opening "++dbFilename++":\n"
           ; putStrLn $ "Exception "++ show (exc :: SomeException)
           ; putStrLn $ "\nUsing default database."
           ; return ""
@@ -120,7 +121,7 @@ server mkRootView theDatabase users =
                      \(_, sessions, sessionCounter) -> (db, sessions, sessionCounter)
         Nothing -> return ()
     ; simpleHTTP nullConf { port = webViewsPort, logAccess = Just logWebViewAccess } $ 
-        msum (handlers mkRootView theDatabase users serverSessionId globalStateRef)
+        msum (handlers mkRootView dbFilename theDatabase users serverSessionId globalStateRef)
     }
 {-
 handle:
@@ -136,13 +137,13 @@ logWebViewAccess clientIP b _ c d e f g =
  do { putStrLn $ show clientIP ++ " " ++ show b ++ " " ++ show c ++ " " ++ show d ++ " " ++ show e ++ " " ++ show g ++ " " ++ show g
     }
 
-handlers :: (Data db, Show db, Eq db) => (User -> db -> Int -> ViewMap db -> IO (WebView db)) -> db -> Map String (String, String) -> ServerInstanceId -> GlobalStateRef db -> [ServerPart Response]
-handlers mkRootView theDatabase users serverSessionId globalStateRef = 
+handlers :: (Data db, Show db, Eq db) => (User -> db -> Int -> ViewMap db -> IO (WebView db)) -> String -> db -> Map String (String, String) -> ServerInstanceId -> GlobalStateRef db -> [ServerPart Response]
+handlers mkRootView dbFilename theDatabase users serverSessionId globalStateRef = 
   [ dir "favicon.ico" $ serveDirectory DisableBrowsing [] "favicon.ico"
   , dir "scr" $ serveDirectory DisableBrowsing [] "scr"  
   , dir "img" $ serveDirectory DisableBrowsing [] "img"  
   , dir "handle" $ 
-      withData (\cmds -> methodSP GET $ session mkRootView theDatabase users serverSessionId globalStateRef cmds)
+      withData (\cmds -> methodSP GET $ session mkRootView dbFilename theDatabase users serverSessionId globalStateRef cmds)
   , methodSP GET $
      do { liftIO $ putStrLn "Root requested"
         ; serveDirectory DisableBrowsing [] "scr/WebViews.html"
@@ -172,8 +173,8 @@ Set-Cookie: webviews="(1242497513,2)";Max-Age=3600;Path=/;Version="1"
 
 type SessionCookie = (String, String)
 
-session :: (Data db, Show db, Eq db) => (User -> db -> Int -> ViewMap db -> IO (WebView db)) -> db -> Map String (String, String) -> ServerInstanceId -> GlobalStateRef db -> Commands -> ServerPart Response
-session mkRootView theDatabase users serverInstanceId globalStateRef cmds =
+session :: (Data db, Show db, Eq db) => (User -> db -> Int -> ViewMap db -> IO (WebView db)) -> String -> db -> Map String (String, String) -> ServerInstanceId -> GlobalStateRef db -> Commands -> ServerPart Response
+session mkRootView dbFilename theDatabase users serverInstanceId globalStateRef cmds =
  do { mCookieSessionId <- parseCookieSessionId serverInstanceId
       
 --        ; lputStrLn $ show rq
@@ -185,7 +186,7 @@ session mkRootView theDatabase users serverInstanceId globalStateRef cmds =
              
         ; sessionStateRef <- retrieveSessionState globalStateRef sessionId 
                                   
-        ; responseHtml <- sessionHandler mkRootView theDatabase users sessionStateRef cmds              
+        ; responseHtml <- sessionHandler mkRootView dbFilename theDatabase users sessionStateRef cmds              
         
         ; storeSessionState globalStateRef sessionId sessionStateRef
         
@@ -255,8 +256,8 @@ storeSessionState globalStateRef sessionId sessionStateRef =
     ; liftIO $ writeIORef globalStateRef (database', sessions', sessionCounter)
     }
  
-sessionHandler :: (Data db, Show db, Eq db) => (User -> db -> Int -> ViewMap db -> IO (WebView db)) -> db -> Map String (String, String) -> SessionStateRef db -> Commands -> ServerPart Html
-sessionHandler mkRootView theDatabase users sessionStateRef cmds = liftIO $  
+sessionHandler :: (Data db, Show db, Eq db) => (User -> db -> Int -> ViewMap db -> IO (WebView db)) -> String -> db -> Map String (String, String) -> SessionStateRef db -> Commands -> ServerPart Html
+sessionHandler mkRootView dbFilename theDatabase users sessionStateRef cmds = liftIO $  
  do { putStrLn $ "Received commands" ++ show cmds
     
     ; (_, _, db, oldRootView', _) <- readIORef sessionStateRef
@@ -278,7 +279,7 @@ sessionHandler mkRootView theDatabase users sessionStateRef cmds = liftIO $
             -- save the database if there was a change
             ; (_, _, db', _, _) <- readIORef sessionStateRef
             ; if db /= db' then 
-               do { fh <- openFile "Database.txt" WriteMode
+               do { fh <- openFile dbFilename WriteMode
                   ; hPutStr fh $ show db'
                   ; hClose fh
                   }

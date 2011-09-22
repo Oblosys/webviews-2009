@@ -23,7 +23,7 @@ import Server
 import Reservations.Database
 
 main :: IO ()
-main = server mkRootView theDatabase users
+main = server mkRootView "ReservationsDB.txt" theDatabase users
 
 mkRootView :: User -> Database -> Int -> ViewMap Database -> IO (WebView Database)
 mkRootView user db sessionId viewMap =
