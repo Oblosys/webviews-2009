@@ -94,13 +94,14 @@ mkRestaurantView = mkWebView $
      
      ; calendarDayViews <- mapM calendarDayViewForDate calendarDays
      
-     ; let reservationsToday = filter ((==mSelectedDate). Just . date) reservations
-     ; let reservationsSelectedHour = filter ((==mSelectedHour). Just . fst . time) reservationsToday
+     ; let reservationsSelectedDay = filter ((==mSelectedDate). Just . date) reservations
+     ; let reservationsSelectedHour = filter ((==mSelectedHour). Just . fst . time) reservationsSelectedDay
       
      ; let weeks = daysToWeeks $ zip calendarDayViews selects
      
      -- todo: split these, check where selected date should live
-     ; dayView <- mkDayView vid mSelectedHour reservationsToday
+
+     ; dayView <- mkDayView vid mSelectedHour reservationsSelectedDay
      ; hourView <- mkHourView vid mSelectedReservation mSelectedHour reservationsSelectedHour
      ; reservationView <- mkReservationView mSelectedReservation
 
@@ -149,6 +150,7 @@ mkCalendarDayView date isSelected isToday isThisMonth reservations = mkWebView $
      }
 
 selectedDayColor = Rgb 0x80 0xb0 0xff
+
 instance Presentable CalendarDayView where
   present (CalendarDayView date@(day, month, year) isSelected isToday isThisMonth reservations) = 
     withBgColor (if isToday then Rgb 0x90 0x90 0x90 else if isSelected then selectedDayColor else Rgb 240 240 240) $
@@ -157,18 +159,12 @@ instance Presentable CalendarDayView where
       mkTableEx [ width "40px", height 40, cellpadding 0, cellspacing 0 
                 , thestyle $ "margin:2px; background-color:" ++ if isSelected then htmlColor selectedDayColor else htmlColor (Rgb 240 240 240) ] [] [] 
         [[ ([valign "top"] ++ if isThisMonth then [] else [thestyle "color: #808080"], stringToHtml (show day)) ]
-        ,[ ([],             stringToHtml $ if null reservations then "" else "o") ]
+        ,[ ([thestyle "font-size:80%; color:#0000ff"], if not $ null reservations then stringToHtml $ show (length reservations) ++ " (" ++ show (sum $ map nrOfPeople reservations)++")" else nbsp) ] 
         ]
---      p << stringToHtml (if null reservations then "." else "o")
     -- TODO: make Rgb for standard html colors, make rgbH for (rgbH 0xffffff)
     
     -- check slow down after running for a while
- {-
-    withBgColor (Rgb 235 235 235) $ withPad 5 0 5 0 $    
-    with_ [thestyle "font-family: arial"] $
-      mkTableEx [width "100%"] [] [valign "top"]
-       [[ ([],
--}
+
 instance Storeable Database CalendarDayView where
   save _ = id
 
@@ -195,10 +191,16 @@ instance Presentable DayView where
     mkTableEx [width "100%", cellpadding 0, cellspacing 0, thestyle "border-collapse:collapse; font-size:80%; font-family:Arial"] [] [] 
       [[ ([withEditActionAttr sa, thestyle $ "border: 1px solid #909090; background-color: "++
                                              if Just hr==mSelectedHour then htmlColor selectedDayColor else "#d0d0d0"]
-         , stringToHtml $ show hr++"h") | (sa,hr) <- zip selectHourActions [18..24] ]] 
+         , presentHour hr) | (sa,hr) <- zip selectHourActions [18..24] ]]
 
 --    mkTableEx [cellpadding 0, cellspacing 0, thestyle "border-collapse:collapse; font-family:Arial; text-align:center"] [] [thestyle "border: 1px solid #909090"]  
-
+   where presentHour hr =
+           vListEx [width "100%"] 
+                 [ stringToHtml $ show hr++"h"
+                 , with [thestyle "font-size:80%; font-family:Arial; text-align:center; color:#0000ff"] $ 
+                     let ressAtHr = filter ((==hr) . fst . time) dayReservations
+                     in  if not $ null ressAtHr then stringToHtml $ show (length ressAtHr) ++ " (" ++ show (sum $ map nrOfPeople ressAtHr)++")" else nbsp 
+                 ]
 instance Storeable Database DayView where
   save _ = id
 
