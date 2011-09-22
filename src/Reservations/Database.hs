@@ -62,8 +62,13 @@ unsafeLookup map key =
 -- make clear why we need an explicit view, and the html rep is not enough.
 
 
-theDatabase = Database 
-  (Map.fromList [ (ReservationId 1, Reservation (ReservationId 1) (22,9,2011) (20,00) "Martijn" 2 "No comments")
-                , (ReservationId 2, Reservation (ReservationId 1) (22,9,2011) (20,30) "Karel" 2 "No comments")
-                , (ReservationId 3, Reservation (ReservationId 2) (24,9,2011) (18,00) "Pino" 3 "Please provide bird seed")
-                ])
+theDatabase = Database $ Map.fromList $ addIds 0 $
+                [ ((22,9,2011), (20,00), "Martijn", 2, "No comments")
+                , ((22,9,2011), (20,30), "Karel", 4, "Karel says hi")
+                , ((22,9,2011), (21,00), "Karel 2", 3, "dinner at nine")
+                , ((24,9,2011), (18,00), "Pino", 3, "Please provide bird seed")
+                ]
+ where addIds _ [] = []
+       addIds i ((dt, tm, nm, nr, c):xs) = (ReservationId i, Reservation (ReservationId i) dt tm nm nr c) : addIds (i+1) xs
+                
+                
