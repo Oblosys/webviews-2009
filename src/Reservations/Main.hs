@@ -99,7 +99,9 @@ mkRestaurantView = mkWebView $
       
      ; let weeks = daysToWeeks $ zip calendarDayViews selects
      
-     -- todo: set selections (date on today)
+     ; let selectedDate = maybe today id mSelectedDate
+     ; let mSelectedDate = Just selectedDate 
+     -- todo: set selections (date on today is now a hack, whole calendar should be based on selected rather than today)
      -- todo: split these, check where selected date should live
 
      ; dayView <- mkDayView vid mSelectedHour reservationsSelectedDay
@@ -135,7 +137,7 @@ instance Presentable RestaurantView where
             (Just (d,m,_), Just selectedHour) -> stringToHtml $ "Reservations on "++show d++" "++showMonth m ++
                                                                      " between "++show selectedHour ++ "h and "++show (selectedHour+1)++"h"
             _                                      -> nbsp
-      , vSpace 8
+      , vSpace 6
       , present hourView
       , present reservationView 
       ]
