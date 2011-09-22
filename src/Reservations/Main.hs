@@ -57,14 +57,14 @@ instance Storeable Database MainView where
 -- Main ----------------------------------------------------------------------  
 
 data RestaurantView = 
-  RestaurantView Date String [[(WebView Database,EditAction Database)]]
+  RestaurantView (Maybe Date) (Maybe Int) (Maybe Reservation) [[(WebView Database,EditAction Database)]] (WebView Database) (WebView Database) (WebView Database)
     deriving (Eq, Show, Typeable, Data)
-  
+
 instance Initial RestaurantView where                 
-  initial = RestaurantView (initial, initial, initial) initial []
+  initial = RestaurantView initial initial initial [] initial initial initial
 
 mkRestaurantView = mkWebView $
- \vid (RestaurantView selectedDate _ _) ->
+ \vid (RestaurantView mSelectedDate mSelectedHour mSelectedReservation _ _ _ _) ->
   do { clockTime <-  liftIO getClockTime
      ; ct <- liftIO $ toCalendarTime clockTime
      ; let currentDay = ctDay ct
@@ -89,31 +89,46 @@ mkRestaurantView = mkWebView $
      
      ; reservations <- fmap Map.elems $ withDb $ \db -> allReservations db
      
-     ; let calendarDayViewForDate date@(_,m,_) = mkCalendarDayView date (date==selectedDate) (date==today) (m==currentMonth) $
-                                           [r | r@(Reservation _ d _ _ _) <- reservations, date==d]  
+     ; let calendarDayViewForDate date@(_,m,_) = mkCalendarDayView date (Just date==mSelectedDate) (date==today) (m==currentMonth) $
+                                           [r | r@(Reservation _ d _ _ _ _) <- reservations, date==d]  
      
      ; calendarDayViews <- mapM calendarDayViewForDate calendarDays
-     ; let reservationsToday = concat [ show h++"."++show m++": "++nm++" "
-                                      | Reservation _ d (h,m) nm nr <- reservations, d==selectedDate ]
      
+     ; let reservationsToday = filter ((==mSelectedDate). Just . date) reservations
+     ; let reservationsSelectedHour = filter ((==mSelectedHour). Just . fst . time) reservationsToday
+      
      ; let weeks = daysToWeeks $ zip calendarDayViews selects
      
-     ; return $ RestaurantView selectedDate reservationsToday weeks
+     -- todo: split these, check where selected date should live
+     ; dayView <- mkDayView vid mSelectedHour reservationsToday
+     ; hourView <- mkHourView vid mSelectedReservation mSelectedHour reservationsSelectedHour
+     ; reservationView <- mkReservationView mSelectedReservation
+
+     
+     ; return $ RestaurantView mSelectedDate mSelectedHour mSelectedReservation weeks dayView hourView reservationView
      }
- where selectDateEdit vid d = mkEditAction . Edit $ viewEdit vid $ \(RestaurantView _ r weeks) -> RestaurantView d r weeks
- 
+ where selectDateEdit vid d = mkEditAction . Edit $ viewEdit vid $ \(RestaurantView _ h r weeks dayView hourView reservationView) -> RestaurantView (Just d) h r weeks dayView hourView reservationView
+
+getWebViewId (WebView vid _ _ _ _) = vid
+
 {- day: mark today
 mark different months, mark appointments
  -}
 instance Presentable RestaurantView where
-  present (RestaurantView selectedDate@(selDay, selMonth, selYear) reservationsToday weeks) = 
-    mkTableEx [cellpadding 0, cellspacing 0, thestyle "border-collapse:collapse; font-family:Arial; text-align:center"] [] [thestyle "border: 1px solid #909090"]  
-              (header :
-               [ [ ([withEditActionAttr selectionAction], present dayView) 
-                 | (dayView, selectionAction) <- week] 
-               | week <- weeks ]) +++
-    p << stringToHtml (show selectedDate) +++
-    p << stringToHtml reservationsToday
+  present (RestaurantView selectedDate selectedHour selectedReservation weeks dayView hourView reservationView) = 
+    vList $ 
+      [ mkTableEx [cellpadding 0, cellspacing 0, thestyle "border-collapse:collapse; font-family:Arial; text-align:center"] [] [thestyle "border: 1px solid #909090"]  
+                  (header :
+                   [ [ ([withEditActionAttr selectionAction], present dayView) 
+                     | (dayView, selectionAction) <- week] 
+                   | week <- weeks ]
+                   )
+      ] ++
+      [ present dayView
+      , stringToHtml (show selectedDate)
+      , present hourView
+      , present reservationView 
+      ]
    where header = [ ([], stringToHtml d) | d <- ["ma", "di", "wo", "do", "vr", "za", "zo"] ] 
 instance Storeable Database RestaurantView where
   save _ = id
@@ -157,7 +172,97 @@ instance Presentable CalendarDayView where
 instance Storeable Database CalendarDayView where
   save _ = id
 
+-----------------------------------------------------------------------------
+
+data DayView = 
+  DayView (Maybe Int) [EditAction Database] [Reservation]
+    deriving (Eq, Show, Typeable, Data)
+  
+instance Initial DayView where                 
+  initial = DayView initial initial initial
+
+
+mkDayView :: ViewId -> Maybe Int -> [Reservation] -> WebViewM Database (WebView Database)
+mkDayView restaurantViewId mSelectedHour dayReservations = mkWebView $
+ \vid (DayView _ _ _) ->
+  do { selectHourActions <- mapM (selectHourEdit restaurantViewId) [18..24]
+     ; return $ DayView mSelectedHour selectHourActions dayReservations 
+     }
+ where selectHourEdit vid h = mkEditAction . Edit $ viewEdit vid $ \(RestaurantView d _ r weeks dayView hourView reservationView) -> RestaurantView d (Just h) r weeks dayView hourView reservationView
+ 
+instance Presentable DayView where
+  present (DayView mSelectedHour selectHourActions dayReservations) =
+    mkTableEx [width "100%", cellpadding 0, cellspacing 0, thestyle "border-collapse:collapse; font-size:80%; font-family:Arial"] [] [] 
+      [[ ([withEditActionAttr sa, thestyle $ "border: 1px solid #909090; background-color: "++
+                                             if Just hr==mSelectedHour then htmlColor selectedDayColor else "#d0d0d0"]
+         , stringToHtml $ show hr++"h") | (sa,hr) <- zip selectHourActions [18..24] ]] 
+
+--    mkTableEx [cellpadding 0, cellspacing 0, thestyle "border-collapse:collapse; font-family:Arial; text-align:center"] [] [thestyle "border: 1px solid #909090"]  
+
+instance Storeable Database DayView where
+  save _ = id
+
+-----------------------------------------------------------------------------
+
+data HourView = 
+  HourView (Maybe Reservation) (Maybe Int) [EditAction Database] [Reservation]
+    deriving (Eq, Show, Typeable, Data)
+  
+instance Initial HourView where                 
+  initial = HourView initial initial initial initial
+
+mkHourView :: ViewId -> Maybe Reservation -> Maybe Int -> [Reservation] -> WebViewM Database (WebView Database)
+mkHourView restaurantViewId mSelectedReservation mSelectedHour hourReservations = mkWebView $
+ \vid (HourView _ _ _ _) ->
+  do { selectReservationActions <- mapM (selectReservationEdit restaurantViewId) hourReservations
+     ; return $ HourView mSelectedReservation mSelectedHour selectReservationActions hourReservations 
+     }
+ where selectReservationEdit vid r = mkEditAction . Edit $ viewEdit vid $ \(RestaurantView d h _ weeks dayView hourView reservationView) -> RestaurantView d h (Just r) weeks dayView hourView reservationView
+ 
+instance Presentable HourView where
+  present (HourView mSelectedReservation mSelectedHour selectReservationActions hourReservations) = 
+    mkTableEx [width "100%", cellpadding 0, cellspacing 0, thestyle "border-collapse:collapse; font-family:Arial"] [] [] 
+      [[ ([withEditActionAttr sa, thestyle $ "border: 1px solid #909090; background-color: "++
+                                             if Just r==mSelectedReservation then htmlColor selectedDayColor else "#f8f8f8"]
+         , stringToHtml $ showTime tm ++ " -   "++nm++" ("++show nr++")") ]
+      | (sa,r@(Reservation _ _ tm nm nr _)) <- zip selectReservationActions hourReservations 
+      ]
+instance Storeable Database HourView where
+  save _ = id
+
+-----------------------------------------------------------------------------
+
+data ReservationView = 
+  ReservationView String Int String
+    deriving (Eq, Show, Typeable, Data)
+  
+instance Initial ReservationView where                 
+  initial = ReservationView initial initial initial
+
+
+mkReservationView mReservation = mkWebView $
+ \vid (ReservationView _ _ _) ->
+  do { case mReservation of
+         Just (Reservation _ _ _ name nrOfPeople comment) ->
+           return $ ReservationView name nrOfPeople comment
+         Nothing -> 
+           return $ ReservationView "no reservation" 0 ""
+     }
+ 
+instance Presentable ReservationView where
+  present (ReservationView name nrOfPeople comment) = 
+    simpleTable [] [] 
+      [ [stringToHtml "name: ", stringToHtml name]
+      , [stringToHtml "nrOfPeople: ", stringToHtml $ show nrOfPeople ]
+      , [stringToHtml comment ]
+      ]  
+
+instance Storeable Database ReservationView where
+  save _ = id
+
+
 --- Utils
+showTime (h,m) = (if h<10 then " " else "") ++ show h ++ ":" ++ (if m<10 then "0" else "") ++ show m
 
 daysToWeeks days = if length days < 7 then [days]
                    else take 7 days : daysToWeeks (drop 7 days)

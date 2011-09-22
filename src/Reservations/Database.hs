@@ -33,6 +33,7 @@ data Reservation =
               , time :: Time
               , name :: String
               , nrOfPeople :: Int
+              , comment :: String
               } deriving (Eq, Show, Read, Typeable, Data)
 
 updateReservation :: ReservationId -> (Reservation -> Reservation) -> Database -> Database
@@ -49,7 +50,7 @@ newReservation :: Database -> (Reservation, Database)
 newReservation db =
   let ids = [ i | ReservationId i <- map fst (Map.toList $ allReservations db) ]
       newId = ReservationId $ if null ids then 0 else (maximum ids + 1)
-      newReservation = Reservation newId (0,0,0) (0,0) "" 0
+      newReservation = Reservation newId (0,0,0) (0,0) "" 0 ""
   in  (newReservation, db { allReservations = Map.insert newId newReservation (allReservations db) } )
    
 unsafeLookup map key = 
@@ -62,6 +63,7 @@ unsafeLookup map key =
 
 
 theDatabase = Database 
-  (Map.fromList [ (ReservationId 1, Reservation (ReservationId 1) (21,9,2011) (20,30) "Martijn" 2)
-                , (ReservationId 2, Reservation (ReservationId 2) (24,9,2011) (18,00) "Pino" 3)
+  (Map.fromList [ (ReservationId 1, Reservation (ReservationId 1) (22,9,2011) (20,00) "Martijn" 2 "No comments")
+                , (ReservationId 2, Reservation (ReservationId 1) (22,9,2011) (20,30) "Karel" 2 "No comments")
+                , (ReservationId 3, Reservation (ReservationId 2) (24,9,2011) (18,00) "Pino" 3 "Please provide bird seed")
                 ])

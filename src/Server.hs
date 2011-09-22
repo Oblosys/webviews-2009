@@ -40,6 +40,15 @@ maybe use type class?
 
 check dummy args (witnesses?) in Generics for replace and getTextByViewIdRef
 
+bug: webview fields that are not presented still show up in interface
+
+todo: initials are annoying, figure out TH stuff and write down what they are for
+
+viewEdit is completetely untyped!!
+
+two thestyle's together don't work, so thestyle .. and later colorAttr should be unified in one thestyle 
+
+
 Check lenses
 Check relation to google toolkit. Maybe we can use stuff from it?
 
