@@ -34,22 +34,26 @@ mkRootView user db sessionId viewMap =
 -- Main ----------------------------------------------------------------------  
 
 data MainView = 
-  MainView (WebView Database)
+  MainView (WebView Database) (WebView Database)
     deriving (Eq, Show, Typeable, Data)
   
 instance Initial MainView where                 
-  initial = MainView initial
+  initial = MainView initial initial
 
 
 mkMainView sessionId = mkWebView $
- \vid (MainView _) ->
-  do { restaurantView <- mkRestaurantView                                            
-     ; return $ MainView restaurantView
+ \vid (MainView _ _) ->
+  do { clientView <- mkClientView
+     ; restaurantView <- mkRestaurantView                                            
+     ; return $ MainView clientView restaurantView
      }
 
 appBgColor = Rgb 0xf8 0xf8 0xf8
 instance Presentable MainView where
-  present (MainView v) = with [thestyle "font-family:arial"] $ roundedBoxed (Just $ appBgColor) $ with [width "0px"] $ present v 
+  present (MainView cv rv) = 
+     hListEx [] [ with [thestyle "font-family:arial"] $ roundedBoxed (Just $ appBgColor) $ present cv
+                , hSpace 30
+                , with [thestyle "font-family:arial"] $ roundedBoxed (Just $ appBgColor) $ present rv ] 
 
 instance Storeable Database MainView where
   save _ = id
@@ -164,7 +168,7 @@ mkCalendarDayView date isSelected isToday isThisMonth reservations = mkWebView $
  \vid (CalendarDayView _ _ _ _ _) ->
   do { return $ CalendarDayView date isSelected isToday isThisMonth reservations
      }
-
+     
 selectedDayColor = Rgb 0x80 0xb0 0xff
 
 instance Presentable CalendarDayView where
@@ -192,7 +196,6 @@ data DayView =
   
 instance Initial DayView where                 
   initial = DayView initial initial initial
-
 
 mkDayView :: ViewId -> Maybe Int -> [Reservation] -> WebViewM Database (WebView Database)
 mkDayView restaurantViewId mSelectedHour dayReservations = mkWebView $
@@ -258,7 +261,6 @@ data ReservationView =
 instance Initial ReservationView where                 
   initial = ReservationView initial
 
-
 mkReservationView mReservation = mkWebView $
  \vid (ReservationView _) ->
   do { return $ ReservationView mReservation
@@ -286,6 +288,38 @@ instance Storeable Database ReservationView where
   save _ = id
 
 
+data ClientView = 
+  ClientView (Widget (Button Database))
+    deriving (Eq, Show, Typeable, Data)
+  
+instance Initial ClientView where                 
+  initial = ClientView initial
+
+mkClientView = mkWebView $
+ \vid (ClientView _) ->
+  do { clockTime <-  liftIO getClockTime -- this stuff is duplicated
+     ; ct <- liftIO $ toCalendarTime clockTime
+     ; let currentDay = ctDay ct
+           currentMonth = 1+fromEnum (ctMonth ct)
+           currentYear = ctYear ct
+           today = (currentDay, currentMonth, currentYear)
+           now   = (ctHour ct, ctMin ct)
+           
+     ;  confirmButton <- mkButton "Confirm" True  $
+        Edit $ docEdit $ \db -> let (Reservation rid _ _ _ _ _, db') = newReservation db
+                                    db'' = updateReservation rid (const $ Reservation rid (currentDay,currentMonth,currentYear) (18,0) "Oblomov" 8 "Automatic") db
+                                in db'' 
+     ; return $ ClientView confirmButton
+     }
+ 
+-- todo comment has hard-coded width. make constant for this
+instance Presentable ClientView where
+  present (ClientView confirmButton) = present confirmButton
+ 
+instance Storeable Database ClientView where
+  save _ = id
+
+
 --- Utils
 showMonth m = show (toEnum (m-1) :: System.Time.Month)
 showDate (d,m,y) = show d ++ " " ++ showMonth m ++ " " ++ show y
@@ -305,6 +339,33 @@ weekdayForDate (day, month, year) = liftIO $
  
  
  {-
+ 
+ Name: [              ]
+ Nr of people :
+ (2) (3) (4) (5) (6) (7) (8)
+
+ Date: 
+ (   Today  22 September  )(  Tomorrow  )
+ (Sat 24)(Sun 25)(Mon 26)(Tue 27)(Wed 28)
+ 
+ Thursday, 22 September 2011
+ Time:
+ (18:00)         (18:30)
+ (19:00)         (19:30)
+ (20:00)         (20:30)
+ (21:00)         (21:30)
+ (22:00)         (23:30)
+ (23:00)         (23:30)
+ 
+ Comments:
+ [ ]
+  
+ Please enter your name
+ Please enter number of people
+ Please select a date
+ Please select a time (red is not available)
+ Enter a comment or (confirm reservation)
+ 
  Ideas:
  Maybe change background when nothing is selected (or foreground for reservation fields)
  
