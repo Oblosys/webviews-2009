@@ -153,8 +153,7 @@ handlers mkRootView dbFilename theDatabase users serverSessionId globalStateRef 
   , dir "img" $ serveDirectory DisableBrowsing [] "img"  
   , dir "handle" $ 
       withData (\cmds -> methodSP GET $ session mkRootView dbFilename theDatabase users serverSessionId globalStateRef cmds)
-  , methodSP GET $
-     do { liftIO $ putStrLn "Root requested"
+  ,  do { liftIO $ putStrLn "Root requested"
         ; serveDirectory DisableBrowsing [] "scr/WebViews.html"
         }
   ]
