@@ -461,6 +461,7 @@ mkTabbedView labelsEditActionsTabViews = mkWebView $
 instance Data db => Storeable db (TabbedView db) where
   save (TabbedView _ _ tabViews) = foldl (.) id $ map save tabViews
 
+-- TODO: may have been broken by new roundedBoxed implementation
 instance Presentable (TabbedView db) where
   present (TabbedView selectedTab selectionViews tabViews) = 
     hList [ thespan![ theclass "tab"
