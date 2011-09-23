@@ -199,7 +199,7 @@ session rootViews dbFilename theDatabase users serverInstanceId globalStateRef c
 --        ; lputStrLn $ show rq
         ; sessionId <- case mCookieSessionId of 
             Nothing  -> createNewSessionState theDatabase globalStateRef serverInstanceId
-            Just key -> do { lputStrLn $ "Existing session "++show key
+            Just key -> do { --lputStrLn $ "Existing session "++show key
                            ; return key
                            }
              
@@ -257,7 +257,7 @@ createNewSessionState theDatabase globalStateRef serverInstanceId =
 retrieveSessionState :: GlobalStateRef db -> SessionId -> ServerPart (SessionStateRef db)
 retrieveSessionState globalStateRef sessionId =
  do { (database, sessions, sessionCounter) <- liftIO $ readIORef globalStateRef
-    ; lputStrLn $ "\n\nNumber of active sessions: " ++ show sessionCounter                                          
+    --; lputStrLn $ "\n\nNumber of active sessions: " ++ show sessionCounter                                          
     ; sessionState <- case IntMap.lookup sessionId sessions of -- in monad to show errors (which are not caught :-( )
                              Nothing                      -> do { lputStrLn "\n\n\n\nInternal error: Session not found\n\n\n\n\n"
                                                                 ; error "Internal error: Session not found"
@@ -277,7 +277,7 @@ storeSessionState globalStateRef sessionId sessionStateRef =
  
 sessionHandler :: (Data db, Show db, Eq db) => [ (String, Int -> WebViewM db (WebView db))] -> String -> db -> Map String (String, String) -> SessionStateRef db -> Commands -> ServerPart Html
 sessionHandler rootViews dbFilename theDatabase users sessionStateRef cmds = liftIO $  
- do { putStrLn $ "Received commands" ++ show cmds
+ do { --putStrLn $ "Received commands" ++ show cmds
     
     ; (_, _, db, oldRootView', _) <- readIORef sessionStateRef
     
@@ -398,7 +398,7 @@ handleCommand rootViews _ sessionStateRef (Init rootViewName) =
     ; return ViewUpdate
     }
 handleCommand _ _ sessionStateRef Refresh =
- do { putStrLn "Refresh"
+ do { -- putStrLn "Refresh"
     ; reloadRootView sessionStateRef
     ; return ViewUpdate
     }
