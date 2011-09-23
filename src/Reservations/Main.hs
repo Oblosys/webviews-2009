@@ -20,7 +20,7 @@ import WebViewLib
 import HtmlLib
 import Control.Monad.State
 import Server
-
+import System.IO.Unsafe (unsafePerformIO)
 import Reservations.Database
 
 main :: IO ()
@@ -76,10 +76,7 @@ mkRestaurantView = mkWebView $
  \vid (RestaurantView mSelectedDate mSelectedHour mSelectedReservation _ _ _ _) ->
   do { clockTime <-  liftIO getClockTime
      ; ct <- liftIO $ toCalendarTime clockTime
-     ; let currentDay = ctDay ct
-           currentMonth = 1+fromEnum (ctMonth ct)
-           currentYear = ctYear ct
-           today = (currentDay, currentMonth, currentYear)
+     ; let today@(currentDay, currentMonth, currentYear) = dateFromCalendarTime ct
            now   = (ctHour ct, ctMin ct)
            (lastMonth, lastMonthYear) = if currentMonth == 1 then (12,currentYear-1) else (currentMonth-1,currentYear)
            (nextMonth, nextMonthYear) = if currentMonth == 12 then (1,currentYear+1) else (currentMonth+1,currentYear)
@@ -300,23 +297,19 @@ instance Storeable Database ReservationView where
 
 
 data ClientView = 
-  ClientView (Maybe Date) (Maybe Time) (Widget (Text Database)) (Widget (Text Database)) (Widget (Button Database)) (Widget (Button Database)) [[Widget (Button Database)]] (Widget (Button Database)) String
+  ClientView (Maybe Date) (Maybe Time) (Widget (Text Database)) (Widget (Text Database)) (Widget (Button Database)) (Widget (Button Database)) [Widget (Button Database)] [[Widget (Button Database)]] (Widget (Button Database)) String
     deriving (Eq, Show, Typeable, Data)
-setClientViewDate md (ClientView _ mt n c b1 b2 b3 bs s) = (ClientView md mt n c b1 b2 b3 bs s)
-setClientViewTime mt (ClientView md _ n c b1 b2 b3 bs s) = (ClientView md mt n c b1 b2 b3 bs s)
+setClientViewDate md (ClientView _ mt n c b1 b2 b3 bs bss s) = (ClientView md mt n c b1 b2 b3 bs bss s)
+setClientViewTime mt (ClientView md _ n c b1 b2 b3 bs bss s) = (ClientView md mt n c b1 b2 b3 bs bss s)
  
 instance Initial ClientView where                 
-  initial = ClientView initial initial initial initial initial initial initial initial initial
+  initial = ClientView initial initial initial initial initial initial initial initial initial initial
 
 mkClientView = mkWebView $
- \vid (ClientView oldMDate mTime oldNameText oldCommentText _ _ _ _ _) ->
+ \vid (ClientView oldMDate mTime oldNameText oldCommentText _ _ _ _ _ _) ->
   do { clockTime <-  liftIO getClockTime -- this stuff is duplicated
      ; ct <- liftIO $ toCalendarTime clockTime
-     ; let currentDay = ctDay ct
-           currentMonth = 1+fromEnum (ctMonth ct)
-           currentYear = ctYear ct
-           today = (currentDay, currentMonth, currentYear)
-           tomorrow = (currentDay+1, currentMonth, currentYear)
+     ; let today@(currentDay, currentMonth, currentYear) = dateFromCalendarTime ct
            now   = (ctHour ct, ctMin ct)
            
      ; let mDate = Just $ maybe today id oldMDate -- todo
@@ -325,11 +318,18 @@ mkClientView = mkWebView $
      ; nameText  <- mkTextField $ getStrVal (oldNameText) -- needed, even though in browser text is reused without it
      ; commentText  <- mkTextArea $ getStrVal (oldCommentText) -- at server side it is not
            
-     ; todayButton <- mkButton "Today" True $ Edit $ viewEdit vid $ setClientViewDate (Just today)
-     ; tomorrowButton <- mkButton "Tomorrow" True $ Edit $ viewEdit vid $ setClientViewDate (Just tomorrow)
+     ; todayButton <- mkButton ("Today ("++show currentDay++" "++showShortMonth currentMonth++")") True $ Edit $ viewEdit vid $ setClientViewDate (Just today)
+     ; tomorrow <- addToDate today 1
+     ; tomorrowButton <- mkButton "Tomorrow" True $ Edit $ viewEdit vid $ setClientViewDate (Just $ tomorrow)
+     ; dayButtons <- sequence [ do { dt <- addToDate today day
+                                   ; dayStr <- fmap showShortDay . weekdayForDate $ dt
+                                   ; mkButton dayStr True $ Edit $ viewEdit vid $ setClientViewDate (Just dt)
+                                   }
+                              | day <-[2..7]]
+                              
      ; timeButtonss <- sequence [ sequence [ mkButton (showTime tm) True $ Edit $ viewEdit vid $ setClientViewTime (Just tm)
-                                 | mn <-[0,30], let tm = (hr,mn) ]
-                               | hr <- [18..23] ] 
+                                           | mn <-[0,30], let tm = (hr,mn) ]
+                                | hr <- [18..23] ] 
      
      ; confirmButton <- mkButton "Confirm" (isJust mDate && isJust mTime)  $
          Edit $ do { name <- getTextContents nameText
@@ -340,16 +340,17 @@ mkClientView = mkWebView $
                         in  db''
                    }
      ; let status = "all ok" 
-     ; return $ ClientView mDate mTime nameText commentText todayButton tomorrowButton timeButtonss confirmButton status
+     ; return $ ClientView mDate mTime nameText commentText todayButton tomorrowButton dayButtons timeButtonss confirmButton status
      }
      
                     
 -- todo comment has hard-coded width. make constant for this
 instance Presentable ClientView where
-  present (ClientView mDate mTime nameText commentText todayButton tomorrowButton timeButtonss confirmButton status) = 
-    vList [ stringToHtml $ maybe "No date chosen" (\d -> showDate d) mDate
+  present (ClientView mDate mTime nameText commentText todayButton tomorrowButton dayButtons timeButtonss confirmButton status) = 
+    vList [ stringToHtml $ maybe "No date chosen" (\d -> showShortDate d) mDate
           , hList [ stringToHtml "Name:",hSpace 4,present nameText]
           , hList [ present todayButton, present tomorrowButton]
+          , hList $ map present dayButtons
           , stringToHtml $ maybe "No time chosen" (\d -> showTime d) mTime
           , present commentText
           , simpleTable [] [] $ map (map present) timeButtonss
@@ -364,21 +365,41 @@ instance Storeable Database ClientView where
 
 showMonth m = show (toEnum (m-1) :: System.Time.Month)
 showDate (d,m,y) = show d ++ " " ++ showMonth m ++ " " ++ show y
+showShortDate (d,m,y) = show d ++ " " ++ showShortMonth m ++ " " ++ show y
 showTime (h,m) = (if h<10 then " " else "") ++ show h ++ ":" ++ (if m<10 then "0" else "") ++ show m
 
 daysToWeeks days = if length days < 7 then [days]
                    else take 7 days : daysToWeeks (drop 7 days)
 
-weekdayForDate (day, month, year) = liftIO $
+calendarTimeForDate (day, month, year) =
  do { clockTime <-  getClockTime -- first need to get a calendar time in this time zone
     ; today <- toCalendarTime clockTime
-    ; let ct = today {ctDay= day, ctMonth = toEnum $ month-1, ctYear = year, ctHour = 12, ctMin = 0, ctPicosec = 0}
+    ; return $ today {ctDay= day, ctMonth = toEnum $ month-1, ctYear = year, ctHour = 12, ctMin = 0, ctPicosec = 0}
+    }
+    
+dateFromCalendarTime ct = (ctDay ct, 1+fromEnum (ctMonth ct), ctYear ct)
+    
+weekdayForDate date = liftIO $
+ do { ct <- calendarTimeForDate date
     ; ctWithWeekday <- toCalendarTime $ toClockTime ct
     ; return $ (fromEnum (ctWDay ctWithWeekday) -1) `mod` 7 + 1 -- in enum, Sunday is 0 and Monday is 1, we want Monday = 1 and Sunday = 7
     } 
- 
- 
- 
+
+addToDate date days = liftIO $
+ do { ct <- calendarTimeForDate date
+    ; ct' <- toCalendarTime $ addToClockTime (noTimeDiff {tdDay = days}) $ toClockTime ct 
+    ; return $ dateFromCalendarTime ct' 
+    }
+    
+showDay :: Int -> String 
+showDay d = ["Monday","Tuesday","Wednesday","Thursday","Friday","Saturday","Sunday"]!!(d-1) 
+
+showShortDay :: Int -> String 
+showShortDay d = ["Mo","Tu","We","Th","Fr","Sa","Su"]!!(d-1) 
+
+showShortMonth :: Reservations.Database.Month -> String
+showShortMonth m = ["Jan.", "Feb.", "Mar.", "Apr.", "May", "June", "July", "Aug.","Sept.", "Oct.", "Nov.", "Dec."]!!(m-1)
+
  -- HACK
 getTextContents :: Widget (Text Database) -> EditM Database String
 getTextContents text =
@@ -388,27 +409,14 @@ getTextContents text =
  
  
  {-
+if there are 1 or more reservations in the hour view, it is weird if none is selected and we see no comment (especially if there
+is just one reservation as is seems that the no comment applies to that one) So add default selection of first elt.
  
- Name: [              ]
- Nr of people :
- (2) (3) (4) (5) (6) (7) (8)
 
- Date: 
- (   Today  22 September  )(  Tomorrow  )
- (Sat 24)(Sun 25)(Mon 26)(Tue 27)(Wed 28)
+add day name with date 
  
- Thursday, 22 September 2011
- Time:
- (18:00)         (18:30)
- (19:00)         (19:30)
- (20:00)         (20:30)
- (21:00)         (21:30)
- (22:00)         (23:30)
- (23:00)         (23:30)
- 
- Comments:
- [ ]
-  
+ Fix overflows when many reservations on one day are made
+
  Please enter your name
  Please enter number of people
  Please select a date
@@ -423,7 +431,6 @@ getTextContents text =
 -- clear the name, which should not cause init    
  
  Ideas:
- 
  
  Maybe change background when nothing is selected (or foreground for reservation fields)
  
