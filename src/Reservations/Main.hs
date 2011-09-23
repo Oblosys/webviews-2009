@@ -319,25 +319,41 @@ setClientViewTime mt (ClientView md _ n c b1 b2 b3 bs bss s) = (ClientView md mt
 instance Initial ClientView where                 
   initial = ClientView initial initial initial initial initial initial initial initial initial initial
 
+maxNrOfPeople = 10
+
 mkClientView = mkWebView $
- \vid (ClientView oldMDate mTime oldNameText oldCommentText _ _ _ _ _ _) ->
+ \vid (ClientView oldMDate oldMTime oldNameText oldCommentText _ _ _ _ _ _) ->
   do { clockTime <-  liftIO getClockTime -- this stuff is duplicated
      ; ct <- liftIO $ toCalendarTime clockTime
      ; let today@(currentDay, currentMonth, currentYear) = dateFromCalendarTime ct
            now   = (ctHour ct, ctMin ct)
            
-     ; let mDate = Just $ maybe today id oldMDate -- todo
+     ; let mDate = Just $ maybe today id oldMDate -- todo init is not nice like this
+     ; let nrOfP = 4
 
+     ; reservations <- fmap Map.elems $ withDb $ \db -> allReservations db
+     ; let timeAvailable tm = case mDate of
+                                   Nothing -> True
+                                   Just dt ->
+                                     let reservationsAtTimeAndDay = filter (\r-> dt == date r && tm == time r) reservations
+                                     in  sum (map nrOfPeople reservationsAtTimeAndDay) + nrOfP <= maxNrOfPeople
+
+     ; let mTime = case oldMTime of
+                     Nothing -> Nothing
+                     Just oldTime -> if timeAvailable oldTime then oldMTime else Nothing
+     
        -- TODO hacky
      ; nameText  <- mkTextField $ getStrVal (oldNameText) -- needed, even though in browser text is reused without it
      ; commentText  <- mkTextArea $ getStrVal (oldCommentText) -- at server side it is not
-           
+     
      ; todayButton <- mkButtonWithStyle ("Today ("++show currentDay++" "++showShortMonth currentMonth++")") True "width:100%" $ Edit $ viewEdit vid $ setClientViewDate (Just today)
      ; tomorrowButton <- mkButtonWithStyle "Tomorrow" True "width:100%" $ Edit $ viewEdit vid $ setClientViewDate (Just $ addToDate today 1)
      ; dayButtons <- sequence [ mkButton (showShortDay . weekdayForDate $ dt) True $ Edit $ viewEdit vid $ setClientViewDate (Just dt)
                               | day <-[2..7], let dt = addToDate today day ]
+     
+                                  
                               
-     ; timeButtonss <- sequence [ sequence [ mkButtonWithStyle (showTime tm) True "width:100%" $ Edit $ viewEdit vid $ setClientViewTime (Just tm)
+     ; timeButtonss <- sequence [ sequence [ mkButtonWithStyle (showTime tm) (timeAvailable tm) "width:100%" $ Edit $ viewEdit vid $ setClientViewTime (Just tm)
                                            | mn <-[0,30], let tm = (hr,mn) ]
                                 | hr <- [18..23] ] 
      
@@ -346,7 +362,7 @@ mkClientView = mkWebView $
                    ; comment <- getTextContents commentText
                    ; docEdit $ \db -> 
                         let (Reservation rid _ _ _ _ _, db') = newReservation db
-                            db'' = updateReservation rid (const $ Reservation rid (fromMaybe (error "no date") mDate) (fromMaybe (error "no time") mTime) name 8 comment) db
+                            db'' = updateReservation rid (const $ Reservation rid (fromMaybe (error "no date") mDate) (fromMaybe (error "no time") mTime) name nrOfP comment) db
                         in  db''
                    }
      ; let status = "all ok" 
@@ -432,10 +448,15 @@ getTextContents text =
  
  add time that reservation was made
  
+ 
+ -- nice way to access db in EditM (now done with (_,_,db,_,_) <- get)
+ 
 -- TODO accessing text fields and getting a reuse using getStrVal and getTextContents) is hacky and error prone   
 -- Figure out a general way to handle init and reuse
 -- e.g. for a name field, if we have an initial name, when do we set it? checking for "" is not possible, as the user may
 -- clear the name, which should not cause init    
+
+-- Init and reuse on non-widgets is also hacky, see mSelectedDate in clientView
  
 -- Button style cannot be changed by parent element, so we need a way to specify the style at the button
 Right now, this is hacked in by adding a style element to button, which causes part of the presentation to be
