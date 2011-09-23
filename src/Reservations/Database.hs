@@ -64,13 +64,13 @@ unsafeLookup map key =
 
 
 theDatabase = Database $ Map.fromList $ addIds 0 $
-                [ ((22,9,2011), (20,00), "Martijn", 2, "Long comment that exceeds the line width and spans\nmultiple\nlines\nto\nsee\nif\nthat\nworks\nLong comment that exceeds the line width and spans\nmultiple\nlines\nto\nsee\nif\nthat\nworks\nLong comment that exceeds the line width and spans\nmultiple\nlines\nto\nsee\nif\nthat\nworks")
-                , ((22,9,2011), (20,00), "Tommie", 3, "")
-                , ((22,9,2011), (20,00), "Bert", 2, "")
-                , ((22,9,2011), (20,30), "Elmo", 2, "")
-                , ((22,9,2011), (20,30), "Karel", 4, "Karel says hi")
-                , ((22,9,2011), (21,00), "Karel 2", 3, "dinner at nine")
-                , ((24,9,2011), (18,00), "Pino", 3, "Please provide bird seed")
+                [ ((28,9,2011), (20,00), "Martijn", 2, "Long comment that exceeds the line width and spans\nmultiple\nlines\nto\nsee\nif\nthat\nworks\nLong comment that exceeds the line width and spans\nmultiple\nlines\nto\nsee\nif\nthat\nworks\nLong comment that exceeds the line width and spans\nmultiple\nlines\nto\nsee\nif\nthat\nworks")
+                , ((28,9,2011), (20,00), "Tommie", 3, "")
+                , ((28,9,2011), (20,00), "Bert", 2, "")
+                , ((28,9,2011), (20,30), "Elmo", 2, "")
+                , ((28,9,2011), (20,30), "Karel", 4, "Karel says hi")
+                , ((29,9,2011), (21,00), "Karel 2", 3, "dinner at nine")
+                , ((30,9,2011), (18,00), "Pino", 3, "Please provide bird seed")
                 ]
  where addIds _ [] = []
        addIds i ((dt, tm, nm, nr, c):xs) = (ReservationId i, Reservation (ReservationId i) dt tm nm nr c) : addIds (i+1) xs
