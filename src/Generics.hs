@@ -241,7 +241,7 @@ replaceWebViewById i wv rootView =
 
 getButtonByViewId :: (Typeable db, Data d) => ViewId -> d -> Maybe (Button db)
 getButtonByViewId i view = 
-  case listify (\(Button i' _ _ _) -> i==i') view of
+  case listify (\(Button i' _ _ _ _) -> i==i') view of
     [b] -> Just b
     []  -> Nothing
     _   -> error $ "internal error: multiple buttons with id "++show i

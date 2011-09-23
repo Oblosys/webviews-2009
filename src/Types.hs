@@ -97,14 +97,14 @@ getSelection (Widget _ _ (RadioView i is v _)) = v
 
 radioView viewId its i enabled = Widget noId noId $ RadioView viewId its i enabled
 
-data Button db = Button { getButtonViewId' :: ViewId, buttonText :: String, getButtonEnabled :: Bool
+data Button db = Button { getButtonViewId' :: ViewId, buttonText :: String, getButtonEnabled :: Bool, getStyle :: String 
                         , getCommand' :: EditCommand db 
                         } deriving (Show, Typeable, Data)
 
 instance Eq (Button db) where
-  Button _ txt1 enabled1 _ == Button _ txt2 enabled2 _ = txt1 == txt2 && enabled1 == enabled2
+  Button _ txt1 enabled1 style1 _ == Button _ txt2 enabled2 style2 _ = txt1 == txt2 && enabled1 == enabled2 && style1 == style2
 
-button viewId txt enabled cmd = Widget noId noId $ Button viewId txt enabled cmd
+button viewId txt enabled style cmd = Widget noId noId $ Button viewId txt enabled style cmd
 
 
 data EditAction db = EditAction { getActionViewId :: ViewId, getCommand :: EditCommand db 
@@ -292,7 +292,7 @@ instance Initial RadioView where
   initial = RadioView noViewId [] 0 False
 
 instance Initial (Button db) where
-  initial = Button noViewId "<button>" False (Edit $ return ())
+  initial = Button noViewId "<button>" False "" (Edit $ return ())
 
 instance Initial (EditAction db) where
   initial = EditAction noViewId (Edit $ return ())  

@@ -95,7 +95,10 @@ liftS f = StateT (\(WebViewState user db viewMap path i) ->
 
 
 mkButton :: String -> Bool -> EditCommand db -> WebViewM db (Widget (Button db))
-mkButton str en ac = liftS $  \path vidC -> (button (ViewId $ path ++ [vidC]) str en ac, vidC + 1)
+mkButton str en ac = mkButtonWithStyle str en "" ac
+
+mkButtonWithStyle :: String -> Bool -> String -> EditCommand db -> WebViewM db (Widget (Button db))
+mkButtonWithStyle str en st ac = liftS $  \path vidC -> (button (ViewId $ path ++ [vidC]) str en st ac, vidC + 1)
 
 -- no need to be in monad
 mkEditAction :: EditCommand db -> WebViewM db (EditAction db) 
@@ -319,8 +322,8 @@ presentTextField (Text viewId textType str mEditAction) =
 
 -- seems like this one could be in Present
 presentButton :: Button db -> Html
-presentButton (Button viewId txt enabled _) = 
-   primHtml $ "<button id=\""++ show viewId++"\" "++ (if enabled then "" else "disabled ") ++
+presentButton (Button viewId txt enabled style _) = 
+   primHtml $ "<button id=\""++ show viewId++"\" "++ (if enabled then "" else "disabled ") ++ (if style /="" then " style=\"" ++style++"\" " else "")++
                             "onclick=\"queueCommand('ButtonC ("++show viewId++")')\" "++
                             "onfocus=\"elementGotFocus('"++show viewId++"')\">"++txt++"</button>"
 -- TODO: text should be escaped
