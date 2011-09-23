@@ -157,12 +157,17 @@ handlers rootViews dbFilename theDatabase users serverSessionId globalStateRef =
              -- we don't need to do anything with the rootViewName here, since the client takes the view name from the
              -- browser url and passes it along with the Init event
   , serveMainPage ""
-  ] -- TODO handle this differently, so / after rootViewName can be handled (now a problem since it causes rootViewName/handle requests instead of just handle)
+  ] 
  where serveMainPage rootViewName =
         do { liftIO $ putStrLn $ "Root requested "++rootViewName
            ; serveDirectory DisableBrowsing [] "scr/WebViews.html"
            } 
-   
+ -- TODO handle this differently, so / after rootViewName can be handled (now a problem since it causes rootViewName/handle requests instead of just handle)
+ -- maybe do   msum[ path $ \rootViewName -> handlers rootViewName, handlers ""] This allows a more elegant way to extract
+ -- the rootViewName directly from the path, without having the client take it from document.location.href
+ -- Should check what happens when there is no / after the rootViewName though, as this may complicate things (or maybe
+ -- just disallow this). Also the script should be fixed, so scr and img links are absolute (e.g. "/scr/" instead of "src/..") 
+    
 {-
 This stuff may not hold for HappStack 6
  TODO: why does exactdir "/handle" not work?
