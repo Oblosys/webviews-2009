@@ -444,6 +444,10 @@ getTextContents text =
  
  
  {-
+Bug that seems to add views with number 23 all the time (probably the date)
+
+Redirect webviews.oblomov.com doesn't work in iframe, figure out why not.
+
  Make sure reservations are sorted on time
  Fix overflows when many reservations on one day are made
 
