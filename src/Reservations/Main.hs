@@ -300,16 +300,16 @@ instance Storeable Database ReservationView where
 
 
 data ClientView = 
-  ClientView (Maybe Date) (Maybe Time) (Widget (Text Database)) (Widget (Text Database)) (Widget (Button Database)) (Widget (Button Database)) (Widget (Button Database)) String
+  ClientView (Maybe Date) (Maybe Time) (Widget (Text Database)) (Widget (Text Database)) (Widget (Button Database)) (Widget (Button Database)) [[Widget (Button Database)]] (Widget (Button Database)) String
     deriving (Eq, Show, Typeable, Data)
-setClientViewDate d (ClientView _ mt n c b1 b2 b3 s) = (ClientView d mt n c b1 b2 b3 s)
-setClientViewTime d (ClientView _ mt n c b1 b2 b3 s) = (ClientView d mt n c b1 b2 b3 s)
+setClientViewDate md (ClientView _ mt n c b1 b2 b3 bs s) = (ClientView md mt n c b1 b2 b3 bs s)
+setClientViewTime mt (ClientView md _ n c b1 b2 b3 bs s) = (ClientView md mt n c b1 b2 b3 bs s)
  
 instance Initial ClientView where                 
-  initial = ClientView initial initial initial initial initial initial initial initial
+  initial = ClientView initial initial initial initial initial initial initial initial initial
 
 mkClientView = mkWebView $
- \vid (ClientView oldMDate mTime oldNameText oldCommentText _ _ _ _) ->
+ \vid (ClientView oldMDate mTime oldNameText oldCommentText _ _ _ _ _) ->
   do { clockTime <-  liftIO getClockTime -- this stuff is duplicated
      ; ct <- liftIO $ toCalendarTime clockTime
      ; let currentDay = ctDay ct
@@ -327,35 +327,33 @@ mkClientView = mkWebView $
            
      ; todayButton <- mkButton "Today" True $ Edit $ viewEdit vid $ setClientViewDate (Just today)
      ; tomorrowButton <- mkButton "Tomorrow" True $ Edit $ viewEdit vid $ setClientViewDate (Just tomorrow)
-     ; confirmButton <- mkButton "Confirm" (isJust mDate)  $
+     ; timeButtonss <- sequence [ sequence [ mkButton (showTime tm) True $ Edit $ viewEdit vid $ setClientViewTime (Just tm)
+                                 | mn <-[0,30], let tm = (hr,mn) ]
+                               | hr <- [18..23] ] 
+     
+     ; confirmButton <- mkButton "Confirm" (isJust mDate && isJust mTime)  $
          Edit $ do { name <- getTextContents nameText
                    ; comment <- getTextContents commentText
                    ; docEdit $ \db -> 
                         let (Reservation rid _ _ _ _ _, db') = newReservation db
-                            db'' = updateReservation rid (const $ Reservation rid (maybe (0,0,0) id mDate) (18,0) name 8 comment) db
+                            db'' = updateReservation rid (const $ Reservation rid (fromMaybe (error "no date") mDate) (fromMaybe (error "no time") mTime) name 8 comment) db
                         in  db''
                    }
      ; let status = "all ok" 
-     ; return $ ClientView mDate mTime nameText commentText todayButton tomorrowButton confirmButton status
+     ; return $ ClientView mDate mTime nameText commentText todayButton tomorrowButton timeButtonss confirmButton status
      }
--- TODO accessing text fields and getting a reuse is hacky and error prone   
--- Figure out a general way to handle init and reuse
--- e.g. for a name field, if we have an initial name, when do we set it? checking for "" is not possible, as the user may
--- clear the name, which should not cause init    
-getTextContents :: Widget (Text Database) -> EditM Database String
-getTextContents text =
- do { (sessionId, user, db, rootView, pendingEdit) <- get
-    ; return $ getTextByViewIdRef (undefined :: Database{-dummy arg-}) (widgetGetViewRef text) rootView
-    } 
+     
                     
 -- todo comment has hard-coded width. make constant for this
 instance Presentable ClientView where
-  present (ClientView mDate mTime nameText commentText todayButton tomorrowButton confirmButton status) = 
+  present (ClientView mDate mTime nameText commentText todayButton tomorrowButton timeButtonss confirmButton status) = 
     vList [ stringToHtml $ maybe "No date chosen" (\d -> showDate d) mDate
           , hList [ stringToHtml "Name:",hSpace 4,present nameText]
-          , present todayButton, present tomorrowButton, present confirmButton
+          , hList [ present todayButton, present tomorrowButton]
           , stringToHtml $ maybe "No time chosen" (\d -> showTime d) mTime
           , present commentText
+          , simpleTable [] [] $ map (map present) timeButtonss
+          , present confirmButton
           , stringToHtml status]
  
 instance Storeable Database ClientView where
@@ -379,6 +377,14 @@ weekdayForDate (day, month, year) = liftIO $
     ; return $ (fromEnum (ctWDay ctWithWeekday) -1) `mod` 7 + 1 -- in enum, Sunday is 0 and Monday is 1, we want Monday = 1 and Sunday = 7
     } 
  
+ 
+ 
+ -- HACK
+getTextContents :: Widget (Text Database) -> EditM Database String
+getTextContents text =
+ do { (sessionId, user, db, rootView, pendingEdit) <- get
+    ; return $ getTextByViewIdRef (undefined :: Database{-dummy arg-}) (widgetGetViewRef text) rootView
+    } 
  
  
  {-
@@ -410,6 +416,11 @@ weekdayForDate (day, month, year) = liftIO $
  Enter a comment or (confirm reservation)
  
  add time that reservation was made
+ 
+-- TODO accessing text fields and getting a reuse using getStrVal and getTextContents) is hacky and error prone   
+-- Figure out a general way to handle init and reuse
+-- e.g. for a name field, if we have an initial name, when do we set it? checking for "" is not possible, as the user may
+-- clear the name, which should not cause init    
  
  Ideas:
  
