@@ -39,7 +39,9 @@ $(document).ready(function(){
 });
 
 function init()
-{ queueCommand('Init');
+{
+  var path = (document.location.href.split('/'))[3];
+  queueCommand('Init "'+path+'"');
   refresh();
 }
 

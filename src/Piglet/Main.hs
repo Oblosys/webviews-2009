@@ -22,13 +22,10 @@ import Server
 import Piglet.Database
 
 main :: IO ()
-main = server mkRootView "PigletDB.txt" theDatabase users
+main = server rootViews "PigletDB.txt" theDatabase users
 
-mkRootView :: User -> Database -> Int -> ViewMap Database -> IO (WebView Database)
-mkRootView user db sessionId viewMap =
-  fmap assignIds $ runWebView user db viewMap [] 0 $ mkVisitsView sessionId
-  -- TODO: id's here?
-
+rootViews :: [ (String, Int -> WebViewM Database (WebView Database))]
+rootViews = [ ("", mkVisitsView)] 
     
 -- Visits ----------------------------------------------------------------------  
 

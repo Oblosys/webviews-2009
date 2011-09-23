@@ -24,13 +24,16 @@ import Server
 import Reservations.Database
 
 main :: IO ()
-main = server mkRootView "ReservationsDB.txt" theDatabase users
+main = server rootViews "ReservationsDB.txt" theDatabase users
 
-mkRootView :: User -> Database -> Int -> ViewMap Database -> IO (WebView Database)
-mkRootView user db sessionId viewMap =
-  fmap assignIds $ runWebView user db viewMap [] 0 $ mkMainView sessionId
+
+rootViews :: [ (String, Int -> WebViewM Database (WebView Database))]
+rootViews = [ ("", mkMainRootView), ("client", \sessionId -> mkClientView), ("restaurant", \sessionId -> mkRestaurantView)] 
   -- TODO: id's here?
+  -- TODO: fix the sessionId stuff
+  -- TODO: find good names for root, main, etc.
 
+ -- TODO: sessionId? put this in an environment? or maybe the WebViewM monad?
     
 -- Main ----------------------------------------------------------------------  
 
@@ -42,7 +45,7 @@ instance Initial MainView where
   initial = MainView initial initial
 
 
-mkMainView sessionId = mkWebView $
+mkMainRootView sessionId = mkWebView $
  \vid (MainView _ _) ->
   do { clientView <- mkClientView
      ; restaurantView <- mkRestaurantView                                            
