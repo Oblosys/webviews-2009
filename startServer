@@ -1,5 +1,5 @@
 cd ~/svn/Oblomov/WebViews
-dist/build/WebViews/WebViews > serverOutput.txt 2>&1 &
+dist/build/Reservations/Reservations > serverOutput.txt 2>&1 &
 echo WebViews server started
 
 # when put in crontab, use:
