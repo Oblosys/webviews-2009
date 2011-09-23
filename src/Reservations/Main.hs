@@ -344,13 +344,13 @@ mkClientView = mkWebView $
 instance Presentable ClientView where
   present (ClientView mDate mTime nameText commentText todayButton tomorrowButton dayButtons timeButtonss confirmButton status) = 
     vList [ stringToHtml $ maybe "No date chosen" (\d -> (showDay . weekdayForDate $ d) ++ ", " ++ showShortDate d) mDate
-          , hList [ stringToHtml "Name: ",present nameText]
+          , hList [ stringToHtml "Name:", hSpace 4, present nameText]
           , hList [ present todayButton, present tomorrowButton]
           , hList $ map present dayButtons
           , stringToHtml $ maybe "" (\d -> showTime d) mTime
+          , simpleTable [width "100%"] [] $ map (map (\b -> with [width "100"] $ present b)) timeButtonss
           , stringToHtml "Comments:"
           , present commentText
-          , simpleTable [] [] $ map (map present) timeButtonss
           , present confirmButton
           , stringToHtml status]
  
