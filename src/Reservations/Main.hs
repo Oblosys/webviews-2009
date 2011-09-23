@@ -318,16 +318,16 @@ mkClientView = mkWebView $
      ; nameText  <- mkTextField $ getStrVal (oldNameText) -- needed, even though in browser text is reused without it
      ; commentText  <- mkTextArea $ getStrVal (oldCommentText) -- at server side it is not
            
-     ; todayButton <- mkButton ("Today ("++show currentDay++" "++showShortMonth currentMonth++")") True $ Edit $ viewEdit vid $ setClientViewDate (Just today)
-     ; tomorrowButton <- mkButton "Tomorrow" True $ Edit $ viewEdit vid $ setClientViewDate (Just $ addToDate today 1)
+     ; todayButton <- mkButtonWithStyle ("Today ("++show currentDay++" "++showShortMonth currentMonth++")") True "width:100%" $ Edit $ viewEdit vid $ setClientViewDate (Just today)
+     ; tomorrowButton <- mkButtonWithStyle "Tomorrow" True "width:100%" $ Edit $ viewEdit vid $ setClientViewDate (Just $ addToDate today 1)
      ; dayButtons <- sequence [ mkButton (showShortDay . weekdayForDate $ dt) True $ Edit $ viewEdit vid $ setClientViewDate (Just dt)
                               | day <-[2..7], let dt = addToDate today day ]
                               
-     ; timeButtonss <- sequence [ sequence [ mkButton (showTime tm) True $ Edit $ viewEdit vid $ setClientViewTime (Just tm)
+     ; timeButtonss <- sequence [ sequence [ mkButtonWithStyle (showTime tm) True "width:100%" $ Edit $ viewEdit vid $ setClientViewTime (Just tm)
                                            | mn <-[0,30], let tm = (hr,mn) ]
                                 | hr <- [18..23] ] 
      
-     ; confirmButton <- mkButton "Confirm" (isJust mDate && isJust mTime)  $
+     ; confirmButton <- mkButtonWithStyle "Confirm" (isJust mDate && isJust mTime) "width: 100%" $
          Edit $ do { name <- getTextContents nameText
                    ; comment <- getTextContents commentText
                    ; docEdit $ \db -> 
@@ -343,12 +343,12 @@ mkClientView = mkWebView $
 -- todo comment has hard-coded width. make constant for this
 instance Presentable ClientView where
   present (ClientView mDate mTime nameText commentText todayButton tomorrowButton dayButtons timeButtonss confirmButton status) = 
-    vList [ stringToHtml $ maybe "No date chosen" (\d -> (showDay . weekdayForDate $ d) ++ ", " ++ showShortDate d) mDate
+    vList [ stringToHtml $ maybe "Please choose a date" (\d -> (showDay . weekdayForDate $ d) ++ ", " ++ showShortDate d) mDate
           , hList [ stringToHtml "Name:", hSpace 4, present nameText]
-          , hList [ present todayButton, present tomorrowButton]
-          , hList $ map present dayButtons
-          , stringToHtml $ maybe "" (\d -> showTime d) mTime
-          , simpleTable [width "100%"] [] $ map (map (\b -> with [width "100"] $ present b)) timeButtonss
+          , hListEx [width "100%"] [ present todayButton, present tomorrowButton]
+          , hListEx [width "100%"] $ map present dayButtons
+          , stringToHtml $ maybe "Please select a time" (\d -> showTime d) mTime
+          , simpleTable [width "100%",cellpadding 0, cellspacing 0] [] $ map (map present) timeButtonss
           , stringToHtml "Comments:"
           , present commentText
           , present confirmButton
@@ -428,6 +428,13 @@ add day name with date
 -- e.g. for a name field, if we have an initial name, when do we set it? checking for "" is not possible, as the user may
 -- clear the name, which should not cause init    
  
+-- Button style cannot be changed by parent element, so we need a way to specify the style at the button
+Right now, this is hacked in by adding a style element to button, which causes part of the presentation to be
+specified outside the present instance.
+Find a good way for this, and see what other widgets have the problem. Maybe a combination of styles is possible?
+Or maybe just have buttons always be max size and require them to be made minimal on presentation?
+
+
  Ideas:
  
  Maybe change background when nothing is selected (or foreground for reservation fields)
