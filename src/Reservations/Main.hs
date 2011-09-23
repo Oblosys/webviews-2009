@@ -311,26 +311,29 @@ instance Storeable Database ReservationView where
 
 
 data ClientView = 
-  ClientView (Maybe Date) (Maybe Time) (Widget (Text Database)) (Widget (Text Database)) (Widget (Button Database)) (Widget (Button Database)) [Widget (Button Database)] [[Widget (Button Database)]] (Widget (Button Database)) String
+  ClientView Int (Maybe Date) (Maybe Time) [Widget (Button Database)] (Widget (Text Database)) (Widget (Text Database)) (Widget (Button Database)) (Widget (Button Database)) [Widget (Button Database)] [[Widget (Button Database)]] (Widget (Button Database)) String
     deriving (Eq, Show, Typeable, Data)
-setClientViewDate md (ClientView _ mt n c b1 b2 b3 bs bss s) = (ClientView md mt n c b1 b2 b3 bs bss s)
-setClientViewTime mt (ClientView md _ n c b1 b2 b3 bs bss s) = (ClientView md mt n c b1 b2 b3 bs bss s)
+    
+setClientViewNrOfPeople p (ClientView _ md mt xs n c b1 b2 b3 bs bss s) = (ClientView p md mt xs n c b1 b2 b3 bs bss s) -- todo: a b c 
+setClientViewDate md (ClientView p _ mt xs n c b1 b2 b3 bs bss s) = (ClientView p md mt xs n c b1 b2 b3 bs bss s) -- todo: a b c 
+setClientViewTime mt (ClientView p md _ xs n c b1 b2 b3 bs bss s) = (ClientView p md mt xs n c b1 b2 b3 bs bss s)
  
 instance Initial ClientView where                 
-  initial = ClientView initial initial initial initial initial initial initial initial initial initial
+  initial = ClientView initial initial initial initial initial initial initial initial initial initial initial initial
 
 maxNrOfPeople = 10
 
 mkClientView = mkWebView $
- \vid (ClientView oldMDate oldMTime oldNameText oldCommentText _ _ _ _ _ _) ->
+ \vid (ClientView oldNrOfP oldMDate oldMTime _ oldNameText oldCommentText _ _ _ _ _ _) ->
   do { clockTime <-  liftIO getClockTime -- this stuff is duplicated
      ; ct <- liftIO $ toCalendarTime clockTime
      ; let today@(currentDay, currentMonth, currentYear) = dateFromCalendarTime ct
            now   = (ctHour ct, ctMin ct)
            
-     ; let mDate = Just $ maybe today id oldMDate -- todo init is not nice like this
-     ; let nrOfP = 4
-
+     ; let nrOfP = if oldNrOfP == 0 then 2 else oldNrOfP -- todo init is not nice like this
+     --; let mDate = Just $ maybe today id oldMDate -- todo init is not nice like this
+     ; let mDate = oldMDate -- no init
+     
      ; reservations <- fmap Map.elems $ withDb $ \db -> allReservations db
      ; let timeAvailable tm = case mDate of
                                    Nothing -> True
@@ -341,6 +344,8 @@ mkClientView = mkWebView $
      ; let mTime = case oldMTime of
                      Nothing -> Nothing
                      Just oldTime -> if timeAvailable oldTime then oldMTime else Nothing
+     
+     ; nrButtons <- sequence [ mkButton (show nr) True $ Edit $ viewEdit vid $ setClientViewNrOfPeople nr | nr <-[1..8]]
      
        -- TODO hacky
      ; nameText  <- mkTextField $ getStrVal (oldNameText) -- needed, even though in browser text is reused without it
@@ -366,15 +371,17 @@ mkClientView = mkWebView $
                         in  db''
                    }
      ; let status = "all ok" 
-     ; return $ ClientView mDate mTime nameText commentText todayButton tomorrowButton dayButtons timeButtonss confirmButton status
+     ; return $ ClientView nrOfP mDate mTime nrButtons nameText commentText todayButton tomorrowButton dayButtons timeButtonss confirmButton status
      }
      
                     
 -- todo comment has hard-coded width. make constant for this
 instance Presentable ClientView where
-  present (ClientView mDate mTime nameText commentText todayButton tomorrowButton dayButtons timeButtonss confirmButton status) = 
-    vList [ stringToHtml $ maybe "Please choose a date" (\d -> (showDay . weekdayForDate $ d) ++ ", " ++ showShortDate d) mDate
-          , hList [ stringToHtml "Name:", hSpace 4, present nameText]
+  present (ClientView nrOfP mDate mTime nrButtons nameText commentText todayButton tomorrowButton dayButtons timeButtonss confirmButton status) = 
+    vList [ hList [ stringToHtml "Name:", hSpace 4, present nameText]
+          , stringToHtml $ "Nr of people: "++show nrOfP
+          , hListEx [width "100%"] $ map present nrButtons
+          , stringToHtml $ maybe "Please choose a date" (\d -> (showDay . weekdayForDate $ d) ++ ", " ++ showShortDate d) mDate
           , hListEx [width "100%"] [ present todayButton, present tomorrowButton]
           , hListEx [width "100%"] $ map present dayButtons
           , stringToHtml $ maybe "Please select a time" (\d -> showTime d) mTime
