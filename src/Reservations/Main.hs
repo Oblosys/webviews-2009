@@ -296,15 +296,20 @@ instance Storeable Database ReservationView where
   save _ = id
 
 
+
+
+
 data ClientView = 
-  ClientView (Maybe Date) (Widget (Button Database)) (Widget (Button Database)) (Widget (Button Database)) String
+  ClientView (Maybe Date) (Maybe Time) (Widget (Text Database)) (Widget (Text Database)) (Widget (Button Database)) (Widget (Button Database)) (Widget (Button Database)) String
     deriving (Eq, Show, Typeable, Data)
-  
+setClientViewDate d (ClientView _ mt n c b1 b2 b3 s) = (ClientView d mt n c b1 b2 b3 s)
+setClientViewTime d (ClientView _ mt n c b1 b2 b3 s) = (ClientView d mt n c b1 b2 b3 s)
+ 
 instance Initial ClientView where                 
-  initial = ClientView initial initial initial initial initial
+  initial = ClientView initial initial initial initial initial initial initial initial
 
 mkClientView = mkWebView $
- \vid (ClientView mDate _ _ _ _) ->
+ \vid (ClientView oldMDate mTime oldNameText oldCommentText _ _ _ _) ->
   do { clockTime <-  liftIO getClockTime -- this stuff is duplicated
      ; ct <- liftIO $ toCalendarTime clockTime
      ; let currentDay = ctDay ct
@@ -313,27 +318,52 @@ mkClientView = mkWebView $
            today = (currentDay, currentMonth, currentYear)
            tomorrow = (currentDay+1, currentMonth, currentYear)
            now   = (ctHour ct, ctMin ct)
-     ; todayButton <- mkButton "Today" True $ Edit $ viewEdit vid $ \(ClientView _ b1 b2 b3 s) -> ClientView (Just today) b1 b2 b3 s
-     ; tomorrowButton <- mkButton "Tomorrow" True $ Edit $ viewEdit vid $ \(ClientView _ b1 b2 b3 s) -> ClientView (Just tomorrow) b1 b2 b3 s
+           
+     ; let mDate = Just $ maybe today id oldMDate -- todo
+
+       -- TODO hacky
+     ; nameText  <- mkTextField $ getStrVal (oldNameText) -- needed, even though in browser text is reused without it
+     ; commentText  <- mkTextField $ getStrVal (oldCommentText) -- at server side it is not
+           
+     ; todayButton <- mkButton "Today" True $ Edit $ viewEdit vid $ setClientViewDate (Just today)
+     ; tomorrowButton <- mkButton "Tomorrow" True $ Edit $ viewEdit vid $ setClientViewDate (Just tomorrow)
      ; confirmButton <- mkButton "Confirm" (isJust mDate)  $
-         Edit $ docEdit $ \db -> let (Reservation rid _ _ _ _ _, db') = newReservation db
-                                     db'' = updateReservation rid (const $ Reservation rid (maybe (0,0,0) id mDate) (18,0) "Oblomov" 8 "Automatic") db
-                                 in  db''
+         Edit $ do { name <- getTextContents nameText
+                   ; comment <- getTextContents commentText
+                   ; docEdit $ \db -> 
+                        let (Reservation rid _ _ _ _ _, db') = newReservation db
+                            db'' = updateReservation rid (const $ Reservation rid (maybe (0,0,0) id mDate) (18,0) name 8 comment) db
+                        in  db''
+                   }
      ; let status = "all ok" 
-     ; return $ ClientView mDate todayButton tomorrowButton confirmButton status
+     ; return $ ClientView mDate mTime nameText commentText todayButton tomorrowButton confirmButton status
      }
- 
+-- TODO accessing text fields and getting a reuse is hacky and error prone   
+-- Figure out a general way to handle init and reuse
+-- e.g. for a name field, if we have an initial name, when do we set it? checking for "" is not possible, as the user may
+-- clear the name, which should not cause init    
+getTextContents :: Widget (Text Database) -> EditM Database String
+getTextContents text =
+ do { (sessionId, user, db, rootView, pendingEdit) <- get
+    ; return $ getTextByViewIdRef (undefined :: Database{-dummy arg-}) (widgetGetViewRef text) rootView
+    } 
+                    
 -- todo comment has hard-coded width. make constant for this
 instance Presentable ClientView where
-  present (ClientView mDate todayButton tomorrowButton confirmButton status) = 
+  present (ClientView mDate mTime nameText commentText todayButton tomorrowButton confirmButton status) = 
     vList [ stringToHtml $ maybe "No date chosen" (\d -> showDate d) mDate
-          , present todayButton, present tomorrowButton, present confirmButton, stringToHtml status]
+          , hList [ stringToHtml "Name:",hSpace 4,present nameText]
+          , present todayButton, present tomorrowButton, present confirmButton
+          , stringToHtml $ maybe "No time chosen" (\d -> showTime d) mTime
+          , present commentText
+          , stringToHtml status]
  
 instance Storeable Database ClientView where
   save _ = id
 
 
 --- Utils
+
 showMonth m = show (toEnum (m-1) :: System.Time.Month)
 showDate (d,m,y) = show d ++ " " ++ showMonth m ++ " " ++ show y
 showTime (h,m) = (if h<10 then " " else "") ++ show h ++ ":" ++ (if m<10 then "0" else "") ++ show m
