@@ -20,7 +20,7 @@ import WebViewLib
 import HtmlLib
 import Control.Monad.State
 import Server
-import System.IO.Unsafe (unsafePerformIO)
+import System.IO.Unsafe (unsafePerformIO) -- just for calendar stuff
 import Reservations.Database
 
 main :: IO ()
@@ -82,7 +82,7 @@ mkRestaurantView = mkWebView $
            (nextMonth, nextMonthYear) = if currentMonth == 12 then (1,currentYear+1) else (currentMonth+1,currentYear)
            nrOfDaysInLastMonth = gregorianMonthLength (fromIntegral lastMonthYear) lastMonth 
            nrOfDaysInThisMonth = gregorianMonthLength (fromIntegral currentYear) currentMonth
-     ; firstDayOfMonth <- weekdayForDate (1, 1+fromEnum (ctMonth ct), ctYear ct)
+           firstDayOfMonth = weekdayForDate (1, 1+fromEnum (ctMonth ct), ctYear ct)
      
      ; let daysOfLastMonth = reverse $ take (firstDayOfMonth-1) [nrOfDaysInLastMonth,nrOfDaysInLastMonth-1..]
      ; let daysOfThisMonth = [1..nrOfDaysInThisMonth]
@@ -319,13 +319,9 @@ mkClientView = mkWebView $
      ; commentText  <- mkTextArea $ getStrVal (oldCommentText) -- at server side it is not
            
      ; todayButton <- mkButton ("Today ("++show currentDay++" "++showShortMonth currentMonth++")") True $ Edit $ viewEdit vid $ setClientViewDate (Just today)
-     ; tomorrow <- addToDate today 1
-     ; tomorrowButton <- mkButton "Tomorrow" True $ Edit $ viewEdit vid $ setClientViewDate (Just $ tomorrow)
-     ; dayButtons <- sequence [ do { dt <- addToDate today day
-                                   ; dayStr <- fmap showShortDay . weekdayForDate $ dt
-                                   ; mkButton dayStr True $ Edit $ viewEdit vid $ setClientViewDate (Just dt)
-                                   }
-                              | day <-[2..7]]
+     ; tomorrowButton <- mkButton "Tomorrow" True $ Edit $ viewEdit vid $ setClientViewDate (Just $ addToDate today 1)
+     ; dayButtons <- sequence [ mkButton (showShortDay . weekdayForDate $ dt) True $ Edit $ viewEdit vid $ setClientViewDate (Just dt)
+                              | day <-[2..7], let dt = addToDate today day ]
                               
      ; timeButtonss <- sequence [ sequence [ mkButton (showTime tm) True $ Edit $ viewEdit vid $ setClientViewTime (Just tm)
                                            | mn <-[0,30], let tm = (hr,mn) ]
@@ -347,11 +343,12 @@ mkClientView = mkWebView $
 -- todo comment has hard-coded width. make constant for this
 instance Presentable ClientView where
   present (ClientView mDate mTime nameText commentText todayButton tomorrowButton dayButtons timeButtonss confirmButton status) = 
-    vList [ stringToHtml $ maybe "No date chosen" (\d -> showShortDate d) mDate
-          , hList [ stringToHtml "Name:",hSpace 4,present nameText]
+    vList [ stringToHtml $ maybe "No date chosen" (\d -> (showDay . weekdayForDate $ d) ++ ", " ++ showShortDate d) mDate
+          , hList [ stringToHtml "Name: ",present nameText]
           , hList [ present todayButton, present tomorrowButton]
           , hList $ map present dayButtons
-          , stringToHtml $ maybe "No time chosen" (\d -> showTime d) mTime
+          , stringToHtml $ maybe "" (\d -> showTime d) mTime
+          , stringToHtml "Comments:"
           , present commentText
           , simpleTable [] [] $ map (map present) timeButtonss
           , present confirmButton
@@ -371,21 +368,22 @@ showTime (h,m) = (if h<10 then " " else "") ++ show h ++ ":" ++ (if m<10 then "0
 daysToWeeks days = if length days < 7 then [days]
                    else take 7 days : daysToWeeks (drop 7 days)
 
+-- TODO: before using seriously, check unsafePerformIO (or remove)
 calendarTimeForDate (day, month, year) =
- do { clockTime <-  getClockTime -- first need to get a calendar time in this time zone
+ do { clockTime <-  getClockTime -- first need to get a calendar time in this time zone (only time zone is used, so ok to unsafePerformIO)
     ; today <- toCalendarTime clockTime
     ; return $ today {ctDay= day, ctMonth = toEnum $ month-1, ctYear = year, ctHour = 12, ctMin = 0, ctPicosec = 0}
     }
     
 dateFromCalendarTime ct = (ctDay ct, 1+fromEnum (ctMonth ct), ctYear ct)
     
-weekdayForDate date = liftIO $
+weekdayForDate date = unsafePerformIO $ -- unsafePerformIO is okay, since we don't use the current time/date anyway
  do { ct <- calendarTimeForDate date
     ; ctWithWeekday <- toCalendarTime $ toClockTime ct
     ; return $ (fromEnum (ctWDay ctWithWeekday) -1) `mod` 7 + 1 -- in enum, Sunday is 0 and Monday is 1, we want Monday = 1 and Sunday = 7
     } 
 
-addToDate date days = liftIO $
+addToDate date days = unsafePerformIO $ -- unsafePerformIO is okay, since we don't use the current time/date anyway
  do { ct <- calendarTimeForDate date
     ; ct' <- toCalendarTime $ addToClockTime (noTimeDiff {tdDay = days}) $ toClockTime ct 
     ; return $ dateFromCalendarTime ct' 
