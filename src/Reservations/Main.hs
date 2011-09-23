@@ -105,7 +105,13 @@ mkRestaurantView = mkWebView $
       
      ; let weeks = daysToWeeks $ zip calendarDayViews selects
      
-     ; let mSelectedDate' = Just $ maybe today id mSelectedDate
+     ; -- hack
+     ; let (mSelectedDate', mSelectedHour') = 
+             case mSelectedDate of
+                Just selectedDate -> (mSelectedDate, mSelectedHour)
+                Nothing           -> let resHours = sort $ map (fst . time) $  filter ((==today) . date) reservations
+                                         initHr = if null resHours then Just 19 else Just $ head resHours 
+                                     in  (Just today, initHr)
 
      -- if the current selection is in the selected hour, keep it, otherwise select the first reservation of the hour (if any)
      ; let mSelectedReservation' = case reservationsSelectedHour of
@@ -114,18 +120,21 @@ mkRestaurantView = mkWebView $
                                                               _                                          -> Just fstRes
                                           _      -> Nothing
 
-     
-     -- todo: set selections (date on today is now a hack, whole calendar should be based on selected rather than today)
-     -- todo: split these, check where selected date should live
-
-     ; dayView <- mkDayView vid mSelectedHour reservationsSelectedDay
-     ; hourView <- mkHourView vid mSelectedReservation' mSelectedHour reservationsSelectedHour
+     ; dayView <- mkDayView vid mSelectedHour' reservationsSelectedDay
+     ; hourView <- mkHourView vid mSelectedReservation' mSelectedHour' reservationsSelectedHour
      ; reservationView <- mkReservationView mSelectedReservation'
 
      
-     ; return $ RestaurantView mSelectedDate' mSelectedHour mSelectedReservation' weeks dayView hourView reservationView
+     ; return $ RestaurantView mSelectedDate' mSelectedHour' mSelectedReservation' weeks dayView hourView reservationView
      }
- where selectDateEdit vid d = mkEditAction . Edit $ viewEdit vid $ \(RestaurantView _ h r weeks dayView hourView reservationView) -> RestaurantView (Just d) h r weeks dayView hourView reservationView
+ where selectDateEdit vid d = mkEditAction . Edit $
+        do { (_,_,db,_,_) <- get
+           ; viewEdit vid $ 
+              \(RestaurantView _ h r weeks dayView hourView reservationView) ->
+                let resHours = sort $ map (fst . time) $ filter ((==d). date) $ Map.elems $ allReservations db
+                    newHr = if null resHours then h else Just $ head resHours 
+                in  RestaurantView (Just d) newHr r weeks dayView hourView reservationView
+           }
 
 getWebViewId (WebView vid _ _ _ _) = vid
 
@@ -434,6 +443,11 @@ specified outside the present instance.
 Find a good way for this, and see what other widgets have the problem. Maybe a combination of styles is possible?
 Or maybe just have buttons always be max size and require them to be made minimal on presentation?
 
+
+-- todo: check setting selections (date on today is now a hack, whole calendar should be based on selected rather than today)
+-- currently res selection is done on present and hour selection is done on init and change of selected Day
+-- find a good mechanism to do these selections
+-- todo: split restaurant view, check where selections should live
 
  Ideas:
  
