@@ -56,9 +56,8 @@ monad for editing
 cleanup
 -}
 
-
-
-
+-- TODO: Maybe put this in a Utils?
+debugLn str = trace str $ return ()
 
 -- When loading from different point than root, make sure Id's are not messed up
 
