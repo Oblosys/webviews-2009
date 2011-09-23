@@ -186,11 +186,22 @@ viewEdit vid viewUpdate =
 -- TODO save automatically, or maybe require explicit save? (after several view updates)
 -- for now, just after every viewEdit
 
-
 applyIfCorrectType :: (Typeable y, Typeable x) => (y -> y) -> x -> x
 applyIfCorrectType f x = case cast f of 
                            Just fx -> fx x
                            Nothing -> x
+
+-- Experimental, not sure if we need this one and if it works correctly
+withView :: forall db v a . (Typeable db, Data db, Data v, Typeable a) => ViewId -> (v->a) -> EditM db (Maybe a)
+withView vid f =
+  do{ (sessionId, user, db, rootView, pendingEdit) <- get
+    ; let wf = \(WebView vi si i lv v) -> case cast f of
+                                            Nothing -> Nothing
+                                            Just castf -> Just $ castf v
+          wv = getWebViewById vid rootView :: WebView db
+          
+    ; return $ wf wv
+    }
 
 -- the view matching on load can be done explicitly, following structure and checking ids, or
 -- maybe automatically, based on id. Maybe extra state can be in a separate data structure even,
