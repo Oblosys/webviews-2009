@@ -323,7 +323,7 @@ mkClientView = mkWebView $
 
        -- TODO hacky
      ; nameText  <- mkTextField $ getStrVal (oldNameText) -- needed, even though in browser text is reused without it
-     ; commentText  <- mkTextField $ getStrVal (oldCommentText) -- at server side it is not
+     ; commentText  <- mkTextArea $ getStrVal (oldCommentText) -- at server side it is not
            
      ; todayButton <- mkButton "Today" True $ Edit $ viewEdit vid $ setClientViewDate (Just today)
      ; tomorrowButton <- mkButton "Tomorrow" True $ Edit $ viewEdit vid $ setClientViewDate (Just tomorrow)
