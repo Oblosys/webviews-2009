@@ -106,15 +106,20 @@ mkRestaurantView = mkWebView $
      ; let weeks = daysToWeeks $ zip calendarDayViews selects
      
      ; let mSelectedDate' = Just $ maybe today id mSelectedDate
-     ; let mSelectedReservation' = case mSelectedReservation of
-                                     Just reservation -> if reservation `elem` reservationsSelectedHour then Just reservation else Nothing
-                                     Nothing          -> Nothing
+
+     -- if the current selection is in the selected hour, keep it, otherwise select the first reservation of the hour (if any)
+     ; let mSelectedReservation' = case reservationsSelectedHour of
+                                          fstRes:_  -> case mSelectedReservation of
+                                                              Just r | r `elem` reservationsSelectedHour -> Just r
+                                                              _                                          -> Just fstRes
+                                          _      -> Nothing
+
      
      -- todo: set selections (date on today is now a hack, whole calendar should be based on selected rather than today)
      -- todo: split these, check where selected date should live
 
      ; dayView <- mkDayView vid mSelectedHour reservationsSelectedDay
-     ; hourView <- mkHourView vid mSelectedReservation mSelectedHour reservationsSelectedHour
+     ; hourView <- mkHourView vid mSelectedReservation' mSelectedHour reservationsSelectedHour
      ; reservationView <- mkReservationView mSelectedReservation'
 
      
@@ -151,7 +156,7 @@ instance Presentable RestaurantView where
       , vSpace 15
       , present reservationView 
       ]
-   where header = [ ([], stringToHtml d) | d <- ["ma", "di", "wo", "do", "vr", "za", "zo"] ] 
+   where header = [ ([], stringToHtml $ map toLower $ showShortDay d) | d <- [1..7] ] 
 instance Storeable Database RestaurantView where
   save _ = id
    
@@ -407,12 +412,7 @@ getTextContents text =
  
  
  {-
-if there are 1 or more reservations in the hour view, it is weird if none is selected and we see no comment (especially if there
-is just one reservation as is seems that the no comment applies to that one) So add default selection of first elt.
- 
-
-add day name with date 
- 
+ Make sure reservations are sorted on time
  Fix overflows when many reservations on one day are made
 
  Please enter your name
