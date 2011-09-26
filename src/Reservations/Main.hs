@@ -312,19 +312,20 @@ instance Storeable Database ReservationView where
 
 data ClientView = 
   ClientView Int (Maybe Date) (Maybe Time) [Widget (Button Database)] (Widget (Text Database)) (Widget (Text Database)) (Widget (Button Database)) (Widget (Button Database)) [Widget (Button Database)] [[Widget (Button Database)]] (Widget (Button Database)) String
+    String
     deriving (Eq, Show, Typeable, Data)
     
-setClientViewNrOfPeople p (ClientView _ md mt xs n c b1 b2 b3 bs bss s) = (ClientView p md mt xs n c b1 b2 b3 bs bss s) -- todo: a b c 
-setClientViewDate md (ClientView p _ mt xs n c b1 b2 b3 bs bss s) = (ClientView p md mt xs n c b1 b2 b3 bs bss s) -- todo: a b c 
-setClientViewTime mt (ClientView p md _ xs n c b1 b2 b3 bs bss s) = (ClientView p md mt xs n c b1 b2 b3 bs bss s)
+setClientViewNrOfPeople p (ClientView _ b c d e f g h i j k l m) = (ClientView p b c d e f g h i j k l m) 
+setClientViewDate md (ClientView a _ c d e f g h i j k l m) = (ClientView a md c d e f g h i j k l m) 
+setClientViewTime mt (ClientView a b _ d e f g h i j k l m) = (ClientView a b mt d e f g h i j k l m)
  
 instance Initial ClientView where                 
-  initial = ClientView initial initial initial initial initial initial initial initial initial initial initial initial
+  initial = ClientView initial initial initial initial initial initial initial initial initial initial initial initial initial
 
 maxNrOfPeople = 10
 
 mkClientView = mkWebView $
- \vid (ClientView oldNrOfP oldMDate oldMTime _ oldNameText oldCommentText _ _ _ _ _ _) ->
+ \vid (ClientView oldNrOfP oldMDate oldMTime _ oldNameText oldCommentText _ _ _ _ _ _ _) ->
   do { clockTime <-  liftIO getClockTime -- this stuff is duplicated
      ; ct <- liftIO $ toCalendarTime clockTime
      ; let today@(currentDay, currentMonth, currentYear) = dateFromCalendarTime ct
@@ -372,12 +373,13 @@ mkClientView = mkWebView $
                    }
      ; let status = "all ok" 
      ; return $ ClientView nrOfP mDate mTime nrButtons nameText commentText todayButton tomorrowButton dayButtons timeButtonss confirmButton status
+                  $ "g = Function('console.log(\"dynamic function executed "++show vid ++ ","++ show (widgetGetViewRef nameText)++"\");');"
      }
      
                     
 -- todo comment has hard-coded width. make constant for this
 instance Presentable ClientView where
-  present (ClientView nrOfP mDate mTime nrButtons nameText commentText todayButton tomorrowButton dayButtons timeButtonss confirmButton status) = 
+  present (ClientView nrOfP mDate mTime nrButtons nameText commentText todayButton tomorrowButton dayButtons timeButtonss confirmButton status script) = 
     vList [ hList [ stringToHtml "Name:", hSpace 4, present nameText]
           , stringToHtml $ "Nr of people: "++show nrOfP
           , hListEx [width "100%"] $ map present nrButtons
@@ -389,11 +391,11 @@ instance Presentable ClientView where
           , stringToHtml "Comments:"
           , present commentText
           , present confirmButton
-          , stringToHtml status]
+          , stringToHtml status] +++           
+          mkScript script
  
 instance Storeable Database ClientView where
   save _ = id
-
 
 --- Utils
 
