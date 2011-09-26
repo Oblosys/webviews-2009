@@ -1,12 +1,28 @@
 <html>
 <head>
 <link href="../scr/WebViews.css" rel="stylesheet" type="text/css" />
+<script type="text/javascript">
+var g = new Function ('alert("Static g");');
+
+function dispatch() {
+  
+  g();
+  eval("g = Function('alert(\"dynamic function\");');");
+    f();
+    
+  
+}
+
+function f() {
+    g();
+}
+</script>
 </head>
 <body>
 <table cellpadding="0" cellspacing="0" style="border-collapse: collapse; border: 2px solid darkgrey;font-family:Arial">
 <tr>
   <td style="border: 2px solid grey;background-color: lightgrey">blaa</td>
-  <td style="border: 2px solid grey;background-color: grey"><div><button style="width:100%">1</button></div></td>
+  <td style="border: 2px solid grey;background-color: grey"><div><button onclick="dispatch()" style="width:100%">1</button></div></td>
   <td style="border: 2px solid grey;background-color: lightgrey">drie</td>
 </tr>
 <tr>
@@ -31,6 +47,12 @@
 </div>
   </td>
 </table>
+<SPAN ID = "25"
+      ><FORM STYLE = "display: inline; width: 500px;" onSubmit = "textFieldChanged('ViewId [0,0,9]'); return false"
+	><TEXTAREA ID = "ViewId [0,0,9]" STYLE = "width: 100%; height: 100%;" onFocus = "elementGotFocus('ViewId [0,0,9]')" onBlur = "textFieldChanged('ViewId [0,0,9]')"
+	  ></TEXTAREA
+	  ><button>jj</button><script type="text/javascript">alert("script executedza");</script></FORM
+	>
 </body>
 </html>
 <tr><td style="background-color: grey">bla</td> <td style="background-color: lightgrey">adsads</td> <td style="background-color: grey">vijftien</td></tr>
@@ -56,7 +78,7 @@
 
 <table cellpadding="0" cellspacing="0" style="">
 <tr><td>  </td></tr></table>
-
+<button onclick="g()">g</button>
 <!-- border-collapse: collapse; zodat borders samenvallen 
 border-width (or any other border property) only has effect when border-style is set
 -->
