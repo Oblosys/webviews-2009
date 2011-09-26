@@ -51,17 +51,10 @@ function startRefreshTimer()
   }
 }
 
-
-function debug(message)
-{
-  if (debugging)
-    document.getElementById('debugMessage').innerHTML=message;
-}
-
 function debugAdd(message)
 {
   if (debugging)
-    debug (message + '<br></br>' + document.getElementById('debugMessage').innerHTML);
+    console.log(message);
 }
 
 function setRefreshTimer(ms)
@@ -108,7 +101,7 @@ function escape(arg)
 function textFieldChanged(textFieldId)
 { value = escape(document.getElementById(textFieldId).value);
   queueCommand ('SetC ('+textFieldId+') "'+value+'"');
-  debugAdd('textFieldChanged '+value);
+  console.log('textFieldChanged '+value);
 }
 
 function elementGotFocus(id)
@@ -237,7 +230,7 @@ $(".vList").sortable({connectWith: '.vList, .hList'});
   }
   else
     {
-    debug("Problem retrieving data:" + xmlhttp.statusText);
+    console.error("Problem retrieving data:" + xmlhttp.statusText);
 //    document.getElementById('status').innerHTML='Server not available.';
     }
   }
@@ -489,10 +482,7 @@ drie
 <div id="viewTree"></div>
 <div id="root"><div id="1">Initial root</div></div>
 <!-- </div> -->
-<!-- Debug: -->
-<div style="padding:4px;" id="debugMessage"></div>
 <div id="new"></div>
 <div id="parking"></div>
-
 <div id="receivedUpdates" style="visibility:hidden; border:solid; border-width:1px; padding:4px; border-color:red;" ></div>
 </body> </html>
