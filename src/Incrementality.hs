@@ -192,25 +192,22 @@ mkIncrementalUpdates oldRootView rootView =
     --; putStrLn $ "Html:\n" ++ show responseHtml
     ; return (responseHtml, rootView')
     }
- 
                                 
 showViewMap viewMap = unlines $ "ViewMap:" : [ show k ++ shallowShowWebView wv | (k, wv) <- Map.toList viewMap ]
 
-
 newWebNodeHtml :: WebNode db -> Html
+newWebNodeHtml (WidgetNode _ _ (Id i) w) = thediv![strAttr "op" "new"] << (mkSpan (show i) $ present w)
 newWebNodeHtml (WebViewNode (WebView _ _ (Id i) _ v)) = 
-    thediv![strAttr "op" "new"] << 
-      (mkSpan (show i) $ present v)
-newWebNodeHtml (WidgetNode _ _ (Id i) w) = 
-    thediv![strAttr "op" "new"] << 
-      (mkSpan (show i) $ present w)
+  let htmlWithScript = present v
+      (html, scripts) = extractScriptHtml htmlWithScript
+      updateResponse = thediv![strAttr "op" "new"] << (mkSpan (show i) $ html)
+      scriptResponse = thediv![strAttr "op" "eval"] << (stringToHtml $ concat scripts)
+  in  if null scripts then updateResponse else updateResponse +++ scriptResponse  
 
 updateHtml :: Update -> Html
 updateHtml (Move _ (IdRef src) (IdRef dst)) = if src == dst then error $ "Source is destination: "++show src else
     thediv![strAttr "op" "move", strAttr "src" (show src), strAttr "dst" (show dst)] << ""
 updateHtml _ = noHtml -- restoreId is not for producing html, but for adapting the rootView  
-
-
 
 shallowShowWebNode (WebViewNode wv) = "WebNode: " ++ shallowShowWebView wv
 shallowShowWebNode (WidgetNode _ _ _ w) = "WebNode: " ++ show w 

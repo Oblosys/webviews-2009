@@ -112,7 +112,7 @@ function textFieldChanged(textFieldId)
 }
 
 function elementGotFocus(id)
-{ debugAdd('element '+id+' has focus');
+{ console.log('element '+id+' got focus');
   focusedElementId = id;
 }  
 
@@ -340,6 +340,11 @@ else if (op === 'alert')
       parkingElt.appendChild(dstElt);
     }
   }
+ else if (op === 'eval') {
+   var scriptTxt = update.childNodes[0].data;
+   //console.log("Evaluate:",scriptTxt)
+   eval(scriptTxt);
+ }
  else alert ('Unknown command: '+op); 
 }
 

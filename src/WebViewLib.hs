@@ -369,6 +369,25 @@ instance Presentable (AnyWidget db) where
 
 
 
+-- Scripting
+
+-- tag <WebViewsJavaScript> should not be used anywhere else!
+-- it is extracted from the html and sent separately to the client (which evaluates it)
+-- Scripts are evaluated on creation and change of a WebView
+mkScript scriptTxt = Html [HtmlTag "WebViewsJavaScript" [] $ primHtml scriptTxt]
+
+-- removes the script elements and returns them in a list (which is reversed, but this is no problem)
+extractScriptHtml :: Html -> (Html, [String])
+extractScriptHtml (Html elements) = (\(es,ss)-> (Html (concat es), concat ss)) $ unzip $ map extractScriptHtmlElement elements
+ where extractScriptHtmlElement :: HtmlElement -> ([HtmlElement], [String])
+       extractScriptHtmlElement (HtmlTag "WebViewsJavaScript" _ (Html [HtmlString scriptTxt])) = ([],[scriptTxt])
+       extractScriptHtmlElement (HtmlTag tag attrs content) =  let (html,scripts) = extractScriptHtml content
+                                                               in  ([HtmlTag tag attrs html],scripts) 
+       extractScriptHtmlElement elt                                                =  ([elt], []) 
+
+
+
+
 -- Login -----------------------------------------------------------------------  
 
 data LoginView db = LoginView (Widget (Text db)) (Widget (Text db)) (Widget (Button db)) 
