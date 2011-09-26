@@ -16,8 +16,9 @@ var debugging = false;
 //var drawingViewTree = true;
 var drawingViewTree = false;
 
-//var sendingCommands = true;
-var sendingCommands = false;
+// automatically send random commands for testing
+//var sendingRandomCommands = true;
+var sendingRandomCommands = false;
 
 var autoRefresh = true;
 //var autoRefresh = false;
@@ -49,7 +50,7 @@ function startRefreshTimer() {
   }
 }
 
-function debugAdd(message) {
+function dlog(message) {
   if (debugging)
     console.log(message);
 }
@@ -159,12 +160,12 @@ function unauthenticate()
 function state_Change() {
 	if (xmlhttp.readyState==4) {// 4 = "loaded"
   	if (xmlhttp.status==200) {// 200 = "OK"
-	    debugAdd("received");
+	    dlog("received");
   	  var receivedUpdates = document.getElementById('receivedUpdates');
   	  receivedUpdates.innerHTML=xmlhttp.responseText;
       
    	  if (commandQueue != '') {
-   		  debugAdd('sending queue');
+   		  dlog('sending queue');
         queueCommand('');
       }
         
@@ -185,12 +186,12 @@ function state_Change() {
       removeChildrenById("parking"); // clean any parked webnodes
 
       // restore focus
-      debugAdd("restoring focus to "+focusedElementId);
+      dlog("restoring focus to "+focusedElementId);
       var focusedElement = document.getElementById(focusedElementId);
       if (focusedElement != null)
         focusedElement.focus();
       else
-        debugAdd("failed");
+        dlog("failed");
 
 //    $("[class='tabbed']").tabs(); // register tabbed views
 //    $("[class='draggable']").draggable({refreshPositions: true});
@@ -207,7 +208,7 @@ $(".vList").sortable({connectWith: '.vList, .hList'});
 */
       // start refresh timer again
       if (commandQueue == '') // only if command handling did not queue any new commands
-        if (sendingCommands)
+        if (sendingRandomCommands)
           sendRandomCommand();
         else
           startRefreshTimer();
@@ -224,8 +225,8 @@ function updateTree(update) {
   if (op === 'replace') {
 	  var targetId = update.getAttribute('targetId');
     var newChild = update.childNodes[0];
-    debugAdd("replace");
-    debugAdd(commandQueue);
+    dlog("replace");
+    dlog(commandQueue);
     
     var oldChild = document.getElementById(targetId);
     
@@ -236,7 +237,7 @@ function updateTree(update) {
   else if (op === 'special') { // used for trying out commands in a running WebView
 	  var targetId = update.getAttribute('targetId');
     var newChild = update.childNodes[0];
-    debugAdd("special"+commandQueue);
+    dlog("special"+commandQueue);
 
     var parking = document.getElementById("parking");
     var ther2 = document.getElementById("input11");
@@ -257,29 +258,29 @@ function updateTree(update) {
     parentr3.replaceChild(ther3,newwrong3); // Note: old and new seem reversed (but are ok)
 
     focusedElementId = "radio122button0";
-    debugAdd("restoring focus to "+focusedElementId);
+    dlog("restoring focus to "+focusedElementId);
     var focusedElement = document.getElementById(focusedElementId);
     if (focusedElement != null)
       focusedElement.focus();
     else
-      debugAdd("failed");
-    debugAdd ("end of special");
+      dlog("failed");
+    dlog ("end of special");
   }
   else if (op === 'exception') {
 	  var text = update.getAttribute('text');
-    sendingCommands = false;
+    sendingRandomCommands = false;
     autoRefresh = false;
     alert(text);
     init();
   }
   else if (op === 'alert') {
 	  var text = update.getAttribute('text');
-    if (!sendingCommands)  // don't let dialogs interrupt auto command sequence
+    if (!sendingRandomCommands)  // don't let dialogs interrupt auto command sequence
       alert(text);
   } 
   else if (op === 'confirm') {
 	  var text = update.getAttribute('text');
-    if (!sendingCommands) { // don't let dialogs interrupt auto command sequence
+    if (!sendingRandomCommands) { // don't let dialogs interrupt auto command sequence
       if (confirm(text))
         queueCommand('ConfirmDialogOk');
     }
@@ -299,7 +300,7 @@ function updateTree(update) {
 	  var srcId = update.getAttribute('src');
     var dstId = update.getAttribute('dst');
     breakpointCheck();
-    debugAdd("Moving "+srcId + " to " + dstId);
+    dlog("Moving "+srcId + " to " + dstId);
     srcElt = document.getElementById(srcId);
     dstElt = document.getElementById(dstId);
 
@@ -358,7 +359,7 @@ function removeChildren(elt) {
 }
 
 function sendRandomCommand() {
-	debugAdd("random command");
+	dlog("random command");
   /* allButtons = $("button");
   i = Math.floor( Math.random()*allButtons.length);
   
@@ -374,7 +375,7 @@ function sendRandomCommand() {
   alert('Radio '+randomRadioName+radioButtons+' '+radioButtons.length);
 // TODO why do we get this alert twice?
 
-//debugAdd(randomCommand);
+//dlog(randomCommand);
   //queueCommand(randomCommand);
 }
 
@@ -436,7 +437,7 @@ $(".vList").sortable({connectWith: '.vList, .hList'});
 <!-- TODO: left? forgotten float? -->
 
 <!--
-<div onclick="sendingCommands = true">Test</div> -->
+<div onclick="sendingRandomCommands = true">Test</div> -->
 <!--
 <table cellpadding="0" style="border-collapse: collapse;">
   <tr><span class="draggable"> <td>zaza</td></span><td>bla</td></tr>
@@ -460,7 +461,7 @@ drie
     </div>
 </div>
 -->
-<!-- <button onClick="debugAdd('click')" onfocus="debugAdd('focus')">click</button> -->
+<!-- <button onClick="dlog('click')" onfocus="dlog('focus')">click</button> -->
 <!-- <div style="border:solid; border-width:1px; margin:0px"> -->
 <div id="viewTree"></div>
 <div id="root"><div id="1">Initial root</div></div>
