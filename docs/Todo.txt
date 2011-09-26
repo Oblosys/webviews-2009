@@ -2,3 +2,5 @@
 
 Scripting:
 - Handle escaping, emitting the string </WebViewsJavaScript> will crash 
+- Maybe we can create a special WebNode for scripts? Might make it easier to present them automatically and won't require the extraction.
+   It would require changing Incrementality though.
