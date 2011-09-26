@@ -1,0 +1,4 @@
+
+
+Scripting:
+- Handle escaping, emitting the string </WebViewsJavaScript> will crash 
