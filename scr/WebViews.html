@@ -23,8 +23,7 @@ var autoRefresh = true;
 //var autoRefresh = false;
 
 // for easily setting a breakpoint in the move operation
-function breakpointCheck()
-{
+function breakpointCheck() {
 }
 
 var xmlhttp;
@@ -38,37 +37,33 @@ var timer;
 $(document).ready(function(){
 });
 
-function init()
-{
+function init() {
   var path = (document.location.href.split('/'))[3];
   queueCommand('Init "'+path+'"');
   refresh();
 }
 
-function startRefreshTimer()
-{ if (autoRefresh)
-  { setRefreshTimer(1000);
+function startRefreshTimer() {
+	if (autoRefresh) {
+		setRefreshTimer(1000);
   }
 }
 
-function debugAdd(message)
-{
+function debugAdd(message) {
   if (debugging)
     console.log(message);
 }
 
-function setRefreshTimer(ms)
-{  
-    timer = setTimeout('refresh()',ms);
+function setRefreshTimer(ms) {  
+	timer = setTimeout('refresh()',ms);
 }
 
 
-function stopRefreshTimer()
-{ clearTimeout(timer);
+function stopRefreshTimer() {
+	clearTimeout(timer);
 }
 
-function refresh()
-{
+function refresh() {
     queueCommand('Refresh');
     startRefreshTimer();
 }
@@ -85,10 +80,10 @@ function refresh()
    most problematic situations.
 */
 
-function escape(arg)
-{ var result = '';
-  for (var i = 0; i < arg.length; i++)
-  { if (arg[i] == '"')
+function escape(arg) {
+	var result = '';
+  for (var i = 0; i < arg.length; i++) {
+	  if (arg[i] == '"')
       result += '\\"';
     else if (arg[i] == '\n')
       result += '\\n';
@@ -98,27 +93,27 @@ function escape(arg)
   return result;
 }
 
-function textFieldChanged(textFieldId)
-{ value = escape(document.getElementById(textFieldId).value);
+function textFieldChanged(textFieldId) {
+	value = escape(document.getElementById(textFieldId).value);
   queueCommand ('SetC ('+textFieldId+') "'+value+'"');
   console.log('textFieldChanged '+value);
 }
 
-function elementGotFocus(id)
-{ console.log('element '+id+' got focus');
+function elementGotFocus(id) {
+	console.log('element '+id+' got focus');
   focusedElementId = id;
 }  
 
-function addCommand(command)
-{ commandQueue = commandQueue + (commandQueue != '' ? ',' : '') + command;
+function addCommand(command) {
+	commandQueue = commandQueue + (commandQueue != '' ? ',' : '') + command;
 } // add command to queue, and if queue was not empty, put a comma in front
 
 
 var xmlhttp;
 
 // TODO we don't want empty commands sent to server
-function queueCommand(command)
-{ if (command != '') addCommand(command);
+function queueCommand(command) {
+	if (command != '') addCommand(command);
 
   stopRefreshTimer(); // don't want auto refresh while waiting for results
 
@@ -127,24 +122,22 @@ function queueCommand(command)
             // TODO: can readyState == 0 happen?  
              
   xmlhttp=null;
-  if (window.XMLHttpRequest)
-  { // code for Firefox, Opera, IE7, etc.
+  if (window.XMLHttpRequest) {
+	  // code for Firefox, Opera, IE7, etc.
     xmlhttp=new XMLHttpRequest();
   }
-  else if (window.ActiveXObject)
-  { // code for IE6, IE5
+  else if (window.ActiveXObject) {
+	  // code for IE6, IE5
     xmlhttp=new ActiveXObject("Microsoft.XMLHTTP");
   }
-  if (xmlhttp!=null)
-  { 
-    { xmlhttp.onreadystatechange=state_Change;
-      xmlhttp.open("GET",'handle?commands=Commands ['+commandQueue+']',true);
-      xmlhttp.send(null); // commands in commandQueue are already separated by commmas
-      commandQueue = '';
-    }
+  if (xmlhttp!=null) {
+	  xmlhttp.onreadystatechange=state_Change;
+    xmlhttp.open("GET",'handle?commands=Commands ['+commandQueue+']',true);
+    xmlhttp.send(null); // commands in commandQueue are already separated by commmas
+    commandQueue = '';
   }
-  else
-  { alert("Your browser does not support XMLHTTP.");
+  else {
+	  alert("Your browser does not support XMLHTTP.");
   }
 }
 
@@ -163,47 +156,41 @@ function unauthenticate()
 }
 */
 
-function state_Change()
-{
-if (xmlhttp.readyState==4)
-  {// 4 = "loaded"
-  if (xmlhttp.status==200)
-    {// 200 = "OK"
-
-    debugAdd("received");
-    var receivedUpdates = document.getElementById('receivedUpdates');
-    receivedUpdates.innerHTML=xmlhttp.responseText;
+function state_Change() {
+	if (xmlhttp.readyState==4) {// 4 = "loaded"
+  	if (xmlhttp.status==200) {// 200 = "OK"
+	    debugAdd("received");
+  	  var receivedUpdates = document.getElementById('receivedUpdates');
+  	  receivedUpdates.innerHTML=xmlhttp.responseText;
+      
+   	  if (commandQueue != '') {
+   		  debugAdd('sending queue');
+        queueCommand('');
+      }
+        
+    	var updates = document.getElementById('updates');
+    	// getElementById seems to trigger parsing the responseText
+    	// after this, firstChild has a value, while it is null before
+    	// newRendering.firstChild;
     
-    
-    if (commandQueue != '')
-    { debugAdd('sending queue');
-      queueCommand('');
-    }
-    
-   
-    var updates = document.getElementById('updates');
-    // getElementById seems to trigger parsing the responseText
-    // after this, firstChild has a value, while it is null before
-    // newRendering.firstChild;
-    
-   // process all the updates from the server
-   while (updates.firstChild)
-    { updateTree( updates.firstChild );
-    ; updates.removeChild(updates.firstChild);
-    }
+   		// process all the updates from the server
+   		while (updates.firstChild) {
+   			updateTree( updates.firstChild );
+        updates.removeChild(updates.firstChild);
+      }
 
-   if (drawingViewTree)
-     drawViewTree();
+      if (drawingViewTree)
+      drawViewTree();
 
-    removeChildrenById("parking"); // clean any parked webnodes
+      removeChildrenById("parking"); // clean any parked webnodes
 
-    // restore focus
-    debugAdd("restoring focus to "+focusedElementId);
-    var focusedElement = document.getElementById(focusedElementId);
-    if (focusedElement != null)
-      focusedElement.focus();
-    else
-      debugAdd("failed");
+      // restore focus
+      debugAdd("restoring focus to "+focusedElementId);
+      var focusedElement = document.getElementById(focusedElementId);
+      if (focusedElement != null)
+        focusedElement.focus();
+      else
+        debugAdd("failed");
 
 //    $("[class='tabbed']").tabs(); // register tabbed views
 //    $("[class='draggable']").draggable({refreshPositions: true});
@@ -218,29 +205,24 @@ $(".hList").sortable({connectWith: '.vList, .hList'});
 $(".vList").sortable({connectWith: '.vList, .hList'});
 });
 */
-
-
-    // start refresh timer again
-    if (commandQueue == '') // only if command handling did not queue any new commands
-      if (sendingCommands)
-        sendRandomCommand();
-      else
-        startRefreshTimer();
-
-  }
-  else
-    {
-    console.error("Problem retrieving data:" + xmlhttp.statusText);
-//    document.getElementById('status').innerHTML='Server not available.';
+      // start refresh timer again
+      if (commandQueue == '') // only if command handling did not queue any new commands
+        if (sendingCommands)
+          sendRandomCommand();
+        else
+          startRefreshTimer();
     }
-  }
+    else { // xmlhttp.status!=200
+      console.error("Problem retrieving data:" + xmlhttp.statusText);
+    }
+  } // no action if xmlhttp.readyState!=4
 }
 
-function updateTree(update)
-{ var op = update.getAttribute('op');
+function updateTree(update) {
+	var op = update.getAttribute('op');
  
- if (op === 'replace')
-  { var targetId = update.getAttribute('targetId');
+  if (op === 'replace') {
+	  var targetId = update.getAttribute('targetId');
     var newChild = update.childNodes[0];
     debugAdd("replace");
     debugAdd(commandQueue);
@@ -251,8 +233,8 @@ function updateTree(update)
     
     parent.replaceChild(newChild,oldChild);
   } 
- else if (op === 'special')
-  { var targetId = update.getAttribute('targetId');
+  else if (op === 'special') { // used for trying out commands in a running WebView
+	  var targetId = update.getAttribute('targetId');
     var newChild = update.childNodes[0];
     debugAdd("special"+commandQueue);
 
@@ -261,8 +243,6 @@ function updateTree(update)
     var ther3 = document.getElementById("pigview15");
   
     //parking.appendChild(ther3);
-
-
 
     var oldChild = document.getElementById(targetId);  
     var parent = oldChild.parentNode;    
@@ -285,46 +265,46 @@ function updateTree(update)
       debugAdd("failed");
     debugAdd ("end of special");
   }
- else if (op === 'exception')
-  { var text = update.getAttribute('text');
+  else if (op === 'exception') {
+	  var text = update.getAttribute('text');
     sendingCommands = false;
     autoRefresh = false;
     alert(text);
     init();
-  } 
-else if (op === 'alert')
-  { var text = update.getAttribute('text');
+  }
+  else if (op === 'alert') {
+	  var text = update.getAttribute('text');
     if (!sendingCommands)  // don't let dialogs interrupt auto command sequence
       alert(text);
   } 
- else if (op === 'confirm')
-  { var text = update.getAttribute('text');
-    if (!sendingCommands)  // don't let dialogs interrupt auto command sequence
-    {  if (confirm(text))
+  else if (op === 'confirm') {
+	  var text = update.getAttribute('text');
+    if (!sendingCommands) { // don't let dialogs interrupt auto command sequence
+      if (confirm(text))
         queueCommand('ConfirmDialogOk');
     }
     else
       queueCommand('ConfirmDialogOk');
   } 
- else if (op === 'authenticate')
-  {  authenticate();
+  else if (op === 'authenticate') {
+	  authenticate();
   } 
- else if (op === 'new')
-  { var newChild = update.childNodes[0];
+  else if (op === 'new') {
+	  var newChild = update.childNodes[0];
 
     var newElts = document.getElementById('new');
     newElts.appendChild(newChild);
   }
- else if (op === 'move')
-  { var srcId = update.getAttribute('src');
+  else if (op === 'move') {
+	  var srcId = update.getAttribute('src');
     var dstId = update.getAttribute('dst');
     breakpointCheck();
     debugAdd("Moving "+srcId + " to " + dstId);
     srcElt = document.getElementById(srcId);
     dstElt = document.getElementById(dstId);
 
-    if (srcElt && dstElt)
-    { parentElt = dstElt.parentNode;
+    if (srcElt && dstElt) {
+    	parentElt = dstElt.parentNode;
 
       var parkingElt = document.getElementById('parking');
       parentElt.replaceChild(srcElt,dstElt);
@@ -333,53 +313,52 @@ else if (op === 'alert')
       parkingElt.appendChild(dstElt);
     }
   }
- else if (op === 'eval') {
-   var scriptTxt = update.childNodes[0].data;
-   //console.log("Evaluate:",scriptTxt)
-   eval(scriptTxt);
- }
- else alert ('Unknown command: '+op); 
+  else if (op === 'eval') {
+	  var scriptTxt = update.childNodes[0].data;
+    //console.log("Evaluate:",scriptTxt)
+    eval(scriptTxt);
+  }
+  else alert ('Unknown command: '+op); 
 }
 
-function select(path, node)
-{ var step = path.firstChild;
+function select(path, node) {
+	var step = path.firstChild;
   if (!step)
     return node;
-  else
-    { path.removeChild(step);
-      var childNr = parseInt( step.getAttribute('childNr') ); 
-      var child = node.childNodes[childNr];
-      return (select (path, child));
-    }
+  else {
+	  path.removeChild(step);
+    var childNr = parseInt( step.getAttribute('childNr') ); 
+    var child = node.childNodes[childNr];
+    return (select (path, child));
+  }
 }
 
-function drawViewTree()
-{ removeChildrenById("viewTree");    
-     
+function drawViewTree() {
+	removeChildrenById("viewTree");    
   drawViewTreeElt('',document.getElementById('root'));
 }
 
-function drawViewTreeElt(indent, elt)
-{ if (elt.id) draw(indent+elt.id+'<br/>');
+function drawViewTreeElt(indent, elt) {
+	if (elt.id) draw(indent+elt.id+'<br/>');
   for (var i=0; i < elt.childNodes.length; i++)
     drawViewTreeElt(indent+  (elt.id ? '&nbsp;&nbsp;&nbsp;' : ''), elt.childNodes[i]);
 }
 
-function draw(str)
-{ document.getElementById('viewTree').innerHTML+=str
+function draw(str) {
+	document.getElementById('viewTree').innerHTML+=str
 }
 
-function removeChildrenById(id)
-{ removeChildren(document.getElementById(id));
+function removeChildrenById(id) {
+	removeChildren(document.getElementById(id));
 }
 
-function removeChildren(elt)
-{ while (elt.firstChild)
+function removeChildren(elt) {
+	while (elt.firstChild)
     elt.removeChild(elt.firstChild);
 }
 
-function sendRandomCommand()
-{ debugAdd("random command");
+function sendRandomCommand() {
+	debugAdd("random command");
   /* allButtons = $("button");
   i = Math.floor( Math.random()*allButtons.length);
   
@@ -400,17 +379,21 @@ function sendRandomCommand()
 }
 
 -->
+
+
+/*  Code for drag & drop experiments */
+
 /* for drag to float, add min-height to ul
    and make sure connectWith is not set on both hlist and vlist, or
    drag will be buggy
 */
 $(function() {
- $(".vList").disableSelection();
+  $(".vList").disableSelection();
 
- $(".hList").disableSelection();
+  $(".hList").disableSelection();
 
- $(".hList").sortable({connectWith: '.hList'});
-$(".vList").sortable({connectWith: '.vList'});
+  $(".hList").sortable({connectWith: '.hList'});
+  $(".vList").sortable({connectWith: '.vList'});
 });
  
 
