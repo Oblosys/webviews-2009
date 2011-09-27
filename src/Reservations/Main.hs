@@ -373,12 +373,9 @@ mkClientView = mkWebView $
                    }
      ; let status = "all ok" 
      ; return $ ClientView nrOfP mDate mTime nrButtons nameText commentText todayButton tomorrowButton dayButtons timeButtonss confirmButton status
-                  $ "disenable"++viewIdSuffix vid++" = Function('console.log(\"dynamic function executed "++ show (widgetGetViewRef nameText)++"\");" ++
-                                                                concat [getElementByIdRef (widgetGetViewRef button)++".disabled = true;"| buttons<-timeButtonss, button<-buttons]++
-                                                               "');"
+                  $ declareFunction "disenable" vid $ "console.log(\"dynamic function executed "++ show (widgetGetViewRef nameText)++"\");" ++
+                                                                concat [getElementByIdRef (widgetGetViewRef button)++".disabled = true;"| buttons<-timeButtonss, button<-buttons]
      }
-
-getElementByIdRef (ViewIdRef id) = "document.getElementById(\\'"++show (ViewId id)++"\\')"
  
 -- todo comment has hard-coded width. make constant for this
 instance Presentable ClientView where

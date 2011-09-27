@@ -389,6 +389,10 @@ extractScriptHtml (Html elements) = (\(es,ss)-> (Html (concat es), concat ss)) $
 
 viewIdSuffix (ViewId ps) = concatMap (('_':).show) ps
 
+getElementByIdRef (ViewIdRef id) = "document.getElementById(\\'"++show (ViewId id)++"\\')"
+
+declareFunction name vid body = name++viewIdSuffix vid++" = Function('"++body++"');"
+
 
 -- Login -----------------------------------------------------------------------  
 
