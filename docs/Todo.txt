@@ -1,4 +1,8 @@
 TODO short term
+
+
+
+Longer term
 get rid of ' in webview type selectors
 
 Generics.replace what is this, also for label or other widgets?
@@ -6,10 +10,17 @@ present LabelView not implemented
 
 edit on LabelView? (will need to implement Generics.replace) 
 
-
-
-Longer term
 errors in script are not reported other than failing to present. Should log them to console
+
+
+Design
+Need extra state (think of good name) on client side
+Block of code associated with WebView (for now just suffix, but we need to garbage collect them as well)
+Default behavior for selection and focus. Webview can have focus and selection
+
+Group controls in form like fashion, so they only cause edit on some submit/commit edit op? (like "make reservation")
+Allow specification of client-side edit op.
+
 
 Naming
 Text/TextView
