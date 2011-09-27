@@ -365,8 +365,7 @@ instance Presentable (AnyWidget db) where
   present (RadioViewWidget rv) = presentRadioBox rv 
   present (TextWidget es) = presentTextField es 
   present (ButtonWidget b) = presentButton b 
-  present (EditActionWidget b) = noHtml
-
+  
 
 
 -- Scripting

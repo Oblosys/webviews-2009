@@ -117,6 +117,10 @@ instance Eq (Button db) where
 
 button viewId txt enabled style cmd = Widget noId noId $ Button viewId txt enabled style cmd
 
+
+
+--- Editing
+
 -- EditAction
 
 data EditAction db = EditAction { getActionViewId :: ViewId, getCommand :: EditCommand db 
@@ -212,7 +216,6 @@ instance Eq (WebNode db) where
 data AnyWidget db = RadioViewWidget !RadioView 
                   | TextWidget !(Text db)
                   | ButtonWidget !(Button db) 
-                  | EditActionWidget !(EditAction db)
                     deriving (Eq, Show, Typeable, Data)
                           
 type ViewMap db = Map.Map ViewId (WebView db)

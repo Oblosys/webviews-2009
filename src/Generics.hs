@@ -61,7 +61,6 @@ mkWebNodeMap x = Map.fromList $ everything (++)
       `extQ` (\(Widget sid id w) -> let vid = getViewId w in [(vid, WidgetNode vid sid id $ RadioViewWidget w)])
       `extQ` (\(Widget sid id w) -> let vid = getViewId w in [(vid, WidgetNode vid sid id $ TextWidget w)])
       `extQ` (\(Widget sid id w) -> let vid = getViewId w in [(vid, WidgetNode vid sid id $ ButtonWidget w)])
-      `extQ` (\(Widget sid id w) -> let vid = getViewId w in [(vid, WidgetNode vid sid id $ EditActionWidget w)])
   ) x    
 
 getTopLevelWebNodesWebView :: Data db => WebView db -> [WebNode db]
