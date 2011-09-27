@@ -341,20 +341,23 @@ mkClientView = mkWebView $
                                    Just dt ->
                                      let reservationsAtTimeAndDay = filter (\r-> dt == date r && tm == time r) reservations
                                      in  sum (map nrOfPeople reservationsAtTimeAndDay) + nrOfP <= maxNrOfPeople
+     ; let availableAtDateAndTime dt tm = let reservationsAtTimeAndDay = filter (\r-> dt == date r && tm == time r) reservations
+                                          in  maxNrOfPeople - sum (map nrOfPeople reservationsAtTimeAndDay) + nrOfP
 
      ; let mTime = case oldMTime of
                      Nothing -> Nothing
                      Just oldTime -> if timeAvailable oldTime then oldMTime else Nothing
      
-     ; nrButtons <- sequence [ mkButton (show nr) True $ Edit $ viewEdit vid $ setClientViewNrOfPeople nr | nr <-[1..8]]
+     ; nrButtons <- sequence [ mkButtonWithClick (show nr) True $ callFunction vid "disenable" [show nr]
+                                  {- $ Edit $ viewEdit vid $ setClientViewNrOfPeople nr -} | nr <-[1..8]]
      
        -- TODO hacky
      ; nameText  <- mkTextField $ getStrVal (oldNameText) -- needed, even though in browser text is reused without it
      ; commentText  <- mkTextArea $ getStrVal (oldCommentText) -- at server side it is not
      
-     ; todayButton <- mkButtonWithStyle ("Today ("++show currentDay++" "++showShortMonth currentMonth++")") True "width:100%" $ Edit $ viewEdit vid $ setClientViewDate (Just today)
-     ; tomorrowButton <- mkButtonWithStyle "Tomorrow" True "width:100%" $ Edit $ viewEdit vid $ setClientViewDate (Just $ addToDate today 1)
-     ; dayButtons <- sequence [ mkButton (showShortDay . weekdayForDate $ dt) True $ Edit $ viewEdit vid $ setClientViewDate (Just dt)
+     ; todayButton <- mkButtonWithStyle ("Today ("++show currentDay++" "++showShortMonth currentMonth++")") True "width:100%" $ Edit $ return () -- viewEdit vid $ setClientViewDate (Just today)
+     ; tomorrowButton <- mkButtonWithStyle "Tomorrow" True "width:100%" $ Edit $ return () --viewEdit vid $ setClientViewDate (Just $ addToDate today 1)
+     ; dayButtons <- sequence [ mkButton (showShortDay . weekdayForDate $ dt) True $ Edit $ return () -- viewEdit vid $ setClientViewDate (Just dt)
                               | day <-[2..7], let dt = addToDate today day ]
      
                                   
@@ -372,11 +375,24 @@ mkClientView = mkWebView $
                         in  db''
                    }
      ; statusLabel <- mkLabelView "all ok" 
+     ; let datesAndAvailabilityDecl = "var availability = ["++
+             intercalate "," [ "{date: \""++showDay (weekdayForDate  d)++", "++showShortDate d++"\","++
+                               " available: ["++intercalate "," [ show $ availableAtDateAndTime d (h,m)
+                                                                | h<-[18..23], m<-[0,30]]++"]}" | i <-[2..7], let d = addToDate today i ] 
+             ++"];"
+             
+     ; debugLn datesAndAvailabilityDecl
+     
      ; return $ ClientView nrOfP mDate mTime nrButtons nameText commentText todayButton tomorrowButton dayButtons timeButtonss confirmButton statusLabel
-                  $ declareFunction "disenable" vid $ "console.log(\"dynamic function executed "++ show (widgetGetViewRef nameText)++"\");" ++
-                                                       --concat [getElementByIdRef (widgetGetViewRef button)++".disabled = true;"| buttons<-timeButtonss, button<-buttons]
-                                                       getElementByIdRef (widgetGetViewRef statusLabel)++".innerHTML =\\'Pressed\\';"
+                  $ declareFunction vid "disenable" ["nr"] $ datesAndAvailabilityDecl ++
+                                                      "console.log(\"dynamic function executed \"+nr);" ++
+                                                      --concat [getElementByIdRef (widgetGetViewRef button)++".disabled = true;"| buttons<-timeButtonss, button<-buttons]
+                                                      getElementByIdRef (widgetGetViewRef statusLabel)++".innerHTML = availability[0].date;"
      }
+callFunction vid name params = name++viewIdSuffix vid++"("++intercalate "," params++")"
+-- old disenable call in presentButton:--"disenable"++viewIdSuffix (ViewId $ init $ unViewId viewId)++"('"++show (unViewId viewId)++"');
+-- figure out if we need the viewId for the button when specifying the onclick
+-- but maybe  we get a way to specify a client-side edit op and do this more general
 
 -- todo comment has hard-coded width. make constant for this
 instance Presentable ClientView where
