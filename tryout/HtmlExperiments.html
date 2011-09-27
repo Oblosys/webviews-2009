@@ -2,12 +2,15 @@
 <head>
 <link href="../scr/WebViews.css" rel="stylesheet" type="text/css" />
 <script type="text/javascript">
-var g = new Function ('alert("Static g");');
+var g = new Function ('console.log("Static g");');
 
 function dispatch() {
   
   g();
-  eval("g = Function('alert(\"dynamic function\");');");
+  eval("g = Function('console.log(\"dynamic function\");');"+
+         "document.getElementById('buttonId').disabled = true;"
+         
+         );
     f();
     
   
@@ -47,12 +50,6 @@ function f() {
 </div>
   </td>
 </table>
-<SPAN ID = "25"
-      ><FORM STYLE = "display: inline; width: 500px;" onSubmit = "textFieldChanged('ViewId [0,0,9]'); return false"
-	><TEXTAREA ID = "ViewId [0,0,9]" STYLE = "width: 100%; height: 100%;" onFocus = "elementGotFocus('ViewId [0,0,9]')" onBlur = "textFieldChanged('ViewId [0,0,9]')"
-	  ></TEXTAREA
-	  ><button>jj</button><script type="text/javascript">alert("script executedza");</script></FORM
-	>
 </body>
 </html>
 <tr><td style="background-color: grey">bla</td> <td style="background-color: lightgrey">adsads</td> <td style="background-color: grey">vijftien</td></tr>
@@ -78,6 +75,7 @@ function f() {
 
 <table cellpadding="0" cellspacing="0" style="">
 <tr><td>  </td></tr></table>
+<button id="buttonId" onclick="">a button</button>
 <button onclick="g()">g</button>
 <!-- border-collapse: collapse; zodat borders samenvallen 
 border-width (or any other border property) only has effect when border-style is set

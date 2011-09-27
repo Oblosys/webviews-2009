@@ -316,7 +316,7 @@ function updateTree(update) {
   }
   else if (op === 'eval') {
 	  var scriptTxt = update.childNodes[0].data;
-    //console.log("Evaluate:",scriptTxt)
+    console.log("Evaluate:",scriptTxt)
     eval(scriptTxt);
   }
   else alert ('Unknown command: '+op); 
@@ -377,6 +377,10 @@ function sendRandomCommand() {
 
 //dlog(randomCommand);
   //queueCommand(randomCommand);
+}
+
+function buttonClick(viewId) {
+	console.log("we have a button click from "+viewId);
 }
 --></script>
 

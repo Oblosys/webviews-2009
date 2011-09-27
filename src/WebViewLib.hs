@@ -324,7 +324,7 @@ presentTextField (Text viewId textType str mEditAction) =
 presentButton :: Button db -> Html
 presentButton (Button viewId txt enabled style _) = 
    primHtml $ "<button id=\""++ show viewId++"\" "++ (if enabled then "" else "disabled ") ++ (if style /="" then " style=\"" ++style++"\" " else "")++
-                            "onclick=\"queueCommand('ButtonC ("++show viewId++")')\" "++
+                            "onclick=\"disenable"++viewIdSuffix (ViewId $ init $ unViewId viewId)++"('"++show (unViewId viewId)++"');queueCommand('ButtonC ("++show viewId++")')\" "++
                             "onfocus=\"elementGotFocus('"++show viewId++"')\">"++txt++"</button>"
 -- TODO: text should be escaped
 
@@ -386,6 +386,8 @@ extractScriptHtml (Html elements) = (\(es,ss)-> (Html (concat es), concat ss)) $
        extractScriptHtmlElement elt                                                =  ([elt], []) 
 
 
+
+viewIdSuffix (ViewId ps) = concatMap (('_':).show) ps
 
 
 -- Login -----------------------------------------------------------------------  

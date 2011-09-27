@@ -35,6 +35,9 @@ data Command = Init String | Refresh | Test
 -- for now, we assign them at mkView
 newtype ViewId = ViewId [Int] deriving (Show, Read, Eq, Ord, Typeable, Data)
 
+unViewId  (ViewId pth) = pth -- not defined as a field, since ViewId's are now simply showed to get javascript id's, and we don't
+                             -- want them to look like ... id = "ViewID {unViewId = [..]}" 
+
 noViewId = ViewId []
 
 newtype Id = Id { unId :: Int } deriving (Show, Eq, Ord, Data, Typeable)
@@ -42,7 +45,7 @@ newtype Id = Id { unId :: Int } deriving (Show, Eq, Ord, Data, Typeable)
 noId = Id (-1)
 
 
--- refs are different kind, because they may be part of view tree, and SYB id assignment functions 
+-- refs are different type, because they may be part of view tree, and SYB id assignment functions 
 -- should not affect them
 newtype ViewIdRef = ViewIdRef [Int] deriving (Show, Eq, Ord, Data, Typeable)
 
