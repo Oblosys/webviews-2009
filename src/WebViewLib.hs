@@ -104,8 +104,10 @@ mkButtonWithStyle str en st ac = liftS $  \path vidC -> (button (ViewId $ path +
 mkEditAction :: EditCommand db -> WebViewM db (EditAction db) 
 mkEditAction ec = liftS $ \path vidC -> (EditAction (ViewId $ path ++ [vidC]) ec, vidC +1)
 
+-- TODO try to abstract the view id creation
 mkRadioView is s en = liftS $ \path vidC -> (radioView (ViewId $ path ++ [vidC]) is s en, vidC +1)
 
+mkLabelView str = liftS $ \path vidC -> (labelView (ViewId $ path ++ [vidC]) str, vidC +1)
 
 mkTextField str = mkTextFieldEx str Nothing
 
@@ -291,6 +293,8 @@ They do seem to lose focus though, but since we know what was edited, we can eas
 the update
 -}
 
+presentLabelView :: LabelView -> Html
+presentLabelView (LabelView viewId str) = thediv ! [identifier $ show viewId] << stringToHtml str
 
 -- textfields are in forms, that causes registering text field updates on pressing enter
 -- (or Done) on the iPhone.
@@ -341,8 +345,8 @@ withEditAction (EditAction viewId _) elt =
 withEditActionAttr (EditAction viewId _) = 
   strAttr "onClick" $ "queueCommand('PerformEditActionC ("++show viewId++")')"
 
-presentRadioBox :: RadioView -> Html
-presentRadioBox (RadioView viewId items selectedIx enabled) = thespan << 
+presentRadioView :: RadioView -> Html
+presentRadioView (RadioView viewId items selectedIx enabled) = thespan << 
   [ radio (show viewId) (show i) ! ( [ identifier eltId 
                           , strAttr "onChange" ("queueCommand('SetC ("++show viewId++") %22"++show i++"%22')") 
                           , strAttr "onFocus" ("elementGotFocus('"++eltId++"')")
@@ -362,9 +366,10 @@ instance Presentable (Widget x) where
 
 -- todo button text and radio text needs to go into view
 instance Presentable (AnyWidget db) where                          
-  present (RadioViewWidget rv) = presentRadioBox rv 
-  present (TextWidget es) = presentTextField es 
-  present (ButtonWidget b) = presentButton b 
+  present (LabelWidget v) = presentLabelView v 
+  present (TextWidget v) = presentTextField v
+  present (RadioViewWidget v) = presentRadioView v 
+  present (ButtonWidget v) = presentButton v 
   
 
 

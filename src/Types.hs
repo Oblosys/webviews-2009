@@ -63,7 +63,25 @@ data Widget w = Widget { getWidgetStubId :: Id, getWidgetId :: Id, getWidgetWidg
 instance Eq (Widget w) where
   w1 == w2 = True
 
+data AnyWidget db = LabelWidget !LabelView
+                  | TextWidget !(Text db)
+                  | RadioViewWidget !RadioView 
+                  | ButtonWidget !(Button db) 
+                    deriving (Eq, Show, Typeable, Data)
+
+-- Label
+
+-- does not have a html counterpart. It is just a div with a view id that contains a string element
+data LabelView = LabelView { getLabelViewId' :: ViewId, getLabelText :: String } deriving (Show, Typeable, Data)
+
+instance Eq LabelView where
+  LabelView _ t1 == LabelView _ t2 = t1 == t2
+  
+labelView viewId txt = Widget noId noId $ LabelView viewId txt
+
 -- Text
+
+-- todo rename Str stuff in Text, maybe also Text to TextView
 
 data TextType = TextField | PasswordField | TextArea deriving (Eq, Show, Typeable, Data)
 
@@ -74,8 +92,10 @@ instance Eq (Text db) where
   Text _ t1 str1 _ == Text _ t2 str2 _ = t1 == t2 && str1 == str2
   
 getStrViewId (Widget _ _ (Text vi h v _)) = vi
+-- todo unsafe!
 
 getStrVal (Widget _ _ (Text vi h v _)) = v
+-- todo unsafe!
 
 textField viewId str mSubmitAction = Widget noId noId $ Text viewId TextField str mSubmitAction
 
@@ -91,6 +111,7 @@ data RadioView = RadioView { getRadioViewViewId' :: ViewId, getItems :: [String]
                            , getRadioEnabled :: Bool 
                            } deriving (Show, Typeable, Data)
 
+-- todo: unsafe
 setSelection' :: Int -> RadioView -> RadioView 
 setSelection' s (RadioView vi its _ en) = RadioView vi its s en
 
@@ -148,6 +169,9 @@ class HasViewId v where
 instance HasViewId (WebView db) where
   getViewId (WebView viewId _ _ _ _) = viewId 
   
+instance HasViewId LabelView where
+  getViewId = getLabelViewId'
+
 instance HasViewId (Text db) where
   getViewId = getStrViewId'
 
@@ -213,10 +237,6 @@ instance Eq (WebNode db) where
       Just wv1' -> wv1' == wv2
   _ == _ = False             
 
-data AnyWidget db = RadioViewWidget !RadioView 
-                  | TextWidget !(Text db)
-                  | ButtonWidget !(Button db) 
-                    deriving (Eq, Show, Typeable, Data)
                           
 type ViewMap db = Map.Map ViewId (WebView db)
 
@@ -302,6 +322,9 @@ instance Initial Int where
 instance Initial w => Initial (Widget w) where
   initial = Widget noId noId initial
   
+instance Initial LabelView where
+  initial = LabelView noViewId ""
+
 instance Initial (Text db) where
   initial = Text noViewId TextField "" Nothing
 

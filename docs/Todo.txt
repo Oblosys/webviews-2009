@@ -1,3 +1,25 @@
+TODO short term
+get rid of ' in webview type selectors
+
+Generics.replace what is this, also for label or other widgets?
+present LabelView not implemented
+
+edit on LabelView? (will need to implement Generics.replace) 
+
+
+
+Longer term
+errors in script are not reported other than failing to present. Should log them to console
+
+Naming
+Text/TextView
+RadioView 
+
+in Main, we get (Widget Text), (Widget RadioView) etc. these will get type synonyms Text... etc.
+The synonyms should be consistent with the naming in Types
+ 
+
+
 Possible bugs
  Drag & drop code may interfere with hList and vList spacings
 

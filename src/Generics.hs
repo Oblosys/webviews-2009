@@ -24,21 +24,20 @@ mkViewMap :: Data db => WebView db -> ViewMap db
 mkViewMap wv = let wvs = getAll wv
                     in  Map.fromList [ (i, wv) | wv@(WebView i _ _ _ _) <- wvs]
 
--- webviews are to coarse for incrementality. We also need buttons, eints etc. as identifiable entities
--- making these into webviews does not seem to be okay. Maybe a separate class is needed
-
 webNodeQ :: (Typeable db, Typeable a) => a -> Maybe (WebNode db)
 webNodeQ = (Nothing `mkQ`  (\w -> Just $ WebViewNode w) 
-                    `extQ` (\w@(Widget stbid id x) -> Just $ let vi = getViewId x in WidgetNode vi stbid id (RadioViewWidget x))
+                    `extQ` (\w@(Widget stbid id x) -> Just $ let vi = getViewId x in WidgetNode vi stbid id (LabelWidget x))
                     `extQ` (\w@(Widget stbid id x) -> Just $ let vi = getViewId x in WidgetNode vi stbid id (TextWidget x))
+                    `extQ` (\w@(Widget stbid id x) -> Just $ let vi = getViewId x in WidgetNode vi stbid id (RadioViewWidget x))
                     `extQ` (\w@(Widget stbid id x) -> Just $ let vi = getViewId x in WidgetNode vi stbid id (ButtonWidget x))
            )              -- TODO can we do this bettter?
                         
                     
 webNodeLstQ :: (Typeable db, Typeable a) => a -> Maybe [WebNode db]
 webNodeLstQ = (Nothing `mkQ`  (\ws -> Just [ WebViewNode w | w <- ws ]) 
- `extQ` (\ws -> Just $ map (\w@(Widget stbid id x) -> let vi = getViewId x in WidgetNode vi stbid id (RadioViewWidget x)) ws)
+ `extQ` (\ws -> Just $ map (\w@(Widget stbid id x) -> let vi = getViewId x in WidgetNode vi stbid id (LabelWidget x)) ws)
  `extQ` (\ws -> Just $ map (\w@(Widget stbid id x) -> let vi = getViewId x in WidgetNode vi stbid id (TextWidget x)) ws)
+ `extQ` (\ws -> Just $ map (\w@(Widget stbid id x) -> let vi = getViewId x in WidgetNode vi stbid id (RadioViewWidget x)) ws)
  `extQ` (\ws -> Just $ map (\w@(Widget stbid id x) -> let vi = getViewId x in WidgetNode vi stbid id (ButtonWidget x)) ws)
            )              -- TODO can we do this bettter?
 
@@ -58,8 +57,9 @@ testLstQ = (Nothing `mkQ`  (\xs -> Just $ [ Left x | x <- xs ])
 mkWebNodeMap :: (Typeable db, Data d) => d -> WebNodeMap db
 mkWebNodeMap x = Map.fromList $ everything (++) 
   ([] `mkQ`  (\w@(WebView vid sid id _ _) -> [(vid, WebViewNode w)]) 
-      `extQ` (\(Widget sid id w) -> let vid = getViewId w in [(vid, WidgetNode vid sid id $ RadioViewWidget w)])
+      `extQ` (\(Widget sid id w) -> let vid = getViewId w in [(vid, WidgetNode vid sid id $ LabelWidget w)])
       `extQ` (\(Widget sid id w) -> let vid = getViewId w in [(vid, WidgetNode vid sid id $ TextWidget w)])
+      `extQ` (\(Widget sid id w) -> let vid = getViewId w in [(vid, WidgetNode vid sid id $ RadioViewWidget w)])
       `extQ` (\(Widget sid id w) -> let vid = getViewId w in [(vid, WidgetNode vid sid id $ ButtonWidget w)])
   ) x    
 
@@ -147,15 +147,17 @@ webViewGetInternalIds (WebView _ _ _ _ v) =
       isId :: Id -> Bool
       isId _ = True
       stop :: GenericQ Bool
-      stop = False `mkQ` isWebView `extQ` isWidget1 `extQ` isWidget2 `extQ` isWidget3
+      stop = False `mkQ` isWebView `extQ` isWidget1 `extQ` isWidget2 `extQ` isWidget3 `extQ` isWidget4
       isWebView :: WebView  db -> Bool -- TODO: aargh! just one is tricky with the type var in widget
       isWebView _ = True
-      isWidget1 :: Widget RadioView -> Bool
+      isWidget1 :: Widget LabelView -> Bool
       isWidget1 _ = True
       isWidget2 :: Widget (Text db) -> Bool
       isWidget2 _ = True
-      isWidget3 :: Widget (Button db) -> Bool
+      isWidget3 :: Widget RadioView -> Bool
       isWidget3 _ = True
+      isWidget4 :: Widget (Button db) -> Bool
+      isWidget4 _ = True
 
   in  listifyBut isId stop v 
 

@@ -311,7 +311,7 @@ instance Storeable Database ReservationView where
 
 
 data ClientView = 
-  ClientView Int (Maybe Date) (Maybe Time) [Widget (Button Database)] (Widget (Text Database)) (Widget (Text Database)) (Widget (Button Database)) (Widget (Button Database)) [Widget (Button Database)] [[Widget (Button Database)]] (Widget (Button Database)) String
+  ClientView Int (Maybe Date) (Maybe Time) [Widget (Button Database)] (Widget (Text Database)) (Widget (Text Database)) (Widget (Button Database)) (Widget (Button Database)) [Widget (Button Database)] [[Widget (Button Database)]] (Widget (Button Database)) (Widget LabelView)
     String
     deriving (Eq, Show, Typeable, Data)
     
@@ -371,15 +371,16 @@ mkClientView = mkWebView $
                             db'' = updateReservation rid (const $ Reservation rid (fromMaybe (error "no date") mDate) (fromMaybe (error "no time") mTime) name nrOfP comment) db
                         in  db''
                    }
-     ; let status = "all ok" 
-     ; return $ ClientView nrOfP mDate mTime nrButtons nameText commentText todayButton tomorrowButton dayButtons timeButtonss confirmButton status
+     ; statusLabel <- mkLabelView "all ok" 
+     ; return $ ClientView nrOfP mDate mTime nrButtons nameText commentText todayButton tomorrowButton dayButtons timeButtonss confirmButton statusLabel
                   $ declareFunction "disenable" vid $ "console.log(\"dynamic function executed "++ show (widgetGetViewRef nameText)++"\");" ++
-                                                                concat [getElementByIdRef (widgetGetViewRef button)++".disabled = true;"| buttons<-timeButtonss, button<-buttons]
+                                                       --concat [getElementByIdRef (widgetGetViewRef button)++".disabled = true;"| buttons<-timeButtonss, button<-buttons]
+                                                       getElementByIdRef (widgetGetViewRef statusLabel)++".innerHTML =\\'Pressed\\';"
      }
- 
+
 -- todo comment has hard-coded width. make constant for this
 instance Presentable ClientView where
-  present (ClientView nrOfP mDate mTime nrButtons nameText commentText todayButton tomorrowButton dayButtons timeButtonss confirmButton status script) = 
+  present (ClientView nrOfP mDate mTime nrButtons nameText commentText todayButton tomorrowButton dayButtons timeButtonss confirmButton statusLabel script) = 
     vList [ hList [ stringToHtml "Name:", hSpace 4, present nameText]
           , stringToHtml $ "Nr of people: "++show nrOfP
           , hListEx [width "100%"] $ map present nrButtons
@@ -391,7 +392,7 @@ instance Presentable ClientView where
           , stringToHtml "Comments:"
           , present commentText
           , present confirmButton
-          , stringToHtml status] +++           
+          , present statusLabel] +++           
           mkScript script
  
 instance Storeable Database ClientView where
