@@ -72,7 +72,7 @@ data AnyWidget db = LabelWidget !LabelView
 -- Label
 
 -- does not have a html counterpart. It is just a div with a view id that contains a string element
-data LabelView = LabelView { getLabelViewId' :: ViewId, getLabelText :: String } deriving (Show, Typeable, Data)
+data LabelView = LabelView { getLabelViewId :: ViewId, getLabelText :: String } deriving (Show, Typeable, Data)
 
 instance Eq LabelView where
   LabelView _ t1 == LabelView _ t2 = t1 == t2
@@ -85,15 +85,12 @@ labelView viewId txt = Widget noId noId $ LabelView viewId txt
 
 data TextType = TextField | PasswordField | TextArea deriving (Eq, Show, Typeable, Data)
 
-data Text db = Text { getStrViewId' :: ViewId, getTextType :: TextType, getStrVal' :: String 
-                   , getSubmitAction :: Maybe (EditCommand db) } deriving (Show, Typeable, Data)
+data Text db = Text { getTextViewId :: ViewId, getTextType :: TextType, getStrVal' :: String 
+                    , getSubmitAction :: Maybe (EditCommand db) } deriving (Show, Typeable, Data)
 
 instance Eq (Text db) where
   Text _ t1 str1 _ == Text _ t2 str2 _ = t1 == t2 && str1 == str2
   
-getStrViewId (Widget _ _ (Text vi h v _)) = vi
--- todo unsafe!
-
 getStrVal (Widget _ _ (Text vi h v _)) = v
 -- todo unsafe!
 
@@ -107,7 +104,7 @@ strRef (Widget _ _ (Text (ViewId i) h _ _)) = ViewIdRef i
 
 -- RadioView
 
-data RadioView = RadioView { getRadioViewViewId' :: ViewId, getItems :: [String], getSelection' :: Int 
+data RadioView = RadioView { getRadioViewId :: ViewId, getItems :: [String], getSelection' :: Int 
                            , getRadioEnabled :: Bool 
                            } deriving (Show, Typeable, Data)
 
@@ -121,15 +118,13 @@ instance Eq RadioView where
   RadioView _ items1 int1 enabled1 == RadioView _ items2 int2 enabled2 = 
     items1 == items2 && int1 == int2 && enabled1 == enabled2
 
-getRadioViewViewId (Widget _ _ (RadioView vi is v _)) = vi
-
 getSelection (Widget _ _ (RadioView i is v _)) = v
 
 radioView viewId its i enabled = Widget noId noId $ RadioView viewId its i enabled
 
 -- Button
 
-data Button db = Button { getButtonViewId' :: ViewId, buttonText :: String, getButtonEnabled :: Bool, getStyle :: String 
+data Button db = Button { getButtonViewId :: ViewId, buttonText :: String, getButtonEnabled :: Bool, getStyle :: String 
                         , getCommand' :: EditCommand db 
                         } deriving (Show, Typeable, Data)
 
@@ -170,16 +165,16 @@ instance HasViewId (WebView db) where
   getViewId (WebView viewId _ _ _ _) = viewId 
   
 instance HasViewId LabelView where
-  getViewId = getLabelViewId'
+  getViewId = getLabelViewId
 
 instance HasViewId (Text db) where
-  getViewId = getStrViewId'
+  getViewId = getTextViewId
 
 instance HasViewId RadioView where
-  getViewId = getRadioViewViewId'
+  getViewId = getRadioViewId
 
 instance HasViewId (Button db) where
-  getViewId = getButtonViewId'
+  getViewId = getButtonViewId
 
 instance HasViewId (EditAction db) where
   getViewId = getActionViewId
