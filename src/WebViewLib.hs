@@ -91,39 +91,36 @@ liftS :: ([Int] -> Int -> (x,Int)) -> WebViewM db x
 liftS f = StateT (\(WebViewState user db viewMap path i) -> 
                    (return $ let (x, i')= f path i in (x, WebViewState user db viewMap path i')))
 
+assignViewId :: (ViewId -> v) -> WebViewM db v
+assignViewId viewConstr = liftS $ \path vidC -> (viewConstr (ViewId $ path ++ [vidC]), vidC +1)
 
+mkEditAction :: EditCommand db -> WebViewM db (EditAction db) 
+mkEditAction ec = assignViewId $ \vid -> EditAction vid ec
 
 
 mkButton :: String -> Bool -> EditCommand db -> WebViewM db (Widget (Button db))
 mkButton str en ac = mkButtonWithStyle str en "" ac
 
 mkButtonWithStyle :: String -> Bool -> String -> EditCommand db -> WebViewM db (Widget (Button db))
-mkButtonWithStyle str en st ac = liftS $  \path vidC -> (button (ViewId $ path ++ [vidC]) str en st ac, vidC + 1)
+mkButtonWithStyle str en st ac = assignViewId $ \vid -> button vid str en st ac
 
--- no need to be in monad
-mkEditAction :: EditCommand db -> WebViewM db (EditAction db) 
-mkEditAction ec = liftS $ \path vidC -> (EditAction (ViewId $ path ++ [vidC]) ec, vidC +1)
+mkRadioView is s en = assignViewId $ \vid -> radioView vid is s en
 
--- TODO try to abstract the view id creation
-mkRadioView is s en = liftS $ \path vidC -> (radioView (ViewId $ path ++ [vidC]) is s en, vidC +1)
-
-mkLabelView str = liftS $ \path vidC -> (labelView (ViewId $ path ++ [vidC]) str, vidC +1)
+mkLabelView str = assignViewId $ \vid -> labelView vid str
 
 mkTextField str = mkTextFieldEx str Nothing
 
 mkTextFieldAct str act = mkTextFieldEx str $ Just act
 
-mkTextFieldEx str mEditAction = liftS $ \path vidC -> (textField (ViewId $ path ++ [vidC]) str mEditAction, vidC + 1)
+mkTextFieldEx str mEditAction = assignViewId $ \vid -> textField vid str mEditAction
 
 mkPasswordField str = mkPasswordFieldEx str Nothing
 
 mkPasswordFieldAct str act = mkPasswordFieldEx str $ Just act
 
-mkPasswordFieldEx str mEditAction = liftS $ \path vidC -> (passwordField (ViewId $ path ++ [vidC]) str mEditAction , vidC + 1)
+mkPasswordFieldEx str mEditAction = assignViewId $ \vid -> passwordField vid str mEditAction
 
-mkTextArea str = liftS $ \path vidC -> (textArea (ViewId $ path ++ [vidC]) str, vidC + 1)
-
-
+mkTextArea str = assignViewId $ \vid -> textArea vid str
 
 
 widgetGetViewRef (Widget _ _ w) = mkViewRef $ getViewId w
