@@ -55,11 +55,15 @@ mkViewRef (ViewId i) = ViewIdRef i
 
 mkRef (Id i) = IdRef i
 
+----- Widgets
+
 data Widget w = Widget { getWidgetStubId :: Id, getWidgetId :: Id, getWidgetWidget :: w }
               deriving (Show, Typeable, Data)
                        
 instance Eq (Widget w) where
   w1 == w2 = True
+
+-- Text
 
 data TextType = TextField | PasswordField | TextArea deriving (Eq, Show, Typeable, Data)
 
@@ -81,6 +85,8 @@ textArea viewId str = Widget noId noId $ Text viewId TextArea str Nothing
 
 strRef (Widget _ _ (Text (ViewId i) h _ _)) = ViewIdRef i
 
+-- RadioView
+
 data RadioView = RadioView { getRadioViewViewId' :: ViewId, getItems :: [String], getSelection' :: Int 
                            , getRadioEnabled :: Bool 
                            } deriving (Show, Typeable, Data)
@@ -100,6 +106,8 @@ getSelection (Widget _ _ (RadioView i is v _)) = v
 
 radioView viewId its i enabled = Widget noId noId $ RadioView viewId its i enabled
 
+-- Button
+
 data Button db = Button { getButtonViewId' :: ViewId, buttonText :: String, getButtonEnabled :: Bool, getStyle :: String 
                         , getCommand' :: EditCommand db 
                         } deriving (Show, Typeable, Data)
@@ -109,6 +117,7 @@ instance Eq (Button db) where
 
 button viewId txt enabled style cmd = Widget noId noId $ Button viewId txt enabled style cmd
 
+-- EditAction
 
 data EditAction db = EditAction { getActionViewId :: ViewId, getCommand :: EditCommand db 
                              } deriving (Show, Typeable, Data)
@@ -116,6 +125,8 @@ data EditAction db = EditAction { getActionViewId :: ViewId, getCommand :: EditC
 instance Eq (EditAction db) where
   EditAction _ _ == EditAction _ _ = True
   
+
+--- EditCommand
 
 data EditCommand db = Edit (EditM db ())
                  | AlertEdit String 
