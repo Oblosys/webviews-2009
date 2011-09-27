@@ -99,10 +99,12 @@ mkEditAction ec = assignViewId $ \vid -> EditAction vid ec
 
 
 mkButton :: String -> Bool -> EditCommand db -> WebViewM db (Widget (Button db))
-mkButton str en ac = mkButtonWithStyle str en "" ac
+mkButton str en ac = mkButtonEx str en "" "" ac
 
 mkButtonWithStyle :: String -> Bool -> String -> EditCommand db -> WebViewM db (Widget (Button db))
-mkButtonWithStyle str en st ac = assignViewId $ \vid -> button vid str en st ac
+mkButtonWithStyle str en st ac = mkButtonEx str en "" st ac
+
+mkButtonEx str en oc st ac = assignViewId $ \vid -> button vid str en oc st ac
 
 mkRadioView is s en = assignViewId $ \vid -> radioView vid is s en
 
@@ -323,7 +325,7 @@ presentTextField (Text viewId textType str mEditAction) =
 
 -- seems like this one could be in Present
 presentButton :: Button db -> Html
-presentButton (Button viewId txt enabled style _) = 
+presentButton (Button viewId txt enabled click style _) = 
    primHtml $ "<button id=\""++ show viewId++"\" "++ (if enabled then "" else "disabled ") ++ (if style /="" then " style=\"" ++style++"\" " else "")++
                             "onclick=\"disenable"++viewIdSuffix (ViewId $ init $ unViewId viewId)++"('"++show (unViewId viewId)++"');queueCommand('ButtonC ("++show viewId++")')\" "++
                             "onfocus=\"elementGotFocus('"++show viewId++"')\">"++txt++"</button>"

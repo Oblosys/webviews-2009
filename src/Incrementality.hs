@@ -161,7 +161,7 @@ getWidgetInternalId :: AnyWidget db -> ViewId
 getWidgetInternalId  (LabelWidget (LabelView id _)) = id
 getWidgetInternalId  (TextWidget (Text id _ _ _)) = id
 getWidgetInternalId  (RadioViewWidget (RadioView id _ _ _)) = id
-getWidgetInternalId  (ButtonWidget (Button id _ _ _ _)) = id
+getWidgetInternalId  (ButtonWidget (Button id _ _ _ _ _)) = id
             
 getBreadthFirstWebNodes :: Data db => WebView db -> [WebNode db]
 getBreadthFirstWebNodes rootView =
@@ -225,7 +225,7 @@ drawWebNodes webnode = drawTree $ treeFromView webnode
         where showAnyWidget (LabelWidget (LabelView id t)) = "Label "++ show id ++" "++ show t
               showAnyWidget (TextWidget (Text id t s _)) = "Text"++ show id ++" "++ show t ++ " " ++ show s
               showAnyWidget (RadioViewWidget (RadioView id is i e)) = "RadioView " ++ show id ++" " ++ show i ++(if e then "enabled" else "disabled") ++ ": "++ show is
-              showAnyWidget (ButtonWidget (Button id _ _ _ _)) = "Button " ++ show id 
+              showAnyWidget (ButtonWidget (Button id _ _ _ _ _)) = "Button " ++ show id 
                  
 data T = T Char [T]
 t0 = T 'a' [T 'b' [T 'd' [], T 'e' []], T 'c' [], T 'f' [T 'g' []]]
