@@ -98,16 +98,6 @@ mkEditAction :: EditCommand db -> WebViewM db (EditAction db)
 mkEditAction ec = assignViewId $ \vid -> EditAction vid ec
 
 
-mkButton :: String -> Bool -> EditCommand db -> WebViewM db (Widget (Button db))
-mkButton str en ac = mkButtonEx str en "" "" ac
-
-mkButtonWithStyle :: String -> Bool -> String -> EditCommand db -> WebViewM db (Widget (Button db))
-mkButtonWithStyle str en st ac = mkButtonEx str en "" st ac
-
-mkButtonEx str en oc st ac = assignViewId $ \vid -> button vid str en oc st ac
-
-mkRadioView is s en = assignViewId $ \vid -> radioView vid is s en
-
 mkLabelView str = assignViewId $ \vid -> labelView vid str
 
 mkTextField str = mkTextFieldEx str Nothing
@@ -123,6 +113,17 @@ mkPasswordFieldAct str act = mkPasswordFieldEx str $ Just act
 mkPasswordFieldEx str mEditAction = assignViewId $ \vid -> passwordField vid str mEditAction
 
 mkTextArea str = assignViewId $ \vid -> textArea vid str
+
+mkRadioView is s en = assignViewId $ \vid -> radioView vid is s en
+
+mkButton str en ac = mkButtonEx str en "" "" ac
+
+mkButtonWithStyle str en st ac = mkButtonEx str en "" st ac
+
+mkButtonWithClick str en oc = mkButtonEx str en oc "" $ Edit $ return () -- because onclick currently disables server edit command
+
+mkButtonEx :: String -> Bool -> String -> String -> EditCommand db -> WebViewM db (Widget (Button db)) -- signature nec. against ambiguity
+mkButtonEx str en oc st ac = assignViewId $ \vid -> button vid str en oc st ac
 
 
 widgetGetViewRef (Widget _ _ w) = mkViewRef $ getViewId w
@@ -323,11 +324,12 @@ presentTextField (Text viewId textType str mEditAction) =
                     , strAttr "onFocus" $ "elementGotFocus('"++show viewId++"')"
                     , strAttr "onBlur" $ "textFieldChanged('"++show viewId++"')" ]
 
--- seems like this one could be in Present
+-- For the moment, onclick disables the standard server ButtonC command
 presentButton :: Button db -> Html
-presentButton (Button viewId txt enabled click style _) = 
+presentButton (Button viewId txt enabled onclick style _) = 
    primHtml $ "<button id=\""++ show viewId++"\" "++ (if enabled then "" else "disabled ") ++ (if style /="" then " style=\"" ++style++"\" " else "")++
-                            "onclick=\"disenable"++viewIdSuffix (ViewId $ init $ unViewId viewId)++"('"++show (unViewId viewId)++"');queueCommand('ButtonC ("++show viewId++")')\" "++
+                            "onclick=\""++ (if onclick /= "" then onclick else "queueCommand('ButtonC ("++show viewId++")')" )++
+                                     "\" "++
                             "onfocus=\"elementGotFocus('"++show viewId++"')\">"++txt++"</button>"
 -- TODO: text should be escaped
 
@@ -394,8 +396,9 @@ viewIdSuffix (ViewId ps) = concatMap (('_':).show) ps
 
 getElementByIdRef (ViewIdRef id) = "document.getElementById(\\'"++show (ViewId id)++"\\')"
 
-declareFunction name vid body = name++viewIdSuffix vid++" = Function('"++body++"');"
-
+declareFunction :: ViewId -> String -> [String] -> String -> String
+declareFunction vid name params body = name++viewIdSuffix vid++" = Function("++concatMap ((++",").show) params++"'"++body++"');"
+-- todo: escape '
 
 -- Login -----------------------------------------------------------------------  
 
