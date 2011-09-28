@@ -419,6 +419,7 @@ mkClientView = mkWebView $
                                                            "for (var i=0;i<buttonIds.length;i++)"++
                                                            "  document.getElementById(buttonIds[i]).disabled = availables[i]<"++readVar vid "selectedNr"++";")
                     
+                    -- todo: handle when time selection is disabled because of availability (on changing nr of persons or date)
 
                     
                    
