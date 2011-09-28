@@ -1,24 +1,15 @@
-{-# LANGUAGE CPP #-}
-{-# OPTIONS -XDoRec -XDeriveDataTypeable -XFlexibleInstances -XMultiParamTypeClasses -XScopedTypeVariables #-}
+{-# OPTIONS -XFlexibleInstances -XMultiParamTypeClasses -XScopedTypeVariables #-}
 module WebViewPrim where
 
 import Control.Monad.State
-import Control.Monad.Trans
-import Data.List
 import Text.Html hiding (image)
 import qualified Text.Html as Html
 import Data.Generics
-import Data.Char
-import Data.Map (Map)
-import qualified Data.Map as Map 
-import Data.IntMap (IntMap)
-import qualified Data.IntMap as IntMap 
-import Data.Tree
 import Debug.Trace
+
 import Types
 import Generics
 import HtmlLib
-import Control.Monad.Fix
 
 
 -- IDEA: use phantom types to enforce type structure on views
