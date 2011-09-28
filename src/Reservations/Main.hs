@@ -312,29 +312,32 @@ instance Storeable Database ReservationView where
 
 
 data ClientView = 
-  ClientView Int (Maybe Date) (Maybe Time) [Widget (Button Database)] (Widget (Text Database)) (Widget (Text Database)) (Widget (Button Database)) (Widget (Button Database)) [Widget (Button Database)] [[Widget (Button Database)]] (Widget (Button Database)) (Widget LabelView)
+  ClientView Int (Maybe Date) (Maybe Time) [Widget (Button Database)] (Widget (Text Database)) (Widget (Text Database)) (Widget (Button Database)) (Widget (Button Database)) [Widget (Button Database)] [[Widget (Button Database)]] (Widget (Button Database)) 
+  (Widget LabelView) (Widget LabelView) (Widget LabelView)
     String
     deriving (Eq, Show, Typeable, Data)
     
-setClientViewNrOfPeople p (ClientView _ b c d e f g h i j k l m) = (ClientView p b c d e f g h i j k l m) 
-setClientViewDate md (ClientView a _ c d e f g h i j k l m) = (ClientView a md c d e f g h i j k l m) 
-setClientViewTime mt (ClientView a b _ d e f g h i j k l m) = (ClientView a b mt d e f g h i j k l m)
+setClientViewNrOfPeople p (ClientView _ b c d e f g h i j k l m n o) = (ClientView p b c d e f g h i j k l m n o) 
+setClientViewDate md (ClientView a _ c d e f g h i j k l m n o) = (ClientView a md c d e f g h i j k l m n o) 
+setClientViewTime mt (ClientView a b _ d e f g h i j k l m n o) = (ClientView a b mt d e f g h i j k l m n o)
  
 instance Initial ClientView where                 
-  initial = ClientView initial initial initial initial initial initial initial initial initial initial initial initial initial
+  initial = ClientView initial initial initial initial initial initial initial initial initial initial initial initial initial initial initial
 
 maxNrOfPeople = 10
 
 mkClientView = mkWebView $
- \vid (ClientView oldNrOfP oldMDate oldMTime _ oldNameText oldCommentText _ _ _ _ _ _ _) ->
+ \vid (ClientView oldNrOfP oldMDate oldMTime _ oldNameText oldCommentText _ _ _ _ _ _ _ _ _) ->
   do { clockTime <-  liftIO getClockTime -- this stuff is duplicated
      ; ct <- liftIO $ toCalendarTime clockTime
      ; let today@(currentDay, currentMonth, currentYear) = dateFromCalendarTime ct
            now   = (ctHour ct, ctMin ct)
            
+     --; let (initialDate, initialTime) = (Nothing, Nothing)
+     ; let (initialDate, initialTime) = (Just today, Just (19,30))
+     
      ; let nrOfP = if oldNrOfP == 0 then 2 else oldNrOfP -- todo init is not nice like this
-     --; let mDate = Just $ maybe today id oldMDate -- todo init is not nice like this
-     ; let mDate = oldMDate -- no init
+     ; let mDate = maybe initialDate Just oldMDate -- todo init is not nice like this
      
      ; reservations <- fmap Map.elems $ withDb $ \db -> allReservations db
      ; let timeAvailable tm = case mDate of
@@ -346,28 +349,34 @@ mkClientView = mkWebView $
                                           in  maxNrOfPeople - sum (map nrOfPeople reservationsAtTimeAndDay) + nrOfP
 
      ; let mTime = case oldMTime of
-                     Nothing -> Nothing
+                     Nothing -> initialTime
                      Just oldTime -> if timeAvailable oldTime then oldMTime else Nothing
      
-     ; nrButtons <- sequence [ mkButtonWithClick (show nr) True $ callFunction vid "disenable" [show nr]
+     ; nrButtons <- sequence [ mkButtonWithClick (show nr) True $ \bvid -> callFunction vid "setNr" [show nr]
                                   {- $ Edit $ viewEdit vid $ setClientViewNrOfPeople nr -} | nr <-[1..8]]
      
        -- TODO hacky
      ; nameText  <- mkTextField $ getStrVal (oldNameText) -- needed, even though in browser text is reused without it
      ; commentText  <- mkTextArea $ getStrVal (oldCommentText) -- at server side it is not
      
-     ; todayButton <- mkButtonWithStyle ("Today ("++show currentDay++" "++showShortMonth currentMonth++")") True "width:100%" $ Edit $ return () -- viewEdit vid $ setClientViewDate (Just today)
-     ; tomorrowButton <- mkButtonWithStyle "Tomorrow" True "width:100%" $ Edit $ return () --viewEdit vid $ setClientViewDate (Just $ addToDate today 1)
-     ; dayButtons <- sequence [ mkButton (showShortDay . weekdayForDate $ dt) True $ Edit $ return () -- viewEdit vid $ setClientViewDate (Just dt)
+     ; let dateButtonScript dateIndex bvid = callFunction vid "setDate" [ show dateIndex ]
+     ; todayButton <- mkButtonWithStyleClick ("Today ("++show currentDay++" "++showShortMonth currentMonth++")") True "width:100%" $  {-Edit $ viewEdit vid $ setClientViewDate (Just today) -}
+                        dateButtonScript 0 
+     ; tomorrowButton <- mkButtonWithStyleClick "Tomorrow" True "width:100%" $ {- Edit $ viewEdit vid $ setClientViewDate (Just $ addToDate today 1) -}
+                            dateButtonScript 1
+     ; dayButtons <- sequence [ mkButtonWithClick (showShortDay . weekdayForDate $ dt) True $ {- Edit $ viewEdit vid $ setClientViewDate (Just dt) -}
+                                  dateButtonScript day
                               | day <-[2..7], let dt = addToDate today day ]
      
-                                  
-                              
-     ; timeButtonss <- sequence [ sequence [ mkButtonWithStyle (showTime tm) (timeAvailable tm) "width:100%" $ Edit $ viewEdit vid $ setClientViewTime (Just tm)
+     ; timeButtonss <- sequence [ sequence [ mkButtonWithStyleClick (showTime tm) (timeAvailable tm) "width:100%" $ \bvid ->
+                                                callFunction vid "setTime" [ "{hour:"++show hr ++",min:"++show mn++"}"] 
+                                                {- Edit $ viewEdit vid $ setClientViewTime (Just tm) -}
                                            | mn <-[0,30], let tm = (hr,mn) ]
                                 | hr <- [18..23] ] 
      
-     ; confirmButton <- mkButtonWithStyle "Confirm" (isJust mDate && isJust mTime) "width: 100%" $
+     ; let confirmScript bvid = "textFieldChanged('"++show (widgetGetViewId nameText)++"');"++
+                                "queueCommand('ButtonC ("++show bvid++")')"
+     ; confirmButton <- mkButtonEx "Confirm" True {- (isJust mDate && isJust mTime)-} "width: 100%" confirmScript $
          Edit $ do { name <- getTextContents nameText
                    ; comment <- getTextContents commentText
                    ; docEdit $ \db -> 
@@ -375,21 +384,52 @@ mkClientView = mkWebView $
                             db'' = updateReservation rid (const $ Reservation rid (fromMaybe (error "no date") mDate) (fromMaybe (error "no time") mTime) name nrOfP comment) db
                         in  db''
                    }
-     ; statusLabel <- mkLabelView "all ok" 
-     ; let datesAndAvailabilityDecl = "var availability = ["++
+     ; nrOfPeopleLabel <- mkLabelView "X" 
+     ; dateLabel <- mkLabelView "Please select a date" 
+     ; timeLabel <- mkLabelView "Please select a time" 
+     ; let datesAndAvailabilityDecl = "availability = ["++ -- todo: should be declared with declareVar for safety
              intercalate "," [ "{date: \""++showDay (weekdayForDate  d)++", "++showShortDate d++"\","++
-                               " available: ["++intercalate "," [ show $ availableAtDateAndTime d (h,m)
-                                                                | h<-[18..23], m<-[0,30]]++"]}" | i <-[2..7], let d = addToDate today i ] 
+                               " availables: ["++intercalate "," [ show $ availableAtDateAndTime d (h,m)
+                                                                | h<-[18..23], m<-[0,30]]++"]}" | i <-[0..7], let d = addToDate today i ] 
              ++"];"
              
-     ; debugLn datesAndAvailabilityDecl
      
-     ; return $ ClientView nrOfP mDate mTime nrButtons nameText commentText todayButton tomorrowButton dayButtons timeButtonss confirmButton statusLabel
-                  $ declareFunction vid "disenable" ["nr"] $ datesAndAvailabilityDecl ++
-                                                      "console.log(\"dynamic function executed \"+nr);" ++
+     ; return $ ClientView nrOfP mDate mTime nrButtons nameText commentText todayButton tomorrowButton dayButtons timeButtonss confirmButton 
+                           nrOfPeopleLabel dateLabel timeLabel
+                  $ datesAndAvailabilityDecl++
+                    declareVar vid "selectedNr" "2" ++
+                    declareFunction vid "setNr" ["nr"] ( "console.log(\"setNr (\"+nr+\") old val: \", "++readVar vid "selectedNr"++");"++
+                                                         writeVar vid "selectedNr" "nr" ++
+                                                         getElementByIdRef (widgetGetViewRef nrOfPeopleLabel)++".innerHTML = nr;" ++
+                                                         callFunction vid "disenable" []) ++
+                    declareVar vid "selectedTime" "{hour: 18, min: 30}" ++
+                    declareFunction vid "setTime" ["time"] ( "console.log(\"setTime \"+time, "++readVar vid "selectedTime"++");"++
+                                                         writeVar vid "selectedTime" "time" ++
+                                                         getElementByIdRef (widgetGetViewRef timeLabel)++".innerHTML = time.hour +\":\"+ (time.min<10?\"0\":\"\") + time.min;" ++
+                                                         callFunction vid "disenable" []) ++ 
+                    declareVar vid "selectedDate" "0" ++
+                    declareFunction vid "setDate" ["date"] ( "console.log(\"setDate \"+date, "++readVar vid "selectedDate"++");"++
+                                                         "console.log(availability[date].date);" ++
+                                                         writeVar vid "selectedDate" "date" ++
+                                                         getElementByIdRef (widgetGetViewRef dateLabel)++".innerHTML = availability[date].date;" ++
+                                                         callFunction vid "disenable" []) ++ 
+                    declareFunction vid "disenable" [""] ( "console.log(\"disenable: \","++readVar vid "selectedNr"++","++readVar vid "selectedDate"++","++readVar vid "selectedTime" ++" );"++
+                                                           "var availables = availability["++readVar vid "selectedDate"++"].availables;"++
+                                                           "var buttonIds = [\""++intercalate "\",\"" (map (show . widgetGetViewId) $ concat timeButtonss)++"\"];" ++
+                                                           "for (var i=0;i<buttonIds.length;i++)"++
+                                                           "  document.getElementById(buttonIds[i]).disabled = availables[i]<"++readVar vid "selectedNr"++";")
+                    
+
+                    
+                   
                                                       --concat [getElementByIdRef (widgetGetViewRef button)++".disabled = true;"| buttons<-timeButtonss, button<-buttons]
-                                                      getElementByIdRef (widgetGetViewRef statusLabel)++".innerHTML = availability[0].date;"
+                                                      
      }
+readVar vid name = name++viewIdSuffix vid
+writeVar vid name value = name++viewIdSuffix vid++" = "++value++";"
+declareVar vid name value = name++viewIdSuffix vid++ if value /= "" then " = "++value++";" else ";"
+-- no "var " here, does not work when evaluated with eval
+
 callFunction vid name params = name++viewIdSuffix vid++"("++intercalate "," params++")"
 -- old disenable call in presentButton:--"disenable"++viewIdSuffix (ViewId $ init $ unViewId viewId)++"('"++show (unViewId viewId)++"');
 -- figure out if we need the viewId for the button when specifying the onclick
@@ -397,19 +437,21 @@ callFunction vid name params = name++viewIdSuffix vid++"("++intercalate "," para
 
 -- todo comment has hard-coded width. make constant for this
 instance Presentable ClientView where
-  present (ClientView nrOfP mDate mTime nrButtons nameText commentText todayButton tomorrowButton dayButtons timeButtonss confirmButton statusLabel script) = 
+  present (ClientView nrOfP mDate mTime nrButtons nameText commentText todayButton tomorrowButton dayButtons timeButtonss confirmButton
+                      nrOfPeopleLabel dateLabel timeLabel script) = 
     vList [ hList [ stringToHtml "Name:", hSpace 4, present nameText]
-          , stringToHtml $ "Nr of people: "++show nrOfP
+          , hList [ stringToHtml $ "Nr of people: ", present nrOfPeopleLabel]
           , hListEx [width "100%"] $ map present nrButtons
-          , stringToHtml $ maybe "Please choose a date" (\d -> (showDay . weekdayForDate $ d) ++ ", " ++ showShortDate d) mDate
+          --, stringToHtml $ maybe "Please choose a date" (\d -> (showDay . weekdayForDate $ d) ++ ", " ++ showShortDate d) mDate
+          , present dateLabel
           , hListEx [width "100%"] [ present todayButton, present tomorrowButton]
           , hListEx [width "100%"] $ map present dayButtons
-          , stringToHtml $ maybe "Please select a time" (\d -> showTime d) mTime
+          , present timeLabel
+          --, stringToHtml $ maybe "Please select a time" (\d -> showTime d) mTime
           , simpleTable [width "100%",cellpadding 0, cellspacing 0] [] $ map (map present) timeButtonss
           , stringToHtml "Comments:"
           , present commentText
-          , present confirmButton
-          , present statusLabel] +++           
+          , present confirmButton] +++           
           mkScript script
  
 instance Storeable Database ClientView where

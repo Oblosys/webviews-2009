@@ -107,20 +107,21 @@ mkTextArea str = assignViewId $ \vid -> textArea vid str
 
 mkRadioView is s en = assignViewId $ \vid -> radioView vid is s en
 
-mkButton str en ac = mkButtonEx str en "" "" ac
+mkButton str en ac = mkButtonEx str en "" (const "") ac
 
-mkButtonWithStyle str en st ac = mkButtonEx str en st "" ac
+mkButtonWithStyle str en st ac = mkButtonEx str en st (const "") ac
 
-mkButtonWithClick str en oc = mkButtonEx str en "" oc $ Edit $ return () -- because onclick currently disables server edit command
+mkButtonWithClick str en foc = mkButtonEx str en "" foc $ Edit $ return () -- because onclick currently disables server edit command
 
-mkButtonWithStyleClick str en st oc = mkButtonEx str en st oc $ Edit $ return () -- because onclick currently disables server edit command
+mkButtonWithStyleClick str en st foc = mkButtonEx str en st foc $ Edit $ return () -- because onclick currently disables server edit command
 
-mkButtonEx :: String -> Bool -> String -> String -> EditCommand db -> WebViewM db (Widget (Button db)) -- signature nec. against ambiguity
-mkButtonEx str en st oc ac = assignViewId $ \vid -> button vid str en st oc ac
+mkButtonEx :: String -> Bool -> String -> (ViewId -> String) -> EditCommand db -> WebViewM db (Widget (Button db)) -- signature nec. against ambiguity
+mkButtonEx str en st foc ac = assignViewId $ \vid -> button vid str en st (foc vid) ac
 
 
-widgetGetViewRef (Widget _ _ w) = mkViewRef $ getViewId w
+widgetGetViewRef widget = mkViewRef $ widgetGetViewId widget
                   
+widgetGetViewId (Widget _ _ w) = getViewId w
 
 {-
 mkAction :: (v->v) -> ViewM v Int
@@ -391,5 +392,6 @@ getElementByIdRef (ViewIdRef id) = "document.getElementById(\\'"++show (ViewId i
 
 declareFunction :: ViewId -> String -> [String] -> String -> String
 declareFunction vid name params body = name++viewIdSuffix vid++" = Function("++concatMap ((++",").show) params++"'"++body++"');"
+-- no "var" when declaring the variable that contains the functions, but in body they are allowed (and maybe necessary for IE)
 -- todo: escape '
 
