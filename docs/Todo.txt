@@ -22,6 +22,20 @@ Group controls in form like fashion, so they only cause edit on some submit/comm
 Allow specification of client-side edit op.
 
 
+ form <- mkForm
+ 
+ b1 <- mkButton
+ onClick b1 <- call "disenable"
+ 
+ t <- mkTextField
+ onChange t <- call "disenable"
+ commitButton <- mkButton
+ onClick commitButton $ commit form
+ 
+ 
+ normal events must be routed to some function which relays them to the scripts 
+ specified with the on.. functions
+ 
 Naming
 Text/TextView
 RadioView 
