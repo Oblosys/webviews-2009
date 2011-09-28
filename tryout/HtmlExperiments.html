@@ -1,5 +1,7 @@
 <html>
 <head>
+<script src="http://code.jquery.com/jquery-latest.js"></script>
+
 <link href="../scr/WebViews.css" rel="stylesheet" type="text/css" />
 <script type="text/javascript">
 
@@ -18,6 +20,7 @@ function dispatch() {
 function f() {
     g();
 }
+
 function g() {
       var root= document.compatMode=='BackCompat'? document.body : document.documentElement;
     var isVerticalScrollbar= root.scrollHeight>root.clientHeight;
@@ -27,6 +30,17 @@ function g() {
     //Note: IE equivalents are "document.body.clientWidth" and "document.body.clientHeight"
 }
 
+function enclosingForm(id) {
+    return $('#'+id).closest('div[form]').attr("form");
+}
+
+function checkAttrs() {
+//  console.log();
+  console.log(  enclosingForm("div1") );
+  console.log(  enclosingForm("div2") );
+  console.log(  enclosingForm("div3") );
+//  .getAttribute("form")
+}
 </script>
 </head>
 <body>
@@ -64,6 +78,14 @@ kjhkjhkjhkhjk
 <tr><td style="background-color: grey">bla</td> <td style="background-color: lightgrey">adsads</td> <td style="background-color: grey">vijftien</td></tr>
 <p>
 <table cellpadding="0" cellspacing="0" style="">
+<div form="1">
+ <div id="div1" form="2">1</div>
+ <div>
+  <div id="div2">2</div>
+ </div>
+</div>
+<div id="div3">3</div>
+
 <tr>
   <td style="background-color: lightgrey">
   
@@ -85,7 +107,7 @@ kjhkjhkjhkhjk
 <table cellpadding="0" cellspacing="0" style="">
 <tr><td>  </td></tr></table>
 <button id="buttonId" onclick="">a button</button>
-<button onclick="g()">g</button>
+<button onclick="checkAttrs()">g</button>
 <!-- border-collapse: collapse; zodat borders samenvallen 
 border-width (or any other border property) only has effect when border-style is set
 -->
