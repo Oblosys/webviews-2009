@@ -16,7 +16,7 @@ import Debug.Trace
 
 import Types
 import Generics
-import WebViewsPrim
+import WebViewPrim
 import HtmlLib
 
 {-
