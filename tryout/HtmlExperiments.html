@@ -2,7 +2,6 @@
 <head>
 <link href="../scr/WebViews.css" rel="stylesheet" type="text/css" />
 <script type="text/javascript">
-var g = new Function ('console.log("Static g");');
 
 function dispatch() {
   
@@ -19,9 +18,19 @@ function dispatch() {
 function f() {
     g();
 }
+function g() {
+      var root= document.compatMode=='BackCompat'? document.body : document.documentElement;
+    var isVerticalScrollbar= root.scrollHeight>root.clientHeight;
+    var isHorizontalScrollbar= root.scrollWidth>root.clientWidth;
+    console.log(isVerticalScrollbar, isHorizontalScrollbar);
+    console.log(root.clientWidth, window.innerWidth);
+    //Note: IE equivalents are "document.body.clientWidth" and "document.body.clientHeight"
+}
+
 </script>
 </head>
 <body>
+kjhkjhkjhkhjk
 <table cellpadding="0" cellspacing="0" style="border-collapse: collapse; border: 2px solid darkgrey;font-family:Arial">
 <tr>
   <td style="border: 2px solid grey;background-color: lightgrey">blaa</td>
