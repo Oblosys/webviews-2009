@@ -109,12 +109,14 @@ mkRadioView is s en = assignViewId $ \vid -> radioView vid is s en
 
 mkButton str en ac = mkButtonEx str en "" "" ac
 
-mkButtonWithStyle str en st ac = mkButtonEx str en "" st ac
+mkButtonWithStyle str en st ac = mkButtonEx str en st "" ac
 
-mkButtonWithClick str en oc = mkButtonEx str en oc "" $ Edit $ return () -- because onclick currently disables server edit command
+mkButtonWithClick str en oc = mkButtonEx str en "" oc $ Edit $ return () -- because onclick currently disables server edit command
+
+mkButtonWithStyleClick str en st oc = mkButtonEx str en st oc $ Edit $ return () -- because onclick currently disables server edit command
 
 mkButtonEx :: String -> Bool -> String -> String -> EditCommand db -> WebViewM db (Widget (Button db)) -- signature nec. against ambiguity
-mkButtonEx str en oc st ac = assignViewId $ \vid -> button vid str en oc st ac
+mkButtonEx str en st oc ac = assignViewId $ \vid -> button vid str en st oc ac
 
 
 widgetGetViewRef (Widget _ _ w) = mkViewRef $ getViewId w
@@ -317,7 +319,7 @@ presentTextField (Text viewId textType str mEditAction) =
 
 -- For the moment, onclick disables the standard server ButtonC command
 presentButton :: Button db -> Html
-presentButton (Button viewId txt enabled onclick style _) = 
+presentButton (Button viewId txt enabled style onclick _) = 
    primHtml $ "<button id=\""++ show viewId++"\" "++ (if enabled then "" else "disabled ") ++ (if style /="" then " style=\"" ++style++"\" " else "")++
                             "onclick=\""++ (if onclick /= "" then onclick else "queueCommand('ButtonC ("++show viewId++")')" )++
                                      "\" "++

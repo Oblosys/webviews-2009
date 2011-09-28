@@ -125,14 +125,14 @@ radioView viewId its i enabled = Widget noId noId $ RadioView viewId its i enabl
 -- Button
 
 data Button db = Button { getButtonViewId :: ViewId, buttonText :: String
-                        , getButtonEnabled :: Bool, getOnClick :: String, getStyle :: String 
+                        , getButtonEnabled :: Bool, getStyle :: String, getOnClick :: String 
                         , getCommand' :: EditCommand db 
                         } deriving (Show, Typeable, Data)
 
 instance Eq (Button db) where
-  Button _ txt1 enabled1 onclick1 style1 _ == Button _ txt2 enabled2 onclick2 style2 _ = txt1 == txt2 && enabled1 == enabled2 && onclick1 == onclick2 && style1 == style2
+  Button _ txt1 enabled1 style1 onclick1 _ == Button _ txt2 enabled2 style2 onclick2 _ = txt1 == txt2 && enabled1 == enabled2 && style1 == style2 && onclick1 == onclick2
 
-button viewId txt enabled onclick style cmd = Widget noId noId $ Button viewId txt enabled onclick style cmd
+button viewId txt enabled style onclick cmd = Widget noId noId $ Button viewId txt enabled style onclick cmd
 
 
 
