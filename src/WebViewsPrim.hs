@@ -1,6 +1,6 @@
 {-# LANGUAGE CPP #-}
 {-# OPTIONS -XDoRec -XDeriveDataTypeable -XFlexibleInstances -XMultiParamTypeClasses -XScopedTypeVariables #-}
-module WebViewLib where
+module WebViewsPrim where
 
 import Control.Monad.State
 import Control.Monad.Trans

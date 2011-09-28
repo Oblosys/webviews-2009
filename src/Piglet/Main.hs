@@ -14,7 +14,7 @@ import Debug.Trace
 import System.Time
 import Types
 import Generics
-import WebViewLib
+import WebViewsPrim
 import HtmlLib
 import Control.Monad.State
 import Server

@@ -24,7 +24,7 @@ import qualified Codec.Binary.Base64.String as Base64
 
 import Types
 import Generics
-import WebViewLib
+import WebViewsPrim
 import Incrementality
 import HtmlLib
 
