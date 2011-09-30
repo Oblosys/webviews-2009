@@ -408,8 +408,9 @@ handleCommand _ _ sessionStateRef Test =
     }
 handleCommand _ _ sessionStateRef (SetC viewId value) =
  do { (sessionId, user, db, rootView, pendingEdit) <- readIORef sessionStateRef      
-    ; putStrLn $ show viewId ++ " value is " ++ show value
+    ; putStrLn $ "Performing: "++show (SetC viewId value)
 
+    --; putStrLn $ "RootView:\n" ++ show rootView ++"\n\n\n\n\n"
     ; let rootView' = replace db{- dummy arg -} (Map.fromList [(viewId, value)]) (assignIds rootView)
     --; putStrLn $ "Updated rootView:\n" ++ show rootView'
     ; let db' = save rootView' db
