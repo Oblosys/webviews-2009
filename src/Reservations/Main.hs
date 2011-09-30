@@ -1,4 +1,4 @@
-{-# OPTIONS -XDeriveDataTypeable -XPatternGuards -XMultiParamTypeClasses #-}
+{-# OPTIONS -XDeriveDataTypeable -XPatternGuards -XMultiParamTypeClasses -XScopedTypeVariables #-}
 module Main where
 
 import Data.List
@@ -29,13 +29,33 @@ main = server rootViews "ReservationsDB.txt" theDatabase users
 
 
 rootViews :: [ (String, Int -> WebViewM Database (WebView Database))]
-rootViews = [ ("", mkMainRootView), ("client", \sessionId -> mkClientView), ("restaurant", \sessionId -> mkRestaurantView)] 
+rootViews = [ ("", mkMainRootView), ("client", \sessionId -> mkClientView), ("restaurant", \sessionId -> mkRestaurantView)
+            , ("test", mkTestView) ] 
   -- TODO: id's here?
   -- TODO: fix the sessionId stuff
   -- TODO: find good names for root, main, etc.
 
  -- TODO: sessionId? put this in an environment? or maybe the WebViewM monad?
-    
+
+data TestView =
+  TestView (Widget (Button Database))
+    deriving (Eq, Show, Typeable, Data)
+         
+instance Initial TestView where
+  initial = TestView initial
+  
+mkTestView _ = mkWebView $
+ \vid (TestView _) ->
+  do { b <- mkButton "Test" True $ Edit $ return ()
+     ; return $ TestView b
+     }
+     
+instance Presentable TestView where
+  present (TestView b) = vList [stringToHtml "voor", present b, stringToHtml "na"]
+
+instance Storeable Database TestView where
+  save _ = id
+  
 -- Main ----------------------------------------------------------------------  
 
 data MainView = 
@@ -313,21 +333,21 @@ instance Storeable Database ReservationView where
 
 data ClientView = 
   ClientView Int (Maybe Date) (Maybe Time) [Widget (Button Database)] (Widget (Text Database)) (Widget (Text Database)) (Widget (Button Database)) (Widget (Button Database)) [Widget (Button Database)] [[Widget (Button Database)]] (Widget (Button Database)) 
-  (Widget LabelView) (Widget LabelView) (Widget LabelView)
+  (Widget LabelView) (Widget LabelView) (Widget LabelView) (Widget LabelView) (Widget LabelView)
     String
     deriving (Eq, Show, Typeable, Data)
     
-setClientViewNrOfPeople p (ClientView _ b c d e f g h i j k l m n o) = (ClientView p b c d e f g h i j k l m n o) 
-setClientViewDate md (ClientView a _ c d e f g h i j k l m n o) = (ClientView a md c d e f g h i j k l m n o) 
-setClientViewTime mt (ClientView a b _ d e f g h i j k l m n o) = (ClientView a b mt d e f g h i j k l m n o)
+setClientViewNrOfPeople np (ClientView _ b c d e f g h i j k l m n o p q) = (ClientView np b c d e f g h i j k l m n o p q) 
+setClientViewDate md (ClientView a _ c d e f g h i j k l m n o p q) = (ClientView a md c d e f g h i j k l m n o p q) 
+setClientViewTime mt (ClientView a b _ d e f g h i j k l m n o p q) = (ClientView a b mt d e f g h i j k l m n o p q)
  
 instance Initial ClientView where                 
-  initial = ClientView initial initial initial initial initial initial initial initial initial initial initial initial initial initial initial
+  initial = ClientView initial initial initial initial initial initial initial initial initial initial initial initial initial initial initial initial initial
 
 maxNrOfPeople = 10
 
 mkClientView = mkWebView $
- \vid (ClientView oldNrOfP oldMDate oldMTime _ oldNameText oldCommentText _ _ _ _ _ _ _ _ _) ->
+ \vid (ClientView oldNrOfP oldMDate oldMTime _ oldNameText oldCommentText _ _ _ _ _ oldNrOfPeopleLabel _ _ oldDateIndexLabel oldTimeIndexLabel _) ->
   do { clockTime <-  liftIO getClockTime -- this stuff is duplicated
      ; ct <- liftIO $ toCalendarTime clockTime
      ; let today@(currentDay, currentMonth, currentYear) = dateFromCalendarTime ct
@@ -359,34 +379,50 @@ mkClientView = mkWebView $
      ; nameText  <- mkTextField $ getStrVal (oldNameText) -- needed, even though in browser text is reused without it
      ; commentText  <- mkTextArea $ getStrVal (oldCommentText) -- at server side it is not
      
-     ; let dateButtonScript dateIndex bvid = callFunction vid "setDate" [ show dateIndex ]
-     ; todayButton <- mkButtonWithStyleClick ("Today ("++show currentDay++" "++showShortMonth currentMonth++")") True "width:100%" $  {-Edit $ viewEdit vid $ setClientViewDate (Just today) -}
-                        dateButtonScript 0 
-     ; tomorrowButton <- mkButtonWithStyleClick "Tomorrow" True "width:100%" $ {- Edit $ viewEdit vid $ setClientViewDate (Just $ addToDate today 1) -}
-                            dateButtonScript 1
-     ; dayButtons <- sequence [ mkButtonWithClick (showShortDay . weekdayForDate $ dt) True $ {- Edit $ viewEdit vid $ setClientViewDate (Just dt) -}
-                                  dateButtonScript day
+     ; todayButton <- mkButtonWithStyleClick ("Today ("++show currentDay++" "++showShortMonth currentMonth++")") True "width:100%" $ const ""  {-Edit $ viewEdit vid $ setClientViewDate (Just today) -} 
+     ; tomorrowButton <- mkButtonWithStyleClick "Tomorrow" True "width:100%" $ const "" {- Edit $ viewEdit vid $ setClientViewDate (Just $ addToDate today 1) -}
+     ; dayButtons <- sequence [ mkButtonWithClick (showShortDay . weekdayForDate $ dt) True $ const "" {- Edit $ viewEdit vid $ setClientViewDate (Just dt) -}
                               | day <-[2..7], let dt = addToDate today day ]
      
-     ; timeButtonss <- sequence [ sequence [ mkButtonWithStyleClick (showTime tm) (timeAvailable tm) "width:100%" $ \bvid ->
-                                                callFunction vid "setTime" [ "{hour:"++show hr ++",min:"++show mn++"}"] 
+     -- todo: cleanup once script stuff is in monad (becomes  sequence [ sequence [ mkButton; script ..] ]
+
+     ; timeButtonssTimeEditss <- 
+         sequence [ sequence [ do { b <- mkButtonWithStyleClick (showTime tm) (timeAvailable tm) "width:100%" $ const "" 
                                                 {- Edit $ viewEdit vid $ setClientViewTime (Just tm) -}
-                                           | mn <-[0,30], let tm = (hr,mn) ]
-                                | hr <- [18..23] ] 
-     
-     ; let confirmScript bvid = "textFieldChanged('"++show (widgetGetViewId nameText)++"');"++
-                                "queueCommand('ButtonC ("++show bvid++")')"
-     ; confirmButton <- mkButtonEx "Confirm" True {- (isJust mDate && isJust mTime)-} "width: 100%" confirmScript $
-         Edit $ do { name <- getTextContents nameText
-                   ; comment <- getTextContents commentText
-                   ; docEdit $ \db -> 
-                        let (Reservation rid _ _ _ _ _, db') = newReservation db
-                            db'' = updateReservation rid (const $ Reservation rid (fromMaybe (error "no date") mDate) (fromMaybe (error "no time") mTime) name nrOfP comment) db
-                        in  db''
-                   }
-     ; nrOfPeopleLabel <- mkLabelView "X" 
+                                  ; return (b, onClick b $ callFunction vid "setTime" [ "{hour:"++show hr ++",min:"++show mn++"}"])
+                                  }     
+                             | mn <-[0,30], let tm = (hr,mn) ]
+                  | hr <- [18..23] ] 
+     ; let (timeButtonss, timeEditss) = unzip . map unzip $ timeButtonssTimeEditss
+     ; let timeEdits = concat timeEditss  -- TODO, we want some way to do getStr on both labels and Texts 
+     ; nrOfPeopleLabel <- mkLabelView $ let Widget _ _ (LabelView vi v) = oldNrOfPeopleLabel in  v
      ; dateLabel <- mkLabelView "Please select a date" 
      ; timeLabel <- mkLabelView "Please select a time" 
+     ; dateIndexLabel <- mkLabelView $ let Widget _ _ (LabelView vi v) = oldDateIndexLabel in  v 
+     ; timeIndexLabel <- mkLabelView $ let Widget _ _ (LabelView vi v) = oldTimeIndexLabel in  v 
+      
+     ; confirmButton <- mkButtonEx "Confirm" True {- (isJust mDate && isJust mTime)-} "width: 100%" (const "") $
+         Edit $ do { name <- getTextContents nameText
+                   ; comment <- getTextContents commentText
+                   ; nrOfPeopleStr <- getLabelContents nrOfPeopleLabel -- todo abusing label here!
+                   ; dateIndexStr <- getLabelContents dateIndexLabel -- todo abusing label here!
+                   ; timeStr <- getLabelContents timeIndexLabel -- todo abusing label here!
+                   -- bad, labels used next to locals, want to combine
+                   -- also constructing date/time from indices duplicates work
+                   ; debugLn $ "Values are "++name++nrOfPeopleStr++" "++dateIndexStr++" "++timeStr
+                   ; let nrOfPeople = read nrOfPeopleStr
+                   ; debugLn $ "nrOfPeople "++show nrOfPeople
+                   ; let date = addToDate today (read dateIndexStr)
+                   ; debugLn $ "date "++show date
+
+                   ; let time = read timeStr
+                   ; debugLn $ "time "++show time
+                   
+                   ; docEdit $ \db -> 
+                        let (Reservation rid _ _ _ _ _, db') = newReservation db
+                            db'' = updateReservation rid (const $ Reservation rid date time name nrOfPeople comment) db
+                        in  db''
+                   }
      ; let datesAndAvailabilityDecl = "availability = ["++ -- todo: should be declared with declareVar for safety
              intercalate "," [ "{date: \""++showDay (weekdayForDate  d)++", "++showShortDate d++"\","++
                                " availables: ["++intercalate "," [ show $ availableAtDateAndTime d (h,m)
@@ -394,9 +430,23 @@ mkClientView = mkWebView $
              ++"];"
              
      
-     ; return $ ClientView nrOfP mDate mTime nrButtons nameText commentText todayButton tomorrowButton dayButtons timeButtonss confirmButton 
-                           nrOfPeopleLabel dateLabel timeLabel
+     ; return $ ClientView nrOfP mDate Nothing nrButtons nameText commentText todayButton tomorrowButton dayButtons timeButtonss confirmButton 
+                           nrOfPeopleLabel dateLabel timeLabel dateIndexLabel timeIndexLabel
                   $ datesAndAvailabilityDecl++
+                    
+                    -- maybe combine these with button declarations to prevent multiple list comprehensions
+                    -- maybe put script in monad and collect at the end, so we don't have to separate them so far (script :: String -> WebViewM ())
+                    concat [ onClick nrButton $ callFunction vid "setNr" [show nr]| (nr,nrButton) <- zip [1..] nrButtons] ++
+                    concat [ onClick button $ callFunction vid "setDate" [ show dateIndex ] 
+                           | (dateIndex,button) <- zip [0..] $ [todayButton, tomorrowButton]++dayButtons ] ++
+                    concat timeEdits ++ 
+                    onClick confirmButton ("queueCommand('SetC ("++show (widgetGetViewId nrOfPeopleLabel)++") \"'+"++readVar vid "selectedNr"++"+'\"');"++
+                                           "queueCommand('SetC ("++show (widgetGetViewId dateIndexLabel)++") \"'+"++readVar vid "selectedDate"++"+'\"');"++
+                                           "queueCommand('SetC ("++show (widgetGetViewId timeIndexLabel)++") \"('+"++readVar vid "selectedTime"++".hour+','+"++readVar vid "selectedTime"++".min+')\"');"++
+                                           "textFieldChanged('"++show (widgetGetViewId nameText)++"');"++
+                                           "textFieldChanged('"++show (widgetGetViewId commentText)++"');"++
+                                           "queueCommand('ButtonC ("++show (widgetGetViewId confirmButton)++")')")++
+                    
                     declareVar vid "selectedNr" "2" ++
                     declareFunction vid "setNr" ["nr"] ( "console.log(\"setNr (\"+nr+\") old val: \", "++readVar vid "selectedNr"++");"++
                                                          writeVar vid "selectedNr" "nr" ++
@@ -418,7 +468,6 @@ mkClientView = mkWebView $
                                                            "var buttonIds = [\""++intercalate "\",\"" (map (show . widgetGetViewId) $ concat timeButtonss)++"\"];" ++
                                                            "for (var i=0;i<buttonIds.length;i++)"++
                                                            "  document.getElementById(buttonIds[i]).disabled = availables[i]<"++readVar vid "selectedNr"++";")
-                    
                     -- todo: handle when time selection is disabled because of availability (on changing nr of persons or date)
 
                     
@@ -426,6 +475,11 @@ mkClientView = mkWebView $
                                                       --concat [getElementByIdRef (widgetGetViewRef button)++".disabled = true;"| buttons<-timeButtonss, button<-buttons]
                                                       
      }
+-- TODO should script have all fields? Or is a missing field no problem (or preventable by type checker)
+-- TODO generate script nodes before executing scripts? Now they are generated by the scripts, so either
+--      child cannot refer to parent or parent cannot refer to child.
+onClick :: (Widget (Button Database)) -> String -> String
+onClick button expr = "script"++viewIdSuffix (widgetGetViewId button) ++ ".onClick = function () {"++expr++"};"
 readVar vid name = name++viewIdSuffix vid
 writeVar vid name value = name++viewIdSuffix vid++" = "++value++";"
 declareVar vid name value = name++viewIdSuffix vid++ if value /= "" then " = "++value++";" else ";"
@@ -439,7 +493,7 @@ callFunction vid name params = name++viewIdSuffix vid++"("++intercalate "," para
 -- todo comment has hard-coded width. make constant for this
 instance Presentable ClientView where
   present (ClientView nrOfP mDate mTime nrButtons nameText commentText todayButton tomorrowButton dayButtons timeButtonss confirmButton
-                      nrOfPeopleLabel dateLabel timeLabel script) = 
+                      nrOfPeopleLabel dateLabel timeLabel dateIndexLabel timeIndexLabel script) = 
     vList [ hList [ stringToHtml "Name:", hSpace 4, present nameText]
           , hList [ stringToHtml $ "Nr of people: ", present nrOfPeopleLabel]
           , hListEx [width "100%"] $ map present nrButtons
@@ -452,7 +506,9 @@ instance Presentable ClientView where
           , simpleTable [width "100%",cellpadding 0, cellspacing 0] [] $ map (map present) timeButtonss
           , stringToHtml "Comments:"
           , present commentText
-          , present confirmButton] +++           
+          , present confirmButton
+          , with [thestyle "visibility:hidden"] $ present dateIndexLabel -- webviews/widgets for containing client state should not be visible (and preferably not needed to be presented)
+          , with [thestyle "visibility:hidden"] $ present timeIndexLabel ] +++           
           mkScript script
  
 instance Storeable Database ClientView where
@@ -504,7 +560,18 @@ getTextContents text =
  do { (sessionId, user, db, rootView, pendingEdit) <- get
     ; return $ getTextByViewIdRef (undefined :: Database{-dummy arg-}) (widgetGetViewRef text) rootView
     } 
- 
+    
+getLabelContents :: Widget LabelView -> EditM Database String
+getLabelContents text =
+ do { (sessionId, user, db, rootView, pendingEdit) <- get
+    ; return $ getLabelContentsByViewIdRef (undefined :: Database{-dummy arg-}) (widgetGetViewRef text) rootView
+    } 
+    
+getLabelContentsByViewIdRef :: forall db v . (Typeable db, Data v) => db -> ViewIdRef -> v -> String
+getLabelContentsByViewIdRef _ (ViewIdRef i) view =
+  let (LabelView _ str) :: LabelView = getLabelViewByViewId (ViewId i) view
+  in  str
+
  
  {-
 Bug that seems to add views with number 23 all the time (probably the date)
