@@ -47,7 +47,7 @@ diffViews oldRootView rootView =
   let newWebNodeMap = mkWebNodeMap rootView
       oldWebNodeMap = mkWebNodeMap oldRootView
       newOrChangedIdsWebNodes = getNewOrChangedIdsWebNodes oldWebNodeMap newWebNodeMap
-      (newOrChangedWebNodeIds, newOrChangedWebNodes) = unzip newOrChangedIdsWebNodes
+      (newOrChangedWebNodeIds, newOrChangedWebNodes) = unzip $ reverse newOrChangedIdsWebNodes
   in -- trace ("\nOld view map\n"++showViewMap oldViewMap ++ "\nNew view map\n" ++ showViewMap newViewMap) 
     ( newOrChangedWebNodes
     , computeMoves oldRootView oldWebNodeMap newOrChangedWebNodeIds rootView)
@@ -195,8 +195,14 @@ mkIncrementalUpdates oldRootView rootView =
                                 
 showViewMap viewMap = unlines $ "ViewMap:" : [ show k ++ shallowShowWebView wv | (k, wv) <- Map.toList viewMap ]
 
+-- note, there is no update, just new and move. 
 newWebNodeHtml :: WebNode db -> Html
-newWebNodeHtml (WidgetNode _ _ (Id i) w) = thediv![strAttr "op" "new"] << (mkSpan (show i) $ present w)
+newWebNodeHtml (WidgetNode _ _ (Id i) w) =
+  let htmlWithScript = present w
+      (html, scripts) = extractScriptHtml htmlWithScript
+      updateResponse = thediv![strAttr "op" "new"] << (mkSpan (show i) $ html)
+      scriptResponse = thediv![strAttr "op" "eval"] << (stringToHtml $ concat scripts)
+  in  if null scripts then updateResponse else updateResponse +++ scriptResponse
 newWebNodeHtml (WebViewNode (WebView _ _ (Id i) _ v)) = 
   let htmlWithScript = present v
       (html, scripts) = extractScriptHtml htmlWithScript
