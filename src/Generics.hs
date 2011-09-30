@@ -213,7 +213,15 @@ type Updates = Map ViewId String  -- maps id's to the string representation of t
 -- update the datastructure at the id's in Updates 
 -- TODO is dummy db arg necessary?
 replace :: forall db d . (Typeable db, Data d) => db -> Updates -> d -> d
-replace _ updates v = (everywhere $ extT (mkT (replaceText updates :: Text db -> Text db))  (replaceRadioView updates)) v
+replace _ updates v = (everywhere $  mkT    (replaceText updates :: Text db -> Text db)
+                                     `extT` replaceLabelView updates
+                                     `extT` replaceRadioView updates) v
+
+replaceLabelView :: Updates -> LabelView -> LabelView
+replaceLabelView updates x@(LabelView i _) =
+  case Map.lookup i updates of
+    Just str -> (LabelView i str)
+    Nothing -> x
 
 replaceText :: Updates -> Text db -> Text db
 replaceText updates x@(Text i h _ ea) =
@@ -246,6 +254,13 @@ getButtonByViewId i view =
     [b] -> Just b
     []  -> Nothing
     _   -> error $ "internal error: multiple buttons with id "++show i
+
+getLabelViewByViewId :: Data d => ViewId -> d -> LabelView
+getLabelViewByViewId i view = 
+  case listify (\(LabelView i' _) -> i==i') view of
+    [b] -> b
+    []  -> error $ "internal error: no label with id "++show i
+    _   -> error $ "internal error: multiple LabelViews with id "++show i
 
 getTextByViewId :: (Typeable db, Data d) => ViewId -> d -> Text db
 getTextByViewId i view = 
