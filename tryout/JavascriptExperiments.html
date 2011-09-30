@@ -2,15 +2,33 @@
 <head>
 <link href="../scr/WebViews.css" rel="stylesheet" type="text/css" />
 <script type="text/javascript">
-function init() {
-  var availability = [{date: "28 september", available:[10,20]}
-                     ,{date: "29 september", available:[10,20]}];
-    
-    
-  console.log("Hallo", availability[0].available[0]);
+function scriptNode(viewId) {
+    this.viewId = viewId;
+    this.click = defaultClick;
 }
+
+
+function init() {
+    aScriptNode = new scriptNode(1);
+    aScriptNode.click = function (viewId) { console.log("ad hoc "+viewId)};
+    // what's the difference with Function(viewId, "..") ?
+    // which one do we need? 
+}
+
+
+function defaultClick(viewId) {
+  console.log("default click "+viewId);
+}
+function specialClick(viewId) {
+  console.log("special click "+viewId);
+}
+
+
+
 </script>
 </head>
 <body onload="init()">
+<button onclick="defaultClick(1)">Direct</button>
+<button onclick="aScriptNode.click(1)">Indirect</button>
 </body>
 </html>
