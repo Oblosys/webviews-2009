@@ -92,7 +92,6 @@ instance Eq (Text db) where
   Text _ t1 str1 _ == Text _ t2 str2 _ = t1 == t2 && str1 == str2
   
 getStrVal (Widget _ _ (Text vi h v _)) = v
--- todo unsafe!
 
 textField viewId str mSubmitAction = Widget noId noId $ Text viewId TextField str mSubmitAction
 
