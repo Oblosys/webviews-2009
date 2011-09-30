@@ -321,12 +321,17 @@ presentTextField (Text viewId textType str mEditAction) =
 -- For the moment, onclick disables the standard server ButtonC command
 presentButton :: Button db -> Html
 presentButton (Button viewId txt enabled style onclick _) = 
-   primHtml $ "<button id=\""++ show viewId++"\" "++ (if enabled then "" else "disabled ") ++ (if style /="" then " style=\"" ++style++"\" " else "")++
+{-  (primHtml $ "<button id=\""++ show viewId++"\" "++ (if enabled then "" else "disabled ") ++ (if style /="" then " style=\"" ++style++"\" " else "")++
                             "onclick=\""++ (if onclick /= "" then onclick else "queueCommand('ButtonC ("++show viewId++")')" )++
                                      "\" "++
-                            "onfocus=\"elementGotFocus('"++show viewId++"')\">"++txt++"</button>"
+                            "onfocus=\"elementGotFocus('"++show viewId++"')\">"++txt++"</button>") -}
+  (primHtml $ "<button id=\""++ show viewId++"\" "++ (if enabled then "" else "disabled ") ++ (if style /="" then " style=\"" ++style++"\" " else "")++
+                            "onclick=\"script"++viewIdSuffix viewId++".onClick()\" "++
+                            "onfocus=\"script"++viewIdSuffix viewId++".onFocus()\">"++txt++"</button>") +++
+  (mkScript $ declareWVScript viewId)      
 -- TODO: text should be escaped
 
+declareWVScript viewId = "script"++viewIdSuffix viewId++" = new ButtonScript(\""++show viewId++"\");"
 
 -- Edit actions are a bit different, since they do not have a widget presentation.
 -- TODO: maybe combine edit actions with buttons, so they use the same command structure
