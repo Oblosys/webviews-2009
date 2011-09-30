@@ -1,6 +1,11 @@
 TODO short term
-
-
+BUG: empty script in mkWebView creates problem
+BUG: pressing button while focus on text field has weird behavior
+BUG?: Firefox on Oblomov mentions Empty string passed to getElementById()
+DESIGN: changes in view lead to re-evaluating view script
+  may be problematic if there is init code in there.
+  for now time is set to nothing, because it cause re-evaluation as somehow it switched between Nothing and Just (18,30)
+  will explicit view id references in the script cause problems?
 
 Longer term
 get rid of ' in webview type selectors
