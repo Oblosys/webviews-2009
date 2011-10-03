@@ -325,7 +325,7 @@ sessionHandler rootViews dbFilename theDatabase users sessionStateRef cmds = lif
             --; putStrLn $ "Sending response sent to client: " ++
             --              take 10 responseHTML ++ "..."
             ; seq (length (show responseHtml)) $ return ()
-            ; return responseHtml
+            ; return $ thediv ! [identifier "updates"] << responseHtml
             }
         Alert str -> 
           return $ thediv ! [identifier "updates"] <<

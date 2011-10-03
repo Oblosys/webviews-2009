@@ -430,10 +430,11 @@ mkClientView = mkWebView $
              ++"];"
              
      
-     ; return $ ClientView nrOfP mDate Nothing nrButtons nameText commentText todayButton tomorrowButton dayButtons timeButtonss confirmButton 
+     ; return $ ClientView nrOfP mDate mTime nrButtons nameText commentText todayButton tomorrowButton dayButtons timeButtonss confirmButton 
                            nrOfPeopleLabel dateLabel timeLabel dateIndexLabel timeIndexLabel
-                  $ datesAndAvailabilityDecl++
-                    
+                  $ "/*"++show (ctSec ct)++"*/" ++
+                    declareVar vid "selectedNr" "2" ++
+                    datesAndAvailabilityDecl++
                     -- maybe combine these with button declarations to prevent multiple list comprehensions
                     -- maybe put script in monad and collect at the end, so we don't have to separate them so far (script :: String -> WebViewM ())
                     concat [ onClick nrButton $ callFunction vid "setNr" [show nr]| (nr,nrButton) <- zip [1..] nrButtons] ++
@@ -470,7 +471,7 @@ mkClientView = mkWebView $
                                                            "  document.getElementById(buttonIds[i]).disabled = availables[i]<"++readVar vid "selectedNr"++";")
                     -- todo: handle when time selection is disabled because of availability (on changing nr of persons or date)
 
-                    
+                   
                    
                                                       --concat [getElementByIdRef (widgetGetViewRef button)++".disabled = true;"| buttons<-timeButtonss, button<-buttons]
                                                       
@@ -482,7 +483,8 @@ onClick :: (Widget (Button Database)) -> String -> String
 onClick button expr = "script"++viewIdSuffix (widgetGetViewId button) ++ ".onClick = function () {"++expr++"};"
 readVar vid name = name++viewIdSuffix vid
 writeVar vid name value = name++viewIdSuffix vid++" = "++value++";"
-declareVar vid name value = name++viewIdSuffix vid++ if value /= "" then " = "++value++";" else ";"
+declareVar vid name value = let jsVar = name++viewIdSuffix vid
+                            in  "if (typeof "++jsVar++" ==\"undefined\") {"++jsVar++" = "++value++";console.error(\"declaring\")};"
 -- no "var " here, does not work when evaluated with eval
 
 callFunction vid name params = name++viewIdSuffix vid++"("++intercalate "," params++")"
