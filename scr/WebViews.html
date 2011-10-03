@@ -162,8 +162,7 @@ function state_Change() {
   
   	  var responseId = updates.getAttribute('responseId');
 	  	console.log("Received response with id: "+responseId);
-	  	receivedUpdates.innerHTML=xmlhttp.responseText;
-    
+	  	
    	  if (commandQueue != '') {
    		  dlog('sending queue');
         queueCommand('');
@@ -294,7 +293,7 @@ function updateTree(update) {
     	parentElt = dstElt.parentNode;
 
       var parkingElt = document.getElementById('parking');
-      parentElt.replaceChild(srcElt,dstElt);
+      parentElt.replaceChild(srcElt,dstElt); // ParentElt.dstElt -> ParentElt.srcElt (note confusing parameter order)
 
 //    parentElt.insertBefore(srcElt,dstElt);
       parkingElt.appendChild(dstElt);
