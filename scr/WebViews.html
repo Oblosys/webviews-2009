@@ -149,7 +149,7 @@ function unauthenticate()
 function state_Change() {
 	if (xmlhttp.readyState==4) {// 4 = "loaded"
   	if (xmlhttp.status==200) {// 200 = "OK"
-	    dlog("received");
+	    console.log("received response");
   	  var receivedUpdates = document.getElementById('receivedUpdates');
   	  receivedUpdates.innerHTML=xmlhttp.responseText;
       
@@ -168,8 +168,11 @@ function state_Change() {
    			updateTree( updates.firstChild );
         updates.removeChild(updates.firstChild);
       }
-
-      if (drawingViewTree)
+   		console.log('Nr of remaining new nodes '+document.getElementById('new').childNodes.length);
+   		if (document.getElementById('new').childNodes.length !=0)
+   			alert("Error, new node list not empty");
+      
+   		if (drawingViewTree)
       drawViewTree();
 
       removeChildrenById("parking"); // clean any parked webnodes
