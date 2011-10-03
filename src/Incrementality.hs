@@ -48,7 +48,7 @@ diffViews oldRootView rootView =
       oldWebNodeMap = mkWebNodeMap oldRootView
       newOrChangedIdsWebNodes = getNewOrChangedIdsWebNodes oldWebNodeMap newWebNodeMap
       (newOrChangedWebNodeIds, newOrChangedWebNodes) = unzip $ reverse newOrChangedIdsWebNodes
-  in -- trace ("\nOld view map\n"++showViewMap oldViewMap ++ "\nNew view map\n" ++ showViewMap newViewMap) 
+  in  --trace ("\nOld view map\n"++showWebNodeMap oldWebNodeMap ++ "\nNew view map\n" ++ showWebNodeMap newWebNodeMap) 
     ( newOrChangedWebNodes
     , computeMoves oldRootView oldWebNodeMap newOrChangedWebNodeIds rootView)
 
@@ -170,15 +170,13 @@ getBreadthFirstWebNodes rootView =
  where getTopLevelWebNodes (WebViewNode wv) = getTopLevelWebNodesWebView wv
        getTopLevelWebNodes _ = []
        
-mkIncrementalUpdates :: forall db . Data db => WebView db -> WebView db -> IO (Html, WebView db)
+mkIncrementalUpdates :: forall db . Data db => WebView db -> WebView db -> IO ([Html], WebView db)
 mkIncrementalUpdates oldRootView rootView =
  do { let (newWebNodes :: [WebNode db], updates) = diffViews oldRootView rootView
     --; putStrLn $ "\nChanged or new web nodes\n" ++ unlines (map shallowShowWebNode newWebNodes) 
     --; putStrLn $ "\nUpdates\n" ++ unlines (map show updates)
     
-    ; let responseHtml = thediv ! [identifier "updates"] <<
-                           (map newWebNodeHtml newWebNodes +++
-                            map updateHtml updates)
+    ; let htmlUpdates = map newWebNodeHtml newWebNodes ++ map updateHtml updates
 
     ; let subs = concat [ case upd of  -- TODO: fix something here
                                     RestoreId (IdRef o) (IdRef n) -> [(Id o, Id n)]  
@@ -189,8 +187,10 @@ mkIncrementalUpdates oldRootView rootView =
     -- todo: check restoration on views, and esp. on root.
     
     ; let rootView' = substituteIds subs rootView
+    --; putStrLn $ "Old root:"++ (drawWebNodes $ WebViewNode rootView)
+    --; putStrLn $ "Updated root:"++(drawWebNodes $ WebViewNode rootView')
     --; putStrLn $ "Html:\n" ++ show responseHtml
-    ; return (responseHtml, rootView')
+    ; return (htmlUpdates, rootView')
     }
                                 
 showViewMap viewMap = unlines $ "ViewMap:" : [ show k ++ shallowShowWebView wv | (k, wv) <- Map.toList viewMap ]
