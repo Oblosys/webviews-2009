@@ -4,8 +4,8 @@
   <title>WebViews prototype</title>
   <link href="scr/WebViews.css" rel="stylesheet" type="text/css" />
 
-  <script type="text/javascript" src="http://ajax.googleapis.com/ajax/libs/jquery/1.5.0/jquery.min.js"></script>
-  <script type="text/javascript" src="http://ajax.googleapis.com/ajax/libs/jqueryui/1.8.9/jquery-ui.min.js"></script>
+  <script type="text/javascript" src="http://ajax.googleapis.com/ajax/libs/jquery/1.6.4/jquery.min.js"></script>
+  <script type="text/javascript" src="http://ajax.googleapis.com/ajax/libs/jqueryui/1.8.16/jquery-ui.min.js"></script>
  </head>
 
 <script type="text/javascript"> <!--
@@ -312,6 +312,8 @@ function updateTree(update) {
 //    parentElt.insertBefore(srcElt,dstElt);
       parkingElt.appendChild(dstElt);
     }
+    else
+    	console.error("Source or destination is null. src("+srcId+"):"+srcElt+", dst("+dstId+"):"+dstElt)
   }
   else if (op === 'eval') {
 	  var scriptTxt = update.childNodes[0].data;
