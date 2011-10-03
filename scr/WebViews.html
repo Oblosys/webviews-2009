@@ -220,19 +220,7 @@ $(".vList").sortable({connectWith: '.vList, .hList'});
 function updateTree(update) {
 	var op = update.getAttribute('op');
  
-  if (op === 'replace') {
-	  var targetId = update.getAttribute('targetId');
-    var newChild = update.childNodes[0];
-    dlog("replace");
-    dlog(commandQueue);
-    
-    var oldChild = document.getElementById(targetId);
-    
-    var parent = oldChild.parentNode;
-    
-    parent.replaceChild(newChild,oldChild);
-  } 
-  else if (op === 'special') { // used for trying out commands in a running WebView
+  if (op === 'special') { // used for trying out commands in a running WebView
 	  var targetId = update.getAttribute('targetId');
     var newChild = update.childNodes[0];
     dlog("special"+commandQueue);
