@@ -434,7 +434,7 @@ mkClientView = mkWebView $
                            nrOfPeopleLabel dateLabel timeLabel dateIndexLabel timeIndexLabel
                   $ "/*"++show (ctSec ct)++"*/" ++
                     declareVar vid "selectedNr" "2" ++
-                    datesAndAvailabilityDecl++
+                    datesAndAvailabilityDecl ++
                     -- maybe combine these with button declarations to prevent multiple list comprehensions
                     -- maybe put script in monad and collect at the end, so we don't have to separate them so far (script :: String -> WebViewM ())
                     concat [ onClick nrButton $ callFunction vid "setNr" [show nr]| (nr,nrButton) <- zip [1..] nrButtons] ++
@@ -446,7 +446,7 @@ mkClientView = mkWebView $
                                            "queueCommand('SetC ("++show (widgetGetViewId timeIndexLabel)++") \"('+"++readVar vid "selectedTime"++".hour+','+"++readVar vid "selectedTime"++".min+')\"');"++
                                            "textFieldChanged('"++show (widgetGetViewId nameText)++"');"++
                                            "textFieldChanged('"++show (widgetGetViewId commentText)++"');"++
-                                           "queueCommand('ButtonC ("++show (widgetGetViewId confirmButton)++")')")++
+                                           "queueCommand('ButtonC ("++show (widgetGetViewId confirmButton)++")')") ++
                     
                     declareVar vid "selectedNr" "2" ++
                     declareFunction vid "setNr" ["nr"] ( "console.log(\"setNr (\"+nr+\") old val: \", "++readVar vid "selectedNr"++");"++
