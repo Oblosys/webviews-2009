@@ -302,7 +302,7 @@ function updateTree(update) {
     	console.error("Source or destination is null. src("+srcId+"):"+srcElt+", dst("+dstId+"):"+dstElt)
   }
   else if (op === 'eval') {
-	  var scriptTxt = update.childNodes[0].data;
+	  var scriptTxt = update.textContent; // don't use childNodes[0].data, since on Windows Firefox, the text is split in 1024 sized blocks
     console.log("Evaluate:",scriptTxt);
 	  try {
     	eval(scriptTxt);
