@@ -87,14 +87,14 @@ instance Storeable Database MainView where
 -- Main ----------------------------------------------------------------------  
 
 data RestaurantView = 
-  RestaurantView (Maybe Date) (Maybe Int) (Maybe Reservation) [[(WebView Database,EditAction Database)]] (WebView Database) (WebView Database) (WebView Database)
+  RestaurantView (Maybe Date) (Maybe Int) (Maybe Reservation) (Int,Int) [[(WebView Database,EditAction Database)]] (WebView Database) (WebView Database) (WebView Database)
     deriving (Eq, Show, Typeable, Data)
 
 instance Initial RestaurantView where                 
-  initial = RestaurantView initial initial initial [] initial initial initial
+  initial = RestaurantView initial initial initial (initial,initial) [] initial initial initial
 
 mkRestaurantView = mkWebView $
- \vid (RestaurantView mSelectedDate mSelectedHour mSelectedReservation _ _ _ _) ->
+ \vid (RestaurantView mSelectedDate mSelectedHour mSelectedReservation _ _ _ _ _) ->
   do { clockTime <-  liftIO getClockTime
      ; ct <- liftIO $ toCalendarTime clockTime
      ; let today@(currentDay, currentMonth, currentYear) = dateFromCalendarTime ct
@@ -146,15 +146,15 @@ mkRestaurantView = mkWebView $
      ; reservationView <- mkReservationView mSelectedReservation'
 
      
-     ; return $ RestaurantView mSelectedDate' mSelectedHour' mSelectedReservation' weeks dayView hourView reservationView
+     ; return $ RestaurantView mSelectedDate' mSelectedHour' mSelectedReservation' (currentMonth, currentYear) weeks dayView hourView reservationView
      }
  where selectDateEdit vid d = mkEditAction . Edit $
         do { (_,_,db,_,_) <- get
            ; viewEdit vid $ 
-              \(RestaurantView _ h r weeks dayView hourView reservationView) ->
+              \(RestaurantView _ h r my weeks dayView hourView reservationView) ->
                 let resHours = sort $ map (fst . time) $ filter ((==d). date) $ Map.elems $ allReservations db
                     newHr = if null resHours then h else Just $ head resHours 
-                in  RestaurantView (Just d) newHr r weeks dayView hourView reservationView
+                in  RestaurantView (Just d) newHr r my weeks dayView hourView reservationView
            }
 
 getWebViewId (WebView vid _ _ _ _) = vid
@@ -163,9 +163,9 @@ getWebViewId (WebView vid _ _ _ _) = vid
 mark different months, mark appointments
  -}
 instance Presentable RestaurantView where
-  present (RestaurantView mSelectedDate mSelectedHour mSelectedReservation weeks dayView hourView reservationView) = 
+  present (RestaurantView mSelectedDate mSelectedHour mSelectedReservation (currentMonth, currentYear) weeks dayView hourView reservationView) = 
     vList $ 
-      [ with [thestyle "text-align:center; font-weight:bold"] $ stringToHtml $ maybe "no selection" (\(_,m,y)->showMonth m ++ " "++show y) mSelectedDate
+      [ with [thestyle "text-align:center; font-weight:bold"] $ stringToHtml $ showMonth currentMonth ++ " "++show currentYear
       , vSpace 5
       , mkTableEx [cellpadding 0, cellspacing 0, thestyle "border-collapse:collapse; text-align:center"] [] [thestyle "border: 1px solid #909090"]  
                   (header :
@@ -239,7 +239,7 @@ mkDayView restaurantViewId mSelectedHour dayReservations = mkWebView $
   do { selectHourActions <- mapM (selectHourEdit restaurantViewId) [18..24]
      ; return $ DayView mSelectedHour selectHourActions dayReservations 
      }
- where selectHourEdit vid h = mkEditAction . Edit $ viewEdit vid $ \(RestaurantView d _ r weeks dayView hourView reservationView) -> RestaurantView d (Just h) r weeks dayView hourView reservationView
+ where selectHourEdit vid h = mkEditAction . Edit $ viewEdit vid $ \(RestaurantView d _ r my weeks dayView hourView reservationView) -> RestaurantView d (Just h) r my weeks dayView hourView reservationView
  
 instance Presentable DayView where
   present (DayView mSelectedHour selectHourActions dayReservations) =
@@ -274,7 +274,7 @@ mkHourView restaurantViewId mSelectedReservation mSelectedHour hourReservations 
   do { selectReservationActions <- mapM (selectReservationEdit restaurantViewId) hourReservations
      ; return $ HourView mSelectedReservation mSelectedHour selectReservationActions hourReservations 
      }
- where selectReservationEdit vid r = mkEditAction . Edit $ viewEdit vid $ \(RestaurantView d h _ weeks dayView hourView reservationView) -> RestaurantView d h (Just r) weeks dayView hourView reservationView
+ where selectReservationEdit vid r = mkEditAction . Edit $ viewEdit vid $ \(RestaurantView d h _ my weeks dayView hourView reservationView) -> RestaurantView d h (Just r) my weeks dayView hourView reservationView
  
 instance Presentable HourView where
   present (HourView mSelectedReservation mSelectedHour selectReservationActions hourReservations) = 
