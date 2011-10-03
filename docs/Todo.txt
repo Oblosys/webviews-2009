@@ -17,7 +17,9 @@ present LabelView not implemented
 
 edit on LabelView? (will need to implement Generics.replace) 
 
-errors in script are not reported other than failing to present. Should log them to console
+BUG sometimes the new node list is not empty after processing updates. Unable to reproduce reliably. Might depend on the state of Firefox as well.
+The most likely revision in which it occurs is revision 2635 for Reservations/Main.hs and 2632 for the rest. 
+
 
 Are responses from server guaranteed in correct order? Otherwise, make a queue.
 
