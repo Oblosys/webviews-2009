@@ -10,6 +10,8 @@ DESIGN: changes in view lead to re-evaluating view script
 Longer term
 get rid of ' in webview type selectors
 
+String max size? make sure that scripts cannot go wrong
+
 Generics.replace what is this, also for label or other widgets?
 present LabelView not implemented
 
@@ -17,6 +19,14 @@ edit on LabelView? (will need to implement Generics.replace)
 
 errors in script are not reported other than failing to present. Should log them to console
 
+Are responses from server guaranteed in correct order? Otherwise, make a queue.
+
+Can the server process updates multithreaded? If so, need to block. 
+
+multiple browser windows/tabs are fatal
+
+Int ids are way too dangerous! encode them in something that cannot accidentally be used
+BUG: without firebug, console is not declared, and webviews fails completely
 
 Design
 Need extra state (think of good name) on client side
