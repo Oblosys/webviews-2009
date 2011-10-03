@@ -3,6 +3,7 @@ module Server where
 import Happstack.Server
 import System.IO
 import Data.List
+import Data.Maybe
 import Data.IORef
 import Control.Concurrent
 import Control.Monad
@@ -146,13 +147,34 @@ logWebViewAccess clientIP b _ c d e f g =
  do { putStrLn $ show clientIP ++ " " ++ show b ++ " " ++ show c ++ " " ++ show d ++ " " ++ show e ++ " " ++ show g ++ " " ++ show g
     }
 
+
+instance FromData Commands where
+  fromData = liftM readCommand (look "commands")
+
+readCommand s = case safeRead s of
+                  Just cmds -> cmds
+                  Nothing   -> SyntaxError s
+
+instance FromData Int where
+  fromData = liftM readInt (look "requestId")
+
+readInt s = fromMaybe (-1) (safeRead s)
+
 handlers :: (Data db, Show db, Eq db) => [ (String, Int -> WebViewM db (WebView db))] -> String -> db -> Map String (String, String) -> ServerInstanceId -> GlobalStateRef db -> [ServerPart Response]
 handlers rootViews dbFilename theDatabase users serverSessionId globalStateRef = 
   [ dir "favicon.ico" $ serveDirectory DisableBrowsing [] "favicon.ico"
   , dir "scr" $ serveDirectory DisableBrowsing [] "scr"  
   , dir "img" $ serveDirectory DisableBrowsing [] "img"  
   , dir "handle" $ 
-      withData (\cmds -> methodSP GET $ session rootViews dbFilename theDatabase users serverSessionId globalStateRef cmds)
+      withData (\cmds -> do { requestIdData <- getData
+                            ; requestId <- case requestIdData of
+                                            Right i |  i/=(-1)  -> return i
+                                            Right i | otherwise -> do { liftIO $ putStrLn "Unreadable requestId";    mzero }
+                                            Left err            -> do { liftIO $ putStrLn "No requestId in request"; mzero }
+                                
+                            ; liftIO $ putStrLn $ "RequestId: "++show (requestId :: Int)
+                            ; methodSP GET $ session rootViews dbFilename theDatabase users serverSessionId globalStateRef requestId cmds
+                            })
   , uriRest $ \rootViewName -> anyPath $ serveMainPage rootViewName  -- http://webviews.com/rootViewName
              -- we don't need to do anything with the rootViewName here, since the client takes the view name from the
              -- browser url and passes it along with the Init event
@@ -192,8 +214,8 @@ Set-Cookie: webviews="(1242497513,2)";Max-Age=3600;Path=/;Version="1"
 
 type SessionCookie = (String, String)
 
-session :: (Data db, Show db, Eq db) => [ (String, Int -> WebViewM db (WebView db))] -> String -> db -> Map String (String, String) -> ServerInstanceId -> GlobalStateRef db -> Commands -> ServerPart Response
-session rootViews dbFilename theDatabase users serverInstanceId globalStateRef cmds =
+session :: (Data db, Show db, Eq db) => [ (String, Int -> WebViewM db (WebView db))] -> String -> db -> Map String (String, String) -> ServerInstanceId -> GlobalStateRef db -> Int -> Commands -> ServerPart Response
+session rootViews dbFilename theDatabase users serverInstanceId globalStateRef requestId cmds =
  do { mCookieSessionId <- parseCookieSessionId serverInstanceId
       
 --        ; lputStrLn $ show rq
@@ -205,7 +227,7 @@ session rootViews dbFilename theDatabase users serverInstanceId globalStateRef c
              
         ; sessionStateRef <- retrieveSessionState globalStateRef sessionId 
                                   
-        ; responseHtml <- sessionHandler rootViews dbFilename theDatabase users sessionStateRef cmds              
+        ; responseHtml <- sessionHandler rootViews dbFilename theDatabase users sessionStateRef requestId cmds              
         
         ; storeSessionState globalStateRef sessionId sessionStateRef
         
@@ -275,8 +297,8 @@ storeSessionState globalStateRef sessionId sessionStateRef =
     ; liftIO $ writeIORef globalStateRef (database', sessions', sessionCounter)
     }
  
-sessionHandler :: (Data db, Show db, Eq db) => [ (String, Int -> WebViewM db (WebView db))] -> String -> db -> Map String (String, String) -> SessionStateRef db -> Commands -> ServerPart Html
-sessionHandler rootViews dbFilename theDatabase users sessionStateRef cmds = liftIO $  
+sessionHandler :: (Data db, Show db, Eq db) => [ (String, Int -> WebViewM db (WebView db))] -> String -> db -> Map String (String, String) -> SessionStateRef db -> Int -> Commands -> ServerPart Html
+sessionHandler rootViews dbFilename theDatabase users sessionStateRef requestId cmds = liftIO $  
  do { --putStrLn $ "Received commands" ++ show cmds
     
     ; (_, _, db, oldRootView', _) <- readIORef sessionStateRef
@@ -325,20 +347,18 @@ sessionHandler rootViews dbFilename theDatabase users sessionStateRef cmds = lif
             --; putStrLn $ "Sending response sent to client: " ++
             --              take 10 responseHTML ++ "..."
             ; seq (length (show responseHtml)) $ return ()
-            ; return $ thediv ! [identifier "updates"] << responseHtml
+            ; return $ responseHtml
             }
         Alert str -> 
-          return $ thediv ! [identifier "updates"] <<
-                   (thediv![ strAttr "op" "alert"
-                           , strAttr "text" str
-                           ] << noHtml) 
+          return $ [thediv![ strAttr "op" "alert"
+                          , strAttr "text" str
+                          ] << noHtml] 
         Confirm str  -> 
-          return $ thediv ! [identifier "updates"] <<
-                    (thediv![ strAttr "op" "confirm"
-                            , strAttr "text" str
-                            ] << noHtml) 
+          return $ [thediv![ strAttr "op" "confirm"
+                          , strAttr "text" str
+                          ] << noHtml ] 
     
-    ; return responseHtml
+    ; return $ thediv ! [identifier "updates", strAttr "responseId" $ show requestId] <<responseHtml
     } `Control.Exception.catch` \exc ->
        do { let exceptionText = 
                   "\n\n\n\n###########################################\n\n\n" ++
@@ -346,7 +366,7 @@ sessionHandler rootViews dbFilename theDatabase users sessionStateRef cmds = lif
                   "###########################################" 
           
           ; putStrLn exceptionText
-          ; return $ thediv ! [identifier "updates"] <<
+          ; return $ thediv ! [identifier "updates", strAttr "responseId" $ show requestId] <<
                       (thediv![ strAttr "op" "exception"
                               , strAttr "text" exceptionText
                               ] << noHtml)                       
@@ -355,13 +375,6 @@ sessionHandler rootViews dbFilename theDatabase users sessionStateRef cmds = lif
         do { dbRootView <- liftIO $ readIORef sessionStateRef
            ; seq (length $ show dbRootView) $ return ()
            }
-
-instance FromData Commands where
-  fromData = liftM readCommand (look "commands")
-
-readCommand s = case safeRead s of
-                  Just cmds -> cmds
-                  Nothing   -> SyntaxError s
 
  
 data ServerResponse = ViewUpdate | Alert String | Confirm String deriving (Show, Eq)
