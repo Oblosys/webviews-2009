@@ -47,7 +47,7 @@ instance Initial TestView1 where
 -- seems easier than using JSVar's below
 mkTestView1 _ = mkWebView $
  \vid (TestView1 ea _ status _) ->
-  do { ea <- mkEditActionEx $ \args -> Edit $ do { debugLn $ "edit action executed"++show args
+  do { ea <- mkEditActionEx $ \args -> Edit $ do { debugLn $ "edit action executed "++show args
                                                  ; viewEdit vid $ (\(TestView1 a b _ d) -> TestView1 a b (head args) d)
                                                  }
   -- todo: need a way to enforce that ea is put in the webview
@@ -92,6 +92,8 @@ mkTestView2 _ = mkWebView $
                     "queueCommand('SetC ("++show (widgetGetViewId x)++") \"'+"++refJSVar x++"+'\"');"++
                     "queueCommand('ButtonC ("++show (widgetGetViewId b)++")');")
      }
+-- todo: reusing goes wrong in this case: ; nrOfPeopleVar <- mkJSVar "x" $ show $ getJSVarValue oldNrOfPeopleVar
+--extra escape chars are added on each iteration. (this was in a webview that was re-presented constantly)
 
 refJSVar (Widget _ _ (JSVar viewId name _)) = name++viewIdSuffix viewId
 
@@ -378,21 +380,21 @@ instance Storeable Database ReservationView where
 
 data ClientView = 
   ClientView Int (Maybe Date) (Maybe Time) [Widget (Button Database)] (Widget (TextView Database)) (Widget (TextView Database)) (Widget (Button Database)) (Widget (Button Database)) [Widget (Button Database)] [[Widget (Button Database)]] (Widget (Button Database)) 
-  (Widget JSVar) (Widget LabelView) (Widget LabelView) (Widget LabelView) (Widget LabelView)
+  (Widget LabelView) (Widget LabelView) (Widget LabelView) (EditAction Database)
     String
     deriving (Eq, Show, Typeable, Data)
     
-setClientViewNrOfPeople np (ClientView _ b c d e f g h i j k l m n o p q) = (ClientView np b c d e f g h i j k l m n o p q) 
-setClientViewDate md (ClientView a _ c d e f g h i j k l m n o p q) = (ClientView a md c d e f g h i j k l m n o p q) 
-setClientViewTime mt (ClientView a b _ d e f g h i j k l m n o p q) = (ClientView a b mt d e f g h i j k l m n o p q)
+setClientViewNrOfPeople np (ClientView _ b c d e f g h i j k l m n o p) = (ClientView np b c d e f g h i j k l m n o p) 
+setClientViewDate md (ClientView a _ c d e f g h i j k l m n o p) = (ClientView a md c d e f g h i j k l m n o p) 
+setClientViewTime mt (ClientView a b _ d e f g h i j k l m n o p) = (ClientView a b mt d e f g h i j k l m n o p)
  
 instance Initial ClientView where                 
-  initial = ClientView initial initial initial initial initial initial initial initial initial initial initial initial initial initial initial initial initial
+  initial = ClientView initial initial initial initial initial initial initial initial initial initial initial initial initial initial initial initial
 
 maxNrOfPeople = 10
 
 mkClientView = mkWebView $
- \vid (ClientView oldNrOfP oldMDate oldMTime _ oldNameText oldCommentText _ _ _ _ _ oldNrOfPeopleVar _ _ oldDateIndexLabel oldTimeIndexLabel _) ->
+ \vid (ClientView oldNrOfP oldMDate oldMTime _ oldNameText oldCommentText _ _ _ _ _ _ _ _ _ _) ->
   do { clockTime <-  liftIO getClockTime -- this stuff is duplicated
      ; ct <- liftIO $ toCalendarTime clockTime
      ; let today@(currentDay, currentMonth, currentYear) = dateFromCalendarTime ct
@@ -440,23 +442,18 @@ mkClientView = mkWebView $
                   | hr <- [18..23] ] 
      ; let (timeButtonss, timeEditss) = unzip . map unzip $ timeButtonssTimeEditss
      ; let timeEdits = concat timeEditss  -- TODO, we want some way to do getStr on both labels and Texts 
-     ; nrOfPeopleVar <- mkJSVar "x" $ show $ getJSVarValue oldNrOfPeopleVar
+     ; nrOfPeopleLabel <- mkLabelView "2" 
      ; dateLabel <- mkLabelView "Please select a date" 
      ; timeLabel <- mkLabelView "Please select a time" 
-     ; dateIndexLabel <- mkLabelView $ let Widget _ _ (LabelView vi v) = oldDateIndexLabel in  v 
-     ; timeIndexLabel <- mkLabelView $ let Widget _ _ (LabelView vi v) = oldTimeIndexLabel in  v 
       
-     ; confirmButton <- mkButtonEx "Confirm" True {- (isJust mDate && isJust mTime)-} "width: 100%" (const "") $
-         Edit $ do { name <- getTextContents nameText
+     ; confirmButton <- mkButtonEx "Confirm" True {- (isJust mDate && isJust mTime)-} "width: 100%" (const "") $ Edit $ return ()
+     ; submitAction <- mkEditActionEx $ \args@[nrOfPeopleStr, dateIndexStr, timeStr] ->
+         Edit $ do { debugLn $ "submit action executed "++show args
+                   ; name <- getTextContents nameText
                    ; comment <- getTextContents commentText
                    
-                   ; -- todo: confusing that we should not use getJSVarValue here
-                   ; nrOfPeopleStr <- getJSVarContents nrOfPeopleVar -- todo abusing label here!
-                   ; dateIndexStr <- getLabelContents dateIndexLabel -- todo abusing label here!
-                   ; timeStr <- getLabelContents timeIndexLabel -- todo abusing label here!
-                   -- bad, labels used next to locals, want to combine
-                   -- also constructing date/time from indices duplicates work
-                   ; debugLn $ "Values are "++name++nrOfPeopleStr++" "++dateIndexStr++" "++timeStr
+                   -- todo constructing date/time from indices duplicates work
+                   ; debugLn $ "Values are "++name++" "++dateIndexStr++" "++timeStr
                    ; let nrOfPeople = read nrOfPeopleStr
                    ; debugLn $ "nrOfPeople "++show nrOfPeople
                    ; let date = addToDate today (read dateIndexStr)
@@ -478,7 +475,7 @@ mkClientView = mkWebView $
              
      
      ; return $ ClientView nrOfP mDate mTime nrButtons nameText commentText todayButton tomorrowButton dayButtons timeButtonss confirmButton 
-                           nrOfPeopleVar dateLabel timeLabel dateIndexLabel timeIndexLabel
+                           nrOfPeopleLabel dateLabel timeLabel submitAction
                   $ "/*"++show (ctSec ct)++"*/" ++
                     declareVar vid "selectedNr" "2" ++
                     datesAndAvailabilityDecl ++
@@ -488,17 +485,14 @@ mkClientView = mkWebView $
                     concat [ onClick button $ callFunction vid "setDate" [ show dateIndex ] 
                            | (dateIndex,button) <- zip [0..] $ [todayButton, tomorrowButton]++dayButtons ] ++
                     concat timeEdits ++ 
-                    onClick confirmButton ("queueCommand('SetC ("++show (widgetGetViewId nrOfPeopleVar)++") \"'+"++readVar vid "selectedNr"++"+'\"');"++
-                                           "queueCommand('SetC ("++show (widgetGetViewId dateIndexLabel)++") \"'+"++readVar vid "selectedDate"++"+'\"');"++
-                                           "queueCommand('SetC ("++show (widgetGetViewId timeIndexLabel)++") \"('+"++readVar vid "selectedTime"++".hour+','+"++readVar vid "selectedTime"++".min+')\"');"++
-                                           "textFieldChanged('"++show (widgetGetViewId nameText)++"');"++
+                    onClick confirmButton ("textFieldChanged('"++show (widgetGetViewId nameText)++"');"++
                                            "textFieldChanged('"++show (widgetGetViewId commentText)++"');"++
-                                           "queueCommand('ButtonC ("++show (widgetGetViewId confirmButton)++")')") ++
+                                           callServerEditAction submitAction [readVar vid "selectedNr", readVar vid "selectedDate", "'('+"++readVar vid "selectedTime"++".hour+','+"++readVar vid "selectedTime"++".min+')'"]) ++
                     
                     declareVar vid "selectedNr" "2" ++
                     declareFunction vid "setNr" ["nr"] ( "console.log(\"setNr (\"+nr+\") old val: \", "++readVar vid "selectedNr"++");"++
                                                          writeVar vid "selectedNr" "nr" ++
-                                                         getElementByIdRef (widgetGetViewRef nrOfPeopleVar)++".innerHTML = nr;" ++
+                                                         getElementByIdRef (widgetGetViewRef nrOfPeopleLabel)++".innerHTML = nr;" ++
                                                          callFunction vid "disenable" []) ++
                     declareVar vid "selectedTime" "{hour: 18, min: 30}" ++
                     declareFunction vid "setTime" ["time"] ( "console.log(\"setTime \"+time, "++readVar vid "selectedTime"++");"++
@@ -543,7 +537,7 @@ callFunction vid name params = name++viewIdSuffix vid++"("++intercalate "," para
 -- todo comment has hard-coded width. make constant for this
 instance Presentable ClientView where
   present (ClientView nrOfP mDate mTime nrButtons nameText commentText todayButton tomorrowButton dayButtons timeButtonss confirmButton
-                      nrOfPeopleLabel dateLabel timeLabel dateIndexLabel timeIndexLabel script) = 
+                      nrOfPeopleLabel dateLabel timeLabel _ script) = 
     vList [ hList [ stringToHtml "Name:", hSpace 4, present nameText]
           , hList [ stringToHtml $ "Nr of people: ", present nrOfPeopleLabel]
           , hListEx [width "100%"] $ map present nrButtons
@@ -556,9 +550,7 @@ instance Presentable ClientView where
           , simpleTable [width "100%",cellpadding 0, cellspacing 0] [] $ map (map present) timeButtonss
           , stringToHtml "Comments:"
           , present commentText
-          , present confirmButton
-          , with [thestyle "visibility:hidden"] $ present dateIndexLabel -- webviews/widgets for containing client state should not be visible (and preferably not needed to be presented)
-          , with [thestyle "visibility:hidden"] $ present timeIndexLabel ] +++           
+          , present confirmButton ] +++           
           mkScript script
  
 instance Storeable Database ClientView where
