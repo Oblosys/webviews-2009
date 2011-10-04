@@ -164,7 +164,7 @@ instance Storeable Database VisitsView where
 -- Visit -----------------------------------------------------------------------  
 
 data VisitView = 
-  VisitView VisitId (Widget ( Database)) (Widget ( Database)) Int (Widget (Button Database)) 
+  VisitView VisitId (Widget (TextView Database)) (Widget (TextView Database)) Int (Widget (Button Database)) 
            (Widget (Button Database)) (Widget (Button Database)) [PigId] [String] [WebView Database]
     deriving (Eq, Show, Typeable, Data)
 
@@ -221,7 +221,7 @@ instance Initial VisitView where
 
 -- Pig -------------------------------------------------------------------------  
 
-data PigView = PigView PigId (EditAction Database) String (Widget (Button Database)) Int Int (Widget ( Database)) (Widget ( Database)) [Widget RadioView] (Either Int String) 
+data PigView = PigView PigId (EditAction Database) String (Widget (Button Database)) Int Int (Widget (TextView Database)) (Widget (TextView Database)) [Widget RadioView] (Either Int String) 
                deriving (Eq, Show, Typeable, Data)
 
 mkPigView parentViewId pignr pigId@(PigId pigInt) viewedPig = mkWebView $ 
