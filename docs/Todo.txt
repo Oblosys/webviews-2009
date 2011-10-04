@@ -32,6 +32,9 @@ BUG: without firebug, console is not declared, and webviews fails completely
 
 Design
 Need extra state (think of good name) on client side
+JSVar seems awkward. (and if we keep it, need to figure out if it really needs to be a widget.)
+It might be okay to have something like jsvar to create and access identifiable client-side variables though
+(can also be done with string and parent view id suffix, but this is a bit less safe)
 Block of code associated with WebView (for now just suffix, but we need to garbage collect them as well)
 Default behavior for selection and focus. Webview can have focus and selection
 
