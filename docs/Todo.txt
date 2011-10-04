@@ -33,6 +33,12 @@ Int ids are way too dangerous! encode them in something that cannot accidentally
 BUG: without firebug, console is not declared, and webviews fails completely
 
 Design
+Figure out whether and how to parameterize withEditAction and withEditActionAttr
+What about button edit actions?
+ 
+Accessing text from a textView in an edit action is tricky. We don't want to take it directly from the (Widget..(TextView ..str)) but look it up by its id.
+How can this confusion be removed?
+
 Need extra state (think of good name) on client side
 JSVar seems awkward. (and if we keep it, need to figure out if it really needs to be a widget.)
 It might be okay to have something like jsvar to create and access identifiable client-side variables though
