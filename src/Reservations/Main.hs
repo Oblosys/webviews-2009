@@ -30,31 +30,63 @@ main = server rootViews "ReservationsDB.txt" theDatabase users
 
 rootViews :: [ (String, Int -> WebViewM Database (WebView Database))]
 rootViews = [ ("", mkMainRootView), ("client", \sessionId -> mkClientView), ("restaurant", \sessionId -> mkRestaurantView)
-            , ("test", mkTestView) ] 
+            , ("test", mkTestView1) ] 
   -- TODO: id's here?
   -- TODO: fix the sessionId stuff
   -- TODO: find good names for root, main, etc.
 
  -- TODO: sessionId? put this in an environment? or maybe the WebViewM monad?
-
-data TestView =
-  TestView (Widget JSVar) (Widget (Button Database)) String String
+data TestView1 =
+  TestView1 (EditAction Database) (Widget (Button Database)) String String
     deriving (Eq, Show, Typeable, Data)
          
-instance Initial TestView where
-  initial = TestView initial initial initial initial
+instance Initial TestView1 where
+  initial = TestView1 initial initial initial initial
   
-mkTestView _ = mkWebView $
- \vid (TestView oldXVar@(Widget _ _ (JSVar _ _ v)) _ status _) ->
+-- pass client state back with an edit action
+-- seems easier than using JSVar's below
+mkTestView1 _ = mkWebView $
+ \vid (TestView1 ea _ status _) ->
+  do { ea <- mkEditActionEx $ \args -> Edit $ do { debugLn $ "edit action executed"++show args
+                                                 ; viewEdit vid $ (\(TestView1 a b _ d) -> TestView1 a b (head args) d)
+                                                 }
+  -- todo: need a way to enforce that ea is put in the webview
+     ; b <- mkButton "Test" True $ Edit $ return () 
+     ; return $ TestView1 ea b status $
+         "console.log('test script running');" ++
+         declareVar vid "clientState" "2" ++
+         onClick b (readVar vid "clientState" ++"++;" ++
+                    callServerEditAction ea [readVar vid "clientState","2"]) 
+     }
+callServerEditAction ea args = "queueCommand('PerformEditActionC ("++show (getActionViewId ea)++") [\"'+"++
+                                      intercalate "+'\",\"'+" args ++"+'\"]')"
+
+instance Presentable TestView1 where
+  present (TestView1 ea b status scr) = vList [stringToHtml status, present b] +++ mkScript scr
+
+instance Storeable Database TestView1 where
+  save _ = id
+
+
+-- trying to handle passing back client state by using a JSVar
+data TestView2 =
+  TestView2 (Widget JSVar) (Widget (Button Database)) String String
+    deriving (Eq, Show, Typeable, Data)
+         
+instance Initial TestView2 where
+  initial = TestView2 initial initial initial initial
+  
+mkTestView2 _ = mkWebView $
+ \vid (TestView2 oldXVar@(Widget _ _ (JSVar _ _ v)) _ status _) ->
   do { x <- mkJSVar "x" (if v == "" then "6" else v) 
      -- todo Even though the initial value is only assigned once to the client variable, it is also
      -- used to store the value at server side, so we need to check if it has a value and assign if not
      -- this is not okay. keep separate field for initializer?
      ; b <- mkButton "Test" True $ Edit $ do { xval <- getJSVarContents x
                                              ; debugLn $ "value of js var is "++xval
-                                             ; viewEdit vid $ (\(TestView a b _ d) -> TestView a b xval d)
+                                             ; viewEdit vid $ (\(TestView2 a b _ d) -> TestView2 a b xval d)
                                              } 
-     ; return $ TestView x b status $
+     ; return $ TestView2 x b status $
          "console.log('test script running');" ++
          onClick b (refJSVar x++"++;console.log("++refJSVar x++");" ++
                     "queueCommand('SetC ("++show (widgetGetViewId x)++") \"'+"++refJSVar x++"+'\"');"++
@@ -63,10 +95,10 @@ mkTestView _ = mkWebView $
 
 refJSVar (Widget _ _ (JSVar viewId name _)) = name++viewIdSuffix viewId
 
-instance Presentable TestView where
-  present (TestView b x status scr) = vList [stringToHtml status, present b] +++ present x +++ mkScript scr
+instance Presentable TestView2 where
+  present (TestView2 x b status scr) = vList [stringToHtml status, present b] +++ present x +++ mkScript scr
 
-instance Storeable Database TestView where
+instance Storeable Database TestView2 where
   save _ = id
   
 -- Main ----------------------------------------------------------------------  
@@ -498,6 +530,7 @@ onClick :: (Widget (Button Database)) -> String -> String
 onClick button expr = "script"++viewIdSuffix (widgetGetViewId button) ++ ".onClick = function () {"++expr++"};"
 readVar vid name = name++viewIdSuffix vid
 writeVar vid name value = name++viewIdSuffix vid++" = "++value++";"
+-- TODO: maybe refVar and assignVar are more appropriate?
 declareVar vid name value = let jsVar = name++viewIdSuffix vid
                             in  "if (typeof "++jsVar++" ==\"undefined\") {"++jsVar++" = "++value++";console.error(\"declaring\")};"
 -- no "var " here, does not work when evaluated with eval

@@ -459,12 +459,12 @@ handleCommand _ users sessionStateRef (SubmitC viewId) =
           
     ; return response
     }
-handleCommand _ users sessionStateRef (PerformEditActionC viewId) =
+handleCommand _ users sessionStateRef (PerformEditActionC viewId args) =
  do { (_, user, db, rootView, pendingEdit) <- readIORef sessionStateRef
     ; let EditAction _ act = getEditActionByViewId viewId rootView
     ; putStrLn $ "EditAction with ViewId "++show viewId ++ " was executed"
 
-    ; response <- performEditCommand users sessionStateRef act
+    ; response <- performEditCommand users sessionStateRef $ act args
           
     ; return response
     }

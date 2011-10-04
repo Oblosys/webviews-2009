@@ -1,4 +1,6 @@
 TODO short term
+
+TODO: report type problem in WebViewPrim.viewEdit
 BUG: empty script in mkWebView creates problem
 BUG: pressing button while focus on text field has weird behavior
 BUG?: Firefox on Oblomov mentions Empty string passed to getElementById()

@@ -86,7 +86,10 @@ assignViewId :: (ViewId -> v) -> WebViewM db v
 assignViewId viewConstr = liftS $ \path vidC -> (viewConstr (ViewId $ path ++ [vidC]), vidC +1)
 
 mkEditAction :: EditCommand db -> WebViewM db (EditAction db) 
-mkEditAction ec = assignViewId $ \vid -> EditAction vid ec
+mkEditAction ec = mkEditActionEx $ const ec
+
+mkEditActionEx :: ([String] -> EditCommand db) -> WebViewM db (EditAction db) 
+mkEditActionEx fec = assignViewId $ \vid -> EditAction vid fec
 
 
 mkLabelView str = assignViewId $ \vid -> labelView vid str

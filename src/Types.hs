@@ -26,7 +26,7 @@ data Command = Init String | Refresh | Test
              | SetC ViewId String 
              | ButtonC ViewId
              | SubmitC ViewId
-             | PerformEditActionC ViewId 
+             | PerformEditActionC ViewId [String]
              | ConfirmDialogOk 
                deriving (Eq, Show, Read) 
 
@@ -149,7 +149,7 @@ getJSVarValue (Widget _ _ jsv) = getJSVarValue_ jsv
 
 -- EditAction
 
-data EditAction db = EditAction { getActionViewId :: ViewId, getCommand :: EditCommand db 
+data EditAction db = EditAction { getActionViewId :: ViewId, getCommand :: [String] -> EditCommand db 
                              } deriving (Show, Typeable, Data)
 
 instance Eq (EditAction db) where
@@ -346,7 +346,7 @@ instance Initial JSVar where
   initial = JSVar noViewId "" ""
 
 instance Initial (EditAction db) where
-  initial = EditAction noViewId (Edit $ return ())  
+  initial = EditAction noViewId (const $ Edit $ return ())  
 
 instance Data db => Initial (WebView db) where
   initial = WebView (ViewId []) noId noId (\_ _ -> return ()) ()
