@@ -81,7 +81,7 @@ labelView viewId txt = Widget noId noId $ LabelView viewId txt
 
 -- Text
 
--- todo rename Str stuff in Text, maybe also Text to TextView
+-- todo rename Str stuff in Text
 
 data TextType = TextField | PasswordField | TextArea deriving (Eq, Show, Typeable, Data)
 
@@ -107,7 +107,6 @@ data RadioView = RadioView { getRadioViewId :: ViewId, getItems :: [String], get
                            , getRadioEnabled :: Bool 
                            } deriving (Show, Typeable, Data)
 
--- todo: unsafe
 setSelection' :: Int -> RadioView -> RadioView 
 setSelection' s (RadioView vi its _ en) = RadioView vi its s en
 
