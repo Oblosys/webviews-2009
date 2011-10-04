@@ -345,10 +345,10 @@ declareWVScript viewId = "script"++viewIdSuffix viewId++" = new ButtonScript(\""
 -- though it probably works out, as the ea id is the only one needing restoration.
 withEditAction (EditAction viewId _) elt = 
   thespan![ identifier $ show viewId
-          , strAttr "onClick" $ "queueCommand('PerformEditActionC ("++show viewId++")')"] << elt
+          , strAttr "onClick" $ "queueCommand('PerformEditActionC ("++show viewId++") []')"] << elt
 
 withEditActionAttr (EditAction viewId _) = 
-  strAttr "onClick" $ "queueCommand('PerformEditActionC ("++show viewId++")')"
+  strAttr "onClick" $ "queueCommand('PerformEditActionC ("++show viewId++") []')"
 
 presentRadioView :: RadioView -> Html
 presentRadioView (RadioView viewId items selectedIx enabled) = thespan << 
