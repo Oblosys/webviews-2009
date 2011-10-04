@@ -450,8 +450,8 @@ handleCommand _  users sessionStateRef (ButtonC viewId) =
     }
 handleCommand _ users sessionStateRef (SubmitC viewId) =
  do { (_, user, db, rootView, pendingEdit) <- readIORef sessionStateRef
-    ; let Text _ _ txt mAct = getTextByViewId viewId rootView
-    ; putStrLn $ "Text #" ++ show viewId ++ ":" ++ txt ++ " was submitted"
+    ; let TextView _ _ txt mAct = getTextByViewId viewId rootView
+    ; putStrLn $ "TextView #" ++ show viewId ++ ":" ++ txt ++ " was submitted"
 
     ; response <- case mAct of 
         Nothing  -> error "Internal error: text field with submission action has no associated action."

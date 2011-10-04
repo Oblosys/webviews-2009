@@ -13,7 +13,7 @@ import WebViewPrim
 
 -- Login -----------------------------------------------------------------------  
 
-data LoginView db = LoginView (Widget (Text db)) (Widget (Text db)) (Widget (Button db)) 
+data LoginView db = LoginView (Widget (TextView db)) (Widget (TextView db)) (Widget (Button db)) 
   deriving (Eq, Show, Typeable, Data)
 
 instance Initial (LoginView db) where initial = LoginView initial initial initial

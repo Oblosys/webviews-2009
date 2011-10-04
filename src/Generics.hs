@@ -152,7 +152,7 @@ webViewGetInternalIds (WebView _ _ _ _ v) =
       isWebView _ = True
       isWidget1 :: Widget LabelView -> Bool
       isWidget1 _ = True
-      isWidget2 :: Widget (Text db) -> Bool
+      isWidget2 :: Widget (TextView db) -> Bool
       isWidget2 _ = True
       isWidget3 :: Widget RadioView -> Bool
       isWidget3 _ = True
@@ -213,7 +213,7 @@ type Updates = Map ViewId String  -- maps id's to the string representation of t
 -- update the datastructure at the id's in Updates 
 -- TODO is dummy db arg necessary?
 replace :: forall db d . (Typeable db, Data d) => db -> Updates -> d -> d
-replace _ updates v = (everywhere $  mkT    (replaceText updates :: Text db -> Text db)
+replace _ updates v = (everywhere $  mkT    (replaceText updates :: TextView db -> TextView db)
                                      `extT` replaceLabelView updates
                                      `extT` replaceRadioView updates) v
 
@@ -223,10 +223,10 @@ replaceLabelView updates x@(LabelView i _) =
     Just str -> (LabelView i str)
     Nothing -> x
 
-replaceText :: Updates -> Text db -> Text db
-replaceText updates x@(Text i h _ ea) =
+replaceText :: Updates -> TextView db -> TextView db
+replaceText updates x@(TextView i h _ ea) =
   case Map.lookup i updates of
-    Just str -> (Text i h str ea)
+    Just str -> (TextView i h str ea)
     Nothing -> x
 
 replaceRadioView :: Updates -> RadioView -> RadioView
@@ -262,9 +262,9 @@ getLabelViewByViewId i view =
     []  -> error $ "internal error: no label with id "++show i
     _   -> error $ "internal error: multiple LabelViews with id "++show i
 
-getTextByViewId :: (Typeable db, Data d) => ViewId -> d -> Text db
+getTextByViewId :: (Typeable db, Data d) => ViewId -> d -> TextView db
 getTextByViewId i view = 
-  case listify (\(Text i' _ _ _) -> i==i') view of
+  case listify (\(TextView i' _ _ _) -> i==i') view of
     [b] -> b
     []  -> error $ "internal error: no text with id "++show i
     _   -> error $ "internal error: multiple texts with id "++show i
@@ -308,7 +308,7 @@ getWebViewById i view =
     
 getTextByViewIdRef :: forall db v . (Typeable db, Data v) => db -> ViewIdRef -> v -> String
 getTextByViewIdRef _ (ViewIdRef i) view =
-  let (Text _ _ str _) :: Text db = getTextByViewId (ViewId i) view
+  let (TextView _ _ str _) :: TextView db = getTextByViewId (ViewId i) view
   in  str
 
 

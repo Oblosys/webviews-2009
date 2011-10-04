@@ -293,8 +293,8 @@ presentLabelView (LabelView viewId str) = thediv ! [identifier $ show viewId] <<
 -- textfields are in forms, that causes registering text field updates on pressing enter
 -- (or Done) on the iPhone.
 
-presentTextField :: Text db -> Html
-presentTextField (Text viewId TextArea str _) = 
+presentTextField :: TextView db -> Html
+presentTextField (TextView viewId TextArea str _) = 
    form![ thestyle "display: inline; width: 500px;"
         , strAttr "onSubmit" $ "textFieldChanged('"++show viewId++"'); return false"] $
      textarea ! [ identifier (show viewId)
@@ -303,7 +303,7 @@ presentTextField (Text viewId TextArea str _) =
                 , strAttr "onFocus" $ "elementGotFocus('"++show viewId++"')"
                 , strAttr "onBlur" $ "textFieldChanged('"++show viewId++"')"
                 ] << stringToHtml str
-presentTextField (Text viewId textType str mEditAction) = 
+presentTextField (TextView viewId textType str mEditAction) = 
   let inputField = case textType of TextField -> textfield ""
                                     PasswordField -> password ""
                                     

@@ -64,7 +64,7 @@ instance Eq (Widget w) where
   w1 == w2 = True
 
 data AnyWidget db = LabelWidget !LabelView
-                  | TextWidget !(Text db)
+                  | TextWidget !(TextView db)
                   | RadioViewWidget !RadioView 
                   | ButtonWidget !(Button db) 
                     deriving (Eq, Show, Typeable, Data)
@@ -85,21 +85,21 @@ labelView viewId txt = Widget noId noId $ LabelView viewId txt
 
 data TextType = TextField | PasswordField | TextArea deriving (Eq, Show, Typeable, Data)
 
-data Text db = Text { getTextViewId :: ViewId, getTextType :: TextType, getStrVal' :: String 
+data TextView db = TextView { getTextViewId :: ViewId, getTextType :: TextType, getStrVal' :: String 
                     , getSubmitAction :: Maybe (EditCommand db) } deriving (Show, Typeable, Data)
 
-instance Eq (Text db) where
-  Text _ t1 str1 _ == Text _ t2 str2 _ = t1 == t2 && str1 == str2
+instance Eq (TextView db) where
+  TextView _ t1 str1 _ == TextView _ t2 str2 _ = t1 == t2 && str1 == str2
   
-getStrVal (Widget _ _ (Text vi h v _)) = v
+getStrVal (Widget _ _ (TextView vi h v _)) = v
 
-textField viewId str mSubmitAction = Widget noId noId $ Text viewId TextField str mSubmitAction
+textField viewId str mSubmitAction = Widget noId noId $ TextView viewId TextField str mSubmitAction
 
-passwordField viewId str mSubmitAction = Widget noId noId $ Text viewId PasswordField str mSubmitAction
+passwordField viewId str mSubmitAction = Widget noId noId $ TextView viewId PasswordField str mSubmitAction
 
-textArea viewId str = Widget noId noId $ Text viewId TextArea str Nothing
+textArea viewId str = Widget noId noId $ TextView viewId TextArea str Nothing
 
-strRef (Widget _ _ (Text (ViewId i) h _ _)) = ViewIdRef i
+strRef (Widget _ _ (TextView (ViewId i) h _ _)) = ViewIdRef i
 
 -- RadioView
 
@@ -167,7 +167,7 @@ instance HasViewId (WebView db) where
 instance HasViewId LabelView where
   getViewId = getLabelViewId
 
-instance HasViewId (Text db) where
+instance HasViewId (TextView db) where
   getViewId = getTextViewId
 
 instance HasViewId RadioView where
@@ -320,8 +320,8 @@ instance Initial w => Initial (Widget w) where
 instance Initial LabelView where
   initial = LabelView noViewId ""
 
-instance Initial (Text db) where
-  initial = Text noViewId TextField "" Nothing
+instance Initial (TextView db) where
+  initial = TextView noViewId TextField "" Nothing
 
 instance Initial RadioView where
   initial = RadioView noViewId [] 0 False

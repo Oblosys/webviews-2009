@@ -332,7 +332,7 @@ instance Storeable Database ReservationView where
 
 
 data ClientView = 
-  ClientView Int (Maybe Date) (Maybe Time) [Widget (Button Database)] (Widget (Text Database)) (Widget (Text Database)) (Widget (Button Database)) (Widget (Button Database)) [Widget (Button Database)] [[Widget (Button Database)]] (Widget (Button Database)) 
+  ClientView Int (Maybe Date) (Maybe Time) [Widget (Button Database)] (Widget (TextView Database)) (Widget (TextView Database)) (Widget (Button Database)) (Widget (Button Database)) [Widget (Button Database)] [[Widget (Button Database)]] (Widget (Button Database)) 
   (Widget LabelView) (Widget LabelView) (Widget LabelView) (Widget LabelView) (Widget LabelView)
     String
     deriving (Eq, Show, Typeable, Data)
@@ -557,7 +557,7 @@ showShortMonth :: Reservations.Database.Month -> String
 showShortMonth m = ["Jan.", "Feb.", "Mar.", "Apr.", "May", "June", "July", "Aug.","Sept.", "Oct.", "Nov.", "Dec."]!!(m-1)
 
  -- HACK
-getTextContents :: Widget (Text Database) -> EditM Database String
+getTextContents :: Widget (TextView Database) -> EditM Database String
 getTextContents text =
  do { (sessionId, user, db, rootView, pendingEdit) <- get
     ; return $ getTextByViewIdRef (undefined :: Database{-dummy arg-}) (widgetGetViewRef text) rootView
