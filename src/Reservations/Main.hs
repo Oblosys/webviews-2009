@@ -38,20 +38,33 @@ rootViews = [ ("", mkMainRootView), ("client", \sessionId -> mkClientView), ("re
  -- TODO: sessionId? put this in an environment? or maybe the WebViewM monad?
 
 data TestView =
-  TestView (Widget (Button Database))
+  TestView (Widget JSVar) (Widget (Button Database)) String String
     deriving (Eq, Show, Typeable, Data)
          
 instance Initial TestView where
-  initial = TestView initial
+  initial = TestView initial initial initial initial
   
 mkTestView _ = mkWebView $
- \vid (TestView _) ->
-  do { b <- mkButton "Test" True $ Edit $ return ()
-     ; return $ TestView b
+ \vid (TestView oldXVar@(Widget _ _ (JSVar _ _ v)) _ status _) ->
+  do { x <- mkJSVar "x" (if v == "" then "6" else v) 
+     -- todo Even though the initial value is only assigned once to the client variable, it is also
+     -- used to store the value at server side, so we need to check if it has a value and assign if not
+     -- this is not okay. keep separate field for initializer?
+     ; b <- mkButton "Test" True $ Edit $ do { xval <- getJSVarContents x
+                                             ; debugLn $ "value of js var is "++xval
+                                             ; viewEdit vid $ (\(TestView a b _ d) -> TestView a b xval d)
+                                             } 
+     ; return $ TestView x b status $
+         "console.log('test script running');" ++
+         onClick b (refJSVar x++"++;console.log("++refJSVar x++");" ++
+                    "queueCommand('SetC ("++show (widgetGetViewId x)++") \"'+"++refJSVar x++"+'\"');"++
+                    "queueCommand('ButtonC ("++show (widgetGetViewId b)++")');")
      }
-     
+
+refJSVar (Widget _ _ (JSVar viewId name _)) = name++viewIdSuffix viewId
+
 instance Presentable TestView where
-  present (TestView b) = vList [stringToHtml "voor", present b, stringToHtml "na"]
+  present (TestView b x status scr) = vList [stringToHtml status, present b] +++ present x +++ mkScript scr
 
 instance Storeable Database TestView where
   save _ = id
@@ -333,7 +346,7 @@ instance Storeable Database ReservationView where
 
 data ClientView = 
   ClientView Int (Maybe Date) (Maybe Time) [Widget (Button Database)] (Widget (TextView Database)) (Widget (TextView Database)) (Widget (Button Database)) (Widget (Button Database)) [Widget (Button Database)] [[Widget (Button Database)]] (Widget (Button Database)) 
-  (Widget LabelView) (Widget LabelView) (Widget LabelView) (Widget LabelView) (Widget LabelView)
+  (Widget JSVar) (Widget LabelView) (Widget LabelView) (Widget LabelView) (Widget LabelView)
     String
     deriving (Eq, Show, Typeable, Data)
     
@@ -347,7 +360,7 @@ instance Initial ClientView where
 maxNrOfPeople = 10
 
 mkClientView = mkWebView $
- \vid (ClientView oldNrOfP oldMDate oldMTime _ oldNameText oldCommentText _ _ _ _ _ oldNrOfPeopleLabel _ _ oldDateIndexLabel oldTimeIndexLabel _) ->
+ \vid (ClientView oldNrOfP oldMDate oldMTime _ oldNameText oldCommentText _ _ _ _ _ oldNrOfPeopleVar _ _ oldDateIndexLabel oldTimeIndexLabel _) ->
   do { clockTime <-  liftIO getClockTime -- this stuff is duplicated
      ; ct <- liftIO $ toCalendarTime clockTime
      ; let today@(currentDay, currentMonth, currentYear) = dateFromCalendarTime ct
@@ -395,7 +408,7 @@ mkClientView = mkWebView $
                   | hr <- [18..23] ] 
      ; let (timeButtonss, timeEditss) = unzip . map unzip $ timeButtonssTimeEditss
      ; let timeEdits = concat timeEditss  -- TODO, we want some way to do getStr on both labels and Texts 
-     ; nrOfPeopleLabel <- mkLabelView $ let Widget _ _ (LabelView vi v) = oldNrOfPeopleLabel in  v
+     ; nrOfPeopleVar <- mkJSVar "x" $ show $ getJSVarValue oldNrOfPeopleVar
      ; dateLabel <- mkLabelView "Please select a date" 
      ; timeLabel <- mkLabelView "Please select a time" 
      ; dateIndexLabel <- mkLabelView $ let Widget _ _ (LabelView vi v) = oldDateIndexLabel in  v 
@@ -404,7 +417,9 @@ mkClientView = mkWebView $
      ; confirmButton <- mkButtonEx "Confirm" True {- (isJust mDate && isJust mTime)-} "width: 100%" (const "") $
          Edit $ do { name <- getTextContents nameText
                    ; comment <- getTextContents commentText
-                   ; nrOfPeopleStr <- getLabelContents nrOfPeopleLabel -- todo abusing label here!
+                   
+                   ; -- todo: confusing that we should not use getJSVarValue here
+                   ; nrOfPeopleStr <- getJSVarContents nrOfPeopleVar -- todo abusing label here!
                    ; dateIndexStr <- getLabelContents dateIndexLabel -- todo abusing label here!
                    ; timeStr <- getLabelContents timeIndexLabel -- todo abusing label here!
                    -- bad, labels used next to locals, want to combine
@@ -431,7 +446,7 @@ mkClientView = mkWebView $
              
      
      ; return $ ClientView nrOfP mDate mTime nrButtons nameText commentText todayButton tomorrowButton dayButtons timeButtonss confirmButton 
-                           nrOfPeopleLabel dateLabel timeLabel dateIndexLabel timeIndexLabel
+                           nrOfPeopleVar dateLabel timeLabel dateIndexLabel timeIndexLabel
                   $ "/*"++show (ctSec ct)++"*/" ++
                     declareVar vid "selectedNr" "2" ++
                     datesAndAvailabilityDecl ++
@@ -441,7 +456,7 @@ mkClientView = mkWebView $
                     concat [ onClick button $ callFunction vid "setDate" [ show dateIndex ] 
                            | (dateIndex,button) <- zip [0..] $ [todayButton, tomorrowButton]++dayButtons ] ++
                     concat timeEdits ++ 
-                    onClick confirmButton ("queueCommand('SetC ("++show (widgetGetViewId nrOfPeopleLabel)++") \"'+"++readVar vid "selectedNr"++"+'\"');"++
+                    onClick confirmButton ("queueCommand('SetC ("++show (widgetGetViewId nrOfPeopleVar)++") \"'+"++readVar vid "selectedNr"++"+'\"');"++
                                            "queueCommand('SetC ("++show (widgetGetViewId dateIndexLabel)++") \"'+"++readVar vid "selectedDate"++"+'\"');"++
                                            "queueCommand('SetC ("++show (widgetGetViewId timeIndexLabel)++") \"('+"++readVar vid "selectedTime"++".hour+','+"++readVar vid "selectedTime"++".min+')\"');"++
                                            "textFieldChanged('"++show (widgetGetViewId nameText)++"');"++
@@ -451,7 +466,7 @@ mkClientView = mkWebView $
                     declareVar vid "selectedNr" "2" ++
                     declareFunction vid "setNr" ["nr"] ( "console.log(\"setNr (\"+nr+\") old val: \", "++readVar vid "selectedNr"++");"++
                                                          writeVar vid "selectedNr" "nr" ++
-                                                         getElementByIdRef (widgetGetViewRef nrOfPeopleLabel)++".innerHTML = nr;" ++
+                                                         getElementByIdRef (widgetGetViewRef nrOfPeopleVar)++".innerHTML = nr;" ++
                                                          callFunction vid "disenable" []) ++
                     declareVar vid "selectedTime" "{hour: 18, min: 30}" ++
                     declareFunction vid "setTime" ["time"] ( "console.log(\"setTime \"+time, "++readVar vid "selectedTime"++");"++
@@ -562,7 +577,8 @@ getTextContents text =
  do { (sessionId, user, db, rootView, pendingEdit) <- get
     ; return $ getTextByViewIdRef (undefined :: Database{-dummy arg-}) (widgetGetViewRef text) rootView
     } 
-    
+
+-- probably to be deleted, labels do not need to be accessed    
 getLabelContents :: Widget LabelView -> EditM Database String
 getLabelContents text =
  do { (sessionId, user, db, rootView, pendingEdit) <- get
@@ -574,6 +590,17 @@ getLabelContentsByViewIdRef _ (ViewIdRef i) view =
   let (LabelView _ str) :: LabelView = getLabelViewByViewId (ViewId i) view
   in  str
 
+
+getJSVarContents :: Widget JSVar -> EditM Database String
+getJSVarContents text =
+ do { (sessionId, user, db, rootView, pendingEdit) <- get
+    ; return $ getJSVarContentsByViewIdRef (undefined :: Database{-dummy arg-}) (widgetGetViewRef text) rootView
+    } 
+    
+getJSVarContentsByViewIdRef :: forall db v . (Typeable db, Data v) => db -> ViewIdRef -> v -> String
+getJSVarContentsByViewIdRef _ (ViewIdRef i) view =
+  let (JSVar _ _ value) :: JSVar = getJSVarByViewId (ViewId i) view
+  in  value
  
  {-
 Bug that seems to add views with number 23 all the time (probably the date)

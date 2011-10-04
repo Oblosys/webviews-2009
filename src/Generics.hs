@@ -30,6 +30,7 @@ webNodeQ = (Nothing `mkQ`  (\w -> Just $ WebViewNode w)
                     `extQ` (\w@(Widget stbid id x) -> Just $ let vi = getViewId x in WidgetNode vi stbid id (TextWidget x))
                     `extQ` (\w@(Widget stbid id x) -> Just $ let vi = getViewId x in WidgetNode vi stbid id (RadioViewWidget x))
                     `extQ` (\w@(Widget stbid id x) -> Just $ let vi = getViewId x in WidgetNode vi stbid id (ButtonWidget x))
+                    `extQ` (\w@(Widget stbid id x) -> Just $ let vi = getViewId x in WidgetNode vi stbid id (JSVarWidget x))
            )              -- TODO can we do this bettter?
                         
                     
@@ -39,6 +40,7 @@ webNodeLstQ = (Nothing `mkQ`  (\ws -> Just [ WebViewNode w | w <- ws ])
  `extQ` (\ws -> Just $ map (\w@(Widget stbid id x) -> let vi = getViewId x in WidgetNode vi stbid id (TextWidget x)) ws)
  `extQ` (\ws -> Just $ map (\w@(Widget stbid id x) -> let vi = getViewId x in WidgetNode vi stbid id (RadioViewWidget x)) ws)
  `extQ` (\ws -> Just $ map (\w@(Widget stbid id x) -> let vi = getViewId x in WidgetNode vi stbid id (ButtonWidget x)) ws)
+ `extQ` (\ws -> Just $ map (\w@(Widget stbid id x) -> let vi = getViewId x in WidgetNode vi stbid id (JSVarWidget x)) ws)
            )              -- TODO can we do this bettter?
 
 
@@ -61,6 +63,7 @@ mkWebNodeMap x = Map.fromList $ everything (++)
       `extQ` (\(Widget sid id w) -> let vid = getViewId w in [(vid, WidgetNode vid sid id $ TextWidget w)])
       `extQ` (\(Widget sid id w) -> let vid = getViewId w in [(vid, WidgetNode vid sid id $ RadioViewWidget w)])
       `extQ` (\(Widget sid id w) -> let vid = getViewId w in [(vid, WidgetNode vid sid id $ ButtonWidget w)])
+      `extQ` (\(Widget sid id w) -> let vid = getViewId w in [(vid, WidgetNode vid sid id $ JSVarWidget w)])
   ) x    
 
 getTopLevelWebNodesWebView :: Data db => WebView db -> [WebNode db]
@@ -147,7 +150,7 @@ webViewGetInternalIds (WebView _ _ _ _ v) =
       isId :: Id -> Bool
       isId _ = True
       stop :: GenericQ Bool
-      stop = False `mkQ` isWebView `extQ` isWidget1 `extQ` isWidget2 `extQ` isWidget3 `extQ` isWidget4
+      stop = False `mkQ` isWebView `extQ` isWidget1 `extQ` isWidget2 `extQ` isWidget3 `extQ` isWidget4 `extQ` isWidget5
       isWebView :: WebView  db -> Bool -- TODO: aargh! just one is tricky with the type var in widget
       isWebView _ = True
       isWidget1 :: Widget LabelView -> Bool
@@ -158,7 +161,8 @@ webViewGetInternalIds (WebView _ _ _ _ v) =
       isWidget3 _ = True
       isWidget4 :: Widget (Button db) -> Bool
       isWidget4 _ = True
-
+      isWidget5 :: Widget JSVar -> Bool
+      isWidget5 _ = True
   in  listifyBut isId stop v 
 
 -- a GenericQ is easier in the callee code, but not as nice for the caller
@@ -214,13 +218,13 @@ type Updates = Map ViewId String  -- maps id's to the string representation of t
 -- TODO is dummy db arg necessary?
 replace :: forall db d . (Typeable db, Data d) => db -> Updates -> d -> d
 replace _ updates v = (everywhere $  mkT    (replaceText updates :: TextView db -> TextView db)
-                                     `extT` replaceLabelView updates
-                                     `extT` replaceRadioView updates) v
+                                     `extT` replaceRadioView updates
+                                     `extT` replaceJSVar updates) v
 
-replaceLabelView :: Updates -> LabelView -> LabelView
-replaceLabelView updates x@(LabelView i _) =
+replaceJSVar :: Updates -> JSVar -> JSVar
+replaceJSVar updates x@(JSVar i nm _) =
   case Map.lookup i updates of
-    Just str -> (LabelView i str)
+    Just str -> (JSVar i nm str)
     Nothing -> x
 
 replaceText :: Updates -> TextView db -> TextView db
@@ -268,6 +272,13 @@ getTextByViewId i view =
     [b] -> b
     []  -> error $ "internal error: no text with id "++show i
     _   -> error $ "internal error: multiple texts with id "++show i
+
+getJSVarByViewId :: Data d => ViewId -> d -> JSVar
+getJSVarByViewId i view = 
+  case listify (\(JSVar i' _ _) -> i==i') view of
+    [b] -> b
+    []  -> error $ "internal error: no JSVar with id "++show i
+    _   -> error $ "internal error: multiple JSVars with id "++show i
 
 getEditActionByViewId :: (Typeable db, Data d) => ViewId -> d -> EditAction db
 getEditActionByViewId i view = 

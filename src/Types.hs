@@ -66,7 +66,8 @@ instance Eq (Widget w) where
 data AnyWidget db = LabelWidget !LabelView
                   | TextWidget !(TextView db)
                   | RadioViewWidget !RadioView 
-                  | ButtonWidget !(Button db) 
+                  | ButtonWidget !(Button db)
+                  | JSVarWidget !JSVar -- TODO: not really a widget, but until we know what it is, or what we should call widget, it is here 
                     deriving (Eq, Show, Typeable, Data)
 
 -- Label
@@ -132,6 +133,16 @@ instance Eq (Button db) where
 
 button viewId txt enabled style onclick cmd = Widget noId noId $ Button viewId txt enabled style onclick cmd
 
+-- JSVar
+
+data JSVar = JSVar { getJSVarViewId :: ViewId, getJSVarName :: String, getJSVarValue_ :: String } deriving (Show, Typeable, Data)
+
+instance Eq JSVar where
+  JSVar _ n1 v1 == JSVar _ n2 v2 = n1 == n2 && v1 == v2
+  
+jsVar viewId name value = Widget noId noId $ JSVar viewId name value
+
+getJSVarValue (Widget _ _ jsv) = getJSVarValue_ jsv
 
 
 --- Editing
@@ -177,6 +188,9 @@ instance HasViewId (Button db) where
 
 instance HasViewId (EditAction db) where
   getViewId = getActionViewId
+
+instance HasViewId JSVar where
+  getViewId = getJSVarViewId
 
 --instance Show (a->a) where
 --  show f = "<function>"
@@ -326,7 +340,10 @@ instance Initial RadioView where
   initial = RadioView noViewId [] 0 False
 
 instance Initial (Button db) where
-  initial = Button noViewId "<button>" False "" "" (Edit $ return ())
+  initial = Button noViewId "" False "" "" (Edit $ return ())
+
+instance Initial JSVar where
+  initial = JSVar noViewId "" ""
 
 instance Initial (EditAction db) where
   initial = EditAction noViewId (Edit $ return ())  

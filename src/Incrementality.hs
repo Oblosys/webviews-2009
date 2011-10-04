@@ -162,6 +162,7 @@ getWidgetInternalId  (LabelWidget (LabelView id _)) = id
 getWidgetInternalId  (TextWidget (TextView id _ _ _)) = id
 getWidgetInternalId  (RadioViewWidget (RadioView id _ _ _)) = id
 getWidgetInternalId  (ButtonWidget (Button id _ _ _ _ _)) = id
+getWidgetInternalId  (JSVarWidget (JSVar id _ _)) = id
             
 getBreadthFirstWebNodes :: Data db => WebView db -> [WebNode db]
 getBreadthFirstWebNodes rootView =
@@ -229,9 +230,10 @@ drawWebNodes webnode = drawTree $ treeFromView webnode
          Node ("("++show vid++", stub:" ++ show (unId sid) ++ ", id:" ++ show (unId id) ++ ") : " ++ showAnyWidget w) $
               map treeFromView $ getTopLevelWebNodesWebNode w
         where showAnyWidget (LabelWidget (LabelView id t)) = "Label "++ show id ++" "++ show t
-              showAnyWidget (TextWidget (TextView id t s _)) = "TextView"++ show id ++" "++ show t ++ " " ++ show s
+              showAnyWidget (TextWidget (TextView id t s _)) = "TextView "++ show id ++" "++ show t ++ " " ++ show s
               showAnyWidget (RadioViewWidget (RadioView id is i e)) = "RadioView " ++ show id ++" " ++ show i ++(if e then "enabled" else "disabled") ++ ": "++ show is
-              showAnyWidget (ButtonWidget (Button id _ _ _ _ _)) = "Button " ++ show id 
+              showAnyWidget (ButtonWidget (Button id t _ _ _ _)) = "Button " ++ show id ++ show t
+              showAnyWidget (JSVarWidget (JSVar id n v)) = "JSVar "++ show id ++" "++ show n ++ " " ++ show v
                  
 data T = T Char [T]
 t0 = T 'a' [T 'b' [T 'd' [], T 'e' []], T 'c' [], T 'f' [T 'g' []]]

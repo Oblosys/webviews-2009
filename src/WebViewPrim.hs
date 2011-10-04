@@ -118,6 +118,8 @@ mkButtonWithStyleClick str en st foc = mkButtonEx str en st foc $ Edit $ return 
 mkButtonEx :: String -> Bool -> String -> (ViewId -> String) -> EditCommand db -> WebViewM db (Widget (Button db)) -- signature nec. against ambiguity
 mkButtonEx str en st foc ac = assignViewId $ \vid -> button vid str en st (foc vid) ac
 
+mkJSVar name value = assignViewId $ \vid -> jsVar vid name value
+
 
 widgetGetViewRef widget = mkViewRef $ widgetGetViewId widget
                   
@@ -357,6 +359,14 @@ presentRadioView (RadioView viewId items selectedIx enabled) = thespan <<
   | (i, item) <- zip [0..] items 
   , let eltId = "radio"++show viewId++"button"++show i ] -- these must be unique for setting focus
 
+presentJSVar :: JSVar -> Html
+presentJSVar (JSVar viewId name value) = thediv ! [identifier $ show viewId] << 
+  (mkScript $ let jsVar = name++viewIdSuffix viewId
+              in  "if (typeof "++jsVar++" ==\"undefined\") {"++jsVar++" = "++value++"};")
+              -- no "var " here, does not work when evaluated with eval
+  
+
+
 instance Presentable (WebView db) where
   present (WebView _ (Id stubId) _ _ _) = mkSpan (show stubId) << "ViewStub"
   
@@ -366,10 +376,11 @@ instance Presentable (Widget x) where
 
 -- todo button text and radio text needs to go into view
 instance Presentable (AnyWidget db) where                          
-  present (LabelWidget v) = presentLabelView v 
-  present (TextWidget v) = presentTextField v
-  present (RadioViewWidget v) = presentRadioView v 
-  present (ButtonWidget v) = presentButton v 
+  present (LabelWidget w) = presentLabelView w 
+  present (TextWidget w) = presentTextField w
+  present (RadioViewWidget w) = presentRadioView w 
+  present (ButtonWidget w) = presentButton w 
+  present (JSVarWidget w) = presentJSVar w 
   
 
 
