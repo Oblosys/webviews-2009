@@ -11,11 +11,11 @@ Cabal-Version:  >= 1.2
      
 Flag piglet
   description:  Build WebViews Piglet
-  default:      True        
+  default:      False        
 
 Flag reservations
-  description:  Build WebViews test
-  default:      True        
+  description:  Build WebViews Reservations
+  default:      False        
     
 -- Mains are in separate dirs, cannot use Main-is: Main1.hs etc., since scion demands that the module name is the file name (and ghc demands that the main module is called Main)
 -- Main is not qualified, since GHC doesn't even allow Module.Main as main.
