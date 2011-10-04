@@ -3,8 +3,14 @@
 <script src="http://code.jquery.com/jquery-latest.js"></script>
 
 <link href="../scr/WebViews.css" rel="stylesheet" type="text/css" />
+  <script type="text/javascript" src="http://ajax.googleapis.com/ajax/libs/jquery/1.6.4/jquery.min.js"></script>
+  <script type="text/javascript" src="spin.min.js"></script>
 <script type="text/javascript">
 
+$(document).ready(function(){
+
+
+});
 function dispatch() {
   
   g();
@@ -16,7 +22,32 @@ function dispatch() {
     
   
 }
+function spin() {
+    
+    var opts = {
+  lines: 12, // The number of lines to draw
+  length: 7, // The length of each line
+  width: 4, // The line thickness
+  radius: 10, // The radius of the inner circle
+  color: '#000', // #rgb or #rrggbb
+  speed: 1, // Rounds per second
+  trail: 60, // Afterglow percentage
+  shadow: false // Whether to render a shadow
+};
+var target = document.getElementById('spin');
+var spinner = new Spinner(opts).spin(target);
 
+
+  console.log($('#spin').height());
+  var divWidth = $('#spin').width();
+  var divHeight = $('#spin').height();
+  var spinnerWidth = 48;
+  var spinnerHeight = 48;
+  var spinnerMarginLeft = 0;// (divWidth-spinnerWidth)/2;
+  var spinnerMarginTop = 0;// (divHeight-spinnerHeight)/2;
+  $('#spin').prepend('<div style="z-index: 100; position:absolute; width:'+(divWidth-spinnerMarginLeft)+'px; height:'+(divHeight-spinnerMarginTop)+'px; padding-left:'+spinnerMarginLeft+'px; padding-top:'+spinnerMarginTop+'px; vertical-align:middle; background-color:grey; opacity:0.4; filter:alpha(opacity=40); /* For IE8 and earlier */"></div>');
+
+}
 function f() {
     g();
 }
@@ -44,24 +75,26 @@ function checkAttrs() {
 </script>
 </head>
 <body>
-kjhkjhkjhkhjk
 <table cellpadding="0" cellspacing="0" style="border-collapse: collapse; border: 2px solid darkgrey;font-family:Arial">
 <tr>
   <td style="border: 2px solid grey;background-color: lightgrey">blaa</td>
   <td style="border: 2px solid grey;background-color: grey"><div><button onclick="dispatch()" style="width:100%">1</button></div></td>
-  <td style="border: 2px solid grey;background-color: lightgrey">drie</td>
+  <td style="border: 2px solid grey;background-color: lightgrey">drie bla bla bla bla</td>
 </tr>
 <tr>
-  <td style="background-color: grey">1</td>
+  <td style="background-color: grey; height: 80px">1</td>
   <td style="background-color: #80b0ff">gjhgjhgjh</td>
   <td style="border: 2px solid red">
-  <div style="background-color:yellow">
+  <div id="spin" style="background-color:yellow">
   <table cellpadding="0" cellspacing="0" style="margin:3px; ">
 <tr>
   <td style="background-color: lightgrey">2</td>
 </tr>
 <tr>
   <td style="background-color: lightgrey">3</td>
+</tr>
+<tr>
+  <td style="background-color: lightgrey">4</td>
   <td style="background-color: darkgrey">
   <div class="rounded_colhead">
   <span style="background-color: grey">element</span>
@@ -70,7 +103,7 @@ kjhkjhkjhkhjk
   <td>
   </td>
 </table>
-</div>
+    </div>
   </td>
 </table>
 </body>
@@ -106,10 +139,13 @@ kjhkjhkjhkhjk
 
 <table cellpadding="0" cellspacing="0" style="">
 <tr><td>  </td></tr></table>
-<button id="buttonId" onclick="">a button</button>
 <button onclick="checkAttrs()">g</button>
+<button onclick="spin()">Spin!</button>
 <!-- border-collapse: collapse; zodat borders samenvallen 
 border-width (or any other border property) only has effect when border-style is set
 -->
+
+
+
 </body>
 </html>
