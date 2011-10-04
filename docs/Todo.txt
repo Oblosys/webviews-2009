@@ -50,9 +50,6 @@ Allow specification of client-side edit op.
  onClick commitButton $ commit form
  
  
- normal events must be routed to some function which relays them to the scripts 
- specified with the on.. functions
- 
 Naming
 Text/TextView
 RadioView 
@@ -63,11 +60,15 @@ The synonyms should be consistent with the naming in Types
 
 
 Possible bugs
+
  Drag & drop code may interfere with hList and vList spacings
 
 
-
+Escape everything
+  Button text, ...
 Scripting:
+- Now scripts are executed after creation of node  "new eval new eval update ...", can it be necessary for an init script
+   that the view tree is complete? (so we need to move all evals to the end of the list)
 - Handle escaping, emitting the string </WebViewsJavaScript> will crash 
 - Maybe we can create a special WebNode for scripts? Might make it easier to present them automatically and won't require the extraction.
    It would require changing Incrementality though.
