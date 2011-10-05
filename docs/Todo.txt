@@ -84,10 +84,7 @@ Possible bugs
 Escape everything
   Button text, ...
 Scripting:
--  Now scripts are executed after creation of node  "new eval new eval update ...", can it be necessary for an init script
-   that the view tree is complete? (so we need to move all evals to the end of the list)
-   UPD: Not doing this may be dangerous, since scripts refer to viewId's which will still be in the old root view.., so scripts (not only inits but all) may
-   only be executed after updating the tree.
+-  Scripts are gathered and all executed after the new viewtree has been built. This is necessary, since scripts may refer to viewId's which will still be in the old root view.
    
 - Handle escaping, emitting the string </WebViewsJavaScript> will crash 
 - Maybe we can create a special WebNode for scripts? Might make it easier to present them automatically and won't require the extraction.
