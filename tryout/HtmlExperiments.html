@@ -22,25 +22,27 @@ function dispatch() {
     
   
 }
-function spin() {
-    
-    var opts = {
-  lines: 12, // The number of lines to draw
-  length: 7, // The length of each line
-  width: 4, // The line thickness
-  radius: 10, // The radius of the inner circle
-  color: '#000', // #rgb or #rrggbb
-  speed: 1, // Rounds per second
-  trail: 60, // Afterglow percentage
-  shadow: false // Whether to render a shadow
-};
-var target = document.getElementById('spin');
-var spinner = new Spinner(opts).spin(target);
+
+function spin(id) {    
+  var opts = {
+    lines: 12, // The number of lines to draw
+    length: 7, // The length of each line
+    width: 4, // The line thickness
+    radius: 10, // The radius of the inner circle
+    color: '#000', // #rgb or #rrggbb
+    speed: 1, // Rounds per second
+    trail: 60, // Afterglow percentage
+    shadow: false // Whether to render a shadow
+  };
+  
+  var targetElt = document.getElementById(id);
+  var spinner = new Spinner(opts).spin(targetElt);
 
 
-  console.log($('#spin').height());
-  var divWidth = $('#spin').width();
-  var divHeight = $('#spin').height();
+  $targetElt = $('#'+id);
+  console.log($targetElt.height());
+  var divWidth = $targetElt.width();
+  var divHeight = $targetElt.height();
   var spinnerWidth = 48;
   var spinnerHeight = 48;
   var spinnerMarginLeft = 0;// (divWidth-spinnerWidth)/2;
@@ -140,7 +142,7 @@ function checkAttrs() {
 <table cellpadding="0" cellspacing="0" style="">
 <tr><td>  </td></tr></table>
 <button onclick="checkAttrs()">g</button>
-<button onclick="spin()">Spin!</button>
+<button onclick="spin('spin')">Spin!</button>
 <!-- border-collapse: collapse; zodat borders samenvallen 
 border-width (or any other border property) only has effect when border-style is set
 -->
