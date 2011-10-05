@@ -216,7 +216,8 @@ instance Presentable RestaurantView where
       , vSpace 5
       , mkTableEx [cellpadding 0, cellspacing 0, thestyle "border-collapse:collapse; text-align:center"] [] [thestyle "border: 1px solid #909090"]  
                   (header :
-                   [ [ ([withEditActionAttr selectionAction], present dayView) 
+                   [ [ ([{- withEditActionAttr selectionAction-} strAttr "onClick" $ "addSpinner('hourView');"++
+                                                                "queueCommand('PerformEditActionC ("++show (getViewId selectionAction)++") []')"], present dayView) 
                      | (dayView, selectionAction) <- week] 
                    | week <- weeks ]
                    )
@@ -325,7 +326,8 @@ mkHourView restaurantViewId mSelectedReservation mSelectedHour hourReservations 
  
 instance Presentable HourView where
   present (HourView mSelectedReservation mSelectedHour selectReservationActions hourReservations) = 
-    boxedEx 0 $ with [thestyle "height:90px;overflow:auto"] $
+    with [identifier "hourView"] $ -- in separate div, because spinners on scrolling elements  cause scrollbars to be shown
+    boxedEx 0 $ with [ thestyle "height:90px;overflow:auto"] $
       mkTableEx [width "100%", cellpadding 0, cellspacing 0, thestyle "border-collapse:collapse"] [] [] $ 
         [ [ ([withEditActionAttr sa, thestyle $ "border: 1px solid #909090; background-color: "++
                                                 if Just r==mSelectedReservation then htmlColor selectedDayColor else "#f8f8f8"]
@@ -476,7 +478,7 @@ mkClientView = mkWebView $
      
      ; return $ ClientView nrOfP mDate mTime nrButtons nameText commentText todayButton tomorrowButton dayButtons timeButtonss confirmButton 
                            nrOfPeopleLabel dateLabel timeLabel submitAction
-                  $ "/*"++show (ctSec ct)++"*/" ++
+                  $ --"/*"++show (ctSec ct)++"*/" ++
                     declareVar vid "selectedNr" "2" ++
                     datesAndAvailabilityDecl ++
                     -- maybe combine these with button declarations to prevent multiple list comprehensions
