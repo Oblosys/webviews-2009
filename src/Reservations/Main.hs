@@ -216,7 +216,8 @@ instance Presentable RestaurantView where
       , vSpace 5
       , mkTableEx [cellpadding 0, cellspacing 0, thestyle "border-collapse:collapse; text-align:center"] [] [thestyle "border: 1px solid #909090"]  
                   (header :
-                   [ [ ([{- withEditActionAttr selectionAction-} strAttr "onClick" $ "addSpinner('hourView');"++
+                   [ [ ([{- withEditActionAttr selectionAction-} strAttr "onClick" $ "addSpinner('hourView');"++ -- todo refs are hardcoded!
+                                                                "addSpinner('reservationView');"++
                                                                 "queueCommand('PerformEditActionC ("++show (getViewId selectionAction)++") []')"], present dayView) 
                      | (dayView, selectionAction) <- week] 
                    | week <- weeks ]
@@ -356,7 +357,7 @@ mkReservationView mReservation = mkWebView $
 -- todo comment has hard-coded width. make constant for this
 instance Presentable ReservationView where
   present (ReservationView mReservation removeButton) = with [thestyle "background-color:#f0f0f0"] $ boxed $ 
-    vListEx [] 
+    vListEx [ identifier "reservationView"] 
       [ hListEx [width "100%"] [ stringToHtml "Reservation date: ",nbsp
                                , with [colorAttr reservationColor] $ stringToHtml date
                                , with [align "right"] $ present removeButton]
@@ -528,7 +529,7 @@ readVar vid name = name++viewIdSuffix vid
 writeVar vid name value = name++viewIdSuffix vid++" = "++value++";"
 -- TODO: maybe refVar and assignVar are more appropriate?
 declareVar vid name value = let jsVar = name++viewIdSuffix vid
-                            in  "if (typeof "++jsVar++" ==\"undefined\") {"++jsVar++" = "++value++";console.error(\"declaring\")};"
+                            in  "if (typeof "++jsVar++" ==\"undefined\") {"++jsVar++" = "++value++";};"
 -- no "var " here, does not work when evaluated with eval
 
 callFunction vid name params = name++viewIdSuffix vid++"("++intercalate "," params++")"
