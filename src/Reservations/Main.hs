@@ -195,6 +195,8 @@ mkRestaurantView = mkWebView $
      
      ; return $ RestaurantView mSelectedDate' mSelectedHour' mSelectedReservation' (currentMonth, currentYear) weeks dayView hourView reservationView $
          "console.log(\"restaurant script\");"++
+         declareVar vid "selectedHour" "\"\"" ++ -- "" is no selection
+         writeVar vid "selectedHour" (maybe "\"\"" show mSelectedHour') ++ -- todo for now we just set it each time
          callFunction (getViewId dayView) "present" [] ++";"++
          callFunction (getViewId hourView) "present" [] ++";"++
          callFunction (getViewId reservationView) "present" [] ++";"
@@ -259,6 +261,7 @@ mkCalendarDayView date isSelected isToday isThisMonth reservations = mkWebView $
      }
      
 selectedDayColor = Rgb 0x80 0xb0 0xff
+selectedHourColor = Rgb 0x80 0xb0 0xff
 
 instance Presentable CalendarDayView where
   present (CalendarDayView date@(day, month, year) isSelected isToday isThisMonth reservations) = 
@@ -266,7 +269,7 @@ instance Presentable CalendarDayView where
     -- we use a margin of 3 together with the varying cell background to show today
     -- doing this with borders is awkward as they resize the table
       mkTableEx [ width "40px", height 40, cellpadding 0, cellspacing 0 
-                , thestyle $ "margin:2px; background-color:" ++ if isSelected then htmlColor selectedDayColor else htmlColor (Rgb 240 240 240) ] [] [] 
+                , thestyle $ "margin:2px; background-color:" ++ if isSelected then htmlColor selectedHourColor else htmlColor (Rgb 240 240 240) ] [] [] 
         [[ ([valign "top"] ++ if isThisMonth then [] else [thestyle "color: #808080"], stringToHtml (show day)) ]
         ,[ ([thestyle "font-size:80%; color:#0000ff"], if not $ null reservations then stringToHtml $ show (length reservations) ++ " (" ++ show (sum $ map nrOfPeople reservations)++")" else nbsp) ] 
         ]
@@ -291,15 +294,18 @@ mkDayView restaurantViewId mSelectedHour dayReservations = mkWebView $
  \vid (DayView _ _ _ _) ->
   do { selectHourActions <- mapM (selectHourEdit restaurantViewId) [18..24]
      ; return $ DayView mSelectedHour selectHourActions dayReservations $
-         declareFunction vid "present" [] "console.log(\"Present day view called\")"
+         declareFunction vid "present" [] $
+           "console.log(\"Present day view called \"+"++readVar restaurantViewId "selectedHour"++");" ++
+           "if ("++readVar restaurantViewId "selectedHour"++"!=\"\")"++ -- todo: reference to hourOfDay is hard coded
+           "$(\"#hourOfDayView_\"+"++readVar restaurantViewId "selectedHour"++").css(\"background-color\",\""++htmlColor selectedHourColor++"\");" ++
+           "else console.log(\"not done\");"
      }
  where selectHourEdit vid h = mkEditAction . Edit $ viewEdit vid $ \(RestaurantView d _ r my weeks dayView hourView reservationView scr) -> RestaurantView d (Just h) r my weeks dayView hourView reservationView scr
  
 instance Presentable DayView where
   present (DayView mSelectedHour selectHourActions dayReservations script) =
     mkTableEx [width "100%", cellpadding 0, cellspacing 0, thestyle "border-collapse:collapse; font-size:80%"] [] [] 
-      [[ ([withEditActionAttr sa, thestyle $ "border: 1px solid #909090; background-color: "++
-                                             if Just hr==mSelectedHour then htmlColor selectedDayColor else "#d0d0d0"]
+      [[ ([identifier $ "hourOfDayView_"++show hr,withEditActionAttr sa, thestyle $ "border: 1px solid #909090; background-color: #d0d0d0"]
          , presentHour hr) | (sa,hr) <- zip selectHourActions [18..24] ]] +++ mkScript script
 
 --    mkTableEx [cellpadding 0, cellspacing 0, thestyle "border-collapse:collapse; text-align:center"] [] [thestyle "border: 1px solid #909090"]  
