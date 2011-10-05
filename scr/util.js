@@ -22,14 +22,14 @@ function addSpinner(id) {
   var divHeight = $targetElt.height();
   var overlay = $('<div style="z-index: 100; position:absolute; width:'+divWidth+'px; height:'+divHeight+'px; background-color:grey; opacity:0.1; filter:alpha(opacity=10); /* For IE8 and earlier */"></div>');
   $targetElt.prepend(overlay);
-  console.log('Spinner '+spinner);
   spinners.push({spinner: spinner, overlay: overlay});
 }
 
 function clearSpinners() {
-	for (i=0; i<spinners.length; i++) {
-		console.log('Spinner '+spinners[i]);
-		spinners[i].spinner.stop();
-		spinners[i].overlay.remove();
+	while (spinner = spinners.pop()) {
+		console.log('Clearing spinner '+spinner);
+		spinner.spinner.stop();
+		spinner.overlay.remove();
 	}
+	
 }
