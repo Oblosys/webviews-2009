@@ -7,6 +7,7 @@ import Text.Html hiding (image)
 import qualified Text.Html as Html
 import Data.Generics
 import Data.Char
+import Data.Maybe
 import Data.Map (Map)
 import qualified Data.Map as Map 
 import Data.IntMap (IntMap)
@@ -177,7 +178,8 @@ mkIncrementalUpdates oldRootView rootView =
     --; putStrLn $ "\nChanged or new web nodes\n" ++ unlines (map shallowShowWebNode newWebNodes) 
     --; putStrLn $ "\nUpdates\n" ++ unlines (map show updates)
     
-    ; let htmlUpdates = map newWebNodeHtml newWebNodes ++ map updateHtml updates
+    ; let (newCommands, mEvalCommands) = unzip $ map newWebNodeHtml newWebNodes 
+    ; let htmlUpdates =newCommands  ++ map updateHtml updates ++ catMaybes mEvalCommands
 
     ; let subs = concat [ case upd of  -- TODO: fix something here
                                     RestoreId (IdRef o) (IdRef n) -> [(Id o, Id n)]  
@@ -197,19 +199,19 @@ mkIncrementalUpdates oldRootView rootView =
 showViewMap viewMap = unlines $ "ViewMap:" : [ show k ++ shallowShowWebView wv | (k, wv) <- Map.toList viewMap ]
 
 -- note, there is no update, just new and move. 
-newWebNodeHtml :: WebNode db -> Html
+newWebNodeHtml :: WebNode db -> (Html, Maybe Html)
 newWebNodeHtml (WidgetNode _ _ (Id i) w) =
   let htmlWithScript = present w
       (html, scripts) = extractScriptHtml htmlWithScript
       updateResponse = thediv![strAttr "op" "new"] << (mkSpan (show i) $ html)
       scriptResponse = thediv![strAttr "op" "eval"] << (stringToHtml $ concat scripts)
-  in  if null scripts then updateResponse else updateResponse +++ scriptResponse
+  in  (updateResponse, if null scripts then Nothing else Just scriptResponse)
 newWebNodeHtml (WebViewNode (WebView _ _ (Id i) _ v)) = 
   let htmlWithScript = present v
       (html, scripts) = extractScriptHtml htmlWithScript
       updateResponse = thediv![strAttr "op" "new"] << (mkSpan (show i) $ html)
       scriptResponse = thediv![strAttr "op" "eval"] << (stringToHtml $ concat scripts)
-  in  if null scripts then updateResponse else updateResponse +++ scriptResponse  
+  in  (updateResponse, if null scripts then Nothing else Just scriptResponse)  
 
 updateHtml :: Update -> Html
 updateHtml (Move _ (IdRef src) (IdRef dst)) = if src == dst then error $ "Source is destination: "++show src else
