@@ -189,12 +189,15 @@ function state_Change() {
    			updateTree( updates.firstChild );
         updates.removeChild(updates.firstChild);
       }
+   		
+   		clearSpinners();
+   		
    		console.log('Nr of remaining new nodes '+document.getElementById('new').childNodes.length);
    		if (document.getElementById('new').childNodes.length !=0)
    			alert("Error, new node list not empty");
       
    		if (drawingViewTree)
-      drawViewTree();
+        drawViewTree();
 
       removeChildrenById("parking"); // clean any parked webnodes
 
