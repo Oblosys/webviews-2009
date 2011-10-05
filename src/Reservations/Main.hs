@@ -134,14 +134,14 @@ instance Storeable Database MainView where
 -- Main ----------------------------------------------------------------------  
 
 data RestaurantView = 
-  RestaurantView (Maybe Date) (Maybe Int) (Maybe Reservation) (Int,Int) [[(WebView Database,EditAction Database)]] (WebView Database) (WebView Database) (WebView Database)
+  RestaurantView (Maybe Date) (Maybe Int) (Maybe Reservation) (Int,Int) [[(WebView Database,EditAction Database)]] (WebView Database) (WebView Database) (WebView Database) String
     deriving (Eq, Show, Typeable, Data)
 
 instance Initial RestaurantView where                 
-  initial = RestaurantView initial initial initial (initial,initial) [] initial initial initial
+  initial = RestaurantView initial initial initial (initial,initial) [] initial initial initial initial
 
 mkRestaurantView = mkWebView $
- \vid (RestaurantView mSelectedDate mSelectedHour mSelectedReservation _ _ _ _ _) ->
+ \vid (RestaurantView mSelectedDate mSelectedHour mSelectedReservation _ _ _ _ _ _) ->
   do { clockTime <-  liftIO getClockTime
      ; ct <- liftIO $ toCalendarTime clockTime
      ; let today@(currentDay, currentMonth, currentYear) = dateFromCalendarTime ct
@@ -193,15 +193,19 @@ mkRestaurantView = mkWebView $
      ; reservationView <- mkReservationView mSelectedReservation'
 
      
-     ; return $ RestaurantView mSelectedDate' mSelectedHour' mSelectedReservation' (currentMonth, currentYear) weeks dayView hourView reservationView
+     ; return $ RestaurantView mSelectedDate' mSelectedHour' mSelectedReservation' (currentMonth, currentYear) weeks dayView hourView reservationView $
+         "console.log(\"restaurant script\");"++
+         callFunction (getViewId dayView) "present" [] ++";"++
+         callFunction (getViewId hourView) "present" [] ++";"++
+         callFunction (getViewId reservationView) "present" [] ++";"
      }
  where selectDateEdit vid d = mkEditAction . Edit $
         do { (_,_,db,_,_) <- get
            ; viewEdit vid $ 
-              \(RestaurantView _ h r my weeks dayView hourView reservationView) ->
+              \(RestaurantView _ h r my weeks dayView hourView reservationView script) ->
                 let resHours = sort $ map (fst . time) $ filter ((==d). date) $ Map.elems $ allReservations db
                     newHr = if null resHours then h else Just $ head resHours 
-                in  RestaurantView (Just d) newHr r my weeks dayView hourView reservationView
+                in  RestaurantView (Just d) newHr r my weeks dayView hourView reservationView script
            }
 
 getWebViewId (WebView vid _ _ _ _) = vid
@@ -210,8 +214,8 @@ getWebViewId (WebView vid _ _ _ _) = vid
 mark different months, mark appointments
  -}
 instance Presentable RestaurantView where
-  present (RestaurantView mSelectedDate mSelectedHour mSelectedReservation (currentMonth, currentYear) weeks dayView hourView reservationView) = 
-    vList $ 
+  present (RestaurantView mSelectedDate mSelectedHour mSelectedReservation (currentMonth, currentYear) weeks dayView hourView reservationView script) = 
+    (vList $ 
       [ with [thestyle "text-align:center; font-weight:bold"] $ stringToHtml $ showMonth currentMonth ++ " "++show currentYear
       , vSpace 5
       , mkTableEx [cellpadding 0, cellspacing 0, thestyle "border-collapse:collapse; text-align:center"] [] [thestyle "border: 1px solid #909090"]  
@@ -233,8 +237,8 @@ instance Presentable RestaurantView where
       , vSpace 6
       , present hourView
       , vSpace 15
-      , present reservationView 
-      ]
+      , present reservationView
+      ]) +++ mkScript script
    where header = [ ([], stringToHtml $ map toLower $ showShortDay d) | d <- [1..7] ] 
 instance Storeable Database RestaurantView where
   save _ = id
@@ -276,26 +280,27 @@ instance Storeable Database CalendarDayView where
 -----------------------------------------------------------------------------
 
 data DayView = 
-  DayView (Maybe Int) [EditAction Database] [Reservation]
+  DayView (Maybe Int) [EditAction Database] [Reservation] String
     deriving (Eq, Show, Typeable, Data)
   
 instance Initial DayView where                 
-  initial = DayView initial initial initial
+  initial = DayView initial initial initial initial
 
 mkDayView :: ViewId -> Maybe Int -> [Reservation] -> WebViewM Database (WebView Database)
 mkDayView restaurantViewId mSelectedHour dayReservations = mkWebView $
- \vid (DayView _ _ _) ->
+ \vid (DayView _ _ _ _) ->
   do { selectHourActions <- mapM (selectHourEdit restaurantViewId) [18..24]
-     ; return $ DayView mSelectedHour selectHourActions dayReservations 
+     ; return $ DayView mSelectedHour selectHourActions dayReservations $
+         declareFunction vid "present" [] "console.log(\"Present day view called\")"
      }
- where selectHourEdit vid h = mkEditAction . Edit $ viewEdit vid $ \(RestaurantView d _ r my weeks dayView hourView reservationView) -> RestaurantView d (Just h) r my weeks dayView hourView reservationView
+ where selectHourEdit vid h = mkEditAction . Edit $ viewEdit vid $ \(RestaurantView d _ r my weeks dayView hourView reservationView scr) -> RestaurantView d (Just h) r my weeks dayView hourView reservationView scr
  
 instance Presentable DayView where
-  present (DayView mSelectedHour selectHourActions dayReservations) =
+  present (DayView mSelectedHour selectHourActions dayReservations script) =
     mkTableEx [width "100%", cellpadding 0, cellspacing 0, thestyle "border-collapse:collapse; font-size:80%"] [] [] 
       [[ ([withEditActionAttr sa, thestyle $ "border: 1px solid #909090; background-color: "++
                                              if Just hr==mSelectedHour then htmlColor selectedDayColor else "#d0d0d0"]
-         , presentHour hr) | (sa,hr) <- zip selectHourActions [18..24] ]]
+         , presentHour hr) | (sa,hr) <- zip selectHourActions [18..24] ]] +++ mkScript script
 
 --    mkTableEx [cellpadding 0, cellspacing 0, thestyle "border-collapse:collapse; text-align:center"] [] [thestyle "border: 1px solid #909090"]  
    where presentHour hr = --withBgColor (Rgb 255 255 0) $
@@ -311,52 +316,54 @@ instance Storeable Database DayView where
 -----------------------------------------------------------------------------
 
 data HourView = 
-  HourView (Maybe Reservation) (Maybe Int) [EditAction Database] [Reservation]
+  HourView (Maybe Reservation) (Maybe Int) [EditAction Database] [Reservation] String
     deriving (Eq, Show, Typeable, Data)
   
 instance Initial HourView where                 
-  initial = HourView initial initial initial initial
+  initial = HourView initial initial initial initial initial
 
 mkHourView :: ViewId -> Maybe Reservation -> Maybe Int -> [Reservation] -> WebViewM Database (WebView Database)
 mkHourView restaurantViewId mSelectedReservation mSelectedHour hourReservations = mkWebView $
- \vid (HourView _ _ _ _) ->
+ \vid (HourView _ _ _ _ _) ->
   do { selectReservationActions <- mapM (selectReservationEdit restaurantViewId) hourReservations
-     ; return $ HourView mSelectedReservation mSelectedHour selectReservationActions hourReservations 
+     ; return $ HourView mSelectedReservation mSelectedHour selectReservationActions hourReservations $
+         declareFunction vid "present" [] "console.log(\"Present hour view called\")"
      }
- where selectReservationEdit vid r = mkEditAction . Edit $ viewEdit vid $ \(RestaurantView d h _ my weeks dayView hourView reservationView) -> RestaurantView d h (Just r) my weeks dayView hourView reservationView
+ where selectReservationEdit vid r = mkEditAction . Edit $ viewEdit vid $ \(RestaurantView d h _ my weeks dayView hourView reservationView scr) -> RestaurantView d h (Just r) my weeks dayView hourView reservationView scr
  
 instance Presentable HourView where
-  present (HourView mSelectedReservation mSelectedHour selectReservationActions hourReservations) = 
-    with [identifier "hourView"] $ -- in separate div, because spinners on scrolling elements  cause scrollbars to be shown
+  present (HourView mSelectedReservation mSelectedHour selectReservationActions hourReservations script) =
+    (with [identifier "hourView"] $ -- in separate div, because spinners on scrolling elements  cause scrollbars to be shown
     boxedEx 0 $ with [ thestyle "height:90px;overflow:auto"] $
       mkTableEx [width "100%", cellpadding 0, cellspacing 0, thestyle "border-collapse:collapse"] [] [] $ 
         [ [ ([withEditActionAttr sa, thestyle $ "border: 1px solid #909090; background-color: "++
                                                 if Just r==mSelectedReservation then htmlColor selectedDayColor else "#f8f8f8"]
             , hList [hSpace 2, stringToHtml $ showTime tm ++ " -   "++nm++" ("++show nr++")"]) ]
         | (sa,r@(Reservation _ _ tm nm nr _)) <- zip selectReservationActions hourReservations 
-        ]
+        ]) +++ mkScript script
 instance Storeable Database HourView where
   save _ = id
 
 -----------------------------------------------------------------------------
 
 data ReservationView = 
-  ReservationView (Maybe Reservation) (Widget (Button Database))
+  ReservationView (Maybe Reservation) (Widget (Button Database)) String
     deriving (Eq, Show, Typeable, Data)
   
 instance Initial ReservationView where                 
-  initial = ReservationView initial initial
+  initial = ReservationView initial initial initial
 
 mkReservationView mReservation = mkWebView $
- \vid (ReservationView _ _) ->
+ \vid (ReservationView _ _ _) ->
   do { removeButton <- mkButton "x" (isJust mReservation) $ 
          Edit $ docEdit $ maybe id (\res -> removeReservation $ reservationId res ) mReservation
-     ; return $ ReservationView mReservation removeButton
+     ; return $ ReservationView mReservation removeButton $
+         declareFunction vid "present" [] "console.log(\"Present reservation view called\")"
      }
  
 -- todo comment has hard-coded width. make constant for this
 instance Presentable ReservationView where
-  present (ReservationView mReservation removeButton) = with [thestyle "background-color:#f0f0f0"] $ boxed $ 
+  present (ReservationView mReservation removeButton script) = (with [thestyle "background-color:#f0f0f0"] $ boxed $ 
     vListEx [ identifier "reservationView"] 
       [ hListEx [width "100%"] [ stringToHtml "Reservation date: ",nbsp
                                , with [colorAttr reservationColor] $ stringToHtml date
@@ -367,7 +374,7 @@ instance Presentable ReservationView where
       , stringToHtml "Comment:" 
       , boxedEx 0 $ with [thestyle $ "padding-left:4px;height:70px; width:300px; overflow:auto; color:" ++ htmlColor reservationColor] $ 
           stringToHtml $ if comment == "" then "<no comment>" else  comment
-      ]  
+      ]) +++ mkScript script
    where (date, time, name, nrOfPeople, comment) =
            case mReservation of
              Just (Reservation _ date time name nrOfPeople comment) -> (showDate date, showTime time, name, show nrOfPeople, comment)
@@ -508,11 +515,11 @@ mkClientView = mkWebView $
                                                          writeVar vid "selectedDate" "date" ++
                                                          getElementByIdRef (widgetGetViewRef dateLabel)++".innerHTML = availability[date].date;" ++
                                                          callFunction vid "disenable" []) ++ 
-                    declareFunction vid "disenable" [""] ( "console.log(\"disenable: \","++readVar vid "selectedNr"++","++readVar vid "selectedDate"++","++readVar vid "selectedTime" ++" );"++
-                                                           "var availables = availability["++readVar vid "selectedDate"++"].availables;"++
-                                                           "var buttonIds = [\""++intercalate "\",\"" (map (show . widgetGetViewId) $ concat timeButtonss)++"\"];" ++
-                                                           "for (var i=0;i<buttonIds.length;i++)"++
-                                                           "  document.getElementById(buttonIds[i]).disabled = availables[i]<"++readVar vid "selectedNr"++";")
+                    declareFunction vid "disenable" [] ("console.log(\"disenable: \","++readVar vid "selectedNr"++","++readVar vid "selectedDate"++","++readVar vid "selectedTime" ++" );"++
+                                                         "var availables = availability["++readVar vid "selectedDate"++"].availables;"++
+                                                         "var buttonIds = [\""++intercalate "\",\"" (map (show . widgetGetViewId) $ concat timeButtonss)++"\"];" ++
+                                                         "for (var i=0;i<buttonIds.length;i++)"++
+                                                         "  document.getElementById(buttonIds[i]).disabled = availables[i]<"++readVar vid "selectedNr"++";")
                     -- todo: handle when time selection is disabled because of availability (on changing nr of persons or date)
 
                    
