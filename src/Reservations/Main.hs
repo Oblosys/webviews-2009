@@ -531,7 +531,8 @@ mkClientView = mkWebView $
                     onClick confirmButton ("textFieldChanged('"++show (getViewId nameText)++"');"++
                                            "textFieldChanged('"++show (getViewId commentText)++"');"++
                                            callServerEditAction submitAction [readVar vid "selectedNr", readVar vid "selectedDate", "'('+"++readVar vid "selectedTime"++".hour+','+"++readVar vid "selectedTime"++".min+')'"]) ++
-                    
+                    declareFunction vid "inputValid" [] ("return false;"
+                                                        ) ++
                     declareVar vid "selectedNr" "2" ++
                     declareFunction vid "setNr" ["nr"] ( "console.log(\"setNr (\"+nr+\") old val: \", "++readVar vid "selectedNr"++");"++
                                                          writeVar vid "selectedNr" "nr" ++
@@ -552,7 +553,8 @@ mkClientView = mkWebView $
                                                          "var availables = availability["++readVar vid "selectedDate"++"].availables;"++
                                                          "var buttonIds = [\""++intercalate "\",\"" (map (show . getViewId) $ concat timeButtonss)++"\"];" ++
                                                          "for (var i=0;i<buttonIds.length;i++)"++
-                                                         "  document.getElementById(buttonIds[i]).disabled = availables[i]<"++readVar vid "selectedNr"++";")
+                                                         "  document.getElementById(buttonIds[i]).disabled = availables[i]<"++readVar vid "selectedNr"++";"++
+                                                         getElementByIdRef (widgetGetViewRef confirmButton)++".disabled = "++callFunction vid "inputValid" []++";")
                     -- todo: handle when time selection is disabled because of availability (on changing nr of persons or date)
 
                    
@@ -582,17 +584,22 @@ instance Presentable ClientView where
   present (ClientView nrOfP mDate mTime nrButtons nameText commentText todayButton tomorrowButton dayButtons timeButtonss confirmButton
                       nrOfPeopleLabel dateLabel timeLabel _ script) = 
     vList [ hList [ stringToHtml "Name:", hSpace 4, present nameText]
+          , vSpace 10
           , hList [ stringToHtml $ "Nr of people: ", present nrOfPeopleLabel]
           , hListEx [width "100%"] $ map present nrButtons
+          , vSpace 10
           --, stringToHtml $ maybe "Please choose a date" (\d -> (showDay . weekdayForDate $ d) ++ ", " ++ showShortDate d) mDate
           , present dateLabel
           , hListEx [width "100%"] [ present todayButton, present tomorrowButton]
           , hListEx [width "100%"] $ map present dayButtons
+          , vSpace 10
           , present timeLabel
           --, stringToHtml $ maybe "Please select a time" (\d -> showTime d) mTime
           , simpleTable [width "100%",cellpadding 0, cellspacing 0] [] $ map (map present) timeButtonss
+          , vSpace 10
           , stringToHtml "Comments:"
           , present commentText
+          , vSpace 10
           , present confirmButton ] +++           
           mkScript script
  
