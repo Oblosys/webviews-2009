@@ -1,5 +1,7 @@
 TODO short term
+TODO: weird long compile time for Main
 TODO: why no $('#ViewId []') queries?
+TODO: get rid of viewRef here: getElementByIdRef (widgetGetViewRef)      id's are fine. viewRef is just for internal stuff
 TODO: report type problem in WebViewPrim.viewEdit
 BUG: empty script in mkWebView creates problem
 BUG: pressing button while focus on text field has weird behavior
