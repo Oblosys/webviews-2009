@@ -89,8 +89,8 @@ mkTestView2 _ = mkWebView $
      ; return $ TestView2 x b status $
          "console.log('test script running');" ++
          onClick b (refJSVar x++"++;console.log("++refJSVar x++");" ++
-                    "queueCommand('SetC ("++show (widgetGetViewId x)++") \"'+"++refJSVar x++"+'\"');"++
-                    "queueCommand('ButtonC ("++show (widgetGetViewId b)++")');")
+                    "queueCommand('SetC ("++show (getViewId x)++") \"'+"++refJSVar x++"+'\"');"++
+                    "queueCommand('ButtonC ("++show (getViewId b)++")');")
      }
 -- todo: reusing goes wrong in this case: ; nrOfPeopleVar <- mkJSVar "x" $ show $ getJSVarValue oldNrOfPeopleVar
 --extra escape chars are added on each iteration. (this was in a webview that was re-presented constantly)
@@ -190,16 +190,19 @@ mkRestaurantView = mkWebView $
 
      ; dayView <- mkDayView vid mSelectedHour' reservationsSelectedDay
      ; hourView <- mkHourView vid mSelectedReservation' mSelectedHour' reservationsSelectedHour
-     ; reservationView <- mkReservationView mSelectedReservation'
+     ; reservationView <- mkReservationView vid mSelectedReservation'
 
      
      ; return $ RestaurantView mSelectedDate' mSelectedHour' mSelectedReservation' (currentMonth, currentYear) weeks dayView hourView reservationView $
          "console.log(\"restaurant script\");"++
-         declareVar vid "selectedHour" "\"\"" ++ -- "" is no selection
+         declareVar vid "selectedDayIx" "\"\"" ++ -- "" is no selection
+         declareVar vid "selectedHourIx" "\"\"" ++ -- "" is no selection
+         declareVar vid "selectedReservationIx" "\"\"" ++ -- "" is no selection
          writeVar vid "selectedHour" (maybe "\"\"" show mSelectedHour') ++ -- todo for now we just set it each time
-         callFunction (getViewId dayView) "present" [] ++";"++
-         callFunction (getViewId hourView) "present" [] ++";"++
-         callFunction (getViewId reservationView) "present" [] ++";"
+         mkSelectedReservation vid mSelectedReservation' ++
+         callFunction (getViewId dayView) "load" [] ++";"++
+         callFunction (getViewId hourView) "load" [] ++";"++
+         callFunction (getViewId reservationView) "load" [] ++";"
      }
  where selectDateEdit vid d = mkEditAction . Edit $
         do { (_,_,db,_,_) <- get
@@ -209,6 +212,12 @@ mkRestaurantView = mkWebView $
                     newHr = if null resHours then h else Just $ head resHours 
                 in  RestaurantView (Just d) newHr r my weeks dayView hourView reservationView script
            }
+
+mkSelectedReservation vid mRes =
+  writeVar vid "selectedReservation" $
+    case mRes of 
+      Nothing -> "null"
+      Just (Reservation _ date time name nrOfPeople comment) -> "{date:"++show (showDate date) ++", time:"++show (showTime time)++", name:"++show name++", nrOfPeople:"++show nrOfPeople++", comment:"++show comment++"}"
 
 getWebViewId (WebView vid _ _ _ _) = vid
 
@@ -294,11 +303,10 @@ mkDayView restaurantViewId mSelectedHour dayReservations = mkWebView $
  \vid (DayView _ _ _ _) ->
   do { selectHourActions <- mapM (selectHourEdit restaurantViewId) [18..24]
      ; return $ DayView mSelectedHour selectHourActions dayReservations $
-         declareFunction vid "present" [] $
-           "console.log(\"Present day view called \"+"++readVar restaurantViewId "selectedHour"++");" ++
-           "if ("++readVar restaurantViewId "selectedHour"++"!=\"\")"++ -- todo: reference to hourOfDay is hard coded
-           "$(\"#hourOfDayView_\"+"++readVar restaurantViewId "selectedHour"++").css(\"background-color\",\""++htmlColor selectedHourColor++"\");" ++
-           "else console.log(\"not done\");"
+         declareFunction vid "load" [] $
+           "console.log(\"Load day view called \"+"++readVar restaurantViewId "selectedHourIx"++");" ++
+           "if ("++readVar restaurantViewId "selectedHourIx"++"!=\"\")"++ -- todo: reference to hourOfDay is hard coded
+           "$(\"#hourOfDayView_\"+"++readVar restaurantViewId "selectedHourIx"++").css(\"background-color\",\""++htmlColor selectedHourColor++"\");"
      }
  where selectHourEdit vid h = mkEditAction . Edit $ viewEdit vid $ \(RestaurantView d _ r my weeks dayView hourView reservationView scr) -> RestaurantView d (Just h) r my weeks dayView hourView reservationView scr
  
@@ -333,7 +341,7 @@ mkHourView restaurantViewId mSelectedReservation mSelectedHour hourReservations 
  \vid (HourView _ _ _ _ _) ->
   do { selectReservationActions <- mapM (selectReservationEdit restaurantViewId) hourReservations
      ; return $ HourView mSelectedReservation mSelectedHour selectReservationActions hourReservations $
-         declareFunction vid "present" [] "console.log(\"Present hour view called\")"
+         declareFunction vid "load" [] "console.log(\"Load hour view called\")"
      }
  where selectReservationEdit vid r = mkEditAction . Edit $ viewEdit vid $ \(RestaurantView d h _ my weeks dayView hourView reservationView scr) -> RestaurantView d h (Just r) my weeks dayView hourView reservationView scr
  
@@ -359,33 +367,52 @@ data ReservationView =
 instance Initial ReservationView where                 
   initial = ReservationView initial initial initial
 
-mkReservationView mReservation = mkWebView $
+-- todo: probably don't need the reservation hereanymore
+mkReservationView restaurantViewId mReservation = mkWebView $
  \vid (ReservationView _ _ _) ->
-  do { removeButton <- mkButton "x" (isJust mReservation) $ 
+  do { removeButton <- mkButton "x" True $ 
          Edit $ docEdit $ maybe id (\res -> removeReservation $ reservationId res ) mReservation
      ; return $ ReservationView mReservation removeButton $
-         declareFunction vid "present" [] "console.log(\"Present reservation view called\")"
+         declareFunction vid "load" [] $ 
+           let selRes = readVar restaurantViewId "selectedReservation"
+           in  "console.log(\"Load reservation view called\");" ++
+                 "if ("++selRes++"!=null) {" ++
+                 "console.log(\"date\"+"++selRes++".date);" ++
+                 "console.log(\"time\"+"++selRes++".time);" ++
+                 "$(\"#reservationView\").css(\"color\",\"black\");" ++
+                 getElementByIdRef (widgetGetViewRef removeButton)++".disabled = false;"++
+                 "$(\"#dateField\").text("++selRes++".date);"++
+                 "$(\"#nameField\").text("++selRes++".name);"++
+                 "$(\"#timeField\").text("++selRes++".time);"++
+                 "$(\"#nrOfPeopleField\").text("++selRes++".nrOfPeople);"++
+                 "$(\"#commentField\").text("++selRes++".comment);"++
+               "} else {" ++
+                 "$(\"#reservationView\").css(\"color\",\"grey\");" ++
+                 getElementByIdRef (widgetGetViewRef removeButton)++".disabled = true;"++
+                 "$(\"#dateField\").text(\"\");"++
+                 "$(\"#nameField\").text(\"\");"++
+                 "$(\"#timeField\").text(\"\");"++
+                 "$(\"#nrOfPeopleField\").text(\"\");"++
+                 "$(\"#commentField\").text(\"\");"++
+                 "console.log(\"not set\");" ++
+               "}"
      }
  
 -- todo comment has hard-coded width. make constant for this
 instance Presentable ReservationView where
   present (ReservationView mReservation removeButton script) = (with [thestyle "background-color:#f0f0f0"] $ boxed $ 
     vListEx [ identifier "reservationView"] 
-      [ hListEx [width "100%"] [ stringToHtml "Reservation date: ",nbsp
-                               , with [colorAttr reservationColor] $ stringToHtml date
+      [ hListEx [width "100%"] [ hList [ stringToHtml "Reservation date: ",nbsp
+                                       , with [colorAttr reservationColor] $ with [identifier "dateField"] $ noHtml ]
                                , with [align "right"] $ present removeButton]
-      , hList [stringToHtml "Time:",nbsp, with [colorAttr reservationColor] $ stringToHtml time]
-      , hList [stringToHtml "Name:",nbsp, with [colorAttr reservationColor] $ stringToHtml name]
-      , hList [stringToHtml "Nr. of people:",nbsp, with [colorAttr reservationColor] $ stringToHtml $ nrOfPeople ]
+      , hList [stringToHtml "Time:",nbsp, with [colorAttr reservationColor] $ with [identifier "timeField"] $ noHtml]
+      , hList [stringToHtml "Name:",nbsp, with [colorAttr reservationColor] $ with [identifier "nameField"] $ noHtml]
+      , hList [stringToHtml "Nr. of people:",nbsp, with [colorAttr reservationColor] $ with [identifier "nrOfPeopleField"] $ noHtml ]
       , stringToHtml "Comment:" 
-      , boxedEx 0 $ with [thestyle $ "padding-left:4px;height:70px; width:300px; overflow:auto; color:" ++ htmlColor reservationColor] $ 
-          stringToHtml $ if comment == "" then "<no comment>" else  comment
+      , boxedEx 0 $ with [thestyle $ "padding-left:4px;height:70px; width:300px; overflow:auto; color:" ++ htmlColor reservationColor] $ with [identifier "commentField"] $  
+          noHtml
       ]) +++ mkScript script
-   where (date, time, name, nrOfPeople, comment) =
-           case mReservation of
-             Just (Reservation _ date time name nrOfPeople comment) -> (showDate date, showTime time, name, show nrOfPeople, comment)
-             Nothing                                        -> ("", "", "", "", "") 
-         reservationColor = Rgb 0x00 0x00 0xff
+   where reservationColor = Rgb 0x00 0x00 0xff
  
 instance Storeable Database ReservationView where
   save _ = id
@@ -501,8 +528,8 @@ mkClientView = mkWebView $
                     concat [ onClick button $ callFunction vid "setDate" [ show dateIndex ] 
                            | (dateIndex,button) <- zip [0..] $ [todayButton, tomorrowButton]++dayButtons ] ++
                     concat timeEdits ++ 
-                    onClick confirmButton ("textFieldChanged('"++show (widgetGetViewId nameText)++"');"++
-                                           "textFieldChanged('"++show (widgetGetViewId commentText)++"');"++
+                    onClick confirmButton ("textFieldChanged('"++show (getViewId nameText)++"');"++
+                                           "textFieldChanged('"++show (getViewId commentText)++"');"++
                                            callServerEditAction submitAction [readVar vid "selectedNr", readVar vid "selectedDate", "'('+"++readVar vid "selectedTime"++".hour+','+"++readVar vid "selectedTime"++".min+')'"]) ++
                     
                     declareVar vid "selectedNr" "2" ++
@@ -523,7 +550,7 @@ mkClientView = mkWebView $
                                                          callFunction vid "disenable" []) ++ 
                     declareFunction vid "disenable" [] ("console.log(\"disenable: \","++readVar vid "selectedNr"++","++readVar vid "selectedDate"++","++readVar vid "selectedTime" ++" );"++
                                                          "var availables = availability["++readVar vid "selectedDate"++"].availables;"++
-                                                         "var buttonIds = [\""++intercalate "\",\"" (map (show . widgetGetViewId) $ concat timeButtonss)++"\"];" ++
+                                                         "var buttonIds = [\""++intercalate "\",\"" (map (show . getViewId) $ concat timeButtonss)++"\"];" ++
                                                          "for (var i=0;i<buttonIds.length;i++)"++
                                                          "  document.getElementById(buttonIds[i]).disabled = availables[i]<"++readVar vid "selectedNr"++";")
                     -- todo: handle when time selection is disabled because of availability (on changing nr of persons or date)
@@ -537,7 +564,7 @@ mkClientView = mkWebView $
 -- TODO generate script nodes before executing scripts? Now they are generated by the scripts, so either
 --      child cannot refer to parent or parent cannot refer to child.
 onClick :: (Widget (Button Database)) -> String -> String
-onClick button expr = "script"++viewIdSuffix (widgetGetViewId button) ++ ".onClick = function () {"++expr++"};"
+onClick button expr = "script"++viewIdSuffix (getViewId button) ++ ".onClick = function () {"++expr++"};"
 readVar vid name = name++viewIdSuffix vid
 writeVar vid name value = name++viewIdSuffix vid++" = "++value++";"
 -- TODO: maybe refVar and assignVar are more appropriate?
