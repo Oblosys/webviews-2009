@@ -174,6 +174,9 @@ class HasViewId v where
 instance HasViewId (WebView db) where
   getViewId (WebView viewId _ _ _ _) = viewId 
   
+instance HasViewId w => HasViewId (Widget w) where
+  getViewId (Widget _ _ w) = getViewId w 
+
 instance HasViewId LabelView where
   getViewId = getLabelViewId
 

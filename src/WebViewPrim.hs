@@ -124,10 +124,8 @@ mkButtonEx str en st foc ac = assignViewId $ \vid -> button vid str en st (foc v
 mkJSVar name value = assignViewId $ \vid -> jsVar vid name value
 
 
-widgetGetViewRef widget = mkViewRef $ widgetGetViewId widget
+widgetGetViewRef widget = mkViewRef $ getViewId widget
                   
-widgetGetViewId (Widget _ _ w) = getViewId w
-
 {-
 mkAction :: (v->v) -> ViewM v Int
 mkAction f = 
