@@ -1,4 +1,5 @@
 TODO short term
+TODO: fix focus problem in Client view, use params for name and comments
 TODO: weird long compile time for Main
 TODO: why no $('#ViewId []') queries?
 TODO: get rid of viewRef here: getElementByIdRef (widgetGetViewRef)      id's are fine. viewRef is just for internal stuff
@@ -37,6 +38,9 @@ BUG: without firebug, console is not declared, and webviews fails completely
 Design
 Explain why we need script nodes. Why can't we just set onClick attrs etc.?
 What about withEditAction, setting edit actions for elements in the dom. Do we want to use script nodes for those as well?
+
+Script nodes must only be created if they did not exist. Otherwise event handlers will be cleared if widget is refreshed and parent not.
+UNCLEAR: What happens if a script id is reused? Then the new view may have handlers it shouldn't have? 
 
 referencing webviews is not possible, since the viewId's are not in the tree. add them with an extra span?
 (still need the other id's for the tree surgery, since viewId's will not be unique as they are in the root and on the new list)
