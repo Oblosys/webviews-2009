@@ -414,7 +414,10 @@ function ButtonScript(viewId) {
 
 function TextViewScript(viewId) {
     this.viewId = viewId;
-// todo: not completely implemented yet, for now only used for onKeyUp
+    this.onSubmit = function () {console.log('onSubmit');queueCommand('SubmitC ('+ viewId +')')} // only for edit actions on text fields (not areas)
+    this.onFocus  = function () {console.log('onFocus');elementGotFocus(viewId)}
+    this.onBlur   = function () {console.log('onBlur');textFieldChanged(viewId)}
+    this.onKeyUp  = function () {}
 }
 
 --></script>
