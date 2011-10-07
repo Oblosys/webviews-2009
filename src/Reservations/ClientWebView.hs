@@ -93,13 +93,11 @@ mkClientView = mkWebView $
      ; timeLabel <- mkLabelView "timeLabel" 
       
      ; confirmButton <- mkButtonEx "Confirm" True {- (isJust mDate && isJust mTime)-} "width: 100%" (const "") $ Edit $ return ()
-     ; submitAction <- mkEditActionEx $ \args@[nrOfPeopleStr, dateIndexStr, timeStr] ->
+     ; submitAction <- mkEditActionEx $ \args@[nameStr, nrOfPeopleStr, dateIndexStr, timeStr, commentStr] ->
          Edit $ do { debugLn $ "submit action executed "++show args
-                   ; name <- getTextContents nameText
-                   ; comment <- getTextContents commentText
-                   
+                   ;
                    -- todo constructing date/time from indices duplicates work
-                   ; debugLn $ "Values are "++name++" "++dateIndexStr++" "++timeStr
+                   ; debugLn $ "Values are "++nameStr++" "++dateIndexStr++" "++timeStr
                    ; let nrOfPeople = read nrOfPeopleStr
                    ; debugLn $ "nrOfPeople "++show nrOfPeople
                    ; let date = addToDate today (read dateIndexStr)
@@ -110,7 +108,7 @@ mkClientView = mkWebView $
                    
                    ; docEdit $ \db -> 
                         let (Reservation rid _ _ _ _ _, db') = newReservation db
-                            db'' = updateReservation rid (const $ Reservation rid date time name nrOfPeople comment) db
+                            db'' = updateReservation rid (const $ Reservation rid date time nameStr nrOfPeople commentStr) db
                         in  db''
                    }
      ; let datesAndAvailabilityDecl = "availability = ["++ -- todo: should be declared with declareVar for safety
@@ -130,10 +128,12 @@ mkClientView = mkWebView $
                   , concat [ onClick button $ callFunction vid "setDate" [ show dateIndex ] 
                            | (dateIndex,button) <- zip [0..] $ [todayButton, tomorrowButton]++dayButtons ]
                   , concat timeEdits
+                  , inertTextView nameText
+                  , inertTextView commentText
                   , onClick confirmButton $ jsScript 
-                                          [ "textFieldChanged('"++show (getViewId nameText)++"')"
-                                          , "textFieldChanged('"++show (getViewId commentText)++"')"
-                                          , callServerEditAction submitAction [readVar vid "selectedNr", readVar vid "selectedDate", "'('+"++readVar vid "selectedTime"++".hour+','+"++readVar vid "selectedTime"++".min+')'"]
+                                          [ callServerEditAction submitAction ["escape("++jsGetElementByIdRef (widgetGetViewRef nameText)++".value)", readVar vid "selectedNr"
+                                                                              , readVar vid "selectedDate", "'('+"++readVar vid "selectedTime"++".hour+','+"++readVar vid "selectedTime"++".min+')'"
+                                                                              ,"escape("++jsGetElementByIdRef (widgetGetViewRef commentText)++".value)"]
                                           , callFunction vid "reset" []
                                           , callFunction vid "disenable" []] 
                   , jsFunction vid "reset" []
