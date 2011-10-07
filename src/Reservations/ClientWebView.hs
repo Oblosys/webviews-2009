@@ -150,21 +150,21 @@ mkClientView = mkWebView $
                   , declareVar vid "selectedNr" "null"
                   , jsFunction vid "setNr" ["nr"] [ "console.log(\"setNr (\"+nr+\") old val: \", "++readVar vid "selectedNr"++")"
                                                   , writeVar vid "selectedNr" "nr"
-                                                  , "nrStr = nr==null ? \"please select\" : nr"
+                                                  , "nrStr = nr==null ? \"Please select nr of people\" : 'Nr of people: '+nr"
                                                   , jsGetElementByIdRef (widgetGetViewRef nrOfPeopleLabel)++".innerHTML = nrStr"
                                                   , callFunction vid "disenable" [] ]
                   , declareVar vid "selectedTime" "null"
                   , declareVar vid "selectedTimeIndex" "null"
                   , jsFunction vid "setTime" ["time"] [ "console.log(\"setTime \"+time, "++readVar vid "selectedTime"++")"
                                                       , writeVar vid "selectedTime" "time"
-                                                      , "timeStr = time==null ? \"Please select a time\" : time.hour +\":\"+ (time.min<10?\"0\":\"\") + time.min"
+                                                      , "timeStr = time==null ? \"Please select a time\" : 'Time: ' + time.hour +\":\"+ (time.min<10?\"0\":\"\") + time.min"
                                                       , writeVar vid "selectedTimeIndex" "time == null ? null : time.index"
                                                       , jsGetElementByIdRef (widgetGetViewRef timeLabel)++".innerHTML = timeStr"
                                                       , callFunction vid "disenable" [] ] 
                   , declareVar vid "selectedDate" "null"
                   , jsFunction vid "setDate" ["date"] [ "console.log(\"setDate \"+date, "++readVar vid "selectedDate"++")"
                                                       , writeVar vid "selectedDate" "date"
-                                                      , "dateStr = date==null ? \"Please select a date\" : availability[date].date"
+                                                      , "dateStr = date==null ? \"Please select a date\" : 'Date: ' + availability[date].date"
                                                       , jsGetElementByIdRef (widgetGetViewRef dateLabel)++".innerHTML = dateStr"
                                                       , callFunction vid "disenable" [] ] 
                   , jsFunction vid "disenable" [] [ "console.log(\"disenable: \","++readVar vid "selectedNr"++","++readVar vid "selectedDate"++","++readVar vid "selectedTime" ++" )"
@@ -173,7 +173,7 @@ mkClientView = mkWebView $
                                                   , jsFor "var i=0;i<buttonIds.length;i++" $ 
                                                       [ "document.getElementById(buttonIds[i]).disabled = availables == null ? true : availables[i]<"++readVar vid "selectedNr"
                                                       ]
-                                                  , jsIf (readVar vid "selectedTimeIndex"++" != null && availables["++readVar vid "selectedTimeIndex"++"] <"++readVar vid "selectedNr") 
+                                                  , jsIf (readVar vid "selectedTimeIndex"++" && availables && availables["++readVar vid "selectedTimeIndex"++"] <"++readVar vid "selectedNr") 
                                                       [ callFunction vid "setTime" ["null"] ] -- if the selected time becomes unavailable, deselect
                                                       -- TODO this deselect is implemented horribly, with the extra index field in time. Can this be done more elegantly?
                                                   , jsGetElementByIdRef (widgetGetViewRef confirmButton)++".disabled = !"++callFunction vid "inputValid" []
@@ -191,7 +191,7 @@ instance Presentable ClientView where
                       nrOfPeopleLabel dateLabel timeLabel _ script) = 
     vList [ hList [ stringToHtml "Name:", hSpace 4, present nameText]
           , vSpace 10
-          , hList [ stringToHtml $ "Nr of people: ", present nrOfPeopleLabel]
+          , present nrOfPeopleLabel
           , hListEx [width "100%"] $ map present nrButtons
           , vSpace 10
           --, stringToHtml $ maybe "Please choose a date" (\d -> (showDay . weekdayForDate $ d) ++ ", " ++ showShortDate d) mDate
