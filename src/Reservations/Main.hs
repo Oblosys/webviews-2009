@@ -2,7 +2,7 @@
 module Main where
 
 import Data.List
-import Text.Html hiding (image)
+import Text.Html hiding (image, name)
 import qualified Text.Html as Html
 import Data.Generics
 import Data.Char
@@ -170,6 +170,8 @@ mkRestaurantView = mkWebView $
      ; let reservationsSelectedDay = filter ((==mSelectedDate). Just . date) reservations
      ; let reservationsSelectedHour = filter ((==mSelectedHour). Just . fst . time) reservationsSelectedDay
       
+     ; debugLn $ "\n\n\n\n\n\n\n\n" ++ show (mkDay reservationsSelectedDay)
+     
      ; let weeks = daysToWeeks $ zip calendarDayViews selects
      
      ; -- hack
@@ -195,9 +197,11 @@ mkRestaurantView = mkWebView $
      ; return $ RestaurantView mSelectedDate' mSelectedHour' mSelectedReservation' (currentMonth, currentYear) weeks dayView hourView reservationView $
          "console.log(\"restaurant script\");"++
          declareVar vid "selectedDayIx" "\"\"" ++ -- "" is no selection
-         declareVar vid "selectedHourIx" "\"\"" ++ -- "" is no selection
+         declareVar vid "selectedHourIx" "null" ++ -- null is no selection
          declareVar vid "selectedReservationIx" "\"\"" ++ -- "" is no selection
-         writeVar vid "selectedHour" (maybe "\"\"" show mSelectedHour') ++ -- todo for now we just set it each time
+         writeVar vid "hourObjects" (mkJsArr $ mkDay reservationsSelectedDay) ++
+         writeVar vid "selectedHourIx" (maybe "null" (\h -> show $ h-18) mSelectedHour') ++ -- todo for now we just set it each time
+         
          mkSelectedReservation vid mSelectedReservation' ++
          callFunction (getViewId dayView) "load" [] ++";"++
          callFunction (getViewId hourView) "load" [] ++";"++
@@ -211,12 +215,33 @@ mkRestaurantView = mkWebView $
                     newHr = if null resHours then h else Just $ head resHours 
                 in  RestaurantView (Just d) newHr r my weeks dayView hourView reservationView script
            }
+{-
+  [ { hourEntry: nrOfRes(nrOfPeople)
+    , reservations: [{listEntry:name+nr  reservation:{name: nrOfPeople: .. }]
+    } ]
+-}
+
+mkDay reservationsDay =  [ let reservationsHour = filter ((==hr). fst . time) reservationsDay
+                           in  mkJson [ ("hourEntry", show "3 (9)")
+                                      , ("reservations", mkJsArr $ mkHour reservationsHour)]
+                         | hr <- [18..23]]
+                         
+mkJsArr elts = "["++intercalate"," elts ++"]"
+
+mkHour reservationsHour = [ mkJson [ ("reservationEntry", show $ name res ++ "("++show (nrOfPeople res)++")")
+                                   , ("reservation",mkReservation res)
+                                   ] 
+                          | res <- reservationsHour ]
+
+mkReservation (Reservation _ date time name nrOfPeople comment) = mkJson [ ("date",show (showDate date)), ("time", show (showTime time)), ("name",show name)
+                                                                         , ("nrOfPeople", show nrOfPeople),("comment",show comment)]
 
 mkSelectedReservation vid mRes =
   writeVar vid "selectedReservation" $
     case mRes of 
       Nothing -> "null"
-      Just (Reservation _ date time name nrOfPeople comment) -> "{date:"++show (showDate date) ++", time:"++show (showTime time)++", name:"++show name++", nrOfPeople:"++show nrOfPeople++", comment:"++show comment++"}"
+      Just (Reservation _ date time name nrOfPeople comment) -> mkJson [ ("date",show (showDate date)), ("time", show (showTime time)), ("name",show name)
+                                                                       , ("nrOfPeople", show nrOfPeople),("comment",show comment)]
 
 getWebViewId (WebView vid _ _ _ _) = vid
 
@@ -304,7 +329,7 @@ mkDayView restaurantViewId mSelectedHour dayReservations = mkWebView $
      ; return $ DayView mSelectedHour selectHourActions dayReservations $
          declareFunction vid "load" [] $
            "console.log(\"Load day view called \"+"++readVar restaurantViewId "selectedHourIx"++");" ++
-           "if ("++readVar restaurantViewId "selectedHourIx"++"!=\"\")"++ -- todo: reference to hourOfDay is hard coded
+           "if ("++readVar restaurantViewId "selectedHourIx"++"!=null)"++ -- todo: reference to hourOfDay is hard coded
            "$(\"#hourOfDayView_\"+"++readVar restaurantViewId "selectedHourIx"++").css(\"background-color\",\""++htmlColor selectedHourColor++"\");"
      }
  where selectHourEdit vid h = mkEditAction . Edit $ viewEdit vid $ \(RestaurantView d _ r my weeks dayView hourView reservationView scr) -> RestaurantView d (Just h) r my weeks dayView hourView reservationView scr
@@ -312,7 +337,7 @@ mkDayView restaurantViewId mSelectedHour dayReservations = mkWebView $
 instance Presentable DayView where
   present (DayView mSelectedHour selectHourActions dayReservations script) =
     mkTableEx [width "100%", cellpadding 0, cellspacing 0, thestyle "border-collapse:collapse; font-size:80%"] [] [] 
-      [[ ([identifier $ "hourOfDayView_"++show hr,withEditActionAttr sa, thestyle $ "border: 1px solid #909090; background-color: #d0d0d0"]
+      [[ ([identifier $ "hourOfDayView_"++show (hr-18),withEditActionAttr sa, thestyle $ "border: 1px solid #909090; background-color: #d0d0d0"]
          , presentHour hr) | (sa,hr) <- zip selectHourActions [18..24] ]] +++ mkScript script
 
 --    mkTableEx [cellpadding 0, cellspacing 0, thestyle "border-collapse:collapse; text-align:center"] [] [thestyle "border: 1px solid #909090"]  
@@ -340,7 +365,17 @@ mkHourView restaurantViewId mSelectedReservation mSelectedHour hourReservations 
  \vid (HourView _ _ _ _ _) ->
   do { selectReservationActions <- mapM (selectReservationEdit restaurantViewId) hourReservations
      ; return $ HourView mSelectedReservation mSelectedHour selectReservationActions hourReservations $
-         declareFunction vid "load" [] "console.log(\"Load hour view called\")"
+         jsScript [ jsFunction vid "load" [] 
+                      [ "console.log('Load hour view called')"
+                      , "console.log("++readVar restaurantViewId "selectedHourIx"++")"
+                      , jsIf (readVar restaurantViewId "selectedHourIx") 
+                          [ "var hourObject = "++readVar restaurantViewId "hourObjects"++"["++readVar restaurantViewId "selectedHourIx"++"]" 
+                          , "console.log('Hour entry is'+hourObject.hourEntry)"
+                          , jsFor "i=0; i<hourObject.reservations.length; i++" 
+                              [ "console.log('item:'+hourObject.reservations[i].reservationEntry)" ]
+                          ]
+                      ]
+                  ]
      }
  where selectReservationEdit vid r = mkEditAction . Edit $ viewEdit vid $ \(RestaurantView d h _ my weeks dayView hourView reservationView scr) -> RestaurantView d h (Just r) my weeks dayView hourView reservationView scr
  
