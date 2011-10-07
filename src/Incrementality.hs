@@ -178,9 +178,10 @@ mkIncrementalUpdates oldRootView rootView =
     --; putStrLn $ "\nChanged or new web nodes\n" ++ unlines (map shallowShowWebNode newWebNodes) 
     --; putStrLn $ "\nUpdates\n" ++ unlines (map show updates)
     
-    ; let (newCommands, mEvalCommands) = unzip $ map newWebNodeHtml newWebNodes 
-    ; let htmlUpdates =newCommands  ++ map updateHtml updates ++ catMaybes mEvalCommands
-
+    ; let (newCommands, mEvalCommands) = unzip $ map newWebNodeHtml newWebNodes
+    ; let evalCommands = catMaybes mEvalCommands 
+    ; let htmlUpdates =newCommands  ++ map updateHtml updates ++ evalCommands
+    --; mapM (putStrLn . show) evalCommands
     ; let subs = concat [ case upd of  -- TODO: fix something here
                                     RestoreId (IdRef o) (IdRef n) -> [(Id o, Id n)]  
                                     Move _ _ _ -> []
