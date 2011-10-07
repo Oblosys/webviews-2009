@@ -322,9 +322,12 @@ function updateTree(update) {
   }
   else if (op === 'eval') {
 	  var scriptTxt = update.textContent; // don't use childNodes[0].data, since on Windows Firefox, the text is split in 1024 sized blocks
-    console.log("Evaluate:",scriptTxt);
+    var scriptLines = scriptTxt.split('\n')
 	  try {
-    	eval(scriptTxt);
+		  for (i=0; i<scriptLines.length; i++) {
+			  console.log("Eval: ",scriptLines[i]);
+			  eval(scriptLines[i]);
+		  }
 	  }
 	 catch (e) {
 		  console.error("Error in script: "+e); // log error, so we can see when the problem occurs 

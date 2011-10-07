@@ -417,8 +417,8 @@ declareFunction vid name params body = name++viewIdSuffix vid++" = Function("++c
 -- todo: escape '
 
 escapeSingleQuote str = concatMap (\c -> if c == '\'' then "\\'" else [c]) str 
-jsFunction v n a b = declareFunction v n a $ escapeSingleQuote $ jsScript b 
-jsScript lines = intercalate ";" lines
+jsFunction v n a b = declareFunction v n a $ escapeSingleQuote $ intercalate ";" b -- no newlines here, since scripts are executed line by line 
+jsScript lines = intercalate ";\n" lines
 jsIf c t = "if ("++c++") {"++jsScript t++"}"
 jsElse e = "else {"++jsScript e++ "}"
 jsFor c b = "for ("++c++") {"++jsScript b++"}"
@@ -449,7 +449,7 @@ callFunction vid name params = name++viewIdSuffix vid++"("++intercalate "," para
 -- but maybe  we get a way to specify a client-side edit op and do this more general
 
 inertTextView :: (Widget (TextView db)) -> String
-inertTextView tv = jsScript [ onEvent "Submit" tv "function() {}"
-                            , onEvent "Focus" tv "function() {}"
-                            , onEvent "Blur" tv "function() {}"
+inertTextView tv = jsScript [ onEvent "Submit" tv ""
+                            , onEvent "Focus" tv ""
+                            , onEvent "Blur" tv ""
                             ]
