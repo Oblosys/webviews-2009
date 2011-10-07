@@ -130,7 +130,7 @@ mkClientView = mkWebView $
                   , concat timeEdits
                   , inertTextView nameText
                   , inertTextView commentText
-                  , onClick confirmButton $ jsScript 
+                  , onClick confirmButton $ intercalate ";" 
                                           [ callServerEditAction submitAction ["escape("++jsGetElementByIdRef (widgetGetViewRef nameText)++".value)", readVar vid "selectedNr"
                                                                               , readVar vid "selectedDate", "'('+"++readVar vid "selectedTime"++".hour+','+"++readVar vid "selectedTime"++".min+')'"
                                                                               ,"escape("++jsGetElementByIdRef (widgetGetViewRef commentText)++".value)"]
