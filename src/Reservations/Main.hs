@@ -222,7 +222,9 @@ mkRestaurantView = mkWebView $
 -}
 
 mkDay reservationsDay =  [ let reservationsHour = filter ((==hr). fst . time) reservationsDay
-                           in  mkJson [ ("hourEntry", show "3 (9)")
+                               nrOfReservations = length reservationsHour
+                               nrOfPeopleInHour = sum $ map nrOfPeople reservationsHour
+                           in  mkJson [ ("hourEntry", show $ if nrOfReservations == 0 then "" else show nrOfReservations++" ("++ show nrOfPeopleInHour ++")")
                                       , ("reservations", mkJsArr $ mkHour reservationsHour)]
                          | hr <- [18..23]]
                          
