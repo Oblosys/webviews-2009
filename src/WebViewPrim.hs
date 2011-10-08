@@ -420,6 +420,7 @@ jsIfElse c t e = "if ("++c++") {"++intercalate ";" t++"} else {"++intercalate ";
 jsFor c b = "for ("++c++") {"++intercalate ";" b++"}"
 jsGetElementByIdRef (ViewIdRef id) = "document.getElementById('"++show (ViewId id)++"')"
 jsArr elts = "["++intercalate"," elts ++"]"
+jsLog e = "console.log("++e++")";
 
 mkJson :: [(String,String)] -> String
 mkJson fields = "{"++intercalate "," [name++": "++value| (name, value)<-fields]++"}"
@@ -445,7 +446,7 @@ jsDeclareVar vid name value = let jsVar = name++viewIdSuffix vid
                             in  "if (typeof "++jsVar++" ==\"undefined\") {"++jsVar++" = "++value++";};"
 -- no "var " here, does not work when evaluated with eval
 
-callFunction vid name params = name++viewIdSuffix vid++"("++intercalate "," params++")"
+jsCallFunction vid name params = name++viewIdSuffix vid++"("++intercalate "," params++")"
 -- old disenable call in presentButton:--"disenable"++viewIdSuffix (ViewId $ init $ unViewId viewId)++"('"++show (unViewId viewId)++"');
 -- figure out if we need the viewId for the button when specifying the onclick
 -- but maybe  we get a way to specify a client-side edit op and do this more general

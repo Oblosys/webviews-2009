@@ -188,10 +188,10 @@ mkRestaurantView = mkWebView $
                                                               Just r | r `elem` reservationsSelectedHour -> Just r
                                                               _                                          -> Just fstRes
                                           _      -> Nothing
-
-     ; dayView <- mkDayView vid mSelectedHour' reservationsSelectedDay
-     ; hourView <- mkHourView vid mSelectedReservation' mSelectedHour' reservationsSelectedHour
      ; reservationView <- mkReservationView vid mSelectedReservation'
+
+     ; hourView <- mkHourView vid (getViewId reservationView) mSelectedReservation' mSelectedHour' reservationsSelectedHour
+     ; dayView <- mkDayView vid (getViewId hourView) reservationsSelectedDay
 
      
      ; return $ RestaurantView mSelectedDate' mSelectedHour' mSelectedReservation' (currentMonth, currentYear) weeks dayView hourView reservationView $
@@ -204,9 +204,8 @@ mkRestaurantView = mkWebView $
          jsDeclareVar vid "selectedReservationObj" "null" ++ -- null is no selection
          jsAssignVar vid "selectedHourIx" (maybe "null" (\h -> show $ h-18) mSelectedHour') ++ -- todo for now we just set it each time
          
-         callFunction (getViewId dayView) "load" [] ++";"++
-         callFunction (getViewId hourView) "load" [] ++";"++
-         callFunction (getViewId reservationView) "load" [] ++";"
+         jsCallFunction (getViewId dayView) "load" [] ++";"++
+         jsCallFunction (getViewId reservationView) "load" [] ++";"
      }
  where selectDateEdit vid d = mkEditAction . Edit $
         do { (_,_,db,_,_) <- get
@@ -228,7 +227,7 @@ mkDay reservationsDay =
                                 nrOfPeopleInHour = sum $ map nrOfPeople reservationsHour
                       in  mkJson [ ("hourEntry", show $ if nrOfReservations == 0 then "" else show nrOfReservations++" ("++ show nrOfPeopleInHour ++")")
                                    , ("reservations", jsArr $ mkHour reservationsHour)]
-                         | hr <- [18..23]]
+                         | hr <- [18..24]]
           )]
                          
 
@@ -291,6 +290,7 @@ mkCalendarDayView date isSelected isToday isThisMonth reservations = mkWebView $
      }
      
 selectedDayColor = Rgb 0x80 0xb0 0xff
+hourColor = Rgb 0xd0 0xd0 0xd0
 selectedHourColor = Rgb 0x80 0xb0 0xff
 
 instance Presentable CalendarDayView where
@@ -313,33 +313,39 @@ instance Storeable Database CalendarDayView where
 -----------------------------------------------------------------------------
 
 data DayView = 
-  DayView (Maybe Int) [EditAction Database] [Reservation] String
+  DayView [String] [Reservation] String
     deriving (Eq, Show, Typeable, Data)
   
 instance Initial DayView where                 
-  initial = DayView initial initial initial initial
+  initial = DayView initial initial initial
 
 -- the bar with hours under the calendar
-mkDayView :: ViewId -> Maybe Int -> [Reservation] -> WebViewM Database (WebView Database)
-mkDayView restaurantViewId mSelectedHour dayReservations = mkWebView $
- \vid (DayView _ _ _ _) ->
-  do { selectHourActions <- mapM (selectHourEdit restaurantViewId) [18..24]
-     ; return $ DayView mSelectedHour selectHourActions dayReservations $
+mkDayView :: ViewId -> ViewId -> [Reservation] -> WebViewM Database (WebView Database)
+mkDayView restaurantViewId hourViewId dayReservations = mkWebView $
+ \vid (DayView _ _ _) ->
+  do { let selectHourActions = map (selectHourEdit vid) [18..24]
+     ; return $ DayView selectHourActions dayReservations $
               jsScript [ jsFunction vid "load" [] $ 
                       let selDayObj = jsVar restaurantViewId "selectedDayObj"
                       in [ jsLog "'Load day view called'"
                          , jsIfElse selDayObj
                            [  -- don't have to load for now, since view is presented by server
-                             jsLog $ selDayObj++".hours.length"
-                           , jsFor ("i=0; i<"++selDayObj++".hours.length; i++")
-                               [
-                                 "$('#hourOfDayView'+i).css('background-color',("++jsVar restaurantViewId "selectedHourIx"++"==i)?'"++htmlColor selectedHourColor++"'"++
-                                                                                                                                   ":'black');"
-                               ] -- todo: reference to hourOfDay is hard coded 
+                            
+                             -- show selected hour
+                             jsFor ("i=0; i<"++selDayObj++".hours.length; i++")
+                               [ "$('#hourOfDayView_'+i).css('background-color',("++jsVar restaurantViewId "selectedHourIx"++"==i)?'"++htmlColor selectedHourColor++"'"++
+                                                                                                      ":'"++htmlColor hourColor++"')"
+                                                          ] -- todo: reference to hourOfDay is hard coded
+                           , jsLog $ "'SelectedHourIx is '+"++ jsVar restaurantViewId "selectedHourIx"
+                           , jsIf (jsVar restaurantViewId "selectedHourIx") 
+                               [ jsAssignVar restaurantViewId "selectedHourObj" $  selDayObj ++".hours["++jsVar restaurantViewId "selectedHourIx"++"]"
+                               ]
+                               
+                           , jsCallFunction hourViewId "load" []
                            ]
                            [] -- will not occur now, since day is given by server
                      {-      
-                      , "console.log("++jsVar restaurantViewId "selectedHourIx"++")"
+                      , jsLog $jsVar restaurantViewId "selectedHourIx"
                       , jsIf (jsVar restaurantViewId "selectedHourIx") 
                           [ "var hourObject = "++jsVar restaurantViewId "hourObjects"++"["++jsVar restaurantViewId "selectedHourIx"++"]" 
                           , "console.log('Hour entry is'+hourObject.hourEntry)"
@@ -349,17 +355,18 @@ mkDayView restaurantViewId mSelectedHour dayReservations = mkWebView $
                       ]  
                   ]
      }
- where selectHourEdit vid h = mkEditAction . Edit $ viewEdit vid $ \(RestaurantView d _ r my weeks dayView hourView reservationView scr) -> RestaurantView d (Just h) r my weeks dayView hourView reservationView scr
+ where selectHourEdit dayViewId h = jsAssignVar restaurantViewId "selectedHourIx" (show $ h-18) ++";"++
+                              jsCallFunction  dayViewId "load" []
 
-jsLog e = "console.log("++e++")";
 
 instance Presentable DayView where
-  present (DayView mSelectedHour selectHourActions dayReservations script) =
+  present (DayView selectHourActions dayReservations script) =
     mkTableEx [width "100%", cellpadding 0, cellspacing 0, thestyle "border-collapse:collapse; font-size:80%"] [] [] 
-      [[ ([identifier $ "hourOfDayView_"++show (hr-18),withEditActionAttr sa, thestyle $ "border: 1px solid #909090; background-color: #d0d0d0"]
+      [[ ([identifier $ "hourOfDayView_"++show (hr-18)
+          , strAttr "onClick" sa -- todo: don't like this onClick here
+          , thestyle $ "border: 1px solid #909090; background-color: #d0d0d0"]
          , presentHour hr) | (sa,hr) <- zip selectHourActions [18..24] ]] +++ mkScript script
 
---    mkTableEx [cellpadding 0, cellspacing 0, thestyle "border-collapse:collapse; text-align:center"] [] [thestyle "border: 1px solid #909090"]  
    where presentHour hr = --withBgColor (Rgb 255 255 0) $
            vListEx [width "40px"] -- needs to be smaller than alotted hour cell, but larger than width of "xx(xx)"
                  [ stringToHtml $ show hr++"h"
@@ -373,23 +380,30 @@ instance Storeable Database DayView where
 -----------------------------------------------------------------------------
 
 data HourView = 
-  HourView (Maybe Reservation) (Maybe Int) [EditAction Database] [Reservation] String
+  HourView (Maybe Reservation) (Maybe Int) [String] [Reservation] String
     deriving (Eq, Show, Typeable, Data)
   
 instance Initial HourView where                 
   initial = HourView initial initial initial initial initial
 
 -- the list of reservations for a certain hour
-mkHourView :: ViewId -> Maybe Reservation -> Maybe Int -> [Reservation] -> WebViewM Database (WebView Database)
-mkHourView restaurantViewId mSelectedReservation mSelectedHour hourReservations = mkWebView $
+mkHourView :: ViewId -> ViewId -> Maybe Reservation -> Maybe Int -> [Reservation] -> WebViewM Database (WebView Database)
+mkHourView restaurantViewId reservationViewId mSelectedReservation mSelectedHour hourReservations = mkWebView $
  \vid (HourView _ _ _ _ _) ->
-  do { selectReservationActions <- mapM (selectReservationEdit restaurantViewId) hourReservations
+  do { let selectReservationActions = map (selectReservationEdit vid) [0..length hourReservations]
      ; return $ HourView mSelectedReservation mSelectedHour selectReservationActions hourReservations $
          jsScript [ jsFunction vid "load" [] $ 
                       let selHourObj = jsVar restaurantViewId "selectedHourObj"
                       in [ "console.log('Load hour view called')"
+                         , jsLog $ "'SelectedHourIx is '+"++ jsVar restaurantViewId "selectedHourIx"
+                         , jsLog $ "'SelectedHour is '+"++ selHourObj
                          , jsIfElse selHourObj
-                           []
+                           [ jsLog $ selHourObj++".hourEntry"
+                           , jsIf (jsVar restaurantViewId "selectedReservationIx") 
+                               [ jsAssignVar restaurantViewId "selectedReservationObj" $  selHourObj ++".reservations["++jsVar restaurantViewId "selectedReservationIx"++"].reservation"
+                               ]
+                           , jsCallFunction reservationViewId "load" []
+                           ]
                            [] -- empty reservation list, set selectedReservationObj to nul
                      {-      
                       , "console.log("++jsVar restaurantViewId "selectedHourIx"++")"
@@ -402,14 +416,16 @@ mkHourView restaurantViewId mSelectedReservation mSelectedHour hourReservations 
                       ]  
                   ]
      }
- where selectReservationEdit vid r = mkEditAction . Edit $ viewEdit vid $ \(RestaurantView d h _ my weeks dayView hourView reservationView scr) -> RestaurantView d h (Just r) my weeks dayView hourView reservationView scr
+ where selectReservationEdit hourViewId i = jsAssignVar restaurantViewId "selectedReservationIx" (show $ i) ++";"++
+                                            jsCallFunction  hourViewId "load" []
  
 instance Presentable HourView where
   present (HourView mSelectedReservation mSelectedHour selectReservationActions hourReservations script) =
     (with [identifier "hourView"] $ -- in separate div, because spinners on scrolling elements  cause scrollbars to be shown
     boxedEx 0 $ with [ thestyle "height:90px;overflow:auto"] $
       mkTableEx [width "100%", cellpadding 0, cellspacing 0, thestyle "border-collapse:collapse"] [] [] $ 
-        [ [ ([withEditActionAttr sa, thestyle $ "border: 1px solid #909090; background-color: "++
+        [ [ ([ strAttr "onClick" sa -- todo: don't like this onClick here
+             , thestyle $ "border: 1px solid #909090; background-color: "++
                                                 if Just r==mSelectedReservation then htmlColor selectedDayColor else "#f8f8f8"]
             , hList [hSpace 2, stringToHtml $ showTime tm ++ " -   "++nm++" ("++show nr++")"]) ]
         | (sa,r@(Reservation _ _ tm nm nr _)) <- zip selectReservationActions hourReservations 

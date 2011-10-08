@@ -65,7 +65,7 @@ mkClientView = mkWebView $
                      Nothing -> initialTime
                      Just oldTime -> if timeAvailable oldTime then oldMTime else Nothing
      
-     ; nrButtons <- sequence [ mkButtonWithClick (show nr) True $ \bvid -> callFunction vid "setNr" [show nr]
+     ; nrButtons <- sequence [ mkButtonWithClick (show nr) True $ \bvid -> jsCallFunction vid "setNr" [show nr]
                                   {- $ Edit $ viewEdit vid $ setClientViewNrOfPeople nr -} | nr <-[1..8]]
      
        -- TODO hacky
@@ -82,7 +82,7 @@ mkClientView = mkWebView $
      ; timeButtonssTimeEditss <- 
          sequence [ sequence [ do { b <- mkButtonWithStyleClick (showTime tm) (timeAvailable tm) "width:100%" $ const "" 
                                                 {- Edit $ viewEdit vid $ setClientViewTime (Just tm) -}
-                                  ; return (b, onClick b $ callFunction vid "setTime" [ "{hour:"++show hr ++",min:"++show mn++",index:"++show ix++"}"])
+                                  ; return (b, onClick b $ jsCallFunction vid "setTime" [ "{hour:"++show hr ++",min:"++show mn++",index:"++show ix++"}"])
                                   }     
                              | (mn,j) <-zip [0,30] [0..], let tm = (hr,mn), let ix = 2*i+j ]
                   | (hr,i) <-  zip [18..23] [0..] ] 
@@ -124,8 +124,8 @@ mkClientView = mkWebView $
                   [ datesAndAvailabilityDecl
                     -- maybe combine these with button declarations to prevent multiple list comprehensions
                     -- maybe put script in monad and collect at the end, so we don't have to separate them so far (script :: String -> WebViewM ())
-                  , concat [ onClick nrButton $ callFunction vid "setNr" [show nr]| (nr,nrButton) <- zip [1..] nrButtons]
-                  , concat [ onClick button $ callFunction vid "setDate" [ show dateIndex ] 
+                  , concat [ onClick nrButton $ jsCallFunction vid "setNr" [show nr]| (nr,nrButton) <- zip [1..] nrButtons]
+                  , concat [ onClick button $ jsCallFunction vid "setDate" [ show dateIndex ] 
                            | (dateIndex,button) <- zip [0..] $ [todayButton, tomorrowButton]++dayButtons ]
                   , concat timeEdits
                   , inertTextView nameText
@@ -134,12 +134,12 @@ mkClientView = mkWebView $
                                           [ callServerEditAction submitAction ["escape("++jsGetElementByIdRef (widgetGetViewRef nameText)++".value)", jsVar vid "selectedNr"
                                                                               , jsVar vid "selectedDate", "'('+"++jsVar vid "selectedTime"++".hour+','+"++jsVar vid "selectedTime"++".min+')'"
                                                                               ,"escape("++jsGetElementByIdRef (widgetGetViewRef commentText)++".value)"]
-                                          , callFunction vid "reset" []
-                                          , callFunction vid "disenable" []] 
+                                          , jsCallFunction vid "reset" []
+                                          , jsCallFunction vid "disenable" []] 
                   , jsFunction vid "reset" []
-                                          [ callFunction vid "setNr" ["null"]
-                                          , callFunction vid "setDate" ["null"]
-                                          , callFunction vid "setTime" ["null"]
+                                          [ jsCallFunction vid "setNr" ["null"]
+                                          , jsCallFunction vid "setDate" ["null"]
+                                          , jsCallFunction vid "setTime" ["null"]
                                           , jsGetElementByIdRef (widgetGetViewRef nameText)++".value = \"\""
                                           , jsGetElementByIdRef (widgetGetViewRef commentText)++".value = \"\""
                                           ] 
@@ -152,7 +152,7 @@ mkClientView = mkWebView $
                                                   , jsAssignVar vid "selectedNr" "nr"
                                                   , "nrStr = nr==null ? \"Please select nr of people\" : 'Nr of people: '+nr"
                                                   , jsGetElementByIdRef (widgetGetViewRef nrOfPeopleLabel)++".innerHTML = nrStr"
-                                                  , callFunction vid "disenable" [] ]
+                                                  , jsCallFunction vid "disenable" [] ]
                   , jsDeclareVar vid "selectedTime" "null"
                   , jsDeclareVar vid "selectedTimeIndex" "null"
                   , jsFunction vid "setTime" ["time"] [ "console.log(\"setTime \"+time, "++jsVar vid "selectedTime"++")"
@@ -160,13 +160,13 @@ mkClientView = mkWebView $
                                                       , "timeStr = time==null ? \"Please select a time\" : 'Time: ' + time.hour +\":\"+ (time.min<10?\"0\":\"\") + time.min"
                                                       , jsAssignVar vid "selectedTimeIndex" "time == null ? null : time.index"
                                                       , jsGetElementByIdRef (widgetGetViewRef timeLabel)++".innerHTML = timeStr"
-                                                      , callFunction vid "disenable" [] ] 
+                                                      , jsCallFunction vid "disenable" [] ] 
                   , jsDeclareVar vid "selectedDate" "null"
                   , jsFunction vid "setDate" ["date"] [ "console.log(\"setDate \"+date, "++jsVar vid "selectedDate"++")"
                                                       , jsAssignVar vid "selectedDate" "date"
                                                       , "dateStr = date==null ? \"Please select a date\" : 'Date: ' + availability[date].date"
                                                       , jsGetElementByIdRef (widgetGetViewRef dateLabel)++".innerHTML = dateStr"
-                                                      , callFunction vid "disenable" [] ] 
+                                                      , jsCallFunction vid "disenable" [] ] 
                   , jsFunction vid "disenable" [] [ "console.log(\"disenable: \","++jsVar vid "selectedNr"++","++jsVar vid "selectedDate"++","++jsVar vid "selectedTime" ++" )"
                                                   , "var availables = "++jsVar vid "selectedDate"++" == null ? null : availability["++jsVar vid "selectedDate"++"].availables"
                                                   , "var buttonIds = [\""++intercalate "\",\"" (map (show . getViewId) $ concat timeButtonss)++"\"]"
@@ -174,13 +174,13 @@ mkClientView = mkWebView $
                                                       [ "document.getElementById(buttonIds[i]).disabled = availables == null ? true : availables[i]<"++jsVar vid "selectedNr"
                                                       ]
                                                   , jsIf (jsVar vid "selectedTimeIndex"++" && availables && availables["++jsVar vid "selectedTimeIndex"++"] <"++jsVar vid "selectedNr") 
-                                                      [ callFunction vid "setTime" ["null"] ] -- if the selected time becomes unavailable, deselect
+                                                      [ jsCallFunction vid "setTime" ["null"] ] -- if the selected time becomes unavailable, deselect
                                                       -- TODO this deselect is implemented horribly, with the extra index field in time. Can this be done more elegantly?
-                                                  , jsGetElementByIdRef (widgetGetViewRef confirmButton)++".disabled = !"++callFunction vid "inputValid" []
+                                                  , jsGetElementByIdRef (widgetGetViewRef confirmButton)++".disabled = !"++jsCallFunction vid "inputValid" []
                                                   ]
                     -- todo: handle when time selection is disabled because of availability (on changing nr of persons or date)
-                  , onKeyUp nameText $ callFunction vid "disenable" []
-                  , callFunction vid "reset" []
+                  , onKeyUp nameText $ jsCallFunction vid "disenable" []
+                  , jsCallFunction vid "reset" []
                   ]                                   
      }
 

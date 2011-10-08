@@ -1,6 +1,14 @@
 TODO short term
-TODO: fix focus problem in Client view, use params for name and comments
-TODO: weird long compile time for Main
+
+Fix/clip incorrect selectionIx
+Find a way to do the list with varying lenght in the hour view
+Figure out which object lives where Right now reservations gets just the reservation and not the object with the entry
+for hour we also have the entry (and day as well, but it has no entry yet)
+Either have the object with the entry and the list (or reservation for reservation) at each level or just the list/reservation 
+
+Move selectedIx to lower views?
+Remove all selection from server side
+
 TODO: why no $('#ViewId []') queries?
 TODO: get rid of viewRef here: getElementByIdRef (widgetGetViewRef)      id's are fine. viewRef is just for internal stuff
 TODO: report type problem in WebViewPrim.viewEdit
