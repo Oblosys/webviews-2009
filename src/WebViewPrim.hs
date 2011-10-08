@@ -122,7 +122,7 @@ mkButtonWithStyleClick str en st foc = mkButtonEx str en st foc $ Edit $ return 
 mkButtonEx :: String -> Bool -> String -> (ViewId -> String) -> EditCommand db -> WebViewM db (Widget (Button db)) -- signature nec. against ambiguity
 mkButtonEx str en st foc ac = assignViewId $ \vid -> button vid str en st (foc vid) ac
 
-mkJSVar name value = assignViewId $ \vid -> jsVar vid name value
+mkJSVar name value = assignViewId $ \vid -> jsVar_ vid name value
 
 
 widgetGetViewRef widget = mkViewRef $ getViewId widget
@@ -237,9 +237,7 @@ what about space leaks there?
 
 TODO: this seems only necessary for subviews, as these can have extra state
 for widgets, there may be a little less reuse, but no problem. Except maybe if a widget
-is created based on a list of elements, but does not take its content from these elements.
-
-nice to do it in pig itself, but then we need to remove it's ols unique id from the path and make sure
+is created based on a list of elements, but does not take its content fnice to do it in pig itself, but then we need to remove it's ols unique id from the path and make sure
 that it's own unique id does not clash with generated id's or unique id's from other lists. We cannot
 include the generated unique id, because then the unique id does not identify the view by itself anymore
 
@@ -323,7 +321,7 @@ presentTextField (TextView viewId textType str mEditAction) =
                     , strAttr "onKeyUp" $ "script"++viewIdSuffix viewId++".onKeyUp()" ]  +++
   (mkScript $ declareWVTextViewScript viewId)      
 
-declareWVTextViewScript viewId = declareVar viewId "script" $ "new TextViewScript(\""++show viewId++"\");"
+declareWVTextViewScript viewId = jsDeclareVar viewId "script" $ "new TextViewScript(\""++show viewId++"\");"
 
 -- For the moment, onclick disables the standard server ButtonC command
 presentButton :: Button db -> Html
@@ -338,7 +336,7 @@ presentButton (Button viewId txt enabled style onclick _) =
   (mkScript $ declareWVButtonScript viewId)      
 -- TODO: text should be escaped
 
-declareWVButtonScript viewId = declareVar viewId "script" $ "new ButtonScript(\""++show viewId++"\");"
+declareWVButtonScript viewId = jsDeclareVar viewId "script" $ "new ButtonScript(\""++show viewId++"\");"
 
 -- Edit actions are a bit different, since they do not have a widget presentation.
 -- TODO: maybe combine edit actions with buttons, so they use the same command structure
@@ -409,8 +407,6 @@ extractScriptHtml (Html elements) = (\(es,ss)-> (Html (concat es), concat ss)) $
 
 viewIdSuffix (ViewId ps) = concatMap (('_':).show) ps
 
-getElementByIdRef (ViewIdRef id) = "document.getElementById(\\'"++show (ViewId id)++"\\')"
-
 declareFunction :: ViewId -> String -> [String] -> String -> String
 declareFunction vid name params body = name++viewIdSuffix vid++" = Function("++concatMap ((++",").show) params++"'"++body++"');"
 -- no "var" when declaring the variable that contains the functions, but in body they are allowed (and maybe necessary for IE)
@@ -420,9 +416,10 @@ escapeSingleQuote str = concatMap (\c -> if c == '\'' then "\\'" else [c]) str
 jsFunction v n a b = declareFunction v n a $ escapeSingleQuote $ intercalate ";" b -- no newlines here, since scripts are executed line by line 
 jsScript lines = intercalate ";\n" lines
 jsIf c t = "if ("++c++") {"++intercalate ";" t++"}"
-jsElse e = "else {"++jsScript e++ "}"
+jsIfElse c t e = "if ("++c++") {"++intercalate ";" t++"} else {"++intercalate ";" e++ "}"
 jsFor c b = "for ("++c++") {"++intercalate ";" b++"}"
 jsGetElementByIdRef (ViewIdRef id) = "document.getElementById('"++show (ViewId id)++"')"
+jsArr elts = "["++intercalate"," elts ++"]"
 
 mkJson :: [(String,String)] -> String
 mkJson fields = "{"++intercalate "," [name++": "++value| (name, value)<-fields]++"}"
@@ -441,10 +438,10 @@ onKeyUp button expr = onEvent "KeyUp" button expr
 onEvent :: HasViewId w => String -> (Widget w) -> String -> String
 onEvent event widget expr = "script"++viewIdSuffix (getViewId widget) ++ ".on"++event++" = function () {"++expr++"};"
 
-readVar vid name = name++viewIdSuffix vid
-writeVar vid name value = name++viewIdSuffix vid++" = "++value++";"
+jsVar vid name = name++viewIdSuffix vid
+jsAssignVar vid name value = name++viewIdSuffix vid++" = "++value++";"
 -- TODO: maybe refVar and assignVar are more appropriate?
-declareVar vid name value = let jsVar = name++viewIdSuffix vid
+jsDeclareVar vid name value = let jsVar = name++viewIdSuffix vid
                             in  "if (typeof "++jsVar++" ==\"undefined\") {"++jsVar++" = "++value++";};"
 -- no "var " here, does not work when evaluated with eval
 

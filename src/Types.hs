@@ -139,8 +139,9 @@ data JSVar = JSVar { getJSVarViewId :: ViewId, getJSVarName :: String, getJSVarV
 
 instance Eq JSVar where
   JSVar _ n1 v1 == JSVar _ n2 v2 = n1 == n2 && v1 == v2
-  
-jsVar viewId name value = Widget noId noId $ JSVar viewId name value
+
+-- renamed, so we can use jsVar for declaring a javascript variable. This constructor will probably be removed anyway
+jsVar_ viewId name value = Widget noId noId $ JSVar viewId name value
 
 getJSVarValue (Widget _ _ jsv) = getJSVarValue_ jsv
 

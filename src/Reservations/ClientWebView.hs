@@ -111,7 +111,7 @@ mkClientView = mkWebView $
                             db'' = updateReservation rid (const $ Reservation rid date time nameStr nrOfPeople commentStr) db
                         in  db''
                    }
-     ; let datesAndAvailabilityDecl = "availability = ["++ -- todo: should be declared with declareVar for safety
+     ; let datesAndAvailabilityDecl = "availability = ["++ -- todo: should be declared with jsjsDeclareVar for safety
              intercalate "," [ "{date: \""++showDay (weekdayForDate  d)++", "++showShortDate d++"\","++
                                " availables: ["++intercalate "," [ show $ availableAtDateAndTime d (h,m)
                                                                 | h<-[18..23], m<-[0,30]]++"]}" | i <-[0..7], let d = addToDate today i ] 
@@ -131,8 +131,8 @@ mkClientView = mkWebView $
                   , inertTextView nameText
                   , inertTextView commentText
                   , onClick confirmButton $ intercalate ";" 
-                                          [ callServerEditAction submitAction ["escape("++jsGetElementByIdRef (widgetGetViewRef nameText)++".value)", readVar vid "selectedNr"
-                                                                              , readVar vid "selectedDate", "'('+"++readVar vid "selectedTime"++".hour+','+"++readVar vid "selectedTime"++".min+')'"
+                                          [ callServerEditAction submitAction ["escape("++jsGetElementByIdRef (widgetGetViewRef nameText)++".value)", jsVar vid "selectedNr"
+                                                                              , jsVar vid "selectedDate", "'('+"++jsVar vid "selectedTime"++".hour+','+"++jsVar vid "selectedTime"++".min+')'"
                                                                               ,"escape("++jsGetElementByIdRef (widgetGetViewRef commentText)++".value)"]
                                           , callFunction vid "reset" []
                                           , callFunction vid "disenable" []] 
@@ -144,36 +144,36 @@ mkClientView = mkWebView $
                                           , jsGetElementByIdRef (widgetGetViewRef commentText)++".value = \"\""
                                           ] 
                   , jsFunction vid "inputValid" [] [ "console.log(\"inputValid: \"+"++jsGetElementByIdRef (widgetGetViewRef nameText)++".value)"
-                                                   , "return "++readVar vid "selectedNr"++"!=null && "++readVar vid "selectedDate"++"!=null && "++readVar vid "selectedTime"++"!=null && "++
+                                                   , "return "++jsVar vid "selectedNr"++"!=null && "++jsVar vid "selectedDate"++"!=null && "++jsVar vid "selectedTime"++"!=null && "++
                                                                 jsGetElementByIdRef (widgetGetViewRef nameText)++".value != \"\""
                                                    ] 
-                  , declareVar vid "selectedNr" "null"
-                  , jsFunction vid "setNr" ["nr"] [ "console.log(\"setNr (\"+nr+\") old val: \", "++readVar vid "selectedNr"++")"
-                                                  , writeVar vid "selectedNr" "nr"
+                  , jsDeclareVar vid "selectedNr" "null"
+                  , jsFunction vid "setNr" ["nr"] [ "console.log(\"setNr (\"+nr+\") old val: \", "++jsVar vid "selectedNr"++")"
+                                                  , jsAssignVar vid "selectedNr" "nr"
                                                   , "nrStr = nr==null ? \"Please select nr of people\" : 'Nr of people: '+nr"
                                                   , jsGetElementByIdRef (widgetGetViewRef nrOfPeopleLabel)++".innerHTML = nrStr"
                                                   , callFunction vid "disenable" [] ]
-                  , declareVar vid "selectedTime" "null"
-                  , declareVar vid "selectedTimeIndex" "null"
-                  , jsFunction vid "setTime" ["time"] [ "console.log(\"setTime \"+time, "++readVar vid "selectedTime"++")"
-                                                      , writeVar vid "selectedTime" "time"
+                  , jsDeclareVar vid "selectedTime" "null"
+                  , jsDeclareVar vid "selectedTimeIndex" "null"
+                  , jsFunction vid "setTime" ["time"] [ "console.log(\"setTime \"+time, "++jsVar vid "selectedTime"++")"
+                                                      , jsAssignVar vid "selectedTime" "time"
                                                       , "timeStr = time==null ? \"Please select a time\" : 'Time: ' + time.hour +\":\"+ (time.min<10?\"0\":\"\") + time.min"
-                                                      , writeVar vid "selectedTimeIndex" "time == null ? null : time.index"
+                                                      , jsAssignVar vid "selectedTimeIndex" "time == null ? null : time.index"
                                                       , jsGetElementByIdRef (widgetGetViewRef timeLabel)++".innerHTML = timeStr"
                                                       , callFunction vid "disenable" [] ] 
-                  , declareVar vid "selectedDate" "null"
-                  , jsFunction vid "setDate" ["date"] [ "console.log(\"setDate \"+date, "++readVar vid "selectedDate"++")"
-                                                      , writeVar vid "selectedDate" "date"
+                  , jsDeclareVar vid "selectedDate" "null"
+                  , jsFunction vid "setDate" ["date"] [ "console.log(\"setDate \"+date, "++jsVar vid "selectedDate"++")"
+                                                      , jsAssignVar vid "selectedDate" "date"
                                                       , "dateStr = date==null ? \"Please select a date\" : 'Date: ' + availability[date].date"
                                                       , jsGetElementByIdRef (widgetGetViewRef dateLabel)++".innerHTML = dateStr"
                                                       , callFunction vid "disenable" [] ] 
-                  , jsFunction vid "disenable" [] [ "console.log(\"disenable: \","++readVar vid "selectedNr"++","++readVar vid "selectedDate"++","++readVar vid "selectedTime" ++" )"
-                                                  , "var availables = "++readVar vid "selectedDate"++" == null ? null : availability["++readVar vid "selectedDate"++"].availables"
+                  , jsFunction vid "disenable" [] [ "console.log(\"disenable: \","++jsVar vid "selectedNr"++","++jsVar vid "selectedDate"++","++jsVar vid "selectedTime" ++" )"
+                                                  , "var availables = "++jsVar vid "selectedDate"++" == null ? null : availability["++jsVar vid "selectedDate"++"].availables"
                                                   , "var buttonIds = [\""++intercalate "\",\"" (map (show . getViewId) $ concat timeButtonss)++"\"]"
                                                   , jsFor "var i=0;i<buttonIds.length;i++" $ 
-                                                      [ "document.getElementById(buttonIds[i]).disabled = availables == null ? true : availables[i]<"++readVar vid "selectedNr"
+                                                      [ "document.getElementById(buttonIds[i]).disabled = availables == null ? true : availables[i]<"++jsVar vid "selectedNr"
                                                       ]
-                                                  , jsIf (readVar vid "selectedTimeIndex"++" && availables && availables["++readVar vid "selectedTimeIndex"++"] <"++readVar vid "selectedNr") 
+                                                  , jsIf (jsVar vid "selectedTimeIndex"++" && availables && availables["++jsVar vid "selectedTimeIndex"++"] <"++jsVar vid "selectedNr") 
                                                       [ callFunction vid "setTime" ["null"] ] -- if the selected time becomes unavailable, deselect
                                                       -- TODO this deselect is implemented horribly, with the extra index field in time. Can this be done more elegantly?
                                                   , jsGetElementByIdRef (widgetGetViewRef confirmButton)++".disabled = !"++callFunction vid "inputValid" []
