@@ -1,7 +1,10 @@
 TODO short term
 
+the call to the next load is outside the if now, are the object and index always defined okay?
+
 Fix/clip incorrect selectionIx
-Find a way to do the list with varying lenght in the hour view
+
+Find a way to do the list with varying length in the hour view
 Figure out which object lives where Right now reservations gets just the reservation and not the object with the entry
 for hour we also have the entry (and day as well, but it has no entry yet)
 Either have the object with the entry and the list (or reservation for reservation) at each level or just the list/reservation 

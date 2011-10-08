@@ -140,7 +140,7 @@ instance Initial RestaurantView where
   initial = RestaurantView initial initial initial (initial,initial) [] initial initial initial initial
 
 mkRestaurantView = mkWebView $
- \vid (RestaurantView mSelectedDate mSelectedHour mSelectedReservation _ _ _ _ _ _) ->
+ \vid (RestaurantView oldMSelectedDate _ _ _ _ _ _ _ _) ->
   do { clockTime <-  liftIO getClockTime
      ; ct <- liftIO $ toCalendarTime clockTime
      ; let today@(currentDay, currentMonth, currentYear) = dateFromCalendarTime ct
@@ -162,50 +162,46 @@ mkRestaurantView = mkWebView $
      
      ; reservations <- fmap Map.elems $ withDb $ \db -> allReservations db
      
+     ; -- hack
+     ; let mSelectedDate = 
+             case oldMSelectedDate of
+                Just selectedDate -> oldMSelectedDate
+                Nothing           -> Just today
+
      ; let calendarDayViewForDate date@(_,m,_) = mkCalendarDayView date (Just date==mSelectedDate) (date==today) (m==currentMonth) $
                                            [r | r@(Reservation _ d _ _ _ _) <- reservations, date==d]  
      
      ; calendarDayViews <- mapM calendarDayViewForDate calendarDays
      
-     ; let reservationsSelectedDay = filter ((==mSelectedDate). Just . date) reservations
-     ; let reservationsSelectedHour = filter ((==mSelectedHour). Just . fst . time) reservationsSelectedDay
-      
-     ; debugLn $ "\n\n\n\n\n\n\n\n" ++ show (mkDay reservationsSelectedDay)
      
      ; let weeks = daysToWeeks $ zip calendarDayViews selects
      
-     ; -- hack
-     ; let (mSelectedDate', mSelectedHour') = 
-             case mSelectedDate of
-                Just selectedDate -> (mSelectedDate, mSelectedHour)
-                Nothing           -> let resHours = sort $ map (fst . time) $  filter ((==today) . date) reservations
-                                         initHr = if null resHours then Just 19 else Just $ head resHours 
-                                     in  (Just today, initHr)
 
-     -- if the current selection is in the selected hour, keep it, otherwise select the first reservation of the hour (if any)
-     ; let mSelectedReservation' = case reservationsSelectedHour of
-                                          fstRes:_  -> case mSelectedReservation of
-                                                              Just r | r `elem` reservationsSelectedHour -> Just r
-                                                              _                                          -> Just fstRes
-                                          _      -> Nothing
-     ; reservationView <- mkReservationView vid mSelectedReservation'
+                                          
+     ; let reservationsSelectedDay = filter ((==mSelectedDate). Just . date) reservations
+      
+     ; debugLn $ "\n\n\n\n\n\n\n\n" ++ show (mkDay reservationsSelectedDay)
 
-     ; hourView <- mkHourView vid (getViewId reservationView) mSelectedReservation' mSelectedHour' reservationsSelectedHour
+                                          
+     ; reservationView <- mkReservationView vid Nothing
+     ; hourView <- mkHourView vid (getViewId reservationView) Nothing Nothing []
      ; dayView <- mkDayView vid (getViewId hourView) reservationsSelectedDay
 
      
-     ; return $ RestaurantView mSelectedDate' mSelectedHour' mSelectedReservation' (currentMonth, currentYear) weeks dayView hourView reservationView $
-         "console.log(\"restaurant script\");"++
-         jsDeclareVar vid "selectedDayIx" "null" ++ -- null is no selection
-         jsDeclareVar vid "selectedHourIx" "null" ++ -- null is no selection
-         jsDeclareVar vid "selectedReservationIx" "null" ++ -- null is no selection
-         jsAssignVar vid "selectedDayObj" (mkDay reservationsSelectedDay) ++
-         jsDeclareVar vid "selectedHourObj" "null" ++ -- null is no selection
-         jsDeclareVar vid "selectedReservationObj" "null" ++ -- null is no selection
-         jsAssignVar vid "selectedHourIx" (maybe "null" (\h -> show $ h-18) mSelectedHour') ++ -- todo for now we just set it each time
+     ; return $ RestaurantView mSelectedDate Nothing Nothing (currentMonth, currentYear) weeks dayView hourView reservationView $ jsScript 
+         [ "console.log(\"restaurant script\")"
+         , jsDeclareVar vid "selectedDayIx" "null"  -- null is no selection
+         , jsDeclareVar vid "selectedHourIx" "null"  -- null is no selection
+         , jsDeclareVar vid "selectedReservationIx" "null"  -- null is no selection
+         , jsAssignVar vid "selectedDayObj" (mkDay reservationsSelectedDay) 
+         , jsDeclareVar vid "selectedHourObj" "null" -- null is no selection
+         , jsDeclareVar vid "selectedReservationObj" "null" -- null is no selection
+         , jsAssignVar vid "selectedHourIx" (let resHours = sort $ map (fst . time) $  filter ((\d -> Just d ==mSelectedDate) . date) reservations
+                                           in  if null resHours then "0" else show $ head resHours - 18) 
          
-         jsCallFunction (getViewId dayView) "load" [] ++";"++
-         jsCallFunction (getViewId reservationView) "load" [] ++";"
+         , jsAssignVar vid "selectedReservationIx" "0"
+         , jsCallFunction (getViewId dayView) "load" []
+         ]
      }
  where selectDateEdit vid d = mkEditAction . Edit $
         do { (_,_,db,_,_) <- get
@@ -292,6 +288,8 @@ mkCalendarDayView date isSelected isToday isThisMonth reservations = mkWebView $
 selectedDayColor = Rgb 0x80 0xb0 0xff
 hourColor = Rgb 0xd0 0xd0 0xd0
 selectedHourColor = Rgb 0x80 0xb0 0xff
+reservationColor =  Rgb 0xf8 0xf8 0xf8
+selectedReservationColor = selectedDayColor
 
 instance Presentable CalendarDayView where
   present (CalendarDayView date@(day, month, year) isSelected isToday isThisMonth reservations) = 
@@ -337,16 +335,17 @@ mkDayView restaurantViewId hourViewId dayReservations = mkWebView $
                                                                                                       ":'"++htmlColor hourColor++"')"
                                                           ] -- todo: reference to hourOfDay is hard coded
                            , jsLog $ "'SelectedHourIx is '+"++ jsVar restaurantViewId "selectedHourIx"
-                           , jsIf (jsVar restaurantViewId "selectedHourIx") 
+                           , jsIf (jsVar restaurantViewId "selectedHourIx"++"!=null") 
                                [ jsAssignVar restaurantViewId "selectedHourObj" $  selDayObj ++".hours["++jsVar restaurantViewId "selectedHourIx"++"]"
                                ]
-                               
-                           , jsCallFunction hourViewId "load" []
                            ]
                            [] -- will not occur now, since day is given by server
+                       
+                       , jsCallFunction hourViewId "load" []
+                            
                      {-      
                       , jsLog $jsVar restaurantViewId "selectedHourIx"
-                      , jsIf (jsVar restaurantViewId "selectedHourIx") 
+                      , jsIf (jsVar restaurantViewId "selectedHourIx"++"!=null") 
                           [ "var hourObject = "++jsVar restaurantViewId "hourObjects"++"["++jsVar restaurantViewId "selectedHourIx"++"]" 
                           , "console.log('Hour entry is'+hourObject.hourEntry)"
                           , jsFor "i=0; i<hourObject.reservations.length; i++" 
@@ -356,7 +355,8 @@ mkDayView restaurantViewId hourViewId dayReservations = mkWebView $
                   ]
      }
  where selectHourEdit dayViewId h = jsAssignVar restaurantViewId "selectedHourIx" (show $ h-18) ++";"++
-                              jsCallFunction  dayViewId "load" []
+                                    jsAssignVar restaurantViewId "selectedReservationIx" "0" ++";"++
+                                    jsCallFunction  dayViewId "load" []
 
 
 instance Presentable DayView where
@@ -390,7 +390,7 @@ instance Initial HourView where
 mkHourView :: ViewId -> ViewId -> Maybe Reservation -> Maybe Int -> [Reservation] -> WebViewM Database (WebView Database)
 mkHourView restaurantViewId reservationViewId mSelectedReservation mSelectedHour hourReservations = mkWebView $
  \vid (HourView _ _ _ _ _) ->
-  do { let selectReservationActions = map (selectReservationEdit vid) [0..length hourReservations]
+  do { let selectReservationActions = map (selectReservationEdit vid) [0..20]
      ; return $ HourView mSelectedReservation mSelectedHour selectReservationActions hourReservations $
          jsScript [ jsFunction vid "load" [] $ 
                       let selHourObj = jsVar restaurantViewId "selectedHourObj"
@@ -399,20 +399,33 @@ mkHourView restaurantViewId reservationViewId mSelectedReservation mSelectedHour
                          , jsLog $ "'SelectedHour is '+"++ selHourObj
                          , jsIfElse selHourObj
                            [ jsLog $ selHourObj++".hourEntry"
-                           , jsIf (jsVar restaurantViewId "selectedReservationIx") 
+                           
+                           -- if selection is below reservation list make the selectedReservationIx null
+                           , jsIf (jsVar restaurantViewId "selectedReservationIx"++">="++selHourObj++".reservations.length")
+                             [ jsAssignVar restaurantViewId "selectedReservationIx" "null" ]
+                           -- load hour and show selected reservation
+                           , jsFor ("i=0; i<"++selHourObj++".reservations.length; i++") 
+                              [ "console.log('item:'+"++selHourObj++".reservations[i].reservationEntry)" 
+                              , "$('#reservationLine_'+i).css('background-color',("++jsVar restaurantViewId "selectedReservationIx"++"==i)?'"++htmlColor selectedReservationColor++"'"++
+                                                                                                           ":'"++htmlColor reservationColor++"')"
+                              , "$('#reservationEntry_'+i).text("++selHourObj++".reservations[i].reservationEntry)"
+                              ]
+                            
+                           -- clear the other entries
+                           , jsFor ("i="++selHourObj++".reservations.length; i<20; i++") 
+                              [ "$('#reservationEntry_'+i).text('')"
+                              , "$('#reservationLine_'+i).css('background-color','"++htmlColor reservationColor++"')"
+                              ]
+                           
+                           , jsIfElse (jsVar restaurantViewId "selectedReservationIx"++"!=null") 
                                [ jsAssignVar restaurantViewId "selectedReservationObj" $  selHourObj ++".reservations["++jsVar restaurantViewId "selectedReservationIx"++"].reservation"
                                ]
-                           , jsCallFunction reservationViewId "load" []
+                               [ jsAssignVar restaurantViewId "selectedReservationObj" "null" ]
                            ]
                            [] -- empty reservation list, set selectedReservationObj to nul
-                     {-      
-                      , "console.log("++jsVar restaurantViewId "selectedHourIx"++")"
-                      , jsIf (jsVar restaurantViewId "selectedHourIx") 
-                          [ "var hourObject = "++jsVar restaurantViewId "hourObjects"++"["++jsVar restaurantViewId "selectedHourIx"++"]" 
-                          , "console.log('Hour entry is'+hourObject.hourEntry)"
-                          , jsFor "i=0; i<hourObject.reservations.length; i++" 
-                              [ "console.log('item:'+hourObject.reservations[i].reservationEntry)" ]
-                          ] -}
+
+                         , jsCallFunction reservationViewId "load" []
+                         
                       ]  
                   ]
      }
@@ -424,11 +437,11 @@ instance Presentable HourView where
     (with [identifier "hourView"] $ -- in separate div, because spinners on scrolling elements  cause scrollbars to be shown
     boxedEx 0 $ with [ thestyle "height:90px;overflow:auto"] $
       mkTableEx [width "100%", cellpadding 0, cellspacing 0, thestyle "border-collapse:collapse"] [] [] $ 
-        [ [ ([ strAttr "onClick" sa -- todo: don't like this onClick here
-             , thestyle $ "border: 1px solid #909090; background-color: "++
-                                                if Just r==mSelectedReservation then htmlColor selectedDayColor else "#f8f8f8"]
-            , hList [hSpace 2, stringToHtml $ showTime tm ++ " -   "++nm++" ("++show nr++")"]) ]
-        | (sa,r@(Reservation _ _ tm nm nr _)) <- zip selectReservationActions hourReservations 
+        [ [ ([identifier $ "reservationLine_"++show i
+             , strAttr "onClick" sa -- todo: don't like this onClick here
+             , thestyle $ "border: 1px solid #909090"]
+          , hList [nbsp, with [identifier $ "reservationEntry_"++show i] $ stringToHtml $ "reservationEntry"]) ]
+        | (i,sa) <- zip [0..] selectReservationActions 
         ]) +++ mkScript script
 instance Storeable Database HourView where
   save _ = id
