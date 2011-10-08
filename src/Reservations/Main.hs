@@ -133,7 +133,7 @@ instance Storeable Database MainView where
 -- Main ----------------------------------------------------------------------  
 
 data RestaurantView = 
-  RestaurantView (Maybe Date) (Maybe Int) (Maybe Reservation) (Int,Int) [[(WebView Database,EditAction Database)]] (WebView Database) (WebView Database) (WebView Database) String
+  RestaurantView (Maybe Date) (Maybe Int) (Maybe Reservation) (Int,Int) [[(WebView Database,String, EditAction Database)]] (WebView Database) (WebView Database) (WebView Database) String
     deriving (Eq, Show, Typeable, Data)
 
 instance Initial RestaurantView where                 
@@ -158,6 +158,7 @@ mkRestaurantView = mkWebView $
      ; let calendarDaysOfThisMonth = [(d,currentMonth, currentYear) | d <- daysOfThisMonth]
      ; let calendarDaysOfNextMonth = [(d,nextMonth, nextMonthYear) | d <- daysOfNextMonth]
      ; let calendarDays = calendarDaysOfLastMonth ++ calendarDaysOfThisMonth ++ calendarDaysOfNextMonth 
+     ; let selectScripts = [ jsAssignVar vid "selectedDateIx" (show i) ++";"++jsCallFunction vid "load" []| i <- [0..length calendarDays -1]] 
      ; selects <- mapM (selectDateEdit vid) calendarDays
      
      ; reservations <- fmap Map.elems $ withDb $ \db -> allReservations db
@@ -174,13 +175,13 @@ mkRestaurantView = mkWebView $
      ; calendarDayViews <- mapM calendarDayViewForDate calendarDays
      
      
-     ; let weeks = daysToWeeks $ zip calendarDayViews selects
+     ; let weeks = daysToWeeks $ zip3 calendarDayViews selectScripts selects
      
 
                                           
      ; let reservationsSelectedDay = filter ((==mSelectedDate). Just . date) reservations
       
-     ; debugLn $ "\n\n\n\n\n\n\n\n" ++ show (mkDay reservationsSelectedDay)
+     ; debugLn $ "\n\n\n\n\n\n\n\n" ++ show (mkDay mSelectedDate reservationsSelectedDay)
 
                                           
      ; reservationView <- mkReservationView vid Nothing
@@ -190,35 +191,45 @@ mkRestaurantView = mkWebView $
      
      ; return $ RestaurantView mSelectedDate Nothing Nothing (currentMonth, currentYear) weeks dayView hourView reservationView $ jsScript 
          [ "console.log(\"restaurant script\")"
+         , jsFunction vid "load" []  
+           [ jsLog "'Load restaurant view'" -- TODO: in future version that is completely dynamic, check for selectedDayObj == null
+           , jsIfElse (jsVar vid "selectedDayObj"++".selectedDate && "++jsVar vid "selectedHourIx" ++"!=null") 
+             [ "$('#betweenPlaceholder').text('Reservations on '+"++ jsVar vid "selectedDayObj"++".selectedDate.day+' '+"++ jsVar vid "selectedDayObj"++".selectedDate.month" ++
+                       "+' between '+("++jsVar vid "selectedHourIx"++"+18)+'h and '+("++jsVar vid "selectedHourIx"++"+18+1)+'h')"
+             ]
+             [ "$('#betweenPlaceholder').text('')"
+             ]
+           , jsCallFunction (getViewId dayView) "load" []
+           ]   
          , jsDeclareVar vid "selectedDayIx" "null"  -- null is no selection
          , jsDeclareVar vid "selectedHourIx" "null"  -- null is no selection
          , jsDeclareVar vid "selectedReservationIx" "null"  -- null is no selection
-         , jsAssignVar vid "selectedDayObj" (mkDay reservationsSelectedDay) 
+         , jsAssignVar vid "selectedDayObj" (mkDay mSelectedDate reservationsSelectedDay) 
          , jsDeclareVar vid "selectedHourObj" "null" -- null is no selection
          , jsDeclareVar vid "selectedReservationObj" "null" -- null is no selection
          , jsAssignVar vid "selectedHourIx" (let resHours = sort $ map (fst . time) $  filter ((\d -> Just d ==mSelectedDate) . date) reservations
                                            in  if null resHours then "0" else show $ head resHours - 18) 
          
          , jsAssignVar vid "selectedReservationIx" "0"
-         , jsCallFunction (getViewId dayView) "load" []
+         , jsCallFunction vid "load" []
          ]
      }
- where selectDateEdit vid d = mkEditAction . Edit $
-        do { (_,_,db,_,_) <- get
-           ; viewEdit vid $ 
+ where selectDateEdit vid d = mkEditAction . Edit $ viewEdit vid $ 
               \(RestaurantView _ h r my weeks dayView hourView reservationView script) ->
-                let resHours = sort $ map (fst . time) $ filter ((==d). date) $ Map.elems $ allReservations db
-                    newHr = if null resHours then h else Just $ head resHours 
-                in  RestaurantView (Just d) newHr r my weeks dayView hourView reservationView script
-           }
+                RestaurantView (Just d) h r my weeks dayView hourView reservationView script
+          
 {-
   [ { hourEntry: nrOfRes(nrOfPeople)
     , reservations: [{listEntry:name+nr  reservation:{name: nrOfPeople: .. }]
     } ]
 -}
 
-mkDay reservationsDay =  
-  mkJson [("hours", jsArr [ let reservationsHour = filter ((==hr). fst . time) reservationsDay
+mkDay mSelectedDate reservationsDay =  
+  mkJson [("selectedDate", case mSelectedDate of 
+                             Nothing -> "null"
+                             Just (d,m,y) -> mkJson [("day",show d),("month",show $ showMonth m)]
+          )
+         ,("hours", jsArr [ let reservationsHour = filter ((==hr). fst . time) reservationsDay
                                 nrOfReservations = length reservationsHour
                                 nrOfPeopleInHour = sum $ map nrOfPeople reservationsHour
                       in  mkJson [ ("hourEntry", show $ if nrOfReservations == 0 then "" else show nrOfReservations++" ("++ show nrOfPeopleInHour ++")")
@@ -227,7 +238,7 @@ mkDay reservationsDay =
           )]
                          
 
-mkHour reservationsHour = [ mkJson [ ("reservationEntry", show $ name res ++ "("++show (nrOfPeople res)++")")
+mkHour reservationsHour = [ mkJson [ ("reservationEntry", show $ name res ++ " ("++show (nrOfPeople res)++")")
                                    , ("reservation",mkReservation res)
                                    ] 
                           | res <- reservationsHour ]
@@ -249,18 +260,16 @@ instance Presentable RestaurantView where
                   (header :
                    [ [ ([{- withEditActionAttr selectionAction-} strAttr "onClick" $ "addSpinner('hourView');"++ -- todo refs are hardcoded!
                                                                 "addSpinner('reservationView');"++
-                                                                "queueCommand('PerformEditActionC ("++show (getViewId selectionAction)++") []')"], present dayView) 
-                     | (dayView, selectionAction) <- week] 
+                                                                selectScript++
+                                                                ";queueCommand('PerformEditActionC ("++show (getViewId selectionAction)++") []')"], present dayView) 
+                     | (dayView, selectScript, selectionAction) <- week] 
                    | week <- weeks ]
                    )
       ] ++
       [ present dayView
       , vSpace 15
       , with [thestyle "font-size:80%"] $
-          case (mSelectedDate, mSelectedHour) of
-            (Just (d,m,_), Just selectedHour) -> stringToHtml $ "Reservations on "++show d++" "++showMonth m ++
-                                                                     " between "++show selectedHour ++ "h and "++show (selectedHour+1)++"h"
-            _                                      -> nbsp
+          with [identifier "betweenPlaceholder"] $ stringToHtml $ "Reservations on XX October between Yh and Y+1h"
       , vSpace 6
       , present hourView
       , vSpace 15
@@ -356,7 +365,7 @@ mkDayView restaurantViewId hourViewId dayReservations = mkWebView $
      }
  where selectHourEdit dayViewId h = jsAssignVar restaurantViewId "selectedHourIx" (show $ h-18) ++";"++
                                     jsAssignVar restaurantViewId "selectedReservationIx" "0" ++";"++
-                                    jsCallFunction  dayViewId "load" []
+                                    jsCallFunction  restaurantViewId "load" [] -- because the label changes, we need to load restaurant view
 
 
 instance Presentable DayView where
@@ -390,7 +399,7 @@ instance Initial HourView where
 mkHourView :: ViewId -> ViewId -> Maybe Reservation -> Maybe Int -> [Reservation] -> WebViewM Database (WebView Database)
 mkHourView restaurantViewId reservationViewId mSelectedReservation mSelectedHour hourReservations = mkWebView $
  \vid (HourView _ _ _ _ _) ->
-  do { let selectReservationActions = map (selectReservationEdit vid) [0..20]
+  do { let selectReservationActions = map (selectReservationEdit vid) [0..19]
      ; return $ HourView mSelectedReservation mSelectedHour selectReservationActions hourReservations $
          jsScript [ jsFunction vid "load" [] $ 
                       let selHourObj = jsVar restaurantViewId "selectedHourObj"
