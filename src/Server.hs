@@ -231,6 +231,7 @@ session rootViews dbFilename theDatabase users serverInstanceId globalStateRef r
         
         ; storeSessionState globalStateRef sessionId sessionStateRef
         
+        ; liftIO $ putStrLn "Done"
         ; ok $ toResponse $ responseHtml
         }
  
