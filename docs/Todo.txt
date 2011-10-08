@@ -1,16 +1,35 @@
 TODO short term
+CLEANUP!!
+Remove all selection from server side (except day)
+
+Double select action?
+
+replace scripts in onclick tags by calls to functions (selectHour, etc.)
+
+Fix/clip incorrect selectionIx
+
+
+Fix layout issue in day before putting online
 
 the call to the next load is outside the if now, are the object and index always defined okay?
 
-Fix/clip incorrect selectionIx
+double load (before and after edit op) on select day is not okay. how do we combine a load with a server edit op?
+
+scrolled lists don't go back up when selecting different hours (maybe a select function for reservationIx can handle this)
+
+
+maybe prevent text selection on the lists with edit actions
 
 Find a way to do the list with varying length in the hour view
 Figure out which object lives where Right now reservations gets just the reservation and not the object with the entry
 for hour we also have the entry (and day as well, but it has no entry yet)
 Either have the object with the entry and the list (or reservation for reservation) at each level or just the list/reservation 
 
-Move selectedIx to lower views?
-Remove all selection from server side
+24 hr. not in client view. also it should be 0 instead of 24
+
+Move selectedIx to lower views? Take care that it is still accessible from restaurant (for the 'between' label)
+
+Maybe make the whole thing dynamic, also for day selection.
 
 TODO: why no $('#ViewId []') queries?
 TODO: get rid of viewRef here: getElementByIdRef (widgetGetViewRef)      id's are fine. viewRef is just for internal stuff
@@ -22,6 +41,11 @@ DESIGN: changes in view lead to re-evaluating view script
   may be problematic if there is init code in there.
   for now time is set to nothing, because it cause re-evaluation as somehow it switched between Nothing and Just (18,30)
   will explicit view id references in the script cause problems?
+
+Find a good way to put script edit actions in mkEditAction and mkEditActionAttr. Putting the edit actions in present seems wrong, and also
+makes it impossible to refer to viewId's. It would be nice to do a similar thing that we do for widgets now. Maybe use empty edit action and specify onEditAction or something?
+
+Referencing view placeholders is not very nice now.
 
 Longer term
 get rid of ' in webview type selectors

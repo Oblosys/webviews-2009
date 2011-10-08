@@ -120,6 +120,15 @@ mkMainRootView sessionId = mkWebView $
      }
 
 appBgColor = Rgb 0xf8 0xf8 0xf8
+dayColor = Rgb 0xf0 0xf0 0xf0         -- todo: these are background colors rather than colors
+selectedDayColor = Rgb 0x80 0xb0 0xff
+todayColor = Rgb 0x90 0x90 0x90
+hourColor = Rgb 0xd0 0xd0 0xd0
+selectedHourColor = Rgb 0x80 0xb0 0xff
+reservationColor =  Rgb 0xf8 0xf8 0xf8
+selectedReservationColor = selectedDayColor
+
+
 instance Presentable MainView where
   present (MainView cv rv) = 
      hListEx [] [ with [thestyle "font-family:arial"] $ roundedBoxed (Just $ appBgColor) $ present cv
@@ -158,7 +167,7 @@ mkRestaurantView = mkWebView $
      ; let calendarDaysOfThisMonth = [(d,currentMonth, currentYear) | d <- daysOfThisMonth]
      ; let calendarDaysOfNextMonth = [(d,nextMonth, nextMonthYear) | d <- daysOfNextMonth]
      ; let calendarDays = calendarDaysOfLastMonth ++ calendarDaysOfThisMonth ++ calendarDaysOfNextMonth 
-     ; let selectScripts = [ jsAssignVar vid "selectedDateIx" (show i) ++";"++jsCallFunction vid "load" []| i <- [0..length calendarDays -1]] 
+     ; let selectScripts = [jsCallFunction vid "selectDay" [show i]| i <- [0..length calendarDays -1]] 
      ; selects <- mapM (selectDateEdit vid) calendarDays
      
      ; reservations <- fmap Map.elems $ withDb $ \db -> allReservations db
@@ -174,16 +183,11 @@ mkRestaurantView = mkWebView $
      
      ; calendarDayViews <- mapM calendarDayViewForDate calendarDays
      
-     
      ; let weeks = daysToWeeks $ zip3 calendarDayViews selectScripts selects
-     
-
                                           
      ; let reservationsSelectedDay = filter ((==mSelectedDate). Just . date) reservations
       
-     ; debugLn $ "\n\n\n\n\n\n\n\n" ++ show (mkDay mSelectedDate reservationsSelectedDay)
-
-                                          
+                                           
      ; reservationView <- mkReservationView vid Nothing
      ; hourView <- mkHourView vid (getViewId reservationView) Nothing Nothing []
      ; dayView <- mkDayView vid (getViewId hourView) reservationsSelectedDay
@@ -197,13 +201,29 @@ mkRestaurantView = mkWebView $
              [ "$('#betweenPlaceholder').text('Reservations on '+"++ jsVar vid "selectedDayObj"++".selectedDate.day+' '+"++ jsVar vid "selectedDayObj"++".selectedDate.month" ++
                        "+' between '+("++jsVar vid "selectedHourIx"++"+18)+'h and '+("++jsVar vid "selectedHourIx"++"+18+1)+'h')"
              ]
-             [ "$('#betweenPlaceholder').text('')"
+             [ "$('#betweenPlaceholder').html('&nbsp;')"
+             ]
+           , jsFor "i=0; i<6*7; i++"  -- TODO: hard coded, not nice, is there a length we can use?
+             [ "$('#calDayView_'+i).css('background-color',("++jsVar vid "selectedDayIx"++"==i)?'"++htmlColor selectedDayColor++"'"++
+                                                                                            ":'"++htmlColor dayColor++"')"
              ]
            , jsCallFunction (getViewId dayView) "load" []
            ]   
+           
+         , jsFunction vid "selectDay" ["i"]  
+           [ jsAssignVar vid "selectedDayIx" "i"
+           , jsAssignVar vid "selectedHourIx" "null"
+           , jsAssignVar vid "selectedReservationIx" "null"
+           , jsCallFunction vid "load" []
+           ] 
          , jsDeclareVar vid "selectedDayIx" "null"  -- null is no selection
          , jsDeclareVar vid "selectedHourIx" "null"  -- null is no selection
          , jsDeclareVar vid "selectedReservationIx" "null"  -- null is no selection
+         , jsAssignVar vid "selectedDayIx" $ case mSelectedDate of
+                                               Nothing -> "null"
+                                               Just dt  -> case elemIndex dt calendarDays of
+                                                             Nothing -> "null"
+                                                             Just i -> show i
          , jsAssignVar vid "selectedDayObj" (mkDay mSelectedDate reservationsSelectedDay) 
          , jsDeclareVar vid "selectedHourObj" "null" -- null is no selection
          , jsDeclareVar vid "selectedReservationObj" "null" -- null is no selection
@@ -259,11 +279,11 @@ instance Presentable RestaurantView where
       , mkTableEx [cellpadding 0, cellspacing 0, thestyle "border-collapse:collapse; text-align:center"] [] [thestyle "border: 1px solid #909090"]  
                   (header :
                    [ [ ([{- withEditActionAttr selectionAction-} strAttr "onClick" $ "addSpinner('hourView');"++ -- todo refs are hardcoded!
-                                                                "addSpinner('reservationView');"++
                                                                 selectScript++
-                                                                ";queueCommand('PerformEditActionC ("++show (getViewId selectionAction)++") []')"], present dayView) 
-                     | (dayView, selectScript, selectionAction) <- week] 
-                   | week <- weeks ]
+                                                                ";queueCommand('PerformEditActionC ("++show (getViewId selectionAction)++") []')"]
+                     , with [identifier $ "calDayView_"++show (i*7+j)] $ present dayView) 
+                     | (j,(dayView, selectScript, selectionAction)) <- zip [0..] week] 
+                   | (i,week) <- zip [0..] weeks ]
                    )
       ] ++
       [ present dayView
@@ -294,25 +314,22 @@ mkCalendarDayView date isSelected isToday isThisMonth reservations = mkWebView $
   do { return $ CalendarDayView date isSelected isToday isThisMonth reservations
      }
      
-selectedDayColor = Rgb 0x80 0xb0 0xff
-hourColor = Rgb 0xd0 0xd0 0xd0
-selectedHourColor = Rgb 0x80 0xb0 0xff
-reservationColor =  Rgb 0xf8 0xf8 0xf8
-selectedReservationColor = selectedDayColor
-
 instance Presentable CalendarDayView where
   present (CalendarDayView date@(day, month, year) isSelected isToday isThisMonth reservations) = 
-    withBgColor (if isToday then Rgb 0x90 0x90 0x90 else if isSelected then selectedDayColor else Rgb 240 240 240) $
     -- we use a margin of 3 together with the varying cell background to show today
     -- doing this with borders is awkward as they resize the table
-      mkTableEx [ width "40px", height 40, cellpadding 0, cellspacing 0 
-                , thestyle $ "margin:2px; background-color:" ++ if isSelected then htmlColor selectedHourColor else htmlColor (Rgb 240 240 240) ] [] [] 
-        [[ ([valign "top"] ++ if isThisMonth then [] else [thestyle "color: #808080"], stringToHtml (show day)) ]
-        ,[ ([thestyle "font-size:80%; color:#0000ff"], if not $ null reservations then stringToHtml $ show (length reservations) ++ " (" ++ show (sum $ map nrOfPeople reservations)++")" else nbsp) ] 
+    conditionallyBoxed isToday 2 (htmlColor todayColor) $
+       mkTableEx [ width "36px", height 36, cellpadding 0, cellspacing 0 
+                   , thestyle $ "margin:2px"] [] [] 
+             [[ ([valign "top"] ++ if isThisMonth then [] else [thestyle "color: #808080"], stringToHtml (show day)) ]
+           ,[ ([thestyle "font-size:80%; color:#0000ff"], if not $ null reservations then stringToHtml $ show (length reservations) ++ " (" ++ show (sum $ map nrOfPeople reservations)++")" else nbsp) ] 
         ]
     -- TODO: make Rgb for standard html colors, make rgbH for (rgbH 0xffffff)
     
     -- check slow down after running for a while
+conditionallyBoxed cond width color elt =
+  if cond then thediv![thestyle $ "border:solid; border-color:"++color++"; border-width:"++show width++"px;"] << elt
+          else thediv![thestyle $ "padding:"++show width++"px;"] << elt
 
 instance Storeable Database CalendarDayView where
   save _ = id
@@ -344,11 +361,12 @@ mkDayView restaurantViewId hourViewId dayReservations = mkWebView $
                                                                                                       ":'"++htmlColor hourColor++"')"
                                                           ] -- todo: reference to hourOfDay is hard coded
                            , jsLog $ "'SelectedHourIx is '+"++ jsVar restaurantViewId "selectedHourIx"
-                           , jsIf (jsVar restaurantViewId "selectedHourIx"++"!=null") 
+                           , jsIfElse (jsVar restaurantViewId "selectedHourIx"++"!=null") 
                                [ jsAssignVar restaurantViewId "selectedHourObj" $  selDayObj ++".hours["++jsVar restaurantViewId "selectedHourIx"++"]"
                                ]
+                               [ jsAssignVar restaurantViewId "selectedHourObj" "null" ]
                            ]
-                           [] -- will not occur now, since day is given by server
+                           [] -- will not occur now, since day is given by server (if it occurs, also set selectedHourObj to null, see mkHourView)
                        
                        , jsCallFunction hourViewId "load" []
                             
@@ -407,7 +425,7 @@ mkHourView restaurantViewId reservationViewId mSelectedReservation mSelectedHour
                          , jsLog $ "'SelectedHourIx is '+"++ jsVar restaurantViewId "selectedHourIx"
                          , jsLog $ "'SelectedHour is '+"++ selHourObj
                          , jsIfElse selHourObj
-                           [ jsLog $ selHourObj++".hourEntry"
+                           [ jsLog $ "'Hour object not null'"
                            
                            -- if selection is below reservation list make the selectedReservationIx null
                            , jsIf (jsVar restaurantViewId "selectedReservationIx"++">="++selHourObj++".reservations.length")
@@ -431,7 +449,15 @@ mkHourView restaurantViewId reservationViewId mSelectedReservation mSelectedHour
                                ]
                                [ jsAssignVar restaurantViewId "selectedReservationObj" "null" ]
                            ]
-                           [] -- empty reservation list, set selectedReservationObj to nul
+                           
+                           -- empty reservation list, set selectedReservationObj to nul
+                           [ jsLog "'Hour object null'"
+                           , jsFor ("i=0; i<20; i++") -- duplicated code 
+                              [ "$('#reservationEntry_'+i).text('')"
+                              , "$('#reservationLine_'+i).css('background-color','"++htmlColor reservationColor++"')"
+                              ]
+                           , jsAssignVar restaurantViewId "selectedReservationObj" "null"
+                           ] 
 
                          , jsCallFunction reservationViewId "load" []
                          
