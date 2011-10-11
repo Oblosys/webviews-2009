@@ -1,6 +1,9 @@
 {-# OPTIONS -XDeriveDataTypeable #-}
 module Reservations.Database where
 
+import Data.Time.Calendar hiding (Day)
+import System.Time hiding (Day, Month)
+
 import Data.Generics
 import Data.Map (Map)
 import qualified Data.Map as Map 
@@ -65,17 +68,34 @@ unsafeLookup map key =
 
 mkInitialDatabase :: IO (Database)
 mkInitialDatabase =
- do { return $ Database $ Map.fromList $ addIds 0 $
-                [ ((8,10,2011), (20,00), "Martijn", 2, "Long comment that exceeds the line width and spans\nmultiple\nlines\nto\nsee\nif\nthat\nworks\nLong comment that exceeds the line width and spans\nmultiple\nlines\nto\nsee\nif\nthat\nworks\nLong comment that exceeds the line width and spans\nmultiple\nlines\nto\nsee\nif\nthat\nworks")
-                , ((8,10,2011), (20,00), "Tommie", 3, "")
-                , ((8,10,2011), (20,00), "Bert", 2, "")
-                , ((8,10,2011), (20,30), "Elmo", 2, "")
-                , ((8,10,2011), (20,30), "Karel", 4, "Karel says hi")
-                , ((9,10,2011), (21,00), "Karel 2", 3, "dinner at nine")
-                , ((10,10,2011), (18,00), "Pino", 3, "Please provide bird seed")
-                ]
+ do { clockTime <- getClockTime
+    ; ct <- toCalendarTime clockTime
+    ; let today@(currentDay, currentMonth, currentYear) = (ctDay ct, 1+fromEnum (ctMonth ct), ctYear ct)
+          (nextMonth, nextMonthYear) = if currentMonth == 12 then (1,currentYear+1) else (currentMonth+1,currentYear)
+          daysInCurrentMonth = gregorianMonthLength (fromIntegral currentYear) currentMonth
+          daysInNextMonth =  gregorianMonthLength (fromIntegral nextMonthYear) nextMonth
+          datedReservations = addDates currentMonth currentYear (take daysInCurrentMonth lotOfReservations) ++
+                              addDates nextMonth nextMonthYear (take daysInNextMonth lotOfReservations)
+    ; return $ Database $ Map.fromList $ addIds datedReservations
+                
     }
- where addIds _ [] = []
-       addIds i ((dt, tm, nm, nr, c):xs) = (ReservationId i, Reservation (ReservationId i) dt tm nm nr c) : addIds (i+1) xs
+ where addIds ress = [ (ReservationId i, Reservation (ReservationId i) dt tm nm nr c) 
+                     | (i,(dt, tm, nm, nr, c)) <- zip [0..] ress
+                     ]
                 
-                
+       addDates m y resss = [ ((d,m,y),tm,nm,nr,c)
+                            | (d,ress) <- zip [1..] resss
+                            , (tm,nm,nr,c) <- ress
+                            ]
+lotOfReservations = concat . repeat $
+                      [  [ ((20,00), "Martijn", 2, "Long comment that exceeds the line width and spans\nmultiple\nlines\nto\nsee\nif\nthat\nworks\nLong comment that exceeds the line width and spans\nmultiple\nlines\nto\nsee\nif\nthat\nworks\nLong comment that exceeds the line width and spans\nmultiple\nlines\nto\nsee\nif\nthat\nworks")
+                         , ((20,00), "Tommie", 3, "")
+                         , ((20,00), "Bert", 2, "")
+                         , ((20,30), "Elmo", 2, "")
+                         , ((20,30), "Karel", 4, "Karel says hi")
+                         ]
+                       , [ ((21,00), "Karel 2", 3, "dinner at nine") 
+                         ]
+                       , [ ((18,00), "Pino", 3, "Please provide bird seed") 
+                         ]
+                      ]
