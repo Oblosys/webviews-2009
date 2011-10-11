@@ -142,14 +142,14 @@ instance Storeable Database MainView where
 -- Main ----------------------------------------------------------------------  
 
 data RestaurantView = 
-  RestaurantView (Maybe Date) (Maybe Int) (Maybe Reservation) (Int,Int) [[(WebView Database,String, EditAction Database)]] (WebView Database) (WebView Database) (WebView Database) String
+  RestaurantView (Maybe Date) (Int,Int) [[(WebView Database,String, EditAction Database)]] (WebView Database) (WebView Database) (WebView Database) String
     deriving (Eq, Show, Typeable, Data)
 
 instance Initial RestaurantView where                 
-  initial = RestaurantView initial initial initial (initial,initial) [] initial initial initial initial
+  initial = RestaurantView initial (initial,initial) [] initial initial initial initial
 
 mkRestaurantView = mkWebView $
- \vid (RestaurantView oldMSelectedDate _ _ _ _ _ _ _ _) ->
+ \vid (RestaurantView oldMSelectedDate _ _ _ _ _ _) ->
   do { clockTime <-  liftIO getClockTime
      ; ct <- liftIO $ toCalendarTime clockTime
      ; let today@(currentDay, currentMonth, currentYear) = dateFromCalendarTime ct
@@ -188,12 +188,12 @@ mkRestaurantView = mkWebView $
      ; let reservationsSelectedDay = filter ((==mSelectedDate). Just . date) reservations
       
                                            
-     ; reservationView <- mkReservationView vid Nothing
-     ; hourView <- mkHourView vid (getViewId reservationView) Nothing Nothing []
+     ; reservationView <- mkReservationView vid
+     ; hourView <- mkHourView vid (getViewId reservationView) []
      ; dayView <- mkDayView vid (getViewId hourView) reservationsSelectedDay
 
      
-     ; return $ RestaurantView mSelectedDate Nothing Nothing (currentMonth, currentYear) weeks dayView hourView reservationView $ jsScript 
+     ; return $ RestaurantView mSelectedDate (currentMonth, currentYear) weeks dayView hourView reservationView $ jsScript 
          [ "console.log(\"restaurant script\")"
          , jsFunction vid "load" []  
            [ jsLog "'Load restaurant view'" -- TODO: in future version that is completely dynamic, check for selectedDayObj == null
@@ -235,8 +235,8 @@ mkRestaurantView = mkWebView $
          ]
      }
  where selectDateEdit vid d = mkEditAction . Edit $ viewEdit vid $ 
-              \(RestaurantView _ h r my weeks dayView hourView reservationView script) ->
-                RestaurantView (Just d) h r my weeks dayView hourView reservationView script
+              \(RestaurantView _ my weeks dayView hourView reservationView script) ->
+                RestaurantView (Just d)my weeks dayView hourView reservationView script
           
 {-
   [ { hourEntry: nrOfRes(nrOfPeople)
@@ -263,8 +263,8 @@ mkHour reservationsHour = [ mkJson [ ("reservationEntry", show $ name res ++ " (
                                    ] 
                           | res <- reservationsHour ]
 
-mkReservation (Reservation _ date time name nrOfPeople comment) = mkJson [ ("date",show (showDate date)), ("time", show (showTime time)), ("name",show name)
-                                                                         , ("nrOfPeople", show nrOfPeople),("comment",show comment)]
+mkReservation (Reservation rid date time name nrOfPeople comment) = mkJson [ ("reservationId", show $ show rid), ("date",show (showDate date)), ("time", show (showTime time))
+                                                                         , ("name",show name), ("nrOfPeople", show nrOfPeople),("comment",show comment)]
 
 getWebViewId (WebView vid _ _ _ _) = vid
 
@@ -272,7 +272,7 @@ getWebViewId (WebView vid _ _ _ _) = vid
 mark different months, mark appointments
  -}
 instance Presentable RestaurantView where
-  present (RestaurantView mSelectedDate mSelectedHour mSelectedReservation (currentMonth, currentYear) weeks dayView hourView reservationView script) = 
+  present (RestaurantView mSelectedDate (currentMonth, currentYear) weeks dayView hourView reservationView script) = 
     (vList $ 
       [ with [thestyle "text-align:center; font-weight:bold"] $ stringToHtml $ showMonth currentMonth ++ " "++show currentYear
       , vSpace 5
@@ -407,18 +407,18 @@ instance Storeable Database DayView where
 -----------------------------------------------------------------------------
 
 data HourView = 
-  HourView (Maybe Reservation) (Maybe Int) [String] [Reservation] String
+  HourView[String] [Reservation] String
     deriving (Eq, Show, Typeable, Data)
   
 instance Initial HourView where                 
-  initial = HourView initial initial initial initial initial
+  initial = HourView initial initial initial
 
 -- the list of reservations for a certain hour
-mkHourView :: ViewId -> ViewId -> Maybe Reservation -> Maybe Int -> [Reservation] -> WebViewM Database (WebView Database)
-mkHourView restaurantViewId reservationViewId mSelectedReservation mSelectedHour hourReservations = mkWebView $
- \vid (HourView _ _ _ _ _) ->
+mkHourView :: ViewId -> ViewId -> [Reservation] -> WebViewM Database (WebView Database)
+mkHourView restaurantViewId reservationViewId hourReservations = mkWebView $
+ \vid (HourView _ _ _) ->
   do { let selectReservationActions = map (selectReservationEdit vid) [0..19]
-     ; return $ HourView mSelectedReservation mSelectedHour selectReservationActions hourReservations $
+     ; return $ HourView selectReservationActions hourReservations $
          jsScript [ jsFunction vid "load" [] $ 
                       let selHourObj = jsVar restaurantViewId "selectedHourObj"
                       in [ "console.log('Load hour view called')"
@@ -468,7 +468,7 @@ mkHourView restaurantViewId reservationViewId mSelectedReservation mSelectedHour
                                             jsCallFunction  hourViewId "load" []
  
 instance Presentable HourView where
-  present (HourView mSelectedReservation mSelectedHour selectReservationActions hourReservations script) =
+  present (HourView selectReservationActions hourReservations script) =
     (with [identifier "hourView"] $ -- in separate div, because spinners on scrolling elements  cause scrollbars to be shown
     boxedEx 0 $ with [ thestyle "height:90px;overflow:auto"] $
       mkTableEx [width "100%", cellpadding 0, cellspacing 0, thestyle "border-collapse:collapse"] [] [] $ 
@@ -484,21 +484,22 @@ instance Storeable Database HourView where
 -----------------------------------------------------------------------------
 
 data ReservationView = 
-  ReservationView (Maybe Reservation) (Widget (Button Database)) String
+  ReservationView (Widget (Button Database)) (EditAction Database) String
     deriving (Eq, Show, Typeable, Data)
   
 instance Initial ReservationView where                 
   initial = ReservationView initial initial initial
 
 -- todo: probably don't need the reservation here anymore
-mkReservationView restaurantViewId mReservation = mkWebView $
+mkReservationView restaurantViewId = mkWebView $
  \vid (ReservationView _ _ _) ->
-  do { removeButton <- mkButton "x" True $ 
-         Edit $ docEdit $ maybe id (\res -> removeReservation $ reservationId res ) mReservation
-     ; return $ ReservationView mReservation removeButton $ jsScript 
+  do { removeButton <- mkButton "x" True $ Edit $ return ()
+     ; removeAction <- mkEditActionEx $ \[reservationId] -> Edit $ docEdit $ removeReservation $ read reservationId  
+     ; return $ ReservationView removeButton removeAction $ jsScript 
          [ jsFunction vid "load" [] $ 
            let selRes = jsVar restaurantViewId "selectedReservationObj"
            in  [ "console.log(\"Load reservation view called\")"
+               , onClick removeButton $ callServerEditAction removeAction [jsVar restaurantViewId "selectedReservationObj" ++".reservationId"]
                , jsIfElse selRes
                    [ "console.log(\"date\"+"++selRes++".date)" 
                    ,  "console.log(\"time\"+"++selRes++".time)"
@@ -525,7 +526,7 @@ mkReservationView restaurantViewId mReservation = mkWebView $
  
 -- todo comment has hard-coded width. make constant for this
 instance Presentable ReservationView where
-  present (ReservationView mReservation removeButton script) = (with [thestyle "background-color:#f0f0f0"] $ boxed $ 
+  present (ReservationView removeButton _ script) = (with [thestyle "background-color:#f0f0f0"] $ boxed $ 
     vListEx [ identifier "reservationView"] 
       [ hListEx [width "100%"] [ hList [ stringToHtml "Reservation date: ",nbsp
                                        , with [colorAttr reservationColor] $ with [identifier "dateField"] $ noHtml ]

@@ -10,7 +10,7 @@ Fix/clip incorrect selectionIx
 
 
 Fix layout issue in day before putting online
-Turn on auto refresh (maybe 10s) before puttin online
+Turn on auto refresh (maybe 10s) before putting online
  
 the call to the next load is outside the if now, are the object and index always defined okay?
 
