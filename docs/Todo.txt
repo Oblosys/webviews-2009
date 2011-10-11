@@ -1,6 +1,5 @@
 TODO short term
 CLEANUP!!
-Remove all selection from server side (except day)
 
 Double select action?
 
@@ -18,8 +17,7 @@ double load (before and after edit op) on select day is not okay. how do we comb
 
 scrolled lists don't go back up when selecting different hours (maybe a select function for reservationIx can handle this)
 
-Check why server is so slow.
-
+implement the slowest Generics functions with Template Haskell
 
 maybe prevent text selection on the lists with edit actions
 
@@ -48,7 +46,7 @@ DESIGN: changes in view lead to re-evaluating view script
 Find a good way to put script edit actions in mkEditAction and mkEditActionAttr. Putting the edit actions in present seems wrong, and also
 makes it impossible to refer to viewId's. It would be nice to do a similar thing that we do for widgets now. Maybe use empty edit action and specify onEditAction or something?
 
-Referencing view placeholders is not very nice now.
+Referencing view placeholders is not very nice now. Maybe put these in the monad? (e.g.  r <- mkRef and use r in the presentation to mark part of it)
 
 Longer term
 get rid of ' in webview type selectors
