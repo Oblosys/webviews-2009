@@ -23,7 +23,7 @@ import Server
 import Piglet.Database
 
 main :: IO ()
-main = server rootViews "PigletDB.txt" theDatabase users
+main = server rootViews "PigletDB.txt" mkInitialDatabase users
 
 rootViews :: [ (String, Int -> WebViewM Database (WebView Database))]
 rootViews = [ ("", mkVisitsView)] 

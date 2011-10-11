@@ -26,7 +26,7 @@ import Reservations.Database
 import Reservations.ClientWebView
 
 main :: IO ()
-main = server rootViews "ReservationsDB.txt" theDatabase users
+main = server rootViews "ReservationsDB.txt" mkInitialDatabase users
 
 
 rootViews :: [ (String, Int -> WebViewM Database (WebView Database))]
@@ -490,7 +490,6 @@ data ReservationView =
 instance Initial ReservationView where                 
   initial = ReservationView initial initial initial
 
--- todo: probably don't need the reservation here anymore
 mkReservationView restaurantViewId = mkWebView $
  \vid (ReservationView _ _ _) ->
   do { removeButton <- mkButton "x" True $ Edit $ return ()

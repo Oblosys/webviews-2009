@@ -105,31 +105,36 @@ setRootView sessionStateRef rootView =
     }
  
 server :: (Data db, Typeable db, Show db, Read db, Eq db) =>
-          [ (String, Int -> WebViewM db (WebView db))] -> String -> db -> Map String (String, String) -> IO ()
-server rootViews dbFilename theDatabase users =
+          [ (String, Int -> WebViewM db (WebView db))] -> String -> IO (db) -> Map String (String, String) -> IO ()
+server rootViews dbFilename mkInitialDatabase users =
  do { hSetBuffering stdout NoBuffering -- necessary to run server in Eclipse
     ; time <- getClockTime
     ; putStrLn $ "\n\n### Started WebViews server (port "++show webViewsPort++"): "++show time ++"\n"
     ; serverSessionId <- epochTime
-    ; globalStateRef <- newIORef $ initGlobalState theDatabase
-    
-    ; dbStr <-
+        
+    ; theDatabase <-
        do { fh <- openFile dbFilename ReadMode
           ; dbStr <- hGetContents fh 
           ; seq (length dbStr) $ return ()
           ; hClose fh
-          ; return dbStr
+          ; case safeRead dbStr of
+                     Just db -> return db
+                     Nothing -> do { putStrLn $ "File "++dbFilename++" cannot be read, using initial database.\n"
+                                   ; db <- mkInitialDatabase
+                                   ; return db
+                                   }
           } `Control.Exception.catch` \exc ->
-       do { putStrLn $ "On opening "++dbFilename++":\n"
+       do { putStrLn $ "Problem opening "++dbFilename++":\n"
           ; putStrLn $ "Exception "++ show (exc :: SomeException)
-          ; putStrLn $ "\nUsing default database."
-          ; return ""
+          ; putStrLn $ "\nUsing initial database."
+          ; db <- mkInitialDatabase
+          ; return db
           }
        
-    ; case safeRead dbStr of
-        Just db -> modifyIORef globalStateRef $
-                     \(_, sessions, sessionCounter) -> (db, sessions, sessionCounter)
-        Nothing -> return ()
+    
+        
+    ; globalStateRef <- newIORef $ initGlobalState theDatabase
+        
     ; simpleHTTP nullConf { port = webViewsPort, logAccess = Nothing {-Just logWebViewAccess-} } $ 
         msum (handlers rootViews dbFilename theDatabase users serverSessionId globalStateRef)
     }

@@ -63,7 +63,9 @@ unsafeLookup map key =
 -- make clear why we need an explicit view, and the html rep is not enough.
 
 
-theDatabase = Database $ Map.fromList $ addIds 0 $
+mkInitialDatabase :: IO (Database)
+mkInitialDatabase =
+ do { return $ Database $ Map.fromList $ addIds 0 $
                 [ ((8,10,2011), (20,00), "Martijn", 2, "Long comment that exceeds the line width and spans\nmultiple\nlines\nto\nsee\nif\nthat\nworks\nLong comment that exceeds the line width and spans\nmultiple\nlines\nto\nsee\nif\nthat\nworks\nLong comment that exceeds the line width and spans\nmultiple\nlines\nto\nsee\nif\nthat\nworks")
                 , ((8,10,2011), (20,00), "Tommie", 3, "")
                 , ((8,10,2011), (20,00), "Bert", 2, "")
@@ -72,6 +74,7 @@ theDatabase = Database $ Map.fromList $ addIds 0 $
                 , ((9,10,2011), (21,00), "Karel 2", 3, "dinner at nine")
                 , ((10,10,2011), (18,00), "Pino", 3, "Please provide bird seed")
                 ]
+    }
  where addIds _ [] = []
        addIds i ((dt, tm, nm, nr, c):xs) = (ReservationId i, Reservation (ReservationId i) dt tm nm nr c) : addIds (i+1) xs
                 
