@@ -18,6 +18,7 @@ import qualified Data.IntMap as IntMap
 import System.Time (getClockTime)
 import System.Posix.Time
 import System.Posix.Types
+import System.Exit
 import Text.Html
 import Control.Exception
 import qualified Data.ByteString.Char8 as Bytestring
@@ -112,26 +113,25 @@ server rootViews dbFilename mkInitialDatabase users =
     ; putStrLn $ "\n\n### Started WebViews server (port "++show webViewsPort++"): "++show time ++"\n"
     ; serverSessionId <- epochTime
         
-    ; theDatabase <-
+    ; mDatabase <-
        do { fh <- openFile dbFilename ReadMode
           ; dbStr <- hGetContents fh 
           ; seq (length dbStr) $ return ()
           ; hClose fh
-          ; case safeRead dbStr of
-                     Just db -> return db
-                     Nothing -> do { putStrLn $ "File "++dbFilename++" cannot be read, using initial database.\n"
-                                   ; db <- mkInitialDatabase
-                                   ; return db
-                                   }
+          ; return $ safeRead dbStr
           } `Control.Exception.catch` \exc ->
        do { putStrLn $ "Problem opening "++dbFilename++":\n"
           ; putStrLn $ "Exception "++ show (exc :: SomeException)
           ; putStrLn $ "\nUsing initial database."
           ; db <- mkInitialDatabase
-          ; return db
+          ; return $ Just db
           }
        
-    
+    ; theDatabase <- case mDatabase of -- if the database exists but cannot be read, something is wrong and we exit to prevent overwriting it
+                       Just db -> return db
+                       Nothing -> do { putStrLn $ "Database file "++dbFilename++" cannot be read, exiting server.\n"
+                                     ; exitWith $ ExitFailure 1
+                                     }
         
     ; globalStateRef <- newIORef $ initGlobalState theDatabase
         
