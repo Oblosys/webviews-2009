@@ -258,7 +258,8 @@ mkDay mSelectedDate reservationsDay =
           )]
                          
 
-mkHour reservationsHour = [ mkJson [ ("reservationEntry", show $ name res ++ " ("++show (nrOfPeople res)++")")
+mkHour reservationsHour = [ mkJson [ ("reservationEntry", show $ showTime (time res)++" - "++ 
+                                                                 name res ++ " ("++show (nrOfPeople res)++")")
                                    , ("reservation",mkReservation res)
                                    ] 
                           | res <- reservationsHour ]
