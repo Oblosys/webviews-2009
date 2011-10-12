@@ -21,6 +21,8 @@ implement the slowest Generics functions with Template Haskell
 
 maybe prevent text selection on the lists with edit actions
 
+find some way to have autorefresh always on when running on server
+
 Find a way to do the list with varying length in the hour view
 Figure out which object lives where Right now reservations gets just the reservation and not the object with the entry
 for hour we also have the entry (and day as well, but it has no entry yet)
@@ -65,6 +67,8 @@ The most likely revision in which it occurs is revision 2635 for Reservations/Ma
 Are responses from server guaranteed in correct order? Otherwise, make a queue.
 
 Can the server process updates multithreaded? If so, need to block. 
+
+find a way to set the title (and maybe auto refresh timer) in the WebView specification.
 
 multiple browser windows/tabs are fatal
 
