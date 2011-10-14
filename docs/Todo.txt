@@ -50,6 +50,12 @@ makes it impossible to refer to viewId's. It would be nice to do a similar thing
 
 Referencing view placeholders is not very nice now. Maybe put these in the monad? (e.g.  r <- mkRef and use r in the presentation to mark part of it)
 
+Phantom type in Web View, hide constructor
+mkWebView :: (ViewId viewtype -> WebViewM viewtype) -> …
+Only want this in the WebView instantiation, not internally
+
+Special init for each webview, not with maybes and initials
+
 Longer term
 get rid of ' in webview type selectors
 
