@@ -1,4 +1,4 @@
-{-# OPTIONS -XFlexibleInstances -XMultiParamTypeClasses -XScopedTypeVariables #-}
+{-# OPTIONS -XFlexibleInstances -XMultiParamTypeClasses -XScopedTypeVariables -XDeriveDataTypeable #-}
 module WebViewPrim where
 
 import Control.Monad.State
@@ -13,7 +13,6 @@ import Generics
 import HtmlLib
 
 
--- IDEA: use phantom types to enforce type structure on views
 --       GADTs?
 -- TODO: use a monad for auto handling listeners to database
 
@@ -221,10 +220,11 @@ loadView (WebView _ si i mkView oldView') =
     ; modify $ \s -> s { getStatePath = path, getStateViewIdCounter = viewIdCounter + 1} -- restore old path
     ; return $ WebView newViewId si i mkView view    
     }
+        
 mkWebView :: Data db => (Presentable v, Storeable db v, Initial v, Show v, Eq v, Data v) =>
              (ViewId -> v -> WebViewM db v) ->
              WebViewM db (WebView db)
-mkWebView mkView  =
+mkWebView mkView =
  do { let initialWebView = WebView noViewId noId noId mkView initial
     ; webView <- loadView initialWebView
     ; return webView
@@ -321,7 +321,7 @@ presentTextField (TextView viewId textType str mEditAction) =
                     , strAttr "onKeyUp" $ "script"++viewIdSuffix viewId++".onKeyUp()" ]  +++
   (mkScript $ declareWVTextViewScript viewId)      
 
-declareWVTextViewScript viewId = jsDeclareVar viewId "script" $ "new TextViewScript(\""++show viewId++"\");"
+declareWVTextViewScript viewId = jsDeclareVar (ViewIdT viewId) "script" $ "new TextViewScript(\""++show viewId++"\");"
 
 -- For the moment, onclick disables the standard server ButtonC command
 presentButton :: Button db -> Html
@@ -336,7 +336,7 @@ presentButton (Button viewId txt enabled style onclick _) =
   (mkScript $ declareWVButtonScript viewId)      
 -- TODO: text should be escaped
 
-declareWVButtonScript viewId = jsDeclareVar viewId "script" $ "new ButtonScript(\""++show viewId++"\");"
+declareWVButtonScript viewId = jsDeclareVar (ViewIdT viewId) "script" $ "new ButtonScript(\""++show viewId++"\");"
 
 -- Edit actions are a bit different, since they do not have a widget presentation.
 -- TODO: maybe combine edit actions with buttons, so they use the same command structure
@@ -385,6 +385,41 @@ instance Presentable (AnyWidget db) where
   present (ButtonWidget w) = presentButton w 
   present (JSVarWidget w) = presentJSVar w 
   
+  
+-- Phantom typing
+
+newtype ViewIdT viewType = ViewIdT ViewId
+
+newtype WebViewT viewType db = WebViewT { unWebViewT :: WebView db } deriving (Eq, Show, Typeable, Data)
+
+instance Data db => Initial (WebViewT wv db)
+  where initial = WebViewT initial
+
+instance Presentable (WebViewT wv db)
+  where present (WebViewT wv) = present wv
+ 
+getViewIdT :: WebViewT v db -> ViewIdT v
+getViewIdT (WebViewT wv) = ViewIdT $ getViewId wv
+
+-- TODO: still need this for widget view id's. Figure out what to do with widgets
+getViewIdT_ :: HasViewId v => v -> ViewId
+getViewIdT_ = getViewId
+
+mkWebViewT :: Data db => (Presentable v, Storeable db v, Initial v, Show v, Eq v, Data v) =>
+             (ViewIdT v -> v -> WebViewM db v) ->
+             WebViewM db (WebViewT v db)
+             
+mkWebViewT mkViewT = 
+ do { wv <- mkWebView (\vid -> mkViewT $ ViewIdT vid)
+    ; return $ WebViewT wv
+    }
+
+rootWebView :: String -> (Int -> WebViewM db (WebViewT  v db)) -> (String, Int -> WebViewM db (WebView db) )
+rootWebView name mkWV = (name, \sessionId -> fmap unWebViewT $ mkWV sessionId)
+    
+viewEditT :: (Typeable db, Data db, Data v) => ViewIdT v -> (v -> v) -> EditM db ()
+viewEditT (ViewIdT vid) viewUpdate = viewEdit vid viewUpdate
+
 
 
 -- Scripting
@@ -413,7 +448,7 @@ declareFunction vid name params body = name++viewIdSuffix vid++" = Function("++c
 -- todo: escape '
 
 escapeSingleQuote str = concatMap (\c -> if c == '\'' then "\\'" else [c]) str 
-jsFunction v n a b = declareFunction v n a $ escapeSingleQuote $ intercalate ";" b -- no newlines here, since scripts are executed line by line 
+jsFunction (ViewIdT v) n a b = declareFunction v n a $ escapeSingleQuote $ intercalate ";" b -- no newlines here, since scripts are executed line by line 
 jsScript lines = intercalate ";\n" lines
 jsIf c t = "if ("++c++") {"++intercalate ";" t++"}"
 jsIfElse c t e = "if ("++c++") {"++intercalate ";" t++"} else {"++intercalate ";" e++ "}"
@@ -439,14 +474,14 @@ onKeyUp button expr = onEvent "KeyUp" button expr
 onEvent :: HasViewId w => String -> (Widget w) -> String -> String
 onEvent event widget expr = "script"++viewIdSuffix (getViewId widget) ++ ".on"++event++" = function () {"++expr++"};"
 
-jsVar vid name = name++viewIdSuffix vid
-jsAssignVar vid name value = name++viewIdSuffix vid++" = "++value++";"
+jsVar (ViewIdT vid) name = name++viewIdSuffix vid
+jsAssignVar (ViewIdT vid) name value = name++viewIdSuffix vid++" = "++value++";"
 -- TODO: maybe refVar and assignVar are more appropriate?
-jsDeclareVar vid name value = let jsVar = name++viewIdSuffix vid
+jsDeclareVar (ViewIdT vid) name value = let jsVar = name++viewIdSuffix vid
                             in  "if (typeof "++jsVar++" ==\"undefined\") {"++jsVar++" = "++value++";};"
 -- no "var " here, does not work when evaluated with eval
 
-jsCallFunction vid name params = name++viewIdSuffix vid++"("++intercalate "," params++")"
+jsCallFunction (ViewIdT vid) name params = name++viewIdSuffix vid++"("++intercalate "," params++")"
 -- old disenable call in presentButton:--"disenable"++viewIdSuffix (ViewId $ init $ unViewId viewId)++"('"++show (unViewId viewId)++"');
 -- figure out if we need the viewId for the button when specifying the onclick
 -- but maybe  we get a way to specify a client-side edit op and do this more general
