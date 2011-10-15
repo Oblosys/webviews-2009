@@ -39,7 +39,7 @@ instance Initial ClientView where
 
 maxNrOfPeople = 10
 
-mkClientView = mkWebView $
+mkClientView = mkWebViewT $
  \vid (ClientView oldNrOfP oldMDate oldMTime _ oldNameText oldCommentText _ _ _ _ _ _ _ _ _ _) ->
   do { clockTime <-  liftIO getClockTime -- this stuff is duplicated
      ; ct <- liftIO $ toCalendarTime clockTime
