@@ -38,7 +38,7 @@ Executable Piglet
   GHC-Options: 
   Extensions:
   HS-Source-Dirs:  src
-  Other-Modules: WebViewPrim, WebViewLib, Generics, HtmlLib, Incrementality, Server, Types, Piglet.Database, WebViewLib, Reservations.ClientWebView
+  Other-Modules: WebViewPrim, WebViewLib, Generics, HtmlLib, Incrementality, Server, Types, Piglet.Database, WebViewLib, Piglet.ClientWebView
   if flag(piglet)
     buildable:  True
   else
