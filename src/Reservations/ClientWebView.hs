@@ -14,9 +14,9 @@ import qualified Data.IntMap as IntMap
 import Debug.Trace
 import System.Time
 import Data.Time.Calendar
-import Types
+import Types hiding (WebView, ViewId, getViewId)
 import Generics
-import WebViewPrim
+import WebViewPrim hiding (viewEdit, mkWebView)
 import WebViewLib
 import HtmlLib
 import Control.Monad.State
@@ -169,7 +169,7 @@ mkClientView = mkWebViewT $
                                                       , jsCallFunction vid "disenable" [] ] 
                   , jsFunction vid "disenable" [] [ "console.log(\"disenable: \","++jsVar vid "selectedNr"++","++jsVar vid "selectedDate"++","++jsVar vid "selectedTime" ++" )"
                                                   , "var availables = "++jsVar vid "selectedDate"++" == null ? null : availability["++jsVar vid "selectedDate"++"].availables"
-                                                  , "var buttonIds = [\""++intercalate "\",\"" (map (show . getViewId) $ concat timeButtonss)++"\"]"
+                                                  , "var buttonIds = [\""++intercalate "\",\"" (map (show . getViewIdT_) $ concat timeButtonss)++"\"]"
                                                   , jsFor "var i=0;i<buttonIds.length;i++" $ 
                                                       [ "document.getElementById(buttonIds[i]).disabled = availables == null ? true : availables[i]<"++jsVar vid "selectedNr"
                                                       ]
