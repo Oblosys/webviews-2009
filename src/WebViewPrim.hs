@@ -404,6 +404,7 @@ getViewIdT :: WebViewT v db -> ViewIdT v
 getViewIdT (WebViewT wv) = ViewIdT $ getViewId wv
 
 -- TODO: still need this for widget view id's. Figure out what to do with widgets
+-- right now, they use getViewIdT_ and also avoid the typed stuff with some ..ByViewIdRef functions 
 getViewIdT_ :: HasViewId v => v -> ViewId
 getViewIdT_ = getViewId
 
