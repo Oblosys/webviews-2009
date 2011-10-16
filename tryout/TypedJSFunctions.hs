@@ -6,6 +6,17 @@ Problem: we cannot guarantee declaration or prevent multiple declarations.
 
 TODO: use the params argument.
 TODO: maybe add a return type?
+
+We could also put the information in a type that is returned by declare, but then we
+need to put everything in a monad and thread the declared functions around to where they are used.
+
+f <- declareFunction
+callFunction f
+
+might be problematic between WebViews
+
+The problem in general is that we want to make a static instance declaration in a dynamic context (the script field of the WebView type)
+mkSomeWebView = .... return SomeWebView .. $ -- somehow declare a function here and make it visible globally
 -}
 data Z
 
