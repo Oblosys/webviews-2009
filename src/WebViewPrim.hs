@@ -386,6 +386,8 @@ instance Presentable (AnyWidget db) where
   present (JSVarWidget w) = presentJSVar w 
   
   
+  
+  
 -- Phantom typing
 
 newtype ViewIdT viewType = ViewIdT ViewId
@@ -419,6 +421,7 @@ rootWebView name mkWV = (name, \sessionId -> fmap unWebViewT $ mkWV sessionId)
     
 viewEditT :: (Typeable db, Data db, Data v) => ViewIdT v -> (v -> v) -> EditM db ()
 viewEditT (ViewIdT vid) viewUpdate = viewEdit vid viewUpdate
+
 
 
 
@@ -492,4 +495,37 @@ inertTextView tv = jsScript [ onEvent "Submit" tv ""
                             , onEvent "Blur" tv ""
                             ]
                             
+
+callServerEditAction ea args = "queueCommand('PerformEditActionC ("++show (getActionViewId ea)++") [\"'+"++
+                                      intercalate "+'\",\"'+" args ++"+'\"]')"
+
+
+
+
+-- Hacky stuff
+
+-- probably to be deleted, labels do not need to be accessed    
+getLabelContents :: forall db . Data db => Widget LabelView -> EditM db String
+getLabelContents text =
+ do { (sessionId, user, db, rootView, pendingEdit) <- get
+    ; return $ getLabelContentsByViewIdRef (undefined :: db{-dummy arg-}) (widgetGetViewRef text) rootView
+    } 
+    
+getLabelContentsByViewIdRef :: forall db v . (Typeable db, Data v) => db -> ViewIdRef -> v -> String
+getLabelContentsByViewIdRef _ (ViewIdRef i) view =
+  let (LabelView _ str) :: LabelView = getLabelViewByViewId (ViewId i) view
+  in  str
+
+-- not sure if we'll need these, passing vars as arguments works for submit actions.
+getJSVarContents :: forall db . Data db => Widget JSVar -> EditM db String
+getJSVarContents text =
+ do { (sessionId, user, db, rootView, pendingEdit) <- get
+    ; return $ getJSVarContentsByViewIdRef (undefined :: db{-dummy arg-}) (widgetGetViewRef text) rootView
+    } 
+    
+getJSVarContentsByViewIdRef :: forall db v . (Typeable db, Data v) => db -> ViewIdRef -> v -> String
+getJSVarContentsByViewIdRef _ (ViewIdRef i) view =
+  let (JSVar _ _ value) :: JSVar = getJSVarByViewId (ViewId i) view
+  in  value
+
                             

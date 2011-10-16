@@ -251,37 +251,3 @@ showShortDay d = ["Mo","Tu","We","Th","Fr","Sa","Su"]!!(d-1)
 
 showShortMonth :: Reservations.Database.Month -> String
 showShortMonth m = ["Jan.", "Feb.", "Mar.", "Apr.", "May", "June", "July", "Aug.","Sept.", "Oct.", "Nov.", "Dec."]!!(m-1)
-
- -- HACK
-getTextContents :: Widget (TextView Database) -> EditM Database String
-getTextContents text =
- do { (sessionId, user, db, rootView, pendingEdit) <- get
-    ; return $ getTextByViewIdRef (undefined :: Database{-dummy arg-}) (widgetGetViewRef text) rootView
-    } 
-
--- probably to be deleted, labels do not need to be accessed    
-getLabelContents :: Widget LabelView -> EditM Database String
-getLabelContents text =
- do { (sessionId, user, db, rootView, pendingEdit) <- get
-    ; return $ getLabelContentsByViewIdRef (undefined :: Database{-dummy arg-}) (widgetGetViewRef text) rootView
-    } 
-    
-getLabelContentsByViewIdRef :: forall db v . (Typeable db, Data v) => db -> ViewIdRef -> v -> String
-getLabelContentsByViewIdRef _ (ViewIdRef i) view =
-  let (LabelView _ str) :: LabelView = getLabelViewByViewId (ViewId i) view
-  in  str
-
-
-getJSVarContents :: Widget JSVar -> EditM Database String
-getJSVarContents text =
- do { (sessionId, user, db, rootView, pendingEdit) <- get
-    ; return $ getJSVarContentsByViewIdRef (undefined :: Database{-dummy arg-}) (widgetGetViewRef text) rootView
-    } 
-    
-getJSVarContentsByViewIdRef :: forall db v . (Typeable db, Data v) => db -> ViewIdRef -> v -> String
-getJSVarContentsByViewIdRef _ (ViewIdRef i) view =
-  let (JSVar _ _ value) :: JSVar = getJSVarByViewId (ViewId i) view
-  in  value
-
-callServerEditAction ea args = "queueCommand('PerformEditActionC ("++show (getActionViewId ea)++") [\"'+"++
-                                      intercalate "+'\",\"'+" args ++"+'\"]')"
