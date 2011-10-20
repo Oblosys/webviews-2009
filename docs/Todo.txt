@@ -18,6 +18,8 @@ double load (before and after edit op) on select day is not okay. how do we comb
 scrolled lists don't go back up when selecting different hours (maybe a select function for reservationIx can handle this)
 
 implement the slowest Generics functions with Template Haskell
+or maybe with the new generics lib?
+http://www.haskell.org/ghc/docs/latest/html/users_guide/generic-programming.html
 
 maybe prevent text selection on the lists with edit actions
 
