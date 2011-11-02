@@ -1,6 +1,7 @@
 <html>
 <head>
 <link href="../scr/WebViews.css" rel="stylesheet" type="text/css" />
+<script src="http://ajax.googleapis.com/ajax/libs/jquery/1.5/jquery.min.js"></script>
 <script type="text/javascript">
 function scriptNode(viewId) {
     this.viewId = viewId;
@@ -9,6 +10,7 @@ function scriptNode(viewId) {
 
 
 function init() {
+    console.log("test is "+$('body').attr('test'));
     aScriptNode = new scriptNode(1);
     aScriptNode.click = function (viewId) { console.log("ad hoc "+viewId)};
     // what's the difference with Function(viewId, "..") ?
@@ -27,7 +29,7 @@ function specialClick(viewId) {
 
 </script>
 </head>
-<body onload="init()">
+<body onload="init()" test="hallo">
 <button onclick="defaultClick(1)">Direct</button>
 <button onclick="aScriptNode.click(1)">Indirect</button>
 </body>
