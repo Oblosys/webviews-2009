@@ -1,6 +1,12 @@
 cd ~/svn/Oblomov/WebViews
+killall Reservations
 dist/build/Reservations/Reservations > serverOutput.txt 2>&1 &
-echo WebViews server started
+
+# Wait a bit and show initial output to see if the server actually started
+# (cannot use $? because background shell command always exits succesfully)
+sleep 0.1
+cat serverOutput.txt
+
 
 # when put in crontab, use:
 #    @reboot ~/svn/Oblomov/WebViews/startServer >/dev/null 2>&1
