@@ -11,7 +11,7 @@ Cabal-Version:  >= 1.2
      
 Flag piglet
   description:  Build WebViews Piglet
-  default:      False        
+  default:      False       
 
 Flag reservations
   description:  Build WebViews Reservations
@@ -38,7 +38,7 @@ Executable Piglet
   GHC-Options: 
   Extensions:
   HS-Source-Dirs:  src
-  Other-Modules: WebViewPrim, WebViewLib, Generics, HtmlLib, Incrementality, Server, Types, Piglet.Database, WebViewLib, Piglet.ClientWebView
+  Other-Modules: WebViewPrim, WebViewLib, Generics, HtmlLib, Incrementality, Server, Types, Piglet.Database, WebViewLib
   if flag(piglet)
     buildable:  True
   else
