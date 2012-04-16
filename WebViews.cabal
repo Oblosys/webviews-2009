@@ -16,6 +16,10 @@ Flag piglet
 Flag reservations
   description:  Build WebViews Reservations
   default:      False        
+
+Flag trac
+  description:  Build WebViews Trac
+  default:      False        
     
 -- Mains are in separate dirs, cannot use Main-is: Main1.hs etc., since scion demands that the module name is the file name (and ghc demands that the main module is called Main)
 -- Main is not qualified, since GHC doesn't even allow Module.Main as main.
@@ -65,6 +69,32 @@ Executable Reservations
   HS-Source-Dirs:  src
   Other-Modules: WebViewPrim, WebViewLib, Generics, HtmlLib, Incrementality, Server, Types, Reservations.Database, WebViewLib, Reservations.ClientWebView
   if flag(reservations)
+    buildable:  True
+  else
+    buildable:  False
+
+Executable Trac
+  Main-is:	  Trac/Main.hs 
+  -- Build-Depends needs to be in Executable for EclipseFP's Scion
+  Build-Depends:  base,
+                  syb == 0.3.3,
+                  network,
+                  mtl,
+                  base64-string,
+                  containers,
+                  bytestring,
+                  html,
+                  happstack-server,
+                  happstack-state,
+                  old-time,
+                  unix,
+                  download-curl,
+                  split
+  GHC-Options: 
+  Extensions:
+  HS-Source-Dirs:  src
+  Other-Modules: WebViewPrim, WebViewLib, Generics, HtmlLib, Incrementality, Server, Types, Trac.Database, WebViewLib
+  if flag(trac)
     buildable:  True
   else
     buildable:  False
