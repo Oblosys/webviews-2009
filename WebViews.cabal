@@ -20,6 +20,10 @@ Flag reservations
 Flag trac
   description:  Build WebViews Trac
   default:      False        
+
+Flag leenclub
+  description:  Build WebViews Leenclub
+  default:      False       
     
 -- Mains are in separate dirs, cannot use Main-is: Main1.hs etc., since scion demands that the module name is the file name (and ghc demands that the main module is called Main)
 -- Main is not qualified, since GHC doesn't even allow Module.Main as main.
@@ -102,3 +106,21 @@ Executable Trac
   else
     buildable:  False
 
+Executable Leenclub
+  Main-is:    Main.hs 
+  Build-Depends:  WebViews,
+                  base >=4.5 && <4.6,
+                  containers >=0.4 && <0.5,
+                  syb >=0.3 && <0.4,
+                  mtl >=2.0 && <2.1,
+                  old-time >=1.1 && <1.2,
+                  html >=1.0 && <1.1
+
+  GHC-Options: 
+  Extensions:
+  HS-Source-Dirs:  src/exec/Leenclub
+  Other-Modules:
+  if flag(leenclub)
+    buildable:  True
+  else
+    buildable:  False
