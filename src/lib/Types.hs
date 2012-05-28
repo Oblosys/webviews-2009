@@ -22,7 +22,7 @@ data Commands = Commands [Command]
 getCommands (Commands cs) = cs
 getCommands _             = []
 
-data Command = Init String | Refresh | Test 
+data Command = Init String [String] | Refresh | Test 
              | SetC ViewId String 
              | ButtonC ViewId
              | SubmitC ViewId

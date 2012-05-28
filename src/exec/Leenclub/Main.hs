@@ -25,9 +25,118 @@ import Database
 main :: IO ()
 main = server rootViews "LeenclubDB.txt" mkInitialDatabase users
 
-rootViews :: [ (String, Int -> WebViewM Database (WebView Database))]
-rootViews = [ ("", mkVisitsView)] 
+rootViews :: [ (String, SessionId -> [String] -> WebViewM Database (WebView Database)) ]
+rootViews = [ ("", mkUserView), ("user", mkUserView)] 
+
+{-
+Plan:
+
+add some books games and lawnmower
+add users
+
+search items view
+autocomplete
+basic user view
+template view with menu bar
+
+
+-}
+maybeRead :: Read a => String -> Maybe a
+maybeRead str = case reads str of 
+                  [(x,"")] -> Just x
+                  _        -> Nothing 
+data UserView = 
+  UserView UserId String --(Widget (TextView Database)) 
+    deriving (Eq, Show, Typeable, Data)
+{-
+modifyViewedPig f (UserView vid name) =
+  UserView vid zipCode date (f viewedPig) b1 b2 b3 pigs pignames mSubview
+-}
+--mkUserView :: Int -> WebViewM Database (WebView Database)
+mkUserView sessionId args = mkWebView $
+  \vid oldUserView@(UserView _ _) -> 
+    do { let i = case args of
+                   arg:_ -> case maybeRead arg of
+                               Just uid -> UserId uid
+                               _        -> UserId 0
+                   _        -> UserId 0  
+       ; (User uid name zipcode items) <- withDb $ \db -> unsafeLookup (allUsers db) i 
+       --; nameT <- mkTextField  name
+      -- ; zipT  <- mkTextField zipcode
+                 
+                                     
+       ; return $ UserView i name 
+       }
+      
+instance Presentable UserView where
+  present (UserView _ name)=
+    withBgColor (Rgb 235 235 235) $ withPad 5 0 5 0 $    
+    with [thestyle "font-family: arial"] $ 
+      name
     
+    {-
+      mkTableEx [width "100%"] [] [valign "top"]
+       [[ ([],
+           (h2 << "Piglet 2.0")  +++
+           ("List of all visits     (session# "++show sessionId++")") +++         
+      p << (hList [ withBgColor (Rgb 250 250 250) $ roundedBoxed Nothing $ withSize 230 100 $ 
+             (let rowAttrss = [] :
+                              [ [withEditActionAttr selectionAction] ++
+                                if i == viewedVisit then [ fgbgColorAttr (Rgb 255 255 255) (Rgb 0 0 255)
+                                                           ] else [] 
+                              | (i,selectionAction) <- zip [0..] selectionActions 
+                              ]
+                  rows = [ stringToHtml "Nr.    ", stringToHtml "Zip"+++nbspaces 3
+                         , (stringToHtml "Date"+++nbspaces 10) ]  :
+                         [ [stringToHtml $ show i, stringToHtml zipCode, stringToHtml date] 
+                         | (i, (zipCode, date)) <- zip [1..] visits
+                         ]
+              in  mkTable [strAttr "width" "100%", strAttr "cellPadding" "2", thestyle "border-collapse: collapse"] 
+                     rowAttrss [] rows
+                 )])  +++
+      p << (present add +++ present remove) 
+      )
+      ,([align "right"],
+     hList[
+      case user of
+         Nothing -> present loginoutView 
+         Just (_,name) -> stringToHtml ("Hello "++name++".") +++ br +++ br +++ present loginoutView
+      ] )]
+      ] +++
+      p << ((if null visits then "There are no visits. " else "Viewing visit nr. "++ show (viewedVisit+1) ++ ".") +++ 
+             "    " +++ present prev +++ present next) +++ 
+      --vList (map present tabbedVisits)
+      present tabbedVisits
+{-
+          boxed (case mv of
+               [] -> stringToHtml "No visits."
+               visitVs -> concatHtml $ map present visitVs) -} +++
+      h2 << "Comments" +++
+      vList (map present commentViews) +++ 
+      nbsp +++ (case mAddCommentButton of 
+                  Nothing -> stringToHtml "Please log in to add a comment"
+                  Just b  -> present b)
+      -}
+     {-
+instance Presentable UserView where
+  present (UserView vid zipCode date viewedPig b1 b2 b3 pigs pignames subviews) =
+    withBgColor (Color white) $
+    ("User at zip code "+++ present zipCode +++" on " +++ present date) +++ br +++
+    p << ("Usered "++ show (length pigs) ++ " pig" ++  pluralS (length pigs) ++ ": " ++ 
+          listCommaAnd pignames) +++
+    p << ((if null pigs 
+           then stringToHtml $ "Not viewing any pigs.   " 
+           else "Viewing pig nr. " +++ show (viewedPig+1) +++ ".   ")
+           +++ present b1 +++ present b2) +++
+    withPad 15 0 0 0 (hList' $ map present subviews) +++ present b3
+-}
+instance Storeable Database UserView where
+  save _ = id
+
+instance Initial UserView where
+  initial = UserView (UserId initial) initial
+
+ {-
 -- Visits ----------------------------------------------------------------------  
 
 data VisitsView = 
@@ -272,75 +381,4 @@ instance Storeable Database PigView where
 
 instance Initial PigView where
   initial = PigView (PigId initial) initial "" initial initial initial initial initial initial initial
-
-
-data CommentView = CommentView CommentId Bool String String String
-                               (Maybe (WebView Database)) (Maybe (WebView Database)) (Maybe (Widget (TextView Database)))
-                   deriving (Eq, Show, Typeable, Data)
-
-instance Initial CommentView where
-  initial = CommentView (CommentId initial) initial initial initial initial initial initial initial
-
-modifyEdited fn (CommentView a edited b c d e f g) = (CommentView a (fn edited) b c d e f g)
-
-mkCommentView commentId new = mkWebView $ \vid (CommentView _ edited' _ _ _ _ _ oldMTextfield) ->
- do { (Comment _ author date text) <- withDb $ \db -> unsafeLookup (allComments db) commentId
-    
-    ; let (_,name) = unsafeLookup users author
-          
-          edited = if new then True else edited' 
-    
-    ; submitButton <- mkLinkView "Submit" (Edit $ viewEdit vid $ modifyEdited (const False))
-    ; editButton   <- mkLinkView "Edit"   (Edit $ viewEdit vid $ modifyEdited (const True))
-    ; user <- getUser                
-    ; let mEditAction = if edited
---                    then fmap Just $ mkButton "Submit" True $ mkViewEdit vid $ modifyEdited (const False)
-                      then Just submitButton
-                      else if userIsAuthorized author user 
-                           then Just editButton
-                           else Nothing
-    ; removeAction <- mkLinkView "Remove" 
-                        (ConfirmEdit ("Are you sure you want to remove this comment?") $ 
-                          Edit $ docEdit $ removeComment commentId)
-    ; let mRemoveAction = if userIsAuthorized author user 
-                          then Just removeAction
-                          else Nothing
-      
-    ; textArea <- mkTextArea text
-    ; let mTextArea = if edited then Just textArea else Nothing
-    
-    ; return $ CommentView commentId edited name date text mEditAction mRemoveAction mTextArea
-    }
- where userIsAuthorized authorLogin (Just (login, _)) = login == authorLogin || login == "martijn" 
-       userIsAuthorized _           Nothing           = False
-
-instance Storeable Database CommentView where
-  save (CommentView cid edited _ date text _ _ mTextArea) =
-    updateComment cid (\(Comment _ author _ _) -> 
-                             let text' | edited, Just textArea <- mTextArea = getStrVal textArea       
-                                       | otherwise                          = text
-                             in  Comment cid author date text')
-
-instance Presentable CommentView where
-  present (CommentView _ edited author date text mEditAction mRemoveAction mTextArea) =
-    thediv![thestyle "border:solid; border-width:1px; padding:0px; min-width: 550px;"] $
-     (withBgColor (Rgb 225 225 225) $ --  thespan![thestyle "margin:4px;"] $
-        (thespan![thestyle "margin:4px;"] $ "Posted by " +++ stringToHtml author +++ " on " +++ stringToHtml date)
-        `hDistribute`
-        (withColor (Color "blue") $
-          case mEditAction of
-           Just ea -> present ea
-           Nothing -> stringToHtml ""
-         +++ nbspaces 2 +++
-         case mRemoveAction of
-           Just ra -> present ra
-           Nothing -> stringToHtml "") -- TODO: why is it not possible to add spaces behind this?
-     ) +++ 
-     (withBgColor (Color "white") $ 
-        
-         if edited then case mTextArea of 
-                          Nothing -> thespan![thestyle "margin:4px;"] $ -- TODO: figure out why margin above creates too much space  
-                                       multiLineStringToHtml text
-                          Just textArea -> withHeight 100 $ present textArea
-         else thespan![thestyle "margin:4px;"] $ -- TODO: figure out why margin above creates too much space  
-                multiLineStringToHtml text)
+-}

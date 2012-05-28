@@ -27,8 +27,8 @@ import Database
 main :: IO ()
 main = server rootViews "TracDB.txt" mkInitialDatabase Map.empty
 
-rootViews :: [ (String, Int -> WebViewM Database (WebView Database))]
-rootViews = [ ("", mkTicketsView)] 
+rootViews :: [ (String, SessionId -> [String] -> WebViewM Database (WebView Database)) ]
+rootViews = [ ("", \args -> mkTicketsView)] -- ignore args 
     
 -- Tickets ----------------------------------------------------------------------  
 

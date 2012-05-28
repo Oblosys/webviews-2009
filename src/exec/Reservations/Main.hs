@@ -28,9 +28,11 @@ import ClientWebView
 main :: IO ()
 main = server rootViews "ReservationsDB.txt" mkInitialDatabase users
 
-
-rootViews = [ rootWebView "" mkMainRootView, rootWebView "client" $ \sessionId -> mkClientView, rootWebView "restaurant" $ \sessionId -> mkRestaurantView
-            , rootWebView "test" mkTestView1 ] 
+-- the webviews here are phantom typed, so we need rootWebView to get rid of the phantom types
+rootViews = [ rootWebView "" $ \sessionId args -> mkMainRootView sessionId
+            , rootWebView "client" $ \sessionId args -> mkClientView
+            , rootWebView "restaurant" $ \sessionId args -> mkRestaurantView
+            , rootWebView "test" $ \sessionId args -> mkTestView1 sessionId ] 
   -- TODO: id's here?
   -- TODO: fix the sessionId stuff
   -- TODO: find good names for root, main, etc.

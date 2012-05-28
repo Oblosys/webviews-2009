@@ -417,8 +417,8 @@ mkWebViewT mkViewT =
     ; return $ WebViewT wv
     }
 
-rootWebView :: String -> (Int -> WebViewM db (WebViewT  v db)) -> (String, Int -> WebViewM db (WebView db) )
-rootWebView name mkWV = (name, \sessionId -> fmap unWebViewT $ mkWV sessionId)
+rootWebView :: String -> (SessionId -> [String] -> WebViewM db (WebViewT  v db)) -> (String, SessionId -> [String] -> WebViewM db (WebView db) )
+rootWebView name mkWV = (name, \sessionId args -> fmap unWebViewT $ mkWV sessionId args)
     
 viewEditT :: (Typeable db, Data db, Data v) => ViewIdT v -> (v -> v) -> EditM db ()
 viewEditT (ViewIdT vid) viewUpdate = viewEdit vid viewUpdate

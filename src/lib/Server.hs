@@ -3,6 +3,7 @@ module Server where
 import Happstack.Server
 import System.IO
 import Data.List
+import Data.List.Split
 import Data.Maybe
 import Data.IORef
 import Control.Concurrent
@@ -106,7 +107,7 @@ setRootView sessionStateRef rootView =
     }
  
 server :: (Data db, Typeable db, Show db, Read db, Eq db) =>
-          [ (String, Int -> WebViewM db (WebView db))] -> String -> IO (db) -> Map String (String, String) -> IO ()
+          [ (String, SessionId -> [String] -> WebViewM db (WebView db)) ] -> String -> IO (db) -> Map String (String, String) -> IO ()
 server rootViews dbFilename mkInitialDatabase users =
  do { hSetBuffering stdout NoBuffering -- necessary to run server in Eclipse
     ; time <- getClockTime
@@ -165,7 +166,7 @@ instance FromData Int where
 
 readInt s = fromMaybe (-1) (safeRead s)
 
-handlers :: (Data db, Show db, Eq db) => [ (String, Int -> WebViewM db (WebView db))] -> String -> db -> Map String (String, String) -> ServerInstanceId -> GlobalStateRef db -> [ServerPart Response]
+handlers :: (Data db, Show db, Eq db) => [ (String, SessionId -> [String] -> WebViewM db (WebView db)) ] -> String -> db -> Map String (String, String) -> ServerInstanceId -> GlobalStateRef db -> [ServerPart Response]
 handlers rootViews dbFilename theDatabase users serverSessionId globalStateRef = 
   [ dir "favicon.ico" $ serveDirectory DisableBrowsing [] "favicon.ico"
   , dir "scr" $ serveDirectory DisableBrowsing [] "scr"  
@@ -180,20 +181,16 @@ handlers rootViews dbFilename theDatabase users serverSessionId globalStateRef =
                             ; liftIO $ putStrLn $ "RequestId: "++show (requestId :: Int)
                             ; method GET >> nullDir >> session rootViews dbFilename theDatabase users serverSessionId globalStateRef requestId cmds
                             })
-  , uriRest $ \rootViewName -> anyPath $ serveMainPage rootViewName  -- http://webviews.com/rootViewName
+  , path $ \rootViewName -> uriRest $ \(args :: String) -> serveRootPage rootViewName (filter (not . null) $ splitOn "/" args)
+  , serveRootPage "" []
+  ] 
+ where serveRootPage :: String -> [String] -> ServerPart Response
+       serveRootPage rootViewName args =
              -- we don't need to do anything with the rootViewName here, since the client takes the view name from the
              -- browser url and passes it along with the Init event
-  , serveMainPage ""
-  ] 
- where serveMainPage rootViewName =
-        do { liftIO $ putStrLn $ "Root requested "++rootViewName
-           ; serveDirectory DisableBrowsing [] "scr/WebViews.html"
+        do { liftIO $ putStrLn $ "Root requested "++rootViewName ++ " with args "++show args
+           ; serveFile (asContentType "text/html") "scr/WebViews.html"
            } 
- -- TODO handle this differently, so / after rootViewName can be handled (now a problem since it causes rootViewName/handle requests instead of just handle)
- -- maybe do   msum[ path $ \rootViewName -> handlers rootViewName, handlers ""] This allows a more elegant way to extract
- -- the rootViewName directly from the path, without having the client take it from document.location.href
- -- Should check what happens when there is no / after the rootViewName though, as this may complicate things (or maybe
- -- just disallow this). Also the script should be fixed, so scr and img links are absolute (e.g. "/scr/" instead of "src/..") 
     
 {-
 This stuff may not hold for HappStack 6
@@ -219,7 +216,7 @@ Set-Cookie: webviews="(1242497513,2)";Max-Age=3600;Path=/;Version="1"
 
 type SessionCookie = (String, String)
 
-session :: (Data db, Show db, Eq db) => [ (String, Int -> WebViewM db (WebView db))] -> String -> db -> Map String (String, String) -> ServerInstanceId -> GlobalStateRef db -> Int -> Commands -> ServerPart Response
+session :: (Data db, Show db, Eq db) => [ (String, SessionId -> [String] -> WebViewM db (WebView db)) ] -> String -> db -> Map String (String, String) -> ServerInstanceId -> GlobalStateRef db -> Int -> Commands -> ServerPart Response
 session rootViews dbFilename theDatabase users serverInstanceId globalStateRef requestId cmds =
  do { mCookieSessionId <- parseCookieSessionId serverInstanceId
       
@@ -303,14 +300,14 @@ storeSessionState globalStateRef sessionId sessionStateRef =
     ; liftIO $ writeIORef globalStateRef (database', sessions', sessionCounter)
     }
  
-sessionHandler :: (Data db, Show db, Eq db) => [ (String, Int -> WebViewM db (WebView db))] -> String -> db -> Map String (String, String) -> SessionStateRef db -> Int -> Commands -> ServerPart Html
+sessionHandler :: (Data db, Show db, Eq db) => [ (String, SessionId -> [String] -> WebViewM db (WebView db)) ] -> String -> db -> Map String (String, String) -> SessionStateRef db -> Int -> Commands -> ServerPart Html
 sessionHandler rootViews dbFilename theDatabase users sessionStateRef requestId cmds = liftIO $  
  do { --putStrLn $ "Received commands" ++ show cmds
     
     ; (_, _, db, oldRootView', _) <- readIORef sessionStateRef
     
-    ; let isInitCommand (Init _) = True
-          isInitCommand _        = False
+    ; let isInitCommand (Init _ _) = True
+          isInitCommand _          = False
           
     -- TODO: this may cause problems Init is part of multiple commands
     ; oldRootView <- if any isInitCommand $ getCommands cmds 
@@ -407,18 +404,18 @@ handleCommands rootViews users sessionStateRef (Commands commands) =
       --       make sure that id's are not generated between commands
 
 
-mkRootView ::Data db => [ (String, Int -> WebViewM db (WebView db))] -> String -> User -> db -> Int -> ViewMap db -> IO (WebView db)
-mkRootView rootViews rootViewName user db sessionId viewMap =
-  fmap assignIds $ runWebView user db viewMap [] 0 $ mkMainView sessionId
+mkRootView ::Data db => [ (String, SessionId -> [String] -> WebViewM db (WebView db))] -> String -> [String] -> User -> db -> Int -> ViewMap db -> IO (WebView db)
+mkRootView rootViews rootViewName args user db sessionId viewMap =
+  fmap assignIds $ runWebView user db viewMap [] 0 $ mkMainView sessionId args
  where mkMainView = case lookup rootViewName rootViews of
                       Nothing -> error $ "Unknown view: "++rootViewName
-                      Just mkV -> mkV 
+                      Just mkV -> mkV
 
-handleCommand :: Data db => [ (String, Int -> WebViewM db (WebView db))] -> Map String (String, String) -> SessionStateRef db -> Command -> IO ServerResponse
-handleCommand rootViews _ sessionStateRef (Init rootViewName) =
- do { putStrLn $ "Init "++show rootViewName
+handleCommand :: Data db => [ (String, SessionId -> [String] -> WebViewM db (WebView db))] -> Map String (String, String) -> SessionStateRef db -> Command -> IO ServerResponse
+handleCommand rootViews _ sessionStateRef (Init rootViewName args) =
+ do { putStrLn $ "Init "++show rootViewName ++ " " ++ show args
     ; (sessionId, user, db, oldRootView, _) <- readIORef sessionStateRef
-    ; rootView <- liftIO $ mkRootView rootViews rootViewName user db sessionId (mkViewMap oldRootView)
+    ; rootView <- liftIO $ mkRootView rootViews rootViewName args user db sessionId (mkViewMap oldRootView)
     ; setRootView sessionStateRef rootView
      
     ; return ViewUpdate

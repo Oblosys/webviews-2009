@@ -25,8 +25,8 @@ import Database
 main :: IO ()
 main = server rootViews "PigletDB.txt" mkInitialDatabase users
 
-rootViews :: [ (String, Int -> WebViewM Database (WebView Database))]
-rootViews = [ ("", mkVisitsView)] 
+rootViews :: [ (String, SessionId -> [String] -> WebViewM Database (WebView Database)) ]
+rootViews = [ ("", \sessionId args -> mkVisitsView sessionId)] -- ignore args 
     
 -- Visits ----------------------------------------------------------------------  
 

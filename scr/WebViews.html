@@ -2,21 +2,21 @@
 <html>
  <head>
   <title>WebViews prototype</title>
-  <link href="scr/WebViews.css" rel="stylesheet" type="text/css" />
+  <link href="/scr/WebViews.css" rel="stylesheet" type="text/css" />
 
   <script type="text/javascript" src="http://ajax.googleapis.com/ajax/libs/jquery/1.6.4/jquery.min.js"></script>
   <script type="text/javascript" src="http://ajax.googleapis.com/ajax/libs/jqueryui/1.8.16/jquery-ui.min.js"></script>
   
-  <script type="text/javascript" src="scr/spin.min.js"></script>
-  <script type="text/javascript" src="scr/util.js"></script> <!-- requires jQuery -->
+  <script type="text/javascript" src="/scr/spin.min.js"></script>
+  <script type="text/javascript" src="/scr/util.js"></script> <!-- requires jQuery -->
   
   <meta name="viewport" content="initial-scale=1.0; maximum-scale=1.0; user-scalable=0;"/>
  </head>
 
 <script type="text/javascript"> <!--
 
-//var debugging = true;
-var debugging = false;
+var debugging = true;
+//var debugging = false;
 
 //var drawingViewTree = true;
 var drawingViewTree = false;
@@ -42,11 +42,15 @@ var focusedElementId = '';
 var timer;
 
 $(document).ready(function(){
+	init();
 });
 
 function init() {
-  var path = (document.location.href.split('/'))[3];
-  queueCommand('Init "'+path+'"');
+	var pathElts = document.location.href.split('/');
+  var rootView = pathElts[3];
+  var args = pathElts.length <= 4 ? '[]' 
+  		       : '["' + (pathElts.slice(4,pathElts.length)).join('","') + '"]'; 
+  queueCommand('Init "'+rootView+'" '+args);
 }
 
 function startRefreshTimer() {
@@ -127,7 +131,7 @@ function queueCommand(command) {
   }
   if (xmlhttp!=null) {
 	  xmlhttp.onreadystatechange=state_ChangeWithErrorHandler;
-    xmlhttp.open("GET",'handle?requestId='+requestId+'&commands=Commands ['+commandQueue+']',true);
+    xmlhttp.open("GET",'/handle?requestId='+requestId+'&commands=Commands ['+commandQueue+']',true);
     console.log("Sent request with id: "+requestId);
     requestId ++;
     xmlhttp.send(null); // commands in commandQueue are already separated by commmas
@@ -427,7 +431,7 @@ function TextViewScript(viewId) {
 
 --></script>
 
-<body onload="javascript: init();" style="padding:0px; margin:0px">
+<body style="padding:0px; margin:0px">
 <div id="viewTree"></div>
 <div id="root"><div id="1"></div></div>
 <div id="new"></div>

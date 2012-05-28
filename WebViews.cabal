@@ -40,9 +40,10 @@ Library
                   happstack-server >=7.0 && <7.1,
                   happstack-state >=6.1 && <6.2,
                   old-time >=1.1 && <1.2,
-                  unix >=2.5 && <2.6
+                  unix >=2.5 && <2.6,
+                  split >=0.1 && <0.2
   ghc-options: 
-  extensions:
+  extensions: ExistentialQuantification RankNTypes DeriveDataTypeable ScopedTypeVariables
   exposed-modules: WebViewPrim, WebViewLib, Generics, HtmlLib, Incrementality, Server, Types
   other-modules:
 
