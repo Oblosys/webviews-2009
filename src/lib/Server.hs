@@ -19,7 +19,7 @@ import System.Time (getClockTime)
 import System.Posix.Time
 import System.Posix.Types
 import System.Exit
-import Text.Html
+import Text.Html hiding (method)
 import Control.Exception
 import qualified Data.ByteString.Char8 as Bytestring
 import qualified Codec.Binary.Base64.String as Base64
@@ -178,7 +178,7 @@ handlers rootViews dbFilename theDatabase users serverSessionId globalStateRef =
                                             Left err            -> do { liftIO $ putStrLn "No requestId in request"; mzero }
                                 
                             ; liftIO $ putStrLn $ "RequestId: "++show (requestId :: Int)
-                            ; methodSP GET $ session rootViews dbFilename theDatabase users serverSessionId globalStateRef requestId cmds
+                            ; method GET >> nullDir >> session rootViews dbFilename theDatabase users serverSessionId globalStateRef requestId cmds
                             })
   , uriRest $ \rootViewName -> anyPath $ serveMainPage rootViewName  -- http://webviews.com/rootViewName
              -- we don't need to do anything with the rootViewName here, since the client takes the view name from the
