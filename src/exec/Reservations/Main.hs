@@ -22,8 +22,8 @@ import HtmlLib
 import Control.Monad.State
 import Server
 import System.IO.Unsafe (unsafePerformIO) -- just for calendar stuff
-import Reservations.Database
-import Reservations.ClientWebView
+import Database
+import ClientWebView
 
 main :: IO ()
 main = server rootViews "ReservationsDB.txt" mkInitialDatabase users

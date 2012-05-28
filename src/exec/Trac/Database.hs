@@ -1,5 +1,5 @@
 {-# OPTIONS -XDeriveDataTypeable #-}
-module Trac.Database where
+module Database where
 
 import Data.Generics
 import Data.Map (Map)

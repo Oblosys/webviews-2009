@@ -1,5 +1,5 @@
 {-# OPTIONS -XDeriveDataTypeable #-}
-module Reservations.Database where
+module Database where
 
 import Data.Time.Calendar hiding (Day)
 import System.Time hiding (Day, Month)

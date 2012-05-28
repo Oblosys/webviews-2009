@@ -22,7 +22,7 @@ import HtmlLib
 import Control.Monad.State
 import Server
 
-import Trac.Database
+import Database
 
 main :: IO ()
 main = server rootViews "TracDB.txt" mkInitialDatabase Map.empty

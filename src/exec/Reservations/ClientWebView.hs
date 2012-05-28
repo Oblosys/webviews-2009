@@ -1,5 +1,5 @@
 {-# OPTIONS -XDeriveDataTypeable -XPatternGuards -XMultiParamTypeClasses -XScopedTypeVariables #-}
-module Reservations.ClientWebView where
+module ClientWebView where
 
 import Data.List
 import Text.Html hiding (image)
@@ -22,7 +22,7 @@ import HtmlLib
 import Control.Monad.State
 import Server
 import System.IO.Unsafe (unsafePerformIO) -- just for calendar stuff
-import Reservations.Database
+import Database
 
 data ClientView = 
   ClientView Int (Maybe Date) (Maybe Time) [Widget (Button Database)] (Widget (TextView Database)) (Widget (TextView Database)) (Widget (Button Database)) (Widget (Button Database)) [Widget (Button Database)] [[Widget (Button Database)]] (Widget (Button Database)) 
@@ -249,5 +249,5 @@ showDay d = ["Monday","Tuesday","Wednesday","Thursday","Friday","Saturday","Sund
 showShortDay :: Int -> String 
 showShortDay d = ["Mo","Tu","We","Th","Fr","Sa","Su"]!!(d-1) 
 
-showShortMonth :: Reservations.Database.Month -> String
+showShortMonth :: Database.Month -> String
 showShortMonth m = ["Jan.", "Feb.", "Mar.", "Apr.", "May", "June", "July", "Aug.","Sept.", "Oct.", "Nov.", "Dec."]!!(m-1)

@@ -7,7 +7,7 @@ Author:           Martijn Schrage
 Maintainer:       martijn@oblomov.com
 Stability:        experimental
 Build-Type:       Simple
-Cabal-Version:  >= 1.2
+Cabal-Version:  >= 1.8
      
 Flag piglet
   description:  Build WebViews Piglet
@@ -23,78 +23,82 @@ Flag trac
     
 -- Mains are in separate dirs, cannot use Main-is: Main1.hs etc., since scion demands that the module name is the file name (and ghc demands that the main module is called Main)
 -- Main is not qualified, since GHC doesn't even allow Module.Main as main.
+Library
+  hs-source-dirs:   src/lib
+  build-depends:  base >=4.5 && <4.6,
+                  containers >=0.4 && <0.5,
+                  syb >=0.3 && <0.4,
+                  network >=2.3 && <2.4,
+                  mtl >=2.0 && <2.1,
+                  base64-string >=0.2 && <0.3,
+                  bytestring >=0.9 && <1.0,
+                  html >= 1.0 && <1.1,
+                  happstack-server >=7.0 && <7.1,
+                  happstack-state >=6.1 && <6.2,
+                  old-time >=1.1 && <1.2,
+                  unix >=2.5 && <2.6
+  ghc-options: 
+  extensions:
+  exposed-modules: WebViewPrim, WebViewLib, Generics, HtmlLib, Incrementality, Server, Types
+  other-modules:
 
 Executable Piglet
-  Main-is:	  Piglet/Main.hs 
-  -- Build-Depends needs to be in Executable for EclipseFP's Scion
-  Build-Depends:  base,
-                  syb == 0.3.3,
-                  network,
-                  mtl,
-                  base64-string,
-                  containers,
-                  bytestring,
-                  html,
-                  happstack-server,
-                  happstack-state,
-                  old-time,
-                  unix
+  Main-is:    Main.hs 
+  Build-Depends:  WebViews,
+                  base >=4.5 && <4.6,
+                  containers >=0.4 && <0.5,
+                  syb >=0.3 && <0.4,
+                  mtl >=2.0 && <2.1,
+                  old-time >=1.1 && <1.2,
+                  html >=1.0 && <1.1
+
   GHC-Options: 
   Extensions:
-  HS-Source-Dirs:  src
-  Other-Modules: WebViewPrim, WebViewLib, Generics, HtmlLib, Incrementality, Server, Types, Piglet.Database, WebViewLib
+  HS-Source-Dirs:  src/exec/Piglet
+  Other-Modules:
   if flag(piglet)
     buildable:  True
   else
     buildable:  False
 
 Executable Reservations
-  Main-is:	  Reservations/Main.hs 
-  -- Build-Depends needs to be in Executable for EclipseFP's Scion
-  Build-Depends:  base,
-                  syb == 0.3.3,
-                  network,
-                  mtl,
-                  base64-string,
-                  containers,
-                  bytestring,
-                  html,
-                  happstack-server,
-                  happstack-state,
-                  old-time,
-                  unix,
-                  time
+  Main-is:    Main.hs 
+  Build-Depends:  WebViews,
+                  base >=4.5 && <4.6,
+                  containers >=0.4 && <0.5,
+                  syb >=0.3 && <0.4,
+                  mtl >=2.0 && <2.1,
+                  old-time >=1.1 && <1.2,
+                  html >=1.0 && <1.1,
+                  time >=1.4 && <1.5
+
   GHC-Options: 
   Extensions:
-  HS-Source-Dirs:  src
-  Other-Modules: WebViewPrim, WebViewLib, Generics, HtmlLib, Incrementality, Server, Types, Reservations.Database, WebViewLib, Reservations.ClientWebView
+  HS-Source-Dirs:  src/exec/Reservations
+  Other-Modules:
   if flag(reservations)
     buildable:  True
   else
     buildable:  False
 
 Executable Trac
-  Main-is:	  Trac/Main.hs 
-  -- Build-Depends needs to be in Executable for EclipseFP's Scion
-  Build-Depends:  base,
-                  syb == 0.3.3,
-                  network,
-                  mtl,
-                  base64-string,
-                  containers,
-                  bytestring,
-                  html,
-                  happstack-server,
-                  happstack-state,
-                  old-time,
-                  unix,
-                  download-curl,
-                  split
+  Main-is:    Main.hs 
+  Build-Depends:  WebViews,
+                  base >=4.5 && <4.6,
+                  containers >=0.4 && <0.5,
+                  syb >=0.3 && <0.4,
+                  mtl >=2.0 && <2.1,
+                  old-time >=1.1 && <1.2,
+                  html >=1.0 && <1.1,
+                  download-curl >=0.1 && <0.2,
+                  split >=0.1 && <0.2
+
   GHC-Options: 
   Extensions:
-  HS-Source-Dirs:  src
-  Other-Modules: WebViewPrim, WebViewLib, Generics, HtmlLib, Incrementality, Server, Types, Trac.Database, WebViewLib
+  HS-Source-Dirs:  src/exec/Trac
+  Other-Modules:
   if flag(trac)
     buildable:  True
   else
     buildable:  False
+
