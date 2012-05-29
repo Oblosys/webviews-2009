@@ -23,57 +23,62 @@ import Server
 import Database
 
 main :: IO ()
-main = server rootViews "LeenclubDB.txt" mkInitialDatabase users
+main = server rootViews "LeenclubDB.txt" mkInitialDatabase leners
 
 rootViews :: [ (String, SessionId -> [String] -> WebViewM Database (WebView Database)) ]
-rootViews = [ ("", mkUserView), ("user", mkUserView)] 
+rootViews = [ ("", mkLenerView), ("leners", mkLenerView), ("spullen", mkItemView)] 
 
 {-
 Plan:
 
-add some books games and lawnmower
-add users
-
 search items view
 autocomplete
-basic user view
+basic lener view
 template view with menu bar
 
 
 -}
-maybeRead :: Read a => String -> Maybe a
-maybeRead str = case reads str of 
+readMaybe :: Read a => String -> Maybe a
+readMaybe str = case reads str of 
                   [(x,"")] -> Just x
                   _        -> Nothing 
-data UserView = 
-  UserView UserId String --(Widget (TextView Database)) 
+data LenerView = 
+  LenerView (Maybe Lener) [Item]
     deriving (Eq, Show, Typeable, Data)
 {-
-modifyViewedPig f (UserView vid name) =
-  UserView vid zipCode date (f viewedPig) b1 b2 b3 pigs pignames mSubview
+modifyViewedPig f (LenerView vid name) =
+  LenerView vid zipCode date (f viewedPig) b1 b2 b3 pigs pignames mSubview
 -}
---mkUserView :: Int -> WebViewM Database (WebView Database)
-mkUserView sessionId args = mkWebView $
-  \vid oldUserView@(UserView _ _) -> 
-    do { let i = case args of
-                   arg:_ -> case maybeRead arg of
-                               Just uid -> UserId uid
-                               _        -> UserId 0
-                   _        -> UserId 0  
-       ; (User uid name zipcode items) <- withDb $ \db -> unsafeLookup (allUsers db) i 
-       --; nameT <- mkTextField  name
-      -- ; zipT  <- mkTextField zipcode
-                 
-                                     
-       ; return $ UserView i name 
+--mkLenerView :: Int -> WebViewM Database (WebView Database)
+mkLenerView sessionId args = mkWebView $
+  \vid oldLenerView@(LenerView _ _) -> 
+    do { mLener <- case args of
+                    arg:_ -> do { mLener <- withDb $ \db -> Map.lookup (LenerId arg) (allLeners db)
+                                ; return mLener
+                                }
+                    _        -> return Nothing
+       ; let itemIds = maybe [] lenerItems mLener
+       ; items <- mapM (\itemId -> withDb $ \db -> unsafeLookup (allItems db) itemId) itemIds
+
+       ; return $ LenerView mLener items
        }
-      
-instance Presentable UserView where
-  present (UserView _ name)=
-    withBgColor (Rgb 235 235 235) $ withPad 5 0 5 0 $    
-    with [thestyle "font-family: arial"] $ 
-      name
+       
     
+instance Presentable LenerView where
+  present (LenerView mLener items)=
+    mkPage [bgColorAttr (Rgb 235 235 235), thestyle "font-family: arial"] $ 
+      withPad 5 0 5 0 $    
+      case mLener of
+        Nothing -> toHtml "Onbekende lener"
+        Just lener -> vList [ h2 << ("Lener " ++ lenerName lener)
+                            , hList [ boxedEx 1 $ (image ("leners/" ++ lenerLogin lener ++".jpg")) ! [align "top"]
+                                    , vList [ toHtml (lenerZipCode lener)
+                                            , toHtml (lenerZipCode lener)
+                                            ]
+                                    ]
+                            , h2 << "Spullen"
+                            , vList [ linkedItemName item | item <- items ]
+                            ]
     {-
       mkTableEx [width "100%"] [] [valign "top"]
        [[ ([],
@@ -98,7 +103,7 @@ instance Presentable UserView where
       )
       ,([align "right"],
      hList[
-      case user of
+      case lener of
          Nothing -> present loginoutView 
          Just (_,name) -> stringToHtml ("Hello "++name++".") +++ br +++ br +++ present loginoutView
       ] )]
@@ -118,11 +123,11 @@ instance Presentable UserView where
                   Just b  -> present b)
       -}
      {-
-instance Presentable UserView where
-  present (UserView vid zipCode date viewedPig b1 b2 b3 pigs pignames subviews) =
+instance Presentable LenerView where
+  present (LenerView vid zipCode date viewedPig b1 b2 b3 pigs pignames subviews) =
     withBgColor (Color white) $
-    ("User at zip code "+++ present zipCode +++" on " +++ present date) +++ br +++
-    p << ("Usered "++ show (length pigs) ++ " pig" ++  pluralS (length pigs) ++ ": " ++ 
+    ("Lener at zip code "+++ present zipCode +++" on " +++ present date) +++ br +++
+    p << ("Lenered "++ show (length pigs) ++ " pig" ++  pluralS (length pigs) ++ ": " ++ 
           listCommaAnd pignames) +++
     p << ((if null pigs 
            then stringToHtml $ "Not viewing any pigs.   " 
@@ -130,17 +135,68 @@ instance Presentable UserView where
            +++ present b1 +++ present b2) +++
     withPad 15 0 0 0 (hList' $ map present subviews) +++ present b3
 -}
-instance Storeable Database UserView where
+instance Storeable Database LenerView where
   save _ = id
 
-instance Initial UserView where
-  initial = UserView (UserId initial) initial
+instance Initial LenerView where
+  initial = LenerView initial initial
 
+
+
+unsafeLookupM dbf key = withDb $ \db -> unsafeLookup (dbf db) key
+
+data ItemView = 
+  ItemView (Maybe (Item, Lener))
+    deriving (Eq, Show, Typeable, Data)
+{-
+modifyViewedPig f (LenerView vid name) =
+  LenerView vid zipCode date (f viewedPig) b1 b2 b3 pigs pignames mSubview
+-}
+--mkLenerView :: Int -> WebViewM Database (WebView Database)
+mkItemView sessionId args = mkWebView $
+  \vid oldItemView@(ItemView _) -> 
+    do { mItemOwner <-
+           case args of
+             arg:_ -> do { mItem <- withDb $ \db -> Map.lookup (ItemId $ read arg) (allItems db)
+                         ; case mItem of
+                             Nothing -> return Nothing
+                             Just item -> do { owner <- unsafeLookupM allLeners (itemOwner item)
+                                             ; return $ Just (item, owner)
+                                             }
+                         }
+             _        -> return Nothing
+
+       ; return $ ItemView mItemOwner
+       }
+      
+instance Presentable ItemView where
+  present (ItemView mItemOwner)=
+    withBgColor (Rgb 235 235 235) $ withPad 5 0 5 0 $    
+    with [thestyle "font-family: arial"] $ 
+      case mItemOwner of
+        Nothing           -> toHtml "Onbekend item"
+        Just (item,owner) -> h2 << ("Item " ++ itemName item) +++
+                             h2 << "Eigenaar" +++
+                             linkedLenerName owner
+                      
+
+instance Storeable Database ItemView where
+  save _ = id
+
+instance Initial ItemView where
+  initial = ItemView initial
+
+
+linkedItemName item@Item{itemId = ItemId i} = 
+  anchor![href $ "/spullen/" ++ show i] << itemName item
+
+linkedLenerName lener@Lener{lenerId = LenerId login} = 
+  anchor![href $ "/leners/" ++ login] << lenerName lener
  {-
 -- Visits ----------------------------------------------------------------------  
 
 data VisitsView = 
-  VisitsView Bool Int Int User [(String,String)] 
+  VisitsView Bool Int Int Lener [(String,String)] 
                  (WebView Database) [EditAction Database] (Widget (Button Database)) (Widget (Button Database)) (Widget (Button Database)) (Widget (Button Database)) 
                  (WebView Database) [CommentId] [WebView Database] (Maybe (Widget (Button Database)))
     deriving (Eq, Show, Typeable, Data)
@@ -167,9 +223,9 @@ mkVisitsView sessionId = mkWebView $
                                     
      ; selectionActions <- mapM  (mkEditAction . Edit) selectionEdits
                            
-     ; user <- getUser
+     ; lener <- getLener
                
-     ; loginOutView <- if user == Nothing then mkLoginView 
+     ; loginOutView <- if lener == Nothing then mkLoginView 
                                           else mkLogoutView
      ; labels <- withDb $ \db -> map (zipCode . unsafeLookup (allVisits db)) visitIds
        
@@ -189,11 +245,11 @@ mkVisitsView sessionId = mkWebView $
                                                -- BUG: unfortunately, this also happens when it
                                                -- was introduced by a different session :-(
                        
-     ; mAddCommentButton <- case user of 
+     ; mAddCommentButton <- case lener of 
                               Nothing -> return Nothing 
                               Just (login,_) -> fmap Just $ mkButton "Add a comment" True $ 
                                                  addComment login today
-     ;  return $ VisitsView False viewedVisit sessionId user
+     ;  return $ VisitsView False viewedVisit sessionId lener
                  [ (zipCode visit, date visit) | visit <- visits ]
                  loginOutView selectionActions 
                  prevB nextB addB removeB  tabbedVisits commentIds commentViews mAddCommentButton
@@ -218,7 +274,7 @@ mkVisitsView sessionId = mkWebView $
                                                           , commentDate = today}) db'
 
 instance Presentable VisitsView where
-  present (VisitsView _ viewedVisit sessionId user visits loginoutView selectionActions  
+  present (VisitsView _ viewedVisit sessionId lener visits loginoutView selectionActions  
                       prev next add remove tabbedVisits _ commentViews mAddCommentButton) =
     withBgColor (Rgb 235 235 235) $ withPad 5 0 5 0 $    
     with [thestyle "font-family: arial"] $
@@ -245,7 +301,7 @@ instance Presentable VisitsView where
       )
       ,([align "right"],
      hList[
-      case user of
+      case lener of
          Nothing -> present loginoutView 
          Just (_,name) -> stringToHtml ("Hello "++name++".") +++ br +++ br +++ present loginoutView
       ] )]
