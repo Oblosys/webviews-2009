@@ -77,9 +77,9 @@ vListEx attrs  [] = noHtml
 vListEx attrs  elts = simpleTable ([cellpadding 0, cellspacing 0] ++ attrs) [] [ [e] | e <- elts ]
 
 mkTable :: [HtmlAttr] -> [[HtmlAttr]] -> [HtmlAttr] -> [[Html]] -> Html
-mkTable tableAttrs rowAttrss cellAttrs rows =
+mkTable tableAttrs rowAttrss allCellAttrs rows =
   table!tableAttrs << concatHtml
-    [ tr!rowAttrs << map (td!cellAttrs) row 
+    [ tr!rowAttrs << map (td!allCellAttrs) row 
     | (rowAttrs, row) <- zip (rowAttrss++repeat []) rows
     ] -- if no row attrss are given (or not enough), just assume no attrs ([])
 
@@ -89,6 +89,10 @@ mkTableEx tableAttrs rowAttrss allCellAttrs rows =
     [ tr!rowAttrs << [ td!(allCellAttrs++cellAttrs) << cell | (cellAttrs,cell)<-row] 
     | (rowAttrs, row) <- zip (rowAttrss++repeat []) rows
     ] -- if no row attrss are given (or not enough), just assume no attrs ([])
+
+-- make a stretching page with the contents aligned at the top
+mkPage :: [HtmlAttr] -> Html -> Html
+mkPage attrs elt = mkTable ([HtmlAttr "height" "100%", HtmlAttr "width" "100%"]++attrs) [] [valign "top", align "center"] [[elt]]
 
 data Color = Rgb Int Int Int
            | Color String deriving Show
