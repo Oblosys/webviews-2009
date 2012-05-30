@@ -3,7 +3,7 @@ module Types where
 
 import Data.Generics
 
-import Text.Html
+import BlazeHtml
 import Text.Show.Functions
 import Data.Map (Map)
 import qualified Data.Map as Map 
@@ -299,7 +299,7 @@ instance Initial WebView where
   initial = WebView (ViewId (-1)) initial
 -}
 instance Presentable () where
-  present () = stringToHtml "<initial webview>"
+  present () = "<initial webview>"
   
 --instance Presentable WebView where
 --  present (WebView _ _ _ _ v) = present v

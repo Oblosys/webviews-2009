@@ -2,7 +2,7 @@
 {-# OPTIONS -XDoRec -XDeriveDataTypeable -XFlexibleInstances -XMultiParamTypeClasses -XScopedTypeVariables #-}
 module WebViewLib where
 
-import Text.Html hiding (image)
+import BlazeHtml
 import qualified Text.Html as Html
 import Data.Generics
 
@@ -40,8 +40,8 @@ instance Storeable db (LoginView db) where save _ = id
                                    
 instance Presentable (LoginView db) where
   present (LoginView name password loginbutton) = 
-    boxed $ simpleTable [] [] [ [ stringToHtml "Login:", present name]
-                              , [ stringToHtml "Password:", present password]
+    boxed $ simpleTable [] [] [ [ "Login:", present name]
+                              , [ "Password:", present password]
                               , [ present loginbutton ]
                               ]
             
@@ -85,7 +85,7 @@ mkLinkView linkText action = mkWebView $
 instance Storeable db (LinkView db) where save _ = id
 
 instance Presentable (LinkView db) where
-  present (LinkView linkText editAction) = withEditAction editAction $ stringToHtml linkText
+  present (LinkView linkText editAction) = withEditAction editAction $ toHtml linkText
 
 
 
@@ -118,15 +118,15 @@ instance Data db => Storeable db (TabbedView db) where
 
 -- TODO: may have been broken by new roundedBoxed implementation
 instance Presentable (TabbedView db) where
-  present (TabbedView selectedTab selectionViews tabViews) = 
-    hList [ thespan![ theclass "tab"
-                    , thestyle ("background-color: "++color)
-                    ] $ present selectionView 
+  present (TabbedView selectedTab selectionViews tabViews) =
+    hList [ thespan !* [ theclass "tab"
+                       , thestyle ("background-color: "++color)
+                       ] $ present selectionView 
           | (i,selectionView) <- zip [0..] selectionViews
           , let color = htmlColor $ if i == selectedTab then Color white else Rgb 200 200 200
           ] +++
     (roundedBoxed (Just $ Color white) $
-     concatHtml [ thediv![attr] $ present tabView 
+     concatHtml [ thediv ! attr $ present tabView 
                 | (i,tabView) <- zip [0..] tabViews 
                 , let attr = thestyle $ "display: " ++ if i == selectedTab 
                                                        then "visible"

@@ -3,8 +3,7 @@ module Main where
 
 import Data.List
 import Data.List.Split
-import Text.Html hiding (image)
-import qualified Text.Html as Html
+import BlazeHtml
 import Data.Generics
 import Data.Char
 import Data.Map (Map)
@@ -110,10 +109,10 @@ mkTicketsView sessionId = mkWebView $
                                                           , commentDate = today}) db' -}
 
 instance Presentable TicketsView where
-  present (TicketsView contents)=
+  present (TicketsView contents) = 
     withBgColor (Rgb 235 235 235) $ withPad 5 0 5 0 $    
-    with [thestyle "font-family: arial"] $ mkTable [] [] [] [map stringToHtml (splitOn "\t" line) | line <- contents]
-    
+    with [thestyle "font-family: arial"] $ mkTable [] [] [] [map toHtml (splitOn "\t" line) | line <- contents]
+   
     {-
       mkTableEx [width "100%"] [] [valign "top"]
        [[ ([],

@@ -20,7 +20,7 @@ import System.Time (getClockTime)
 import System.Posix.Time
 import System.Posix.Types
 import System.Exit
-import Text.Html hiding (method)
+import BlazeHtml hiding (dir, method)
 import Control.Exception
 import qualified Data.ByteString.Char8 as Bytestring
 import qualified Codec.Binary.Base64.String as Base64
@@ -360,15 +360,15 @@ sessionHandler rootViews dbFilename theDatabase users sessionStateRef requestId 
             ; return $ responseHtml
             }
         Alert str -> 
-          return $ [thediv![ strAttr "op" "alert"
-                          , strAttr "text" str
-                          ] << noHtml] 
+          return $ [ div_ ! strAttr "op" "alert"
+                          ! strAttr "text" str
+                          $ noHtml ] 
         Confirm str  -> 
-          return $ [thediv![ strAttr "op" "confirm"
-                          , strAttr "text" str
-                          ] << noHtml ] 
+          return $ [ div_ ! strAttr "op" "confirm"
+                          ! strAttr "text" str
+                          $ noHtml ] 
     
-    ; return $ thediv ! [identifier "updates", strAttr "responseId" $ show requestId] <<responseHtml
+    ; return $ div_ ! id_ "updates" ! strAttr "responseId" (show requestId) $ toHtml responseHtml
     } `Control.Exception.catch` \exc ->
        do { let exceptionText = 
                   "\n\n\n\n###########################################\n\n\n" ++
@@ -376,10 +376,10 @@ sessionHandler rootViews dbFilename theDatabase users sessionStateRef requestId 
                   "###########################################" 
           
           ; putStrLn exceptionText
-          ; return $ thediv ! [identifier "updates", strAttr "responseId" $ show requestId] <<
-                      (thediv![ strAttr "op" "exception"
-                              , strAttr "text" exceptionText
-                              ] << noHtml)                       
+          ; return $ div_ ! id_ "updates" ! strAttr "responseId" (show requestId) $
+                      (div_ ! strAttr "op" "exception"
+                            ! strAttr "text" exceptionText
+                            $ noHtml)                       
           }
  where evaluateDbAndRootView sessionStateRef =
         do { dbRootView <- liftIO $ readIORef sessionStateRef

@@ -1,4 +1,4 @@
-{-# OPTIONS -XDeriveDataTypeable -XPatternGuards -XMultiParamTypeClasses #-}
+{-# OPTIONS -XDeriveDataTypeable -XPatternGuards -XMultiParamTypeClasses -XOverloadedStrings #-}
 module Main where
 
 import Data.List
@@ -42,7 +42,7 @@ readMaybe str = case reads str of
                   [(x,"")] -> Just x
                   _        -> Nothing 
 data LenerView = 
-  LenerView (Maybe Lener) [Item] (Widget (TextView Database))
+  LenerView (Maybe Lener) [Item] (Widget (RadioView)) (EditAction Database)
     deriving (Eq, Show, Typeable, Data)
 {-
 modifyViewedPig f (LenerView vid name) =
@@ -50,7 +50,7 @@ modifyViewedPig f (LenerView vid name) =
 -}
 --mkLenerView :: Int -> WebViewM Database (WebView Database)
 mkLenerView sessionId args = mkWebView $
-  \vid oldLenerView@(LenerView _ _ _) -> 
+  \vid oldLenerView@(LenerView _ _ _ _) -> 
     do { mLener <- case args of
                     arg:_ -> do { mLener <- withDb $ \db -> Map.lookup (LenerId arg) (allLeners db)
                                 ; return mLener
@@ -59,14 +59,16 @@ mkLenerView sessionId args = mkWebView $
        ; let itemIds = maybe [] lenerItems mLener
        ; items <- mapM (\itemId -> withDb $ \db -> unsafeLookup (allItems db) itemId) itemIds
 
+       ; ea <- mkEditAction $ Edit $ liftIO $ putStrLn "edit!!!\n\n"
+       ; w <- mkRadioView ["Ja", "Nee"] 0 True
        --; w  <- mkButton "Test"      True         $ Edit $ return ()
-       ; w <- mkTextField "test"
-       ; return $ LenerView mLener items w
+       --; w <- mkTextField "test"
+       ; return $ LenerView mLener items w ea
        }
        
     
 instance Presentable LenerView where
-  present (LenerView mLener items w)=
+  present (LenerView mLener items w ea)=
     mkPage [bgColorAttr (Rgb 235 235 235), thestyle "font-family: arial"] $ 
       withPad 5 0 5 0 $    
       case mLener of
@@ -77,7 +79,7 @@ instance Presentable LenerView where
                                             , toHtml (lenerZipCode lener)
                                             ]
                                     ]
-                            , h2 << "Spullen"
+                            , h2 !* [withEditActionAttr ea ]  << toHtml ("Spullen" :: String)
                             , vList [ linkedItemName item | item <- items ]
                             , present w
                             ]
@@ -141,7 +143,7 @@ instance Storeable Database LenerView where
   save _ = id
 
 instance Initial LenerView where
-  initial = LenerView initial initial initial
+  initial = LenerView initial initial initial initial
 
 
 
@@ -177,10 +179,9 @@ instance Presentable ItemView where
     with [thestyle "font-family: arial"] $ 
       case mItemOwner of
         Nothing           -> "Onbekend item"
-        Just (item,owner) -> do { h2 << (toHtml $ "Item " ++ itemName item) 
-                                ; h2 << "Eigenaar" 
-                                ; linkedLenerName owner
-                                }
+        Just (item,owner) -> (h2 << (toHtml $ "Item " ++ itemName item)) +++ 
+                             (h2 << (toHtml ("Eigenaar" :: String)))  +++
+                             linkedLenerName owner
                       
 
 instance Storeable Database ItemView where

@@ -36,15 +36,17 @@ Library
                   mtl >=2.0 && <2.1,
                   base64-string >=0.2 && <0.3,
                   bytestring >=0.9 && <1.0,
-                  html >= 1.0 && <1.1,
+                  html >=1.0 && <1.1,
+                  blaze-html >=0.5 && <0.6,
+                  blaze-markup >=0.5 && <0.6,
                   happstack-server >=7.0 && <7.1,
                   happstack-state >=6.1 && <6.2,
                   old-time >=1.1 && <1.2,
                   unix >=2.5 && <2.6,
                   split >=0.1 && <0.2
   ghc-options: 
-  extensions: ExistentialQuantification RankNTypes DeriveDataTypeable ScopedTypeVariables
-  exposed-modules: WebViewPrim, WebViewLib, Generics, HtmlLib, Incrementality, Server, Types
+  extensions: ExistentialQuantification RankNTypes DeriveDataTypeable ScopedTypeVariables OverloadedStrings
+  exposed-modules: WebViewPrim, WebViewLib, Generics, HtmlLib, Incrementality, Server, Types, BlazeHtml
   other-modules:
 
 Executable Piglet
@@ -58,7 +60,7 @@ Executable Piglet
                   html >=1.0 && <1.1
 
   GHC-Options: 
-  Extensions:
+  Extensions: OverloadedStrings
   HS-Source-Dirs:  src/exec/Piglet
   Other-Modules:
   if flag(piglet)
@@ -78,7 +80,7 @@ Executable Reservations
                   time >=1.4 && <1.5
 
   GHC-Options: 
-  Extensions:
+  Extensions: OverloadedStrings
   HS-Source-Dirs:  src/exec/Reservations
   Other-Modules:
   if flag(reservations)
@@ -99,7 +101,7 @@ Executable Trac
                   split >=0.1 && <0.2
 
   GHC-Options: 
-  Extensions:
+  Extensions: OverloadedStrings
   HS-Source-Dirs:  src/exec/Trac
   Other-Modules:
   if flag(trac)
@@ -118,7 +120,7 @@ Executable Leenclub
                   html >=1.0 && <1.1
 
   GHC-Options: 
-  Extensions:
+  Extensions: ExistentialQuantification RankNTypes DeriveDataTypeable ScopedTypeVariables OverloadedStrings
   HS-Source-Dirs:  src/exec/Leenclub
   Other-Modules:
   if flag(leenclub)

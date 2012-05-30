@@ -2,8 +2,7 @@
 module ClientWebView where
 
 import Data.List
-import Text.Html hiding (image)
-import qualified Text.Html as Html
+import BlazeHtml hiding (time)
 import Data.Generics
 import Data.Char
 import Data.Maybe
@@ -189,7 +188,7 @@ mkClientView = mkWebViewT $
 instance Presentable ClientView where
   present (ClientView nrOfP mDate mTime nrButtons nameText commentText todayButton tomorrowButton dayButtons timeButtonss confirmButton
                       nrOfPeopleLabel dateLabel timeLabel _ script) = 
-    vList [ hList [ stringToHtml "Name:", hSpace 4, present nameText]
+    vList [ hList [ "Name:", hSpace 4, present nameText]
           , vSpace 10
           , present nrOfPeopleLabel
           , hListEx [width "100%"] $ map present nrButtons
@@ -201,9 +200,9 @@ instance Presentable ClientView where
           , vSpace 10
           , present timeLabel
           --, stringToHtml $ maybe "Please select a time" (\d -> showTime d) mTime
-          , simpleTable [width "100%",cellpadding 0, cellspacing 0] [] $ map (map present) timeButtonss
+          , simpleTable [width "100%",cellpadding "0", cellspacing "0"] [] $ map (map present) timeButtonss
           , vSpace 10
-          , stringToHtml "Comments:"
+          , "Comments:"
           , present commentText
           , vSpace 10
           , present confirmButton ] +++           

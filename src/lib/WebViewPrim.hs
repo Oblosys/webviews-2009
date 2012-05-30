@@ -2,8 +2,7 @@
 module WebViewPrim where
 
 import Control.Monad.State
-import Text.Html hiding (image)
-import qualified Text.Html as Html
+import BlazeHtml
 import Data.List
 import Data.Generics
 import Debug.Trace
@@ -290,50 +289,50 @@ the update
 -}
 
 presentLabelView :: LabelView -> Html
-presentLabelView (LabelView viewId str) = thediv ! [identifier $ show viewId] << stringToHtml str
+presentLabelView (LabelView viewId str) = div_ ! id_ (toValue $ show viewId) $ toHtml str
 
 -- textfields are in forms, that causes registering text field updates on pressing enter
 -- (or Done) on the iPhone.
 
 presentTextField :: TextView db -> Html
-presentTextField (TextView viewId TextArea str _) = 
-   form![ thestyle "display: inline; width: 100%;"
-        , strAttr "onSubmit" $ "return false"] $  -- return false, since we don't actually submit the form
-     textarea ! [ identifier (show viewId)
+presentTextField (TextView viewId TextArea str _) =
+   form !* [ thestyle "display: inline; width: 100%;"
+         , strAttr "onSubmit" $ "return false"] $  -- return false, since we don't actually submit the form
+     textarea !* [ id_ (toValue $ show viewId)
                 , thestyle "width: 100%; height: 100%;"
                 , strAttr "onFocus" $ "script"++viewIdSuffix viewId++".onFocus()"
                 , strAttr "onBlur" $ "script"++viewIdSuffix viewId++".onBlur()"
                 , strAttr "onKeyUp" $ "script"++viewIdSuffix viewId++".onKeyUp()"
-                    ] << stringToHtml str  +++
+                    ] << toHtml str >>
   (mkScript $ declareWVTextViewScript viewId)      
 presentTextField (TextView viewId textType str mEditAction) = 
   let inputField = case textType of TextField -> textfield ""
                                     PasswordField -> password ""
                                     
-  in form![ thestyle "display: inline"
-          , strAttr "onSubmit" $ (case mEditAction of
+  in form !* [ thestyle "display: inline"
+            , strAttr "onSubmit" $ (case mEditAction of
                                     Nothing -> "return false"
                                     Just _  -> "script"++viewIdSuffix viewId++".onSubmit()")++
                                  "return false"] $ -- return false, since we don't actually submit the form
-       inputField ! [ identifier (show viewId), strAttr "value" str, width "100%"
+       inputField !* [ id_ (toValue $ show viewId), strAttr "value" str, width "100%"
                     , strAttr "onFocus" $ "script"++viewIdSuffix viewId++".onFocus()"
                     , strAttr "onBlur" $ "script"++viewIdSuffix viewId++".onBlur()"
-                    , strAttr "onKeyUp" $ "script"++viewIdSuffix viewId++".onKeyUp()" ]  +++
+                    , strAttr "onKeyUp" $ "script"++viewIdSuffix viewId++".onKeyUp()" ]  >>
   (mkScript $ declareWVTextViewScript viewId)      
 
 declareWVTextViewScript viewId = jsDeclareVar (ViewIdT viewId) "script" $ "new TextViewScript(\""++show viewId++"\");"
 
 -- For the moment, onclick disables the standard server ButtonC command
 presentButton :: Button db -> Html
-presentButton (Button viewId txt enabled style onclick _) = 
+presentButton (Button viewId txt enabled style onclick _) =
 {-  (primHtml $ "<button id=\""++ show viewId++"\" "++ (if enabled then "" else "disabled ") ++ (if style /="" then " style=\"" ++style++"\" " else "")++
                             "onclick=\""++ (if onclick /= "" then onclick else "queueCommand('ButtonC ("++show viewId++")')" )++
                                      "\" "++
                             "onfocus=\"elementGotFocus('"++show viewId++"')\">"++txt++"</button>") -}
   (primHtml $ "<button id=\""++ show viewId++"\" "++ (if enabled then "" else "disabled ") ++ (if style /="" then " style=\"" ++style++"\" " else "")++
                             "onclick=\"script"++viewIdSuffix viewId++".onClick()\" "++
-                            "onfocus=\"script"++viewIdSuffix viewId++".onFocus()\">"++txt++"</button>") +++
-  (mkScript $ declareWVButtonScript viewId)      
+                            "onfocus=\"script"++viewIdSuffix viewId++".onFocus()\">"++txt++"</button>") >>
+  (mkScript $ declareWVButtonScript viewId)
 -- TODO: text should be escaped
 
 declareWVButtonScript viewId = jsDeclareVar (ViewIdT viewId) "script" $ "new ButtonScript(\""++show viewId++"\");"
@@ -343,27 +342,27 @@ declareWVButtonScript viewId = jsDeclareVar (ViewIdT viewId) "script" $ "new But
 -- a descriptive text field can be added to the action, to let the server be able to show
 -- which button was pressed. However, it is not sure if this works okay with restoring id's
 -- though it probably works out, as the ea id is the only one needing restoration.
-withEditAction (EditAction viewId _) elt = 
-  thespan![ identifier $ show viewId
-          , strAttr "onClick" $ "queueCommand('PerformEditActionC ("++show viewId++") []')"] << elt
+withEditAction (EditAction viewId _) elt =
+  thespan !* [ id_ $ toValue $ show viewId
+             , strAttr "onClick" $ "queueCommand('PerformEditActionC ("++show viewId++") []')"] << elt
 
-withEditActionAttr (EditAction viewId _) = 
+withEditActionAttr (EditAction viewId _) =  
   strAttr "onClick" $ "queueCommand('PerformEditActionC ("++show viewId++") []')"
 
 presentRadioView :: RadioView -> Html
-presentRadioView (RadioView viewId items selectedIx enabled) = thespan << 
-  [ radio (show viewId) (show i) ! ( [ identifier eltId 
+presentRadioView (RadioView viewId items selectedIx enabled) = thespan << sequence_
+  [ radio (show viewId) (show i) !* ( [ id_ (toValue eltId) 
                           , strAttr "onChange" ("queueCommand('SetC ("++show viewId++") %22"++show i++"%22')") 
                           , strAttr "onFocus" ("elementGotFocus('"++eltId++"')")
                           ]
                           ++ (if enabled && i == selectedIx then [strAttr "checked" ""] else []) 
                           ++ (if not enabled then [strAttr "disabled" ""] else [])) 
-                          +++ item +++ br 
+                          >> toHtml item >> br 
   | (i, item) <- zip [0..] items 
   , let eltId = "radio"++show viewId++"button"++show i ] -- these must be unique for setting focus
 
 presentJSVar :: JSVar -> Html
-presentJSVar (JSVar viewId name value) = thediv ! [identifier $ show viewId] << 
+presentJSVar (JSVar viewId name value) = thediv ! (id_ . toValue $ show viewId) << 
   (mkScript $ let jsVar = name++viewIdSuffix viewId
               in  "if (typeof "++jsVar++" ==\"undefined\") {"++jsVar++" = "++value++"};")
               -- no "var " here, does not work when evaluated with eval
@@ -427,22 +426,6 @@ viewEditT (ViewIdT vid) viewUpdate = viewEdit vid viewUpdate
 
 
 -- Scripting
-
--- tag <WebViewsJavaScript> should not be used anywhere else!
--- it is extracted from the html and sent separately to the client (which evaluates it)
--- Scripts are evaluated on creation and change of a WebView
-mkScript scriptTxt = Html [HtmlTag "WebViewsJavaScript" [] $ primHtml scriptTxt]
-
--- removes the script elements and returns them in a list (which is reversed, but this is no problem)
-extractScriptHtml :: Html -> (Html, [String])
-extractScriptHtml (Html elements) = (\(es,ss)-> (Html (concat es), concat ss)) $ unzip $ map extractScriptHtmlElement elements
- where extractScriptHtmlElement :: HtmlElement -> ([HtmlElement], [String])
-       extractScriptHtmlElement (HtmlTag "WebViewsJavaScript" _ (Html [HtmlString scriptTxt])) = ([],[scriptTxt])
-       extractScriptHtmlElement (HtmlTag tag attrs content) =  let (html,scripts) = extractScriptHtml content
-                                                               in  ([HtmlTag tag attrs html],scripts) 
-       extractScriptHtmlElement elt                                                =  ([elt], []) 
-
-
 
 viewIdSuffix (ViewId ps) = concatMap (('_':).show) ps
 

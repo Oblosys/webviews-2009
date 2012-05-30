@@ -2,7 +2,7 @@
 module Main where
 
 import Data.List
-import Text.Html hiding (image)
+import BlazeHtml
 import qualified Text.Html as Html
 import Data.Generics
 import Data.Char
@@ -115,8 +115,8 @@ instance Presentable VisitsView where
     with [thestyle "font-family: arial"] $
       mkTableEx [width "100%"] [] [valign "top"]
        [[ ([],
-           (h2 << "Piglet 2.0")  +++
-           ("List of all visits     (session# "++show sessionId++")") +++         
+           h2 << "Piglet 2.0"  +++
+           (toHtml $ "List of all visits     (session# "++show sessionId++")") +++         
       p << (hList [ withBgColor (Rgb 250 250 250) $ roundedBoxed Nothing $ withSize 230 100 $ 
              (let rowAttrss = [] :
                               [ [withEditActionAttr selectionAction] ++
@@ -124,9 +124,9 @@ instance Presentable VisitsView where
                                                            ] else [] 
                               | (i,selectionAction) <- zip [0..] selectionActions 
                               ]
-                  rows = [ stringToHtml "Nr.    ", stringToHtml "Zip"+++nbspaces 3
-                         , (stringToHtml "Date"+++nbspaces 10) ]  :
-                         [ [stringToHtml $ show i, stringToHtml zipCode, stringToHtml date] 
+                  rows = [ "Nr.    ", "Zip"+++nbspaces 3
+                         , "Date"+++nbspaces 10 ]  :
+                         [ [toHtml $ show i, toHtml zipCode, toHtml date] 
                          | (i, (zipCode, date)) <- zip [1..] visits
                          ]
               in  mkTable [strAttr "width" "100%", strAttr "cellPadding" "2", thestyle "border-collapse: collapse"] 
@@ -138,10 +138,10 @@ instance Presentable VisitsView where
      hList[
       case user of
          Nothing -> present loginoutView 
-         Just (_,name) -> stringToHtml ("Hello "++name++".") +++ br +++ br +++ present loginoutView
+         Just (_,name) -> toHtml ("Hello "++name++".") +++ br +++ br +++ present loginoutView
       ] )]
       ] +++
-      p << ((if null visits then "There are no visits. " else "Viewing visit nr. "++ show (viewedVisit+1) ++ ".") +++ 
+      p << ((if null visits then "There are no visits. " else toHtml $ "Viewing visit nr. "++ show (viewedVisit+1) ++ ".") +++ 
              "    " +++ present prev +++ present next) +++ 
       --vList (map present tabbedVisits)
       present tabbedVisits
@@ -152,7 +152,7 @@ instance Presentable VisitsView where
       h2 << "Comments" +++
       vList (map present commentViews) +++ 
       nbsp +++ (case mAddCommentButton of 
-                  Nothing -> stringToHtml "Please log in to add a comment"
+                  Nothing -> "Please log in to add a comment"
                   Just b  -> present b)
       
 instance Storeable Database VisitsView where
@@ -202,11 +202,11 @@ instance Presentable VisitView where
   present (VisitView vid zipCode date viewedPig b1 b2 b3 pigs pignames subviews) =
     withBgColor (Color white) $
     ("Visit at zip code "+++ present zipCode +++" on " +++ present date) +++ br +++
-    p << ("Visited "++ show (length pigs) ++ " pig" ++  pluralS (length pigs) ++ ": " ++ 
+    p << (toHtml $ "Visited "++ show (length pigs) ++ " pig" ++  pluralS (length pigs) ++ ": " ++ 
           listCommaAnd pignames) +++
     p << ((if null pigs 
-           then stringToHtml $ "Not viewing any pigs.   " 
-           else "Viewing pig nr. " +++ show (viewedPig+1) +++ ".   ")
+           then "Not viewing any pigs.   " 
+           else "Viewing pig nr. " +++ toHtml (show (viewedPig+1)) +++ ".   ")
            +++ present b1 +++ present b2) +++
     withPad 15 0 0 0 (hList' $ map present subviews) +++ present b3
 
@@ -249,12 +249,12 @@ mkPigView parentViewId pignr pigId@(PigId pigInt) viewedPig = mkWebView $
                       else if viewedPig > pignr then "Right" else ""
 
 instance Presentable PigView where
-  present (PigView pid _ _ b _ _ pignr name [] diagnosis) = stringToHtml "initial pig"
+  present (PigView pid _ _ b _ _ pignr name [] diagnosis) = "initial pig"
   present (PigView pid editAction imageUrl b viewedPig pignr viewStateT name [co, ab, as] diagnosis) =
     withEditAction editAction $    
       roundedBoxed (Just $ if viewedPig == pignr then Rgb 200 200 200 else Rgb 225 225 225) $
         (center $ image imageUrl) +++
-        (center $ " nr. " +++ show (pignr+1)) +++
+        (center $ " nr. " +++ (toHtml $ show (pignr+1))) +++
         p << (center $ (present b)) +++
         p << ("Name:" +++ present name) +++
         p << "Pig color: " +++
@@ -323,24 +323,24 @@ instance Storeable Database CommentView where
 
 instance Presentable CommentView where
   present (CommentView _ edited author date text mEditAction mRemoveAction mTextArea) =
-    thediv![thestyle "border:solid; border-width:1px; padding:0px; min-width: 550px;"] $
+    thediv ! thestyle "border:solid; border-width:1px; padding:0px; min-width: 550px;" $
      (withBgColor (Rgb 225 225 225) $ --  thespan![thestyle "margin:4px;"] $
-        (thespan![thestyle "margin:4px;"] $ "Posted by " +++ stringToHtml author +++ " on " +++ stringToHtml date)
+        (thespan ! thestyle "margin:4px;" $ "Posted by " +++ toHtml author +++ " on " +++ toHtml date)
         `hDistribute`
         (withColor (Color "blue") $
           case mEditAction of
            Just ea -> present ea
-           Nothing -> stringToHtml ""
+           Nothing -> noHtml
          +++ nbspaces 2 +++
          case mRemoveAction of
            Just ra -> present ra
-           Nothing -> stringToHtml "") -- TODO: why is it not possible to add spaces behind this?
+           Nothing -> noHtml) -- TODO: why is it not possible to add spaces behind this?
      ) +++ 
      (withBgColor (Color "white") $ 
         
          if edited then case mTextArea of 
-                          Nothing -> thespan![thestyle "margin:4px;"] $ -- TODO: figure out why margin above creates too much space  
+                          Nothing -> thespan ! thestyle "margin:4px;" $ -- TODO: figure out why margin above creates too much space  
                                        multiLineStringToHtml text
                           Just textArea -> withHeight 100 $ present textArea
-         else thespan![thestyle "margin:4px;"] $ -- TODO: figure out why margin above creates too much space  
+         else thespan ! thestyle "margin:4px;" $ -- TODO: figure out why margin above creates too much space  
                 multiLineStringToHtml text)

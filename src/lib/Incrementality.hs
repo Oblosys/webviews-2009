@@ -3,8 +3,7 @@ module Incrementality where
 
 import Control.Monad.Trans
 import Data.List
-import Text.Html hiding (image)
-import qualified Text.Html as Html
+import BlazeHtml
 import Data.Generics
 import Data.Char
 import Data.Maybe
@@ -204,19 +203,19 @@ newWebNodeHtml :: WebNode db -> (Html, Maybe Html)
 newWebNodeHtml (WidgetNode _ _ (Id i) w) =
   let htmlWithScript = present w
       (html, scripts) = extractScriptHtml htmlWithScript
-      updateResponse = thediv![strAttr "op" "new"] << (mkSpan (show i) $ html)
-      scriptResponse = thediv![strAttr "op" "eval"] << (stringToHtml $ concat scripts)
+      updateResponse = div_ ! strAttr "op" "new"  $ (mkSpan (show i) $ html)
+      scriptResponse = div_ ! strAttr "op" "eval" $ (toHtml $ concat scripts)
   in  (updateResponse, if null scripts then Nothing else Just scriptResponse)
 newWebNodeHtml (WebViewNode (WebView _ _ (Id i) _ v)) = 
   let htmlWithScript = present v
       (html, scripts) = extractScriptHtml htmlWithScript
-      updateResponse = thediv![strAttr "op" "new"] << (mkSpan (show i) $ html)
-      scriptResponse = thediv![strAttr "op" "eval"] << (stringToHtml $ concat scripts)
+      updateResponse = div_ ! strAttr "op" "new" $ (mkSpan (show i) $ html)
+      scriptResponse = div_ ! strAttr "op" "eval" $ (toHtml $ concat scripts)
   in  (updateResponse, if null scripts then Nothing else Just scriptResponse)  
 
 updateHtml :: Update -> Html
 updateHtml (Move _ (IdRef src) (IdRef dst)) = if src == dst then error $ "Source is destination: "++show src else
-    thediv![strAttr "op" "move", strAttr "src" (show src), strAttr "dst" (show dst)] << ""
+    div_ ! strAttr "op" "move" ! strAttr "src" (show src) ! strAttr "dst" (show dst) $ noHtml
 updateHtml _ = noHtml -- restoreId is not for producing html, but for adapting the rootView  
 
 shallowShowWebNode (WebViewNode wv) = "WebNode: " ++ shallowShowWebView wv
