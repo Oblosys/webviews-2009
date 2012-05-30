@@ -2,8 +2,7 @@
 module Main where
 
 import Data.List
-import Text.Html hiding (image)
-import qualified Text.Html as Html
+import BlazeHtml
 import Data.Generics
 import Data.Char
 import Data.Map (Map)
@@ -43,7 +42,7 @@ readMaybe str = case reads str of
                   [(x,"")] -> Just x
                   _        -> Nothing 
 data LenerView = 
-  LenerView (Maybe Lener) [Item]
+  LenerView (Maybe Lener) [Item] (Widget (TextView Database))
     deriving (Eq, Show, Typeable, Data)
 {-
 modifyViewedPig f (LenerView vid name) =
@@ -51,7 +50,7 @@ modifyViewedPig f (LenerView vid name) =
 -}
 --mkLenerView :: Int -> WebViewM Database (WebView Database)
 mkLenerView sessionId args = mkWebView $
-  \vid oldLenerView@(LenerView _ _) -> 
+  \vid oldLenerView@(LenerView _ _ _) -> 
     do { mLener <- case args of
                     arg:_ -> do { mLener <- withDb $ \db -> Map.lookup (LenerId arg) (allLeners db)
                                 ; return mLener
@@ -60,24 +59,27 @@ mkLenerView sessionId args = mkWebView $
        ; let itemIds = maybe [] lenerItems mLener
        ; items <- mapM (\itemId -> withDb $ \db -> unsafeLookup (allItems db) itemId) itemIds
 
-       ; return $ LenerView mLener items
+       --; w  <- mkButton "Test"      True         $ Edit $ return ()
+       ; w <- mkTextField "test"
+       ; return $ LenerView mLener items w
        }
        
     
 instance Presentable LenerView where
-  present (LenerView mLener items)=
+  present (LenerView mLener items w)=
     mkPage [bgColorAttr (Rgb 235 235 235), thestyle "font-family: arial"] $ 
       withPad 5 0 5 0 $    
       case mLener of
-        Nothing -> toHtml "Onbekende lener"
-        Just lener -> vList [ h2 << ("Lener " ++ lenerName lener)
-                            , hList [ boxedEx 1 $ (image ("leners/" ++ lenerLogin lener ++".jpg")) ! [align "top"]
+        Nothing -> "Onbekende lener"
+        Just lener -> vList [ h2 $ (toHtml $ "Lener " ++ lenerName lener)
+                            , hList [ boxedEx 1 $ (image ("leners/" ++ lenerLogin lener ++".jpg")) ! align "top"
                                     , vList [ toHtml (lenerZipCode lener)
                                             , toHtml (lenerZipCode lener)
                                             ]
                                     ]
                             , h2 << "Spullen"
                             , vList [ linkedItemName item | item <- items ]
+                            , present w
                             ]
     {-
       mkTableEx [width "100%"] [] [valign "top"]
@@ -139,7 +141,7 @@ instance Storeable Database LenerView where
   save _ = id
 
 instance Initial LenerView where
-  initial = LenerView initial initial
+  initial = LenerView initial initial initial
 
 
 
@@ -174,10 +176,11 @@ instance Presentable ItemView where
     withBgColor (Rgb 235 235 235) $ withPad 5 0 5 0 $    
     with [thestyle "font-family: arial"] $ 
       case mItemOwner of
-        Nothing           -> toHtml "Onbekend item"
-        Just (item,owner) -> h2 << ("Item " ++ itemName item) +++
-                             h2 << "Eigenaar" +++
-                             linkedLenerName owner
+        Nothing           -> "Onbekend item"
+        Just (item,owner) -> do { h2 << (toHtml $ "Item " ++ itemName item) 
+                                ; h2 << "Eigenaar" 
+                                ; linkedLenerName owner
+                                }
                       
 
 instance Storeable Database ItemView where
@@ -188,10 +191,10 @@ instance Initial ItemView where
 
 
 linkedItemName item@Item{itemId = ItemId i} = 
-  anchor![href $ "/spullen/" ++ show i] << itemName item
+  a ! (href $ (toValue $ "/spullen/" ++ show i)) $ toHtml (itemName item)
 
 linkedLenerName lener@Lener{lenerId = LenerId login} = 
-  anchor![href $ "/leners/" ++ login] << lenerName lener
+  a! (href $ (toValue $ "/leners/" ++ login)) << toHtml (lenerName lener)
  {-
 -- Visits ----------------------------------------------------------------------  
 
