@@ -43,10 +43,11 @@ Library
                   happstack-state >=6.1 && <6.2,
                   old-time >=1.1 && <1.2,
                   unix >=2.5 && <2.6,
-                  split >=0.1 && <0.2
+                  split >=0.1 && <0.2,
+                  template-haskell >=2.7 && <2.8
   ghc-options: 
   extensions: ExistentialQuantification RankNTypes DeriveDataTypeable ScopedTypeVariables OverloadedStrings
-  exposed-modules: WebViewPrim, WebViewLib, Generics, HtmlLib, Incrementality, Server, Types, BlazeHtml
+  exposed-modules: WebViewPrim, WebViewLib, Generics, HtmlLib, Incrementality, Server, Types, BlazeHtml, TemplateHaskell
   other-modules:
 
 Executable Piglet
@@ -117,7 +118,8 @@ Executable Leenclub
                   syb >=0.3 && <0.4,
                   mtl >=2.0 && <2.1,
                   old-time >=1.1 && <1.2,
-                  html >=1.0 && <1.1
+                  html >=1.0 && <1.1,
+                  template-haskell >=2.7 && <2.8
 
   GHC-Options: 
   Extensions: ExistentialQuantification RankNTypes DeriveDataTypeable ScopedTypeVariables OverloadedStrings

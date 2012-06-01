@@ -1,4 +1,4 @@
-{-# OPTIONS -XDeriveDataTypeable -XPatternGuards -XMultiParamTypeClasses -XOverloadedStrings #-}
+{-# OPTIONS -XDeriveDataTypeable -XPatternGuards -XMultiParamTypeClasses -XOverloadedStrings -XTemplateHaskell #-}
 module Main where
 
 import Data.List
@@ -20,6 +20,9 @@ import Control.Monad.State
 import Server
 
 import Database
+
+import TemplateHaskell
+
 
 main :: IO ()
 main = server rootViews "LeenclubDB.txt" mkInitialDatabase leners
@@ -44,6 +47,7 @@ readMaybe str = case reads str of
 data LenerView = 
   LenerView (Maybe Lener) [Item] (Widget (RadioView)) (EditAction Database)
     deriving (Eq, Show, Typeable, Data)
+
 {-
 modifyViewedPig f (LenerView vid name) =
   LenerView vid zipCode date (f viewedPig) b1 b2 b3 pigs pignames mSubview
@@ -65,8 +69,7 @@ mkLenerView sessionId args = mkWebView $
        --; w <- mkTextField "test"
        ; return $ LenerView mLener items w ea
        }
-       
-    
+        
 instance Presentable LenerView where
   present (LenerView mLener items w ea)=
     mkPage [bgColorAttr (Rgb 235 235 235), thestyle "font-family: arial"] $ 
@@ -142,9 +145,6 @@ instance Presentable LenerView where
 
 instance Storeable Database LenerView where
 
-instance Initial LenerView where
-  initial = LenerView initial initial initial initial
-
 
 
 unsafeLookupM dbf key = withDb $ \db -> unsafeLookup (dbf db) key
@@ -184,10 +184,7 @@ instance Presentable ItemView where
                              linkedLenerName owner
                       
 
-instance Storeable Database ItemView where
-
-instance Initial ItemView where
-  initial = ItemView initial
+instance Storeable Database ItemView
 
 
 linkedItemName item@Item{itemId = ItemId i} = 
@@ -440,3 +437,7 @@ instance Storeable Database PigView where
 instance Initial PigView where
   initial = PigView (PigId initial) initial "" initial initial initial initial initial initial initial
 -}
+
+deriveInitial ''LenerView
+
+deriveInitial ''ItemView
