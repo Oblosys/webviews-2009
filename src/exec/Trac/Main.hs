@@ -156,8 +156,8 @@ instance Presentable TicketsView where
                   Nothing -> stringToHtml "Please log in to add a comment"
                   Just b  -> present b)
       -}
+
 instance Storeable Database TicketsView where
-  save _ = id
      
 
 {-

@@ -155,9 +155,7 @@ instance Presentable VisitsView where
                   Nothing -> "Please log in to add a comment"
                   Just b  -> present b)
       
-instance Storeable Database VisitsView where
-  save _ = id
-     
+instance Storeable Database VisitsView where     
 
 
 

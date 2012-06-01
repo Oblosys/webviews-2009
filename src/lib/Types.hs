@@ -228,7 +228,9 @@ class Presentable v => Viewable v where
 
 class Storeable db v where
   save :: v -> db -> db
+  save _ = id
 
+-- needed for initial of WebView, which has () as its view
 instance Storeable db () where
   save () = id
 

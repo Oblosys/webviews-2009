@@ -64,7 +64,6 @@ instance Presentable TestView1 where
   present (TestView1 ea b status scr) = vList [toHtml status, present b] +++ mkScript scr
 
 instance Storeable Database TestView1 where
-  save _ = id
 
 
 -- trying to handle passing back client state by using a JSVar
@@ -100,7 +99,6 @@ instance Presentable TestView2 where
   present (TestView2 x b status scr) = vList [toHtml status, present b] +++ present x +++ mkScript scr
 
 instance Storeable Database TestView2 where
-  save _ = id
   
 -- Main ----------------------------------------------------------------------  
 
@@ -136,7 +134,6 @@ instance Presentable MainView where
                 , with [thestyle "font-family:arial"] $ roundedBoxed (Just $ appBgColor) $ present rv ] 
 
 instance Storeable Database MainView where
-  save _ = id
      
 
 -- Main ----------------------------------------------------------------------  
@@ -294,8 +291,8 @@ instance Presentable RestaurantView where
       , present reservationView
       ]) +++ mkScript script
    where header = [ ([], toHtml $ map toLower $ showShortDay d) | d <- [1..7] ] 
+
 instance Storeable Database RestaurantView where
-  save _ = id
    
 -- CalendarDay ----------------------------------------------------------------------  
      
@@ -330,7 +327,6 @@ conditionallyBoxed cond width color elt =
           else thediv!*[thestyle $ "padding:"++show width++"px;"] << elt
 
 instance Storeable Database CalendarDayView where
-  save _ = id
 
 -----------------------------------------------------------------------------
 
@@ -400,7 +396,6 @@ instance Presentable DayView where
                      in  if not $ null ressAtHr then toHtml $ show (length ressAtHr) ++ " (" ++ show (sum $ map nrOfPeople ressAtHr)++")" else nbsp 
                  ]
 instance Storeable Database DayView where
-  save _ = id
 
 -----------------------------------------------------------------------------
 
@@ -476,8 +471,8 @@ instance Presentable HourView where
           , hList [nbsp, with [id_ . toValue $ "reservationEntry_"++show i] $ "reservationEntry"]) ]
         | (i,sa) <- zip [0..] selectReservationActions 
         ]) +++ mkScript script
+
 instance Storeable Database HourView where
-  save _ = id
 
 -----------------------------------------------------------------------------
 
@@ -538,7 +533,6 @@ instance Presentable ReservationView where
    where reservationColor = Rgb 0x00 0x00 0xff
  
 instance Storeable Database ReservationView where
-  save _ = id
 
 
 

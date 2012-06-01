@@ -139,8 +139,8 @@ instance Presentable LenerView where
            +++ present b1 +++ present b2) +++
     withPad 15 0 0 0 (hList' $ map present subviews) +++ present b3
 -}
+
 instance Storeable Database LenerView where
-  save _ = id
 
 instance Initial LenerView where
   initial = LenerView initial initial initial initial
@@ -185,7 +185,6 @@ instance Presentable ItemView where
                       
 
 instance Storeable Database ItemView where
-  save _ = id
 
 instance Initial ItemView where
   initial = ItemView initial
@@ -325,7 +324,6 @@ instance Presentable VisitsView where
                   Just b  -> present b)
       
 instance Storeable Database VisitsView where
-  save _ = id
      
 
 
