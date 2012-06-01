@@ -46,7 +46,7 @@ Library
                   split >=0.1 && <0.2,
                   template-haskell >=2.7 && <2.8
   ghc-options: 
-  extensions: ExistentialQuantification RankNTypes DeriveDataTypeable ScopedTypeVariables OverloadedStrings
+  extensions: ExistentialQuantification RankNTypes DeriveDataTypeable ScopedTypeVariables OverloadedStrings TemplateHaskell
   exposed-modules: WebViewPrim, WebViewLib, Generics, HtmlLib, Incrementality, Server, Types, BlazeHtml, TemplateHaskell
   other-modules:
 
@@ -122,7 +122,7 @@ Executable Leenclub
                   template-haskell >=2.7 && <2.8
 
   GHC-Options: 
-  Extensions: ExistentialQuantification RankNTypes DeriveDataTypeable ScopedTypeVariables OverloadedStrings
+  Extensions: ExistentialQuantification RankNTypes DeriveDataTypeable ScopedTypeVariables OverloadedStrings TemplateHaskell
   HS-Source-Dirs:  src/exec/Leenclub
   Other-Modules:
   if flag(leenclub)
