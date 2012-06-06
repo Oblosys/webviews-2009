@@ -335,9 +335,9 @@ sessionHandler rootViews dbFilename theDatabase users sessionStateRef requestId 
             ; let (rootView, _) = assignIds (clearIds rootViewWithoutIds, oldRootView) 
             -- this way, all new id's are unique, also with respect to old view                                    
             
-            ; putStrLn "seq'ing rootView"
+            --; putStrLn "seq'ing rootView"
             ; seq (length (show rootView)) $ return ()
-            ; putStrLn "seq'ed rootView"
+            --; putStrLn "seq'ed rootView"
             
             ; setRootView sessionStateRef rootView
               
@@ -354,9 +354,9 @@ sessionHandler rootViews dbFilename theDatabase users sessionStateRef requestId 
             --; putStrLn $ "View tree':\n" ++ drawWebNodes (WebViewNode rootView') 
             --; putStrLn $ "Sending response sent to client: " ++
             --              take 10 responseHTML ++ "..."
-            ; putStrLn "seq'ing response"
+            --; putStrLn "seq'ing response"
             ; seq (length (show responseHtml)) $ return ()
-            ; putStrLn "end session handler"
+            --; putStrLn "end session handler"
             ; return $ responseHtml
             }
         Alert str -> 
