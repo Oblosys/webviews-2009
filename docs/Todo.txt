@@ -7,7 +7,6 @@ replace scripts in onclick tags by calls to functions (selectHour, etc.)
 
 Fix/clip incorrect selectionIx
 
-
 Fix layout issue in day before putting online
 Turn on auto refresh (maybe 10s) before putting online
  
