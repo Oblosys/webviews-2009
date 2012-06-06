@@ -4,8 +4,11 @@ module WebViewLib where
 
 import BlazeHtml
 import qualified Text.Html as Html
+import Data.Map (Map)
+import qualified Data.Map as Map 
 import Data.Generics
-
+import System.IO
+import Control.Monad.State
 import Types
 import Generics
 import HtmlLib
@@ -144,3 +147,56 @@ instance Presentable TabbedView where
 escapeId wv = let ViewId path = getViewId wv
               in  [ if c `elem` "[,]" then '-' else c | c <- show path ]
 -}
+
+
+-- HtmlTemplateView ---------------------------------------------------------------------  
+-- 
+-- Non-cached webview for displaying raw html content read from a file in /htmlTemplates.
+-- Placeholders are of the format __placeholderName__.
+
+data HtmlTemplateView = HtmlTemplateView String deriving (Eq, Show, Typeable, Data)
+
+instance Initial HtmlTemplateView where
+  initial = HtmlTemplateView "HtmlTemplateView not initialized"
+  
+mkHtmlTemplateView ::  Data db => String -> [(String,String)] -> WebViewM db (WebView db)
+mkHtmlTemplateView path subs = mkWebView $
+ \vid (HtmlTemplateView _) ->
+   do { htmlStr <- liftIO $ readUTFFile $ "htmlTemplates/"++path
+      -- TODO: warn for non-existing placeholders
+      ; return $ HtmlTemplateView $ substitute (Map.fromList subs) htmlStr
+      }
+
+instance Presentable HtmlTemplateView where
+  present (HtmlTemplateView htmlStr) = primHtml htmlStr
+
+instance Data db => Storeable db HtmlTemplateView
+
+substitute :: Map String String -> String -> String
+substitute subs [] = ""
+substitute subs ('_':'_':str) =
+  let (placeholder,_:_:rest) = break (== '_') str
+  in  case Map.lookup placeholder subs of
+        Just value -> value ++ substitute subs rest
+        Nothing -> "__"++placeholder++"__" ++ substitute subs rest
+substitute subs (c:cs) = c:substitute subs cs 
+
+getPlaceholders [] = []
+getPlaceholders ('_':'_':str) =
+  let (placeholder,_:_:rest) = break (== '_') str
+  in  placeholder : getPlaceholders rest
+getPlaceholders (c:cs) = getPlaceholders cs
+
+
+
+-- Utils
+
+
+-- this function handles UTF files well, unlike readFile
+readUTFFile filePath =
+ do { h <- openFile  filePath ReadMode
+    ; c <- hGetContents h
+    ; seq (length c) $ return ()
+    ; hClose h
+    ; return c
+    }
