@@ -28,7 +28,7 @@ main :: IO ()
 main = server rootViews "LeenclubDB.txt" mkInitialDatabase leners
 
 rootViews :: [ (String, SessionId -> [String] -> WebViewM Database (WebView Database)) ]
-rootViews = [ ("", mkLenerView), ("leners", mkLenerView), ("spullen", mkItemView)] 
+rootViews = [ ("", mkLenersView), ("leners", mkLenersView), ("spullen", mkItemView)] 
 
 {-
 Plan:
@@ -40,52 +40,60 @@ template view with menu bar
 
 
 -}
+unsafeLookupM dbf key = withDb $ \db -> unsafeLookup (dbf db) key
+
+
 readMaybe :: Read a => String -> Maybe a
 readMaybe str = case reads str of 
                   [(x,"")] -> Just x
-                  _        -> Nothing 
+                  _        -> Nothing
+                   
+mkLenersView sessionId args = mkMaybeView  "Onbekende lener" $
+  case args of
+    arg:_ -> do { mLener <- withDb $ \db -> Map.lookup (LenerId arg) (allLeners db)
+                ; case mLener of
+                    Nothing    -> return Nothing
+                    Just lener -> fmap Just $ mkLenerView lener
+                }
+    _        -> return Nothing
+
+  
 data LenerView = 
-  LenerView (Maybe Lener) [Item] (Widget (RadioView)) (EditAction Database)
+  LenerView Lener [Item]
     deriving (Eq, Show, Typeable, Data)
+
 
 {-
 modifyViewedPig f (LenerView vid name) =
   LenerView vid zipCode date (f viewedPig) b1 b2 b3 pigs pignames mSubview
 -}
 --mkLenerView :: Int -> WebViewM Database (WebView Database)
-mkLenerView sessionId args = mkWebView $
-  \vid oldLenerView@(LenerView _ _ _ _) -> 
-    do { mLener <- case args of
-                    arg:_ -> do { mLener <- withDb $ \db -> Map.lookup (LenerId arg) (allLeners db)
-                                ; return mLener
-                                }
-                    _        -> return Nothing
-       ; let itemIds = maybe [] lenerItems mLener
+mkLenerView lener = mkWebView $
+  \vid oldLenerView@(LenerView _ _) -> 
+    do { let itemIds = lenerItems lener
        ; items <- mapM (\itemId -> withDb $ \db -> unsafeLookup (allItems db) itemId) itemIds
 
-       ; ea <- mkEditAction $ Edit $ liftIO $ putStrLn "edit!!!\n\n"
-       ; w <- mkRadioView ["Ja", "Nee"] 0 True
+       --; ea <- mkEditAction $ Edit $ liftIO $ putStrLn "edit!!!\n\n"
+       --; w <- mkRadioView ["Ja", "Nee"] 0 True
        --; w  <- mkButton "Test"      True         $ Edit $ return ()
        --; w <- mkTextField "test"
-       ; return $ LenerView mLener items w ea
+       --; t <- mkHtmlTemplateView "test.html" [("lener","Martijn")]
+       ; return $ LenerView lener items
        }
         
 instance Presentable LenerView where
-  present (LenerView mLener items w ea)=
-    mkPage [bgColorAttr (Rgb 235 235 235), thestyle "font-family: arial"] $ 
+  present (LenerView lener items)=
+    mkPage [thestyle "background-color: #e0e0e0; font-family: arial"] $ 
       withPad 5 0 5 0 $    
-      case mLener of
-        Nothing -> "Onbekende lener"
-        Just lener -> vList [ h2 $ (toHtml $ "Lener " ++ lenerName lener)
-                            , hList [ boxedEx 1 $ (image ("leners/" ++ lenerLogin lener ++".jpg")) ! align "top"
-                                    , vList [ toHtml (lenerZipCode lener)
-                                            , toHtml (lenerZipCode lener)
-                                            ]
-                                    ]
-                            , h2 !* [withEditActionAttr ea ]  << toHtml ("Spullen" :: String)
-                            , vList [ linkedItemName item | item <- items ]
-                            , present w
-                            ]
+        vList [ h2 $ (toHtml $ "Lener " ++ lenerName lener)
+              , hList [ boxedEx 1 $ (image ("leners/" ++ lenerLogin lener ++".jpg")) ! align "top"
+                      , vList [ toHtml (lenerZipCode lener)
+                              , toHtml (lenerZipCode lener)
+                              ]
+                      ]
+              , h2 << toHtml ("Spullen" :: String)
+              , vList [ linkedItemName item | item <- items ]
+                      ]
     {-
       mkTableEx [width "100%"] [] [valign "top"]
        [[ ([],
@@ -146,8 +154,30 @@ instance Presentable LenerView where
 instance Storeable Database LenerView where
 
 
+{-
+data ItemInlineView = 
+  ItemInlineView Item
+    deriving (Eq, Show, Typeable, Data)
 
-unsafeLookupM dbf key = withDb $ \db -> unsafeLookup (dbf db) key
+mkItemInlineView = mkItemView $
+  \vid oldItemInlineView@(ItemView _) -> 
+    do { return $ ItemView "Item"
+       }
+      
+instance Presentable ItemView where
+  present (ItemView item)=
+    withBgColor (Rgb 235 235 235) $ withPad 5 0 5 0 $    
+    with [thestyle "font-family: arial"] $ 
+      case mItemOwner of
+        Nothing           -> "Onbekend item"
+        Just (item,owner) -> (h2 << (toHtml $ "Item " ++ itemName item)) +++ 
+                             (h2 << (toHtml ("Eigenaar" :: String)))  +++
+                             linkedLenerName owner
+                      
+
+instance Storeable Database ItemView
+-}
+
 
 data ItemView = 
   ItemView (Maybe (Item, Lener))
@@ -185,6 +215,7 @@ instance Presentable ItemView where
                       
 
 instance Storeable Database ItemView
+
 
 
 linkedItemName item@Item{itemId = ItemId i} = 
@@ -439,5 +470,10 @@ instance Initial PigView where
 -}
 
 deriveInitial ''LenerView
+
+instance Initial LenerId where
+  initial = LenerId ""
+
+deriveInitial ''Lener
 
 deriveInitial ''ItemView

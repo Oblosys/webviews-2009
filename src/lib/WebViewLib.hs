@@ -151,7 +151,7 @@ escapeId wv = let ViewId path = getViewId wv
 
 -- HtmlTemplateView ---------------------------------------------------------------------  
 -- 
--- Non-cached webview for displaying raw html content read from a file in /htmlTemplates.
+-- Non-cached WebView for displaying raw html content read from a file in /htmlTemplates.
 -- Placeholders are of the format __placeholderName__.
 
 data HtmlTemplateView = HtmlTemplateView String deriving (Eq, Show, Typeable, Data)
@@ -186,6 +186,32 @@ getPlaceholders ('_':'_':str) =
   let (placeholder,_:_:rest) = break (== '_') str
   in  placeholder : getPlaceholders rest
 getPlaceholders (c:cs) = getPlaceholders cs
+
+-- MaybeView ---------------------------------------------------------------------  
+
+data MaybeView db = MaybeView String (Maybe (WebView db)) deriving (Eq, Show, Typeable, Data)
+
+
+instance Initial (MaybeView db) where
+  initial = MaybeView "MaybeView not initialized" Nothing
+  
+-- TODO: do we want to offer the vid also to mWebViewM? (which will then have type ViewId -> WebViewM db (Maybe (WebView db)))
+mkMaybeView :: forall db . Data db => String -> WebViewM db (Maybe (WebView db)) -> WebViewM db (WebView db)
+mkMaybeView nothingStr mWebViewM = mkWebView $
+ \vid (MaybeView _ _) ->
+   do { mWebView <- mWebViewM
+      ; return $ MaybeView nothingStr mWebView
+      }
+
+instance Presentable (MaybeView db) where
+  present (MaybeView nothingStr mWebView) =
+    case mWebView of Just webView -> present webView
+                     Nothing      -> toHtml nothingStr
+
+instance Data db => Storeable db (MaybeView db)
+
+-- HtmlTemplateView ---------------------------------------------------------------------  
+
 
 
 
