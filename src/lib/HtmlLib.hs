@@ -5,6 +5,15 @@ import Data.Char
 import Data.List
 import Data.String
 
+
+
+{-
+
+TODO:
+Abstraction for attributes, so multiple style attrs don't replace each other but are concatenated. 
+
+-}
+
 mkDiv str elt = div_ ! id_ (fromString str) $ elt
 
 mkSpan str elt = span_ ! id_ (fromString str) $ elt
