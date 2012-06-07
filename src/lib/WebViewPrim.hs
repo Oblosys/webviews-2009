@@ -312,8 +312,8 @@ presentTextField (TextView viewId textType str mEditAction) =
   in form !* [ thestyle "display: inline"
             , strAttr "onSubmit" $ (case mEditAction of
                                     Nothing -> "return false"
-                                    Just _  -> "script"++viewIdSuffix viewId++".onSubmit()")++
-                                 "return false"] $ -- return false, since we don't actually submit the form
+                                    Just _  -> "script"++viewIdSuffix viewId++".onSubmit()"++
+                                               "return false")] $ -- return false, since we don't actually submit the form
        inputField !* [ id_ (toValue $ show viewId), strAttr "value" str, width "100%"
                     , strAttr "onFocus" $ "script"++viewIdSuffix viewId++".onFocus()"
                     , strAttr "onBlur" $ "script"++viewIdSuffix viewId++".onBlur()"
