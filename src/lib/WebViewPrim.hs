@@ -330,7 +330,7 @@ presentButton (Button viewId txt enabled style onclick _) =
                                      "\" "++
                             "onfocus=\"elementGotFocus('"++show viewId++"')\">"++txt++"</button>") -}
   (primHtml $ "<button id=\""++ show viewId++"\" "++ (if enabled then "" else "disabled ") ++ (if style /="" then " style=\"" ++style++"\" " else "")++
-                            "onclick=\"script"++viewIdSuffix viewId++".onClick()\" "++
+                            "onclick="++ (if onclick /= "" then show onclick else "\"script"++viewIdSuffix viewId++".onClick()\"")++" "++
                             "onfocus=\"script"++viewIdSuffix viewId++".onFocus()\">"++txt++"</button>") >>
   (mkScript $ declareWVButtonScript viewId)
 -- TODO: text should be escaped
@@ -473,16 +473,19 @@ jsCallFunction (ViewIdT vid) name params = name++viewIdSuffix vid++"("++intercal
 -- figure out if we need the viewId for the button when specifying the onclick
 -- but maybe  we get a way to specify a client-side edit op and do this more general
 
+jsGetWidgetValue widget = jsGetElementByIdRef (widgetGetViewRef widget) ++".value"
+
+jsNavigateTo href = "window.location.href = "++ href ++ ";"
+
+
 inertTextView :: (Widget (TextView db)) -> String
 inertTextView tv = jsScript [ onEvent "Submit" tv ""
                             , onEvent "Focus" tv ""
                             , onEvent "Blur" tv ""
                             ]
                             
-
 callServerEditAction ea args = "queueCommand('PerformEditActionC ("++show (getActionViewId ea)++") [\"'+"++
                                       intercalate "+'\",\"'+" args ++"+'\"]')"
-
 
 
 
