@@ -2,6 +2,7 @@
 module Database where
 
 import Data.Generics
+import Data.List
 import Data.Map (Map)
 import qualified Data.Map as Map 
 
@@ -29,6 +30,12 @@ data Lener =
         } deriving (Eq, Show, Read, Typeable, Data)
 
 lenerLogin Lener{lenerId = LenerId login} = login
+
+
+searchLeners :: String -> Database -> [Lener]
+searchLeners term db = [ lener | lener <- Map.elems $ allLeners db
+                               , any (isInfixOf term) [lenerName lener, lenerZipCode lener, lenerLogin lener]
+                               ]
 
 updateLener :: LenerId -> (Lener -> Lener) -> Database -> Database
 updateLener i f db = 
