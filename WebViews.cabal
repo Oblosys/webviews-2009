@@ -46,9 +46,8 @@ Library
                   split >=0.1 && <0.2,
                   template-haskell >=2.7 && <2.8
   ghc-options: 
-  extensions: ExistentialQuantification RankNTypes DeriveDataTypeable ScopedTypeVariables OverloadedStrings TemplateHaskell
-  exposed-modules: WebViewPrim, WebViewLib, Generics, HtmlLib, Incrementality, Server, Types, BlazeHtml, TemplateHaskell
-  other-modules:Utils
+  extensions: ExistentialQuantification RankNTypes DeriveDataTypeable ScopedTypeVariables OverloadedStrings TemplateHaskell, PatternGuards
+  exposed-modules: WebViewPrim, WebViewLib, Generics, HtmlLib, Incrementality, Server, Types, BlazeHtml, TemplateHaskell, Utils
 
 Executable Piglet
   Main-is:    Main.hs 
@@ -122,7 +121,7 @@ Executable Leenclub
                   template-haskell >=2.7 && <2.8
 
   GHC-Options: 
-  Extensions: ExistentialQuantification RankNTypes DeriveDataTypeable ScopedTypeVariables OverloadedStrings TemplateHaskell
+  Extensions: ExistentialQuantification RankNTypes DeriveDataTypeable ScopedTypeVariables OverloadedStrings TemplateHaskell, PatternGuards
   HS-Source-Dirs:  src/exec/Leenclub
   Other-Modules:
   if flag(leenclub)
