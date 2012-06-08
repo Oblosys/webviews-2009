@@ -6,58 +6,58 @@ import Data.List
 import Data.Map (Map)
 import qualified Data.Map as Map 
 
-leners :: Map String (String, String)
-leners = Map.fromList [("martijn", ("p", "Martijn"))
-                     ,("henny", ("h", "Henny Verweij")) 
-                     ,("jaap", ("j", "Jaap Lageman"))
-                     ,("", ("", "Anonymous"))
-                     ] 
+lenders :: Map String (String, String)
+lenders = Map.fromList [("martijn", ("p", "Martijn"))
+                      ,("henny", ("h", "Henny Verweij")) 
+                      ,("jaap", ("j", "Jaap Lageman"))
+                      ,("", ("", "Anonymous"))
+                      ] 
 -- TODO: maybe this can be (a special) part of db?
 
-newtype LenerId = LenerId String deriving (Show, Read, Eq, Ord, Typeable, Data)
+newtype LenderId = LenderId String deriving (Show, Read, Eq, Ord, Typeable, Data)
 
 newtype ItemId = ItemId Int deriving (Show, Read, Eq, Ord, Typeable, Data)
 
 
 -- must be Typeable and Data, because update functions in views (which must be Data etc.) are Database->Database
-data Database = Database { allLeners :: Map LenerId Lener, allItems :: Map ItemId Item 
+data Database = Database { allLenders :: Map LenderId Lender, allItems :: Map ItemId Item 
                          }
                   deriving (Eq, Show, Read, Typeable,Data)
 
-data Lener = 
-  Lener { lenerId :: LenerId, lenerName :: String, lenerZipCode :: String
-        , lenerItems :: [ItemId]
-        } deriving (Eq, Show, Read, Typeable, Data)
+data Lender = 
+  Lender { lenderId :: LenderId, lenderName :: String, lenderZipCode :: String
+         , lenderItems :: [ItemId]
+         } deriving (Eq, Show, Read, Typeable, Data)
 
-lenerLogin Lener{lenerId = LenerId login} = login
+lenderLogin Lender{lenderId = LenderId login} = login
 
 
-searchLeners :: String -> Database -> [Lener]
-searchLeners term db = [ lener | lener <- Map.elems $ allLeners db
-                               , any (isInfixOf term) [lenerName lener, lenerZipCode lener, lenerLogin lener]
-                               ]
+searchLenders :: String -> Database -> [Lender]
+searchLenders term db = [ lender | lender <- Map.elems $ allLenders db
+                        , any (isInfixOf term) [lenderName lender, lenderZipCode lender, lenderLogin lender]
+                        ]
 
-updateLener :: LenerId -> (Lener -> Lener) -> Database -> Database
-updateLener i f db = 
-  let lener = unsafeLookup (allLeners db) i
-  in  db  { allLeners = Map.insert i (f lener) (allLeners db)
+updateLender :: LenderId -> (Lender -> Lender) -> Database -> Database
+updateLender i f db = 
+  let lender = unsafeLookup (allLenders db) i
+  in  db  { allLenders = Map.insert i (f lender) (allLenders db)
           }
 -- add error
 
-removeLener :: LenerId -> Database -> Database
-removeLener i db = db { allLeners = Map.delete i (allLeners db) }
+removeLender :: LenderId -> Database -> Database
+removeLender i db = db { allLenders = Map.delete i (allLenders db) }
 
 {-
-newLener :: Database -> (Lener, Database)
-newLener db =
-  let ids = [ i | LenerId i <- map fst (Map.toList $ allLeners db) ]
-      newId = LenerId $ if null ids then 0 else (maximum ids + 1)
-      newLener = Lener newId "" "" []
-  in  ( newLener, db { allLeners = Map.insert newId newLener (allLeners db) } )
+newLender :: Database -> (LenLenderatabase)
+newLender db =
+  let ids = [ i | LenderId i <- map fst (Map.toList $ allLenders db) ]
+      newId = LenderId $ if null ids then 0 else (maximum ids + 1)
+      newLender = Lender newId "" "" []
+  in  ( newLender, db { allLenders = Map.insert newId newLender (allLenders db) } )
   -}
           
 data Item = 
-  Item { itemId :: ItemId, itemOwner :: LenerId, itemName :: String
+  Item { itemId :: ItemId, itemOwner :: LenderId, itemName :: String
       } deriving (Eq, Show, Read, Typeable,Data)
 
 -- put id in element? It is also in the map.
@@ -73,7 +73,7 @@ updateItem i f db =
 removeItem :: ItemId -> Database -> Database
 removeItem i db = db { allItems = Map.delete i (allItems db) }
 
-newItem :: LenerId -> Database -> (Item, Database)
+newItem :: LenderId -> Database -> (Item, Database)
 newItem uid db =
   let ids = [ i | ItemId i <- map fst (Map.toList $ allItems db) ]
       newId = ItemId $ if null ids then 0 else (maximum ids + 1)
@@ -84,20 +84,20 @@ newItem uid db =
 mkInitialDatabase :: IO (Database)
 mkInitialDatabase =
  do { return $ Database 
-                (Map.fromList [ (LenerId "martijn", Lener (LenerId "martijn") "Martijn Schrage" "3581 RA" 
+                (Map.fromList [ (LenderId "martijn", Lender (LenderId "martijn") "Martijn Schrage" "3581 RA" 
                                                       [ItemId 0, ItemId 1, ItemId 2])
-                              , (LenerId "jaap", Lener (LenerId "jaap") "Jaap Lageman" "3581 RA" 
+                              , (LenderId "jaap", Lender (LenderId "jaap") "Jaap Lageman" "3581 RA" 
                                                       [ItemId 3, ItemId 4])
-                              , (LenerId "henny", Lener (LenerId "henny") "Henny Verweij" "3533 GT" 
+                              , (LenderId "henny", Lender (LenderId "henny") "Henny Verweij" "3533 GT" 
                                                       [ItemId 5, ItemId 6])
                 ])
-                (Map.fromList [ (ItemId 0, Item (ItemId 0) (LenerId "martijn") "Oblomov")
-                              , (ItemId 1, Item (ItemId 1) (LenerId "martijn") "Grand Theft Auto 4")
-                              , (ItemId 2, Item (ItemId 2) (LenerId "martijn") "iPhone 3gs")
-                              , (ItemId 3, Item (ItemId 3) (LenerId "jaap") "Boormachine")
-                              , (ItemId 4, Item (ItemId 4) (LenerId "jaap") "Spyder calibratie-apparaat")
-                              , (ItemId 5, Item (ItemId 5) (LenerId "henny") "Tomtom")
-                              , (ItemId 6, Item (ItemId 6) (LenerId "henny") "Boormachine")
+                (Map.fromList [ (ItemId 0, Item (ItemId 0) (LenderId "martijn") "Oblomov")
+                              , (ItemId 1, Item (ItemId 1) (LenderId "martijn") "Grand Theft Auto 4")
+                              , (ItemId 2, Item (ItemId 2) (LenderId "martijn") "iPhone 3gs")
+                              , (ItemId 3, Item (ItemId 3) (LenderId "jaap") "Boormachine")
+                              , (ItemId 4, Item (ItemId 4) (LenderId "jaap") "Spyder calibratie-apparaat")
+                              , (ItemId 5, Item (ItemId 5) (LenderId "henny") "Tomtom")
+                              , (ItemId 6, Item (ItemId 6) (LenderId "henny") "Boormachine")
                               ] {- (PigId 1, Pig (PigId 1) (VisitId 1) "Knir" [0,0,0] (Left 2))
                               , (PigId 2, Pig (PigId 2) (VisitId 1) "Knar" [0,1,1] (Right "Malaria"))
                               , (PigId 3, Pig (PigId 3) (VisitId 1) "Knor" [1,0,1] (Left 3)) 

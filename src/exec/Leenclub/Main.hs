@@ -26,17 +26,16 @@ import TemplateHaskell
 
 
 main :: IO ()
-main = server rootViews "LeenclubDB.txt" mkInitialDatabase leners
+main = server rootViews "LeenclubDB.txt" mkInitialDatabase lenders
 
 rootViews :: [ (String, SessionId -> [String] -> WebViewM Database (WebView Database)) ]
-rootViews = [ ("", mkLenersRootView), ("leners", mkLenersRootView), ("lener", mkLenerRootView), ("spullen", mkItemRootView) ] 
+rootViews = [ ("", mkLendersRootView), ("leners", mkLendersRootView), ("lener", mkLenderRootView), ("spullen", mkItemRootView) ] 
 
 {-
 Plan:
 
 search items view
 autocomplete
-basic lener view
 template view with menu bar
 
 
@@ -49,13 +48,13 @@ template view with menu bar
 unsafeLookupM dbf key = withDb $ \db -> unsafeLookup (dbf db) key
 
 -- WebViews
-data LenersRootView = 
-  LenersRootView (Maybe String) (Widget (TextView Database)) (Widget (Button Database)) [WebView Database] String
+data LendersRootView = 
+  LendersRootView (Maybe String) (Widget (TextView Database)) (Widget (Button Database)) [WebView Database] String
     deriving (Eq, Show, Typeable, Data)
 
-mkLenersRootView :: SessionId -> [String] -> WebViewM Database (WebView Database)
-mkLenersRootView sessionId args = mkWebView $
-  \vid oldLenerView@(LenersRootView mSearchTerm tf _ _ _) ->
+mkLendersRootView :: SessionId -> [String] -> WebViewM Database (WebView Database)
+mkLendersRootView sessionId args = mkWebView $
+  \vid oldLenderView@(LendersRootView mSearchTerm tf _ _ _) ->
     do { let searchTerm = case args of 
                             []      -> ""
                             (arg:_) -> arg 
@@ -65,16 +64,16 @@ mkLenersRootView sessionId args = mkWebView $
           --jsScript [ "
           --         ] 
        --Edit $ viewEdit vid $  
-       --                                                      \(LenersRootView _ tf b c d) -> LenersRootView (Just $ getStrVal tf) tf b c d
+       --                                                      \(LendersRootView _ tf b c d) -> LendersRootView (Just $ getStrVal tf) tf b c d
        ; results <- if searchTerm == "" 
                     then return [] 
-                    else do { leners <- withDb $ \db -> searchLeners searchTerm db
-                            ; case leners of
+                    else do { lenders <- withDb $ \db -> searchLenders searchTerm db
+                            ; case lenders of
                                 []   -> fmap singleton $ mkHtmlView $ "Geen resultaten voor zoekterm \""++searchTerm++"\""
-                                lnrs -> mapM (mkLenerView Inline) lnrs
+                                lnrs -> mapM (mkLenderView Inline) lnrs
                             }
                                                                        
-       ; return $ LenersRootView mSearchTerm searchField searchButton results $
+       ; return $ LendersRootView mSearchTerm searchField searchButton results $
                   jsScript $ --"/*"++show (ctSec ct)++"*/" ++
                     let navigateAction = jsNavigateTo $ "'/leners/'+"++jsGetWidgetValue searchField++";"
                     in  [ inertTextView searchField
@@ -85,23 +84,23 @@ mkLenersRootView sessionId args = mkWebView $
 -- TODO: don't prevent submit when no textfield action is present!!!! (instead change script for this or something)
 -- otherwise we cannot override return key for textfields without action
 
-instance Presentable LenersRootView where
-  present (LenersRootView searchTerm searchField searchButton lenerViews script) =
+instance Presentable LendersRootView where
+  present (LendersRootView searchTerm searchField searchButton lenderViews script) =
     mkLeenclubPage $
       hList [present searchField, present searchButton] +++
-      vList (nbsp : map present lenerViews)
+      vList (nbsp : map present lenderViews)
       +++ mkScript script
 
 
 
 
 
-mkLenerRootView sessionId args = mkMaybeView "Onbekende lener" $
+mkLenderRootView sessionId args = mkMaybeView "Onbekende lener" $
   case args of
-    arg:_ -> do { mLener <- withDb $ \db -> Map.lookup (LenerId arg) (allLeners db)
-                ; case mLener of
+    arg:_ -> do { mLender <- withDb $ \db -> Map.lookup (LenderId arg) (allLenders db)
+                ; case mLender of
                     Nothing    -> return Nothing
-                    Just lener -> fmap Just $ mkLenerView Full lener
+                    Just lender -> fmap Just $ mkLenderView Full lender
                 }
     _        -> return Nothing
 
@@ -115,53 +114,53 @@ mkItemRootView sessionId args = mkMaybeView "Onbekend item" $
          }
     _        -> return Nothing
 
-instance Storeable Database LenersRootView
+instance Storeable Database LendersRootView
 
 data Inline = Inline | Full deriving (Eq, Show, Typeable, Data)
 
 isInline Inline = True
 isInline Full   = False
 
-data LenerView = 
-  LenerView Inline Lener [WebView Database]
+data LenderView = 
+  LenderView Inline Lender [WebView Database]
     deriving (Eq, Show, Typeable, Data)
 
 
 {-
-modifyViewedPig f (LenerView vid name) =
-  LenerView vid zipCode date (f viewedPig) b1 b2 b3 pigs pignames mSubview
+modifyViewedPig f (LenderView vid name) =
+  LenderView vid zipCode date (f viewedPig) b1 b2 b3 pigs pignames mSubview
 -}
---mkLenerView :: Int -> WebViewM Database (WebView Database)
-mkLenerView inline lener = mkWebView $
-  \vid oldLenerView@(LenerView _ _ _) -> 
-    do { let itemIds = lenerItems lener
+--mkLenderView :: Int -> WebViewM Database (WebView Database)
+mkLenderView inline lender = mkWebView $
+  \vid oldLenderView@(LenderView _ _ _) -> 
+    do { let itemIds = lenderItems lender
        ; items <- mapM (\itemId -> withDb $ \db -> unsafeLookup (allItems db) itemId) itemIds
        ; itemWebViews <- if isInline inline then return [] else mapM (mkItemView Inline) items
        --; ea <- mkEditAction $ Edit $ liftIO $ putStrLn "edit!!!\n\n"
        --; w <- mkRadioView ["Ja", "Nee"] 0 True
        --; w  <- mkButton "Test"      True         $ Edit $ return ()
        --; w <- mkTextField "test"
-       --; t <- mkHtmlTemplateView "test.html" [("lener","Martijn")]
-       ; return $ LenerView inline lener itemWebViews
+       --; t <- mkHtmlTemplateView "test.html" [("lender","Martijn")]
+       ; return $ LenderView inline lender itemWebViews
        }
         
-instance Presentable LenerView where
-  present (LenerView Full lener itemWebViews) =
+instance Presentable LenderView where
+  present (LenderView Full lender itemWebViews) =
     mkLeenclubPage $
-        vList [ h2 $ (toHtml $ "Lener " ++ lenerName lener)
-              , hList [ boxedEx 1 $ (image ("leners/" ++ lenerLogin lener ++".jpg")) ! align "top"
+        vList [ h2 $ (toHtml $ "Lener " ++ lenderName lender)
+              , hList [ boxedEx 1 $ (image ("leners/" ++ lenderLogin lender ++".jpg")) ! align "top"
                       , nbsp
                       , nbsp
-                      , vList [ toHtml (lenerZipCode lener)
+                      , vList [ toHtml (lenderZipCode lender)
                               ]
                       ]
               , h2 << "Spullen"
               , vList $ map present itemWebViews
               ]
-  present (LenerView Inline lener itemWebViews) =
-    linkedLener lener $
-      hList [ boxedEx 1 $ (image ("leners/" ++ lenerLogin lener ++".jpg") ! style "width: 30px") ! align "top"
-            , vList [ toHtml (nbsp +++ nbsp +++ toHtml (lenerName lener))
+  present (LenderView Inline lender itemWebViews) =
+    linkedLender lender $
+      hList [ boxedEx 1 $ (image ("leners/" ++ lenderLogin lender ++".jpg") ! style "width: 30px") ! align "top"
+            , vList [ toHtml (nbsp +++ nbsp +++ toHtml (lenderName lender))
                     ]
             ]
               
@@ -189,7 +188,7 @@ instance Presentable LenerView where
       )
       ,([align "right"],
      hList[
-      case lener of
+      case lender of
          Nothing -> present loginoutView 
          Just (_,name) -> stringToHtml ("Hello "++name++".") +++ br +++ br +++ present loginoutView
       ] )]
@@ -209,10 +208,10 @@ instance Presentable LenerView where
                   Just b  -> present b)
       -}
      {-
-instance Presentable LenerView where
-  present (LenerView vid zipCode date viewedPig b1 b2 b3 pigs pignames subviews) =
+instance Presentable LenderView where
+  present (LenderView vid zipCode date viewedPig b1 b2 b3 pigs pignames subviews) =
     withBgColor (Color white) $
-    ("Lener at zip code "+++ present zipCode +++" on " +++ present date) +++ br +++
+    ("Lender at zip code "+++ present zipCode +++" on " +++ present date) +++ br +++
     p << ("Lenered "++ show (length pigs) ++ " pig" ++  pluralS (length pigs) ++ ": " ++ 
           listCommaAnd pignames) +++
     p << ((if null pigs 
@@ -222,17 +221,17 @@ instance Presentable LenerView where
     withPad 15 0 0 0 (hList' $ map present subviews) +++ present b3
 -}
 
-instance Storeable Database LenerView where
+instance Storeable Database LenderView where
 
 
 data ItemView = 
-  ItemView Inline Item Lener
+  ItemView Inline Item Lender
     deriving (Eq, Show, Typeable, Data)
 
 
 mkItemView inline item = mkWebView $
   \vid oldItemView@(ItemView _ _ _) -> 
-    do { owner <- unsafeLookupM allLeners (itemOwner item)
+    do { owner <- unsafeLookupM allLenders (itemOwner item)
        ; return $ Just (item, owner)
        ; return $ ItemView inline item owner
        }
@@ -244,7 +243,7 @@ instance Presentable ItemView where
               , hList [ boxedEx 1 $ (image ("items/" ++ (show $ itemIdNr item) ++".jpg") ! style "width: 200px") ! align "top"
                       , nbsp
                       , nbsp
-                      , toHtml $ "Eigenaar: " ++ lenerName owner
+                      , toHtml $ "Eigenaar: " ++ lenderName owner
                       , vList [ 
                               ]
                       ]
@@ -266,7 +265,7 @@ mkItemView sessionId args = mkWebView $
              arg:_ -> do { mItem <- withDb $ \db -> Map.lookup (ItemId $ read arg) (allItems db)
                          ; case mItem of
                              Nothing -> return Nothing
-                             Just item -> do { owner <- unsafeLookupM allLeners (itemOwner item)
+                             Just item -> do { owner <- unsafeLookupM allLenders (itemOwner item)
                                              ; return $ Just (item, owner)
                                              }
                          }
@@ -282,7 +281,7 @@ instance Presentable ItemView where
         Nothing           -> "Onbekend item"
         Just (item,owner) -> (h2 << (toHtml $ "Item " ++ itemName item)) +++ 
                              (h2 << (toHtml ("Eigenaar" :: String)))  +++
-                             linkedLenerName owner
+                             linkedLenderName owner
                       
 -}
 
@@ -294,9 +293,9 @@ linkedItemName item@Item{itemId = ItemId i} = linkedItem item $ toHtml (itemName
 linkedItem item@Item{itemId = ItemId login} html = 
   a ! (href $ (toValue $ "/spullen/" ++ (show login))) << html
 
-linkedLenerName lener@Lener{lenerId = LenerId login} = linkedLener lener $ toHtml login
+linkedLenderName lender@Lender{lenderId = LenderId login} = linkedLender lender $ toHtml login
   
-linkedLener lener@Lener{lenerId = LenerId login} html = 
+linkedLender lender@Lender{lenderId = LenderId login} html = 
   a! (href $ (toValue $ "/lener/" ++ login)) << html
 
 mkLeenclubPage html = 
@@ -308,7 +307,7 @@ mkLeenclubPage html =
 -- Visits ----------------------------------------------------------------------  
 
 data VisitsView = 
-  VisitsView Bool Int Int Lener [(String,String)] 
+  VisitsView Bool Int Int Lender [(String,String)] 
                  (WebView Database) [EditAction Database] (Widget (Button Database)) (Widget (Button Database)) (Widget (Button Database)) (Widget (Button Database)) 
                  (WebView Database) [CommentId] [WebView Database] (Maybe (Widget (Button Database)))
     deriving (Eq, Show, Typeable, Data)
@@ -335,9 +334,9 @@ mkVisitsView sessionId = mkWebView $
                                     
      ; selectionActions <- mapM  (mkEditAction . Edit) selectionEdits
                            
-     ; lener <- getLener
+     ; lender <- getLender
                
-     ; loginOutView <- if lener == Nothing then mkLoginView 
+     ; loginOutView <- if lender == Nothing then mkLoginView 
                                           else mkLogoutView
      ; labels <- withDb $ \db -> map (zipCode . unsafeLookup (allVisits db)) visitIds
        
@@ -357,11 +356,11 @@ mkVisitsView sessionId = mkWebView $
                                                -- BUG: unfortunately, this also happens when it
                                                -- was introduced by a different session :-(
                        
-     ; mAddCommentButton <- case lener of 
+     ; mAddCommentButton <- case lender of 
                               Nothing -> return Nothing 
                               Just (login,_) -> fmap Just $ mkButton "Add a comment" True $ 
                                                  addComment login today
-     ;  return $ VisitsView False viewedVisit sessionId lener
+     ;  return $ VisitsView False viewedVisit sessionId lender
                  [ (zipCode visit, date visit) | visit <- visits ]
                  loginOutView selectionActions 
                  prevB nextB addB removeB  tabbedVisits commentIds commentViews mAddCommentButton
@@ -386,7 +385,7 @@ mkVisitsView sessionId = mkWebView $
                                                           , commentDate = today}) db'
 
 instance Presentable VisitsView where
-  present (VisitsView _ viewedVisit sessionId lener visits loginoutView selectionActions  
+  present (VisitsView _ viewedVisit sessionId lender visits loginoutView selectionActions  
                       prev next add remove tabbedVisits _ commentViews mAddCommentButton) =
     withBgColor (Rgb 235 235 235) $ withPad 5 0 5 0 $    
     with [thestyle "font-family: arial"] $
@@ -413,7 +412,7 @@ instance Presentable VisitsView where
       )
       ,([align "right"],
      hList[
-      case lener of
+      case lender of
          Nothing -> present loginoutView 
          Just (_,name) -> stringToHtml ("Hello "++name++".") +++ br +++ br +++ present loginoutView
       ] )]
@@ -550,16 +549,16 @@ instance Initial PigView where
   initial = PigView (PigId initial) initial "" initial initial initial initial initial initial initial
 -}
 
-deriveInitial ''LenersRootView
+deriveInitial ''LendersRootView
 
 deriveInitial ''Inline
 
-deriveInitial ''LenerView
+deriveInitial ''LenderView
 
-instance Initial LenerId where
-  initial = LenerId "_uninitializedId_"
+instance Initial LenderId where
+  initial = LenderId "_uninitializedId_"
 
-deriveInitial ''Lener
+deriveInitial ''Lender
 
 deriveInitial ''ItemView
 
