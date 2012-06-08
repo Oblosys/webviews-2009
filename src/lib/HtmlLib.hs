@@ -155,7 +155,9 @@ withPad left right top bottom h =
   thediv !!! [thestyle $ "padding: "++show top++"px "++show right++"px "++
                        show bottom++"px "++show left++"px;"] << h
 
-image filename = img ! src (toValue $ "/img/"++ filename)
+
+image :: String -> Html -- type sig is necessary, otherwise overloaded strings give confusing errors
+image filepath = img ! src (toValue $ "/img/"++ filepath)
 
 pluralS 1 = ""
 pluralS n = "s" 
