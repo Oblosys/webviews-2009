@@ -1,5 +1,5 @@
 {-# OPTIONS -XScopedTypeVariables #-}
-module Incrementality where
+module Incrementality (mkIncrementalUpdates) where
 
 import Control.Monad.Trans
 import Data.List
@@ -11,13 +11,13 @@ import Data.Map (Map)
 import qualified Data.Map as Map 
 import Data.IntMap (IntMap)
 import qualified Data.IntMap as IntMap 
-import Data.Tree
 import Debug.Trace
 
 import Types
 import Generics
 import WebViewPrim
 import HtmlLib
+import Utils
 
 {-
 Right now, incrementality is extremely fragile. Any views that are not presented cause
@@ -134,8 +134,6 @@ computeMove oldWebNodeMap changedOrNewWebNodes webNode =
            , let childViewId = getWebNodeViewId childWebNode
            ]
        
-getTopLevelWebNodesForWebNode (WidgetNode _ _ _ wn) = []
-getTopLevelWebNodesForWebNode (WebViewNode (WebView _ _ _ _ v)) = getTopLevelWebNodesWebNode v
 
 
 
@@ -218,24 +216,6 @@ updateHtml (Move _ (IdRef src) (IdRef dst)) = if src == dst then error $ "Source
     div_ ! strAttr "op" "move" ! strAttr "src" (show src) ! strAttr "dst" (show dst) $ noHtml
 updateHtml _ = noHtml -- restoreId is not for producing html, but for adapting the rootView  
 
-shallowShowWebNode (WebViewNode wv) = "WebNode: " ++ shallowShowWebView wv
-shallowShowWebNode (WidgetNode _ _ _ w) = "WebNode: " ++ show w 
-
-shallowShowWebView (WebView vid sid id _ v) =
-  "<WebView: "++show vid ++ ", stub:" ++ show (unId sid) ++ ", id:" ++ show (unId id) ++ " " ++ show (typeOf v)++ ">"
-
-drawWebNodes webnode = drawTree $ treeFromView webnode
- where treeFromView (WebViewNode wv@(WebView vid sid id _ v)) =
-         Node ("("++show vid ++ ", stub:" ++ show (unId sid) ++ ", id:" ++ show (unId id) ++ ") : " ++ show (typeOf v)) $
-              map treeFromView $ getTopLevelWebNodesWebNode v
-       treeFromView (WidgetNode vid sid id w) =
-         Node ("("++show vid++", stub:" ++ show (unId sid) ++ ", id:" ++ show (unId id) ++ ") : " ++ showAnyWidget w) $
-              map treeFromView $ getTopLevelWebNodesWebNode w
-        where showAnyWidget (LabelWidget (LabelView id t)) = "Label "++ show id ++" "++ show t
-              showAnyWidget (TextWidget (TextView id t s _)) = "TextView "++ show id ++" "++ show t ++ " " ++ show s
-              showAnyWidget (RadioViewWidget (RadioView id is i e)) = "RadioView " ++ show id ++" " ++ show i ++(if e then "enabled" else "disabled") ++ ": "++ show is
-              showAnyWidget (ButtonWidget (Button id t _ _ _ _)) = "Button " ++ show id ++ show t
-              showAnyWidget (JSVarWidget (JSVar id n v)) = "JSVar "++ show id ++" "++ show n ++ " " ++ show v
                  
 data T = T Char [T]
 t0 = T 'a' [T 'b' [T 'd' [], T 'e' []], T 'c' [], T 'f' [T 'g' []]]
