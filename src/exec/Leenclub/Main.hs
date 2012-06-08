@@ -41,15 +41,14 @@ template view with menu bar
 
 
 -}
+
+
+-- Utils
+
+
 unsafeLookupM dbf key = withDb $ \db -> unsafeLookup (dbf db) key
 
-
-readMaybe :: Read a => String -> Maybe a
-readMaybe str = case reads str of 
-                  [(x,"")] -> Just x
-                  _        -> Nothing
-             
-
+-- WebViews
 data LenersRootView = 
   LenersRootView (Maybe String) (Widget (TextView Database)) (Widget (Button Database)) [WebView Database] String
     deriving (Eq, Show, Typeable, Data)
@@ -61,7 +60,7 @@ mkLenersRootView sessionId args = mkWebView $
                             []      -> ""
                             (arg:_) -> arg 
 --                                       getStrVal tf
-       ; searchField <- mkTextField $ searchTerm
+       ; searchField <- mkTextFieldAct searchTerm $ Edit $ return ()
        ; searchButton <- mkButtonWithClick "Search" True $ const ""
           --jsScript [ "
           --         ] 
@@ -70,22 +69,27 @@ mkLenersRootView sessionId args = mkWebView $
        ; results <- if searchTerm == "" 
                     then return [] 
                     else do { leners <- withDb $ \db -> searchLeners searchTerm db
-                            ; mapM (mkLenerView Inline) leners
+                            ; case leners of
+                                []   -> fmap singleton $ mkHtmlView $ "Geen resultaten voor zoekterm \""++searchTerm++"\""
+                                lnrs -> mapM (mkLenerView Inline) lnrs
                             }
                                                                        
        ; return $ LenersRootView mSearchTerm searchField searchButton results $
-                  jsScript --"/*"++show (ctSec ct)++"*/" ++
-                    [ inertTextView searchField
-                    , onClick searchButton $ jsNavigateTo $ "'/leners/'+"++jsGetWidgetValue searchField++";"
-          --          , jsNavigateTo ("lener/"++searchTerm)
-                    ]
+                  jsScript $ --"/*"++show (ctSec ct)++"*/" ++
+                    let navigateAction = jsNavigateTo $ "'/leners/'+"++jsGetWidgetValue searchField++";"
+                    in  [ inertTextView searchField
+                        , onClick searchButton navigateAction
+                        , onSubmit searchField navigateAction
+                        ]
        }
-       
+-- TODO: don't prevent submit when no textfield action is present!!!! (instead change script for this or something)
+-- otherwise we cannot override return key for textfields without action
+
 instance Presentable LenersRootView where
   present (LenersRootView searchTerm searchField searchButton lenerViews script) =
     mkLeenclubPage $
       hList [present searchField, present searchButton] +++
-      vList (map present lenerViews)
+      vList (nbsp : map present lenerViews)
       +++ mkScript script
 
 
@@ -134,6 +138,8 @@ instance Presentable LenerView where
     mkLeenclubPage $
         vList [ h2 $ (toHtml $ "Lener " ++ lenerName lener)
               , hList [ boxedEx 1 $ (image ("leners/" ++ lenerLogin lener ++".jpg")) ! align "top"
+                      , nbsp
+                      , nbsp
                       , vList [ toHtml (lenerZipCode lener)
                               ]
                       ]
@@ -143,7 +149,7 @@ instance Presentable LenerView where
   present (LenerView Inline lener items) =
     linkedLener lener $
       hList [ boxedEx 1 $ (image ("leners/" ++ lenerLogin lener ++".jpg") ! style "width: 30px") ! align "top"
-            , vList [ toHtml ("   " ++ lenerName lener)
+            , vList [ toHtml (nbsp +++ nbsp +++ toHtml (lenerName lener))
                     ]
             ]
               
