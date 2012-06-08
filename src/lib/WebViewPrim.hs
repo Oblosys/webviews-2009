@@ -312,7 +312,7 @@ presentTextField (TextView viewId textType str mEditAction) =
   in form !* [ thestyle "display: inline"
             , strAttr "onSubmit" $ (case mEditAction of
                                     Nothing -> "return false"
-                                    Just _  -> "script"++viewIdSuffix viewId++".onSubmit()"++
+                                    Just _  -> "script"++viewIdSuffix viewId++".onSubmit();"++
                                                "return false")] $ -- return false, since we don't actually submit the form
        inputField !* [ id_ (toValue $ show viewId), strAttr "value" str, width "100%"
                     , strAttr "onFocus" $ "script"++viewIdSuffix viewId++".onFocus()"
@@ -457,6 +457,10 @@ onClick button expr = onEvent "Click" button expr
 
 onKeyUp :: (Widget (TextView db)) -> String -> String
 onKeyUp button expr = onEvent "KeyUp" button expr
+
+-- fired on return key
+onSubmit :: (Widget (TextView db)) -> String -> String
+onSubmit button expr = onEvent "Submit" button expr
 
 onEvent :: HasViewId w => String -> (Widget w) -> String -> String
 onEvent event widget expr = "script"++viewIdSuffix (getViewId widget) ++ ".on"++event++" = function () {"++expr++"};"
