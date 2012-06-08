@@ -62,6 +62,8 @@ data Item =
 
 -- put id in element? It is also in the map.
 
+itemIdNr Item{itemId = ItemId i} = i
+
 updateItem :: ItemId -> (Item -> Item) -> Database -> Database
 updateItem i f db = 
   let visit = unsafeLookup (allItems db) i

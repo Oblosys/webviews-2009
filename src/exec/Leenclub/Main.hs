@@ -29,7 +29,7 @@ main :: IO ()
 main = server rootViews "LeenclubDB.txt" mkInitialDatabase leners
 
 rootViews :: [ (String, SessionId -> [String] -> WebViewM Database (WebView Database)) ]
-rootViews = [ ("", mkLenersRootView), ("leners", mkLenersRootView), ("lener", mkLenerRootView), ("spullen", mkItemView)] 
+rootViews = [ ("", mkLenersRootView), ("leners", mkLenersRootView), ("lener", mkLenerRootView), ("spullen", mkItemRootView) ] 
 
 {-
 Plan:
@@ -105,13 +105,25 @@ mkLenerRootView sessionId args = mkMaybeView "Onbekende lener" $
                 }
     _        -> return Nothing
 
+mkItemRootView sessionId args = mkMaybeView "Onbekend item" $
+  case args of
+    arg:_  | Just i <- readMaybe arg -> 
+      do { mItem <- withDb $ \db -> Map.lookup (ItemId i) (allItems db)
+         ; case mItem of
+                  Nothing    -> return Nothing
+                  Just item -> fmap Just $ mkItemView Full item
+         }
+    _        -> return Nothing
+
 instance Storeable Database LenersRootView
 
 data Inline = Inline | Full deriving (Eq, Show, Typeable, Data)
 
+isInline Inline = True
+isInline Full   = False
 
 data LenerView = 
-  LenerView Inline Lener [Item]
+  LenerView Inline Lener [WebView Database]
     deriving (Eq, Show, Typeable, Data)
 
 
@@ -120,21 +132,21 @@ modifyViewedPig f (LenerView vid name) =
   LenerView vid zipCode date (f viewedPig) b1 b2 b3 pigs pignames mSubview
 -}
 --mkLenerView :: Int -> WebViewM Database (WebView Database)
-mkLenerView isInline lener = mkWebView $
+mkLenerView inline lener = mkWebView $
   \vid oldLenerView@(LenerView _ _ _) -> 
     do { let itemIds = lenerItems lener
        ; items <- mapM (\itemId -> withDb $ \db -> unsafeLookup (allItems db) itemId) itemIds
-
+       ; itemWebViews <- if isInline inline then return [] else mapM (mkItemView Inline) items
        --; ea <- mkEditAction $ Edit $ liftIO $ putStrLn "edit!!!\n\n"
        --; w <- mkRadioView ["Ja", "Nee"] 0 True
        --; w  <- mkButton "Test"      True         $ Edit $ return ()
        --; w <- mkTextField "test"
        --; t <- mkHtmlTemplateView "test.html" [("lener","Martijn")]
-       ; return $ LenerView isInline lener items
+       ; return $ LenerView inline lener itemWebViews
        }
         
 instance Presentable LenerView where
-  present (LenerView Full lener items)=
+  present (LenerView Full lener itemWebViews) =
     mkLeenclubPage $
         vList [ h2 $ (toHtml $ "Lener " ++ lenerName lener)
               , hList [ boxedEx 1 $ (image ("leners/" ++ lenerLogin lener ++".jpg")) ! align "top"
@@ -143,10 +155,10 @@ instance Presentable LenerView where
                       , vList [ toHtml (lenerZipCode lener)
                               ]
                       ]
-              , h2 << toHtml ("Spullen" :: String)
-              , vList [ linkedItemName item | item <- items ]
-                      ]
-  present (LenerView Inline lener items) =
+              , h2 << "Spullen"
+              , vList $ map present itemWebViews
+              ]
+  present (LenerView Inline lener itemWebViews) =
     linkedLener lener $
       hList [ boxedEx 1 $ (image ("leners/" ++ lenerLogin lener ++".jpg") ! style "width: 30px") ! align "top"
             , vList [ toHtml (nbsp +++ nbsp +++ toHtml (lenerName lener))
@@ -213,39 +225,40 @@ instance Presentable LenerView where
 instance Storeable Database LenerView where
 
 
-{-
-data ItemInlineView = 
-  ItemInlineView Item
+data ItemView = 
+  ItemView Inline Item Lener
     deriving (Eq, Show, Typeable, Data)
 
-mkItemInlineView = mkItemView $
-  \vid oldItemInlineView@(ItemView _) -> 
-    do { return $ ItemView "Item"
+
+mkItemView inline item = mkWebView $
+  \vid oldItemView@(ItemView _ _ _) -> 
+    do { owner <- unsafeLookupM allLeners (itemOwner item)
+       ; return $ Just (item, owner)
+       ; return $ ItemView inline item owner
        }
-      
+        
 instance Presentable ItemView where
-  present (ItemView item)=
-    withBgColor (Rgb 235 235 235) $ withPad 5 0 5 0 $    
-    with [thestyle "font-family: arial"] $ 
-      case mItemOwner of
-        Nothing           -> "Onbekend item"
-        Just (item,owner) -> (h2 << (toHtml $ "Item " ++ itemName item)) +++ 
-                             (h2 << (toHtml ("Eigenaar" :: String)))  +++
-                             linkedLenerName owner
-                      
+  present (ItemView Full item owner) =
+    mkLeenclubPage $
+        vList [ h2 $ (toHtml $ "Item " ++ itemName item)
+              , hList [ boxedEx 1 $ (image ("items/" ++ (show $ itemIdNr item) ++".jpg") ! style "width: 200px") ! align "top"
+                      , nbsp
+                      , nbsp
+                      , toHtml $ "Eigenaar: " ++ lenerName owner
+                      , vList [ 
+                              ]
+                      ]
+              ]
+  present (ItemView Inline item owner) =
+    linkedItem item $
+      hList [ boxedEx 1 $ (image ("items/" ++ (show $ itemIdNr item) ++".jpg") ! style "width: 80px") ! align "top"
+            , vList [ toHtml (nbsp +++ nbsp +++ toHtml (itemName item))
+                    ]
+            ]
 
 instance Storeable Database ItemView
--}
 
-
-data ItemView = 
-  ItemView (Maybe (Item, Lener))
-    deriving (Eq, Show, Typeable, Data)
 {-
-modifyViewedPig f (LenerView vid name) =
-  LenerView vid zipCode date (f viewedPig) b1 b2 b3 pigs pignames mSubview
--}
---mkLenerView :: Int -> WebViewM Database (WebView Database)
 mkItemView sessionId args = mkWebView $
   \vid oldItemView@(ItemView _) -> 
     do { mItemOwner <-
@@ -271,13 +284,15 @@ instance Presentable ItemView where
                              (h2 << (toHtml ("Eigenaar" :: String)))  +++
                              linkedLenerName owner
                       
-
-instance Storeable Database ItemView
-
+-}
 
 
-linkedItemName item@Item{itemId = ItemId i} = 
-  a ! (href $ (toValue $ "/spullen/" ++ show i)) $ toHtml (itemName item)
+
+
+linkedItemName item@Item{itemId = ItemId i} = linkedItem item $ toHtml (itemName item)
+
+linkedItem item@Item{itemId = ItemId login} html = 
+  a ! (href $ (toValue $ "/spullen/" ++ (show login))) << html
 
 linkedLenerName lener@Lener{lenerId = LenerId login} = linkedLener lener $ toHtml login
   
@@ -542,8 +557,13 @@ deriveInitial ''Inline
 deriveInitial ''LenerView
 
 instance Initial LenerId where
-  initial = LenerId ""
+  initial = LenerId "_uninitializedId_"
 
 deriveInitial ''Lener
 
 deriveInitial ''ItemView
+
+deriveInitial ''Item
+
+instance Initial ItemId where
+  initial = ItemId (-1)
