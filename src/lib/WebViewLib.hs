@@ -149,6 +149,28 @@ escapeId wv = let ViewId path = getViewId wv
 -}
 
 
+-- HtmlView ---------------------------------------------------------------------  
+--
+-- Simple inactive webview that presents its html contents
+
+data HtmlView = HtmlView String deriving (Eq, Show, Typeable, Data)
+
+instance Initial HtmlView where
+  initial = HtmlView "HtmlTemplateView not initialized"
+
+mkHtmlView ::  Data db => String -> WebViewM db (WebView db)
+mkHtmlView html = mkWebView $
+ \vid (HtmlView _) ->
+   do { return $ HtmlView html
+      }
+
+instance Presentable HtmlView where
+  present (HtmlView htmlStr) = primHtml htmlStr
+
+instance Data db => Storeable db HtmlView
+
+
+
 -- HtmlTemplateView ---------------------------------------------------------------------  
 -- 
 -- Non-cached WebView for displaying raw html content read from a file in /htmlTemplates.
@@ -210,12 +232,12 @@ instance Presentable (MaybeView db) where
 
 instance Data db => Storeable db (MaybeView db)
 
--- HtmlTemplateView ---------------------------------------------------------------------  
-
-
 
 
 -- Utils
+
+
+-- Module utils (maybe not export these)
 
 
 -- this function handles UTF files well, unlike readFile
@@ -226,3 +248,6 @@ readUTFFile filePath =
     ; hClose h
     ; return c
     }
+
+    
+    
