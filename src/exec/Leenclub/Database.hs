@@ -86,7 +86,7 @@ mkInitialDatabase =
                                                       [ItemId 0, ItemId 1, ItemId 2])
                               , (LenerId "jaap", Lener (LenerId "jaap") "Jaap Lageman" "3581 RA" 
                                                       [ItemId 3, ItemId 4])
-                              , (LenerId "henny", Lener (LenerId "henny") "Henny Verweij" "3500 XX" 
+                              , (LenerId "henny", Lener (LenerId "henny") "Henny Verweij" "3533 GT" 
                                                       [ItemId 5, ItemId 6])
                 ])
                 (Map.fromList [ (ItemId 0, Item (ItemId 0) (LenerId "martijn") "Oblomov")
