@@ -48,7 +48,7 @@ Library
   ghc-options: 
   extensions: ExistentialQuantification RankNTypes DeriveDataTypeable ScopedTypeVariables OverloadedStrings TemplateHaskell
   exposed-modules: WebViewPrim, WebViewLib, Generics, HtmlLib, Incrementality, Server, Types, BlazeHtml, TemplateHaskell
-  other-modules:
+  other-modules:Utils
 
 Executable Piglet
   Main-is:    Main.hs 
