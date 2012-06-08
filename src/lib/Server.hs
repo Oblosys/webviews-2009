@@ -30,6 +30,7 @@ import Generics
 import WebViewPrim
 import Incrementality
 import HtmlLib
+import Utils
 
 webViewsPort = 8090
 
@@ -346,7 +347,7 @@ sessionHandler rootViews dbFilename theDatabase users sessionStateRef requestId 
             -- rootView' has different id's (the ones that were not updated and hence are
             -- restored to their previous values)
                                            
-            --; putStrLn $ "View tree:\n" ++ drawWebNodes (WebViewNode rootView) 
+            ; putStrLn $ "View tree:\n" ++ drawWebNodes (WebViewNode rootView) 
             --; putStrLn $ "rootView:\n" ++ show rootView'
             ; setRootView sessionStateRef rootView'
             --; putStrLn $ "database:\n" ++ show db
