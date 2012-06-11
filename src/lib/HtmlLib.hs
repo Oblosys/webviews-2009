@@ -159,6 +159,10 @@ withPad left right top bottom h =
 image :: String -> Html -- type sig is necessary, otherwise overloaded strings give confusing errors
 image filepath = img ! src (toValue $ "/img/"++ filepath)
 
+-- present rating using solid and outlined stars
+presentRating :: Int -> Int -> Html
+presentRating max rating = primHtml $ concat $ take max $ replicate rating "&#9733;" ++ repeat "&#9734;"
+
 pluralS 1 = ""
 pluralS n = "s" 
 
