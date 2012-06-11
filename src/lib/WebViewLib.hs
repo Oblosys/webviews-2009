@@ -209,6 +209,7 @@ getPlaceholders ('_':'_':str) =
   in  placeholder : getPlaceholders rest
 getPlaceholders (c:cs) = getPlaceholders cs
 
+
 -- MaybeView ---------------------------------------------------------------------  
 
 data MaybeView db = MaybeView String (Maybe (WebView db)) deriving (Eq, Show, Typeable, Data)
