@@ -9,7 +9,7 @@ import WebViewPrim
 import HtmlLib
 
 shallowShowWebNode (WebViewNode wv) = "WebNode: " ++ shallowShowWebView wv
-shallowShowWebNode (WidgetNode _ _ _ w) = "WebNode: " ++ show w 
+shallowShowWebNode (WidgetNode viewId stubId id w) = "WebNode: ("++show viewId++", stub:"++show (unId stubId)++", id:"++show (unId id)++") " ++ show w 
 
 shallowShowWebView (WebView vid sid id _ v) =
   "<WebView: "++show vid ++ ", stub:" ++ show (unId sid) ++ ", id:" ++ show (unId id) ++ " " ++ show (typeOf v)++ ">"
