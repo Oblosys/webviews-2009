@@ -14,7 +14,13 @@ function init() {
     aScriptNode = new scriptNode(1);
     aScriptNode.click = function (viewId) { console.log("ad hoc "+viewId)};
     // what's the difference with Function(viewId, "..") ?
-    // which one do we need? 
+    // which one do we need?
+    		
+    // finding an nodes index in the parent's childNodes
+    var childElt = document.getElementById('child3');
+    var parentElt = childElt.parentNode;
+    var index = $(parentElt).children().index( childElt );
+    console.log(childElt + parentElt + index);
 }
 
 
@@ -32,5 +38,11 @@ function specialClick(viewId) {
 <body onload="init()" test="hallo">
 <button onclick="defaultClick(1)">Direct</button>
 <button onclick="aScriptNode.click(1)">Indirect</button>
+<div id="parent">
+ <div id="child0"></div>
+ <div id="child1"></div>
+ <div id="child2"></div>
+ <div id="child3"></div>
+</div>
 </body>
 </html>
