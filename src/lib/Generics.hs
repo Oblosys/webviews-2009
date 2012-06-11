@@ -66,6 +66,7 @@ mkWebNodeMap x = Map.fromList $ everything (++)
       `extQ` (\(Widget sid id w) -> let vid = getViewId w in [(vid, WidgetNode vid sid id $ JSVarWidget w)])
   ) x    
 
+-- TODO: maybe call these getChildWebNodes..?
 getTopLevelWebNodesWebView :: Data db => WebView db -> [WebNode db]
 getTopLevelWebNodesWebView (WebView _ _ _ _ v) =
   everythingTopLevel webNodeQ v
@@ -93,15 +94,15 @@ getTopLevelWebViews wv = everythingTopLevel (Nothing `mkQ` Just) wv
 
 -- is everythingBut, but not on the root (not used now)
 everythingBelow :: Data r => GenericQ (Maybe r) -> GenericQ [r]
-everythingBelow f x = foldl (++) [] (gmapQ (everythingTopLevel f) x)
+everythingBelow f x = concat $ gmapQ (everythingTopLevel f) x
 
 -- TODO: this name is wrong
 -- get all non-nested descendents of a type
--- Eg. everythingBelow () (X (T_1 .. (T_2 .. (T_3 ..) ..)) (T_4)) = [T_1,T_2,T_4]
+-- Eg. everythingTopLevel  (X T_1 .. (T_2 .. (T_3 ..) ..) .. (Just T_4)) = [T_1,T_2,T_4]
 everythingTopLevel :: Data r => GenericQ (Maybe r) -> GenericQ [r]
 everythingTopLevel f x = case f x of
                       Just x  -> [x]
-                      Nothing -> foldl (++) [] (gmapQ (everythingTopLevel f) x)
+                      Nothing -> concat $ gmapQ (everythingTopLevel f) x
 
 
 -- all webviews and Web nodes are returned as a list with their corresponding path
@@ -172,7 +173,7 @@ listifyBut stnh but x =
     Just a  -> if stnh a then [a] else []
     Nothing -> if but x  
                then []
-               else foldl (++) [] (gmapQ (listifyBut stnh but) x)
+               else concat $ gmapQ (listifyBut stnh but) x
 
                     
 somethingAcc :: (Data a, Data r) => a -> GenericQ (Maybe a) -> GenericQ (Maybe r) -> GenericQ (Maybe (r,a))
@@ -188,7 +189,7 @@ everythingBut :: Data a
  => GenericQ Bool
  -> (forall a. Data a => a -> r) 
  -> a -> r 
-everythingBut q f x = {- if q x then [x] else -} foldl (++) [] (gmapQ (everythingBut q f) x)
+everythingBut q f x = {- if q x then [x] else -} concat $ gmapQ (everythingBut q f) x
 -}
 
 -- number all Id's in the argument data structure uniquely
