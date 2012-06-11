@@ -5,6 +5,7 @@ import Data.List
 import BlazeHtml
 import Data.Generics
 import Data.Char
+import Data.Function
 import Data.Maybe
 import Data.Map (Map)
 import qualified Data.Map as Map 
@@ -29,11 +30,21 @@ main :: IO ()
 main = server rootViews "LeenclubDB.txt" mkInitialDatabase lenders
 
 rootViews :: [ (String, SessionId -> [String] -> WebViewM Database (WebView Database)) ]
-rootViews = [ ("", mkLendersRootView), ("leners", mkLendersRootView), ("lener", mkLenderRootView), ("spullen", mkItemRootView) ] 
+rootViews = [ ("", mkLendersRootView), ("leners", mkLendersRootView), ("lener", mkLenderRootView), ("spullen", mkItemRootView) 
+            , ("test", mkTestView)] 
 
 {-
+Doc
+
+View id path does not necessarily correspond to the child order, but is based on construction order in the monad.
 Plan:
 
+id stubid in node? instead of in webview?
+
+eq for WebNodes, do we need ViewId? Probably good to add, although mainly left and right operand are looked up based on a viewId,
+so the viewId's will be equal.
+
+document computeMove and get rid of Just _ <- matches
 search items view
 autocomplete
 template view with menu bar
@@ -48,32 +59,80 @@ template view with menu bar
 unsafeLookupM dbf key = withDb $ \db -> unsafeLookup (dbf db) key
 
 -- WebViews
+
+
+
+data TestView = 
+  TestView (Widget RadioView) (WebView Database) (WebView Database) 
+    deriving (Eq, Show, Typeable, Data)
+
+mkTestView :: SessionId -> [String] -> WebViewM Database (WebView Database)
+mkTestView sessionId args = mkWebView $
+  \vid oldTestView@(TestView radioOld _ _) ->
+    do { radio <-  mkRadioView ["Naam", "Punten"] (getSelection radioOld) True
+       ; let radioSel = getSelection radioOld
+       ; (wv1, wv2) <- if True -- radioSel == 0
+                       then do { wv1 <- mkHtmlView $ "een"
+                               ; wv2 <- mkHtmlTemplateView "test.html" []
+                               ; return (wv1,wv2)
+                               }
+                       else do { wv1 <- mkHtmlTemplateView "test.html" []
+                               ; wv2 <- mkHtmlView $ "een"
+                               ; return (wv1,wv2)
+                               }
+       ; liftIO $ putStrLn $ "radio value " ++ show radioSel
+       ; let (wv1',wv2') = if radioSel == 0 then (wv1,wv2) else (wv2,wv1)
+       ; let wv = TestView radio wv1' wv2'
+       --; liftIO $ putStrLn $ "All top-level webnodes "++(show (everythingTopLevel webNodeQ wv :: [WebNode Database])) 
+       
+       ; return $ wv 
+       }
+
+instance Presentable TestView where
+  present (TestView radio wv1 wv2) =
+      vList [present radio, present wv1, present wv2]
+
+instance Storeable Database TestView
+
+
+
 data LendersRootView = 
-  LendersRootView (Maybe String) (Widget (TextView Database)) (Widget (Button Database)) [WebView Database] String
+  LendersRootView (Maybe String) (Widget (TextView Database)) (Widget (Button Database)) [WebView Database] 
+                  (Widget RadioView) String
     deriving (Eq, Show, Typeable, Data)
 
 mkLendersRootView :: SessionId -> [String] -> WebViewM Database (WebView Database)
 mkLendersRootView sessionId args = mkWebView $
-  \vid oldLenderView@(LendersRootView mSearchTerm tf _ _ _) ->
+  \vid oldLenderView@(LendersRootView mSearchTerm tf _ _ radioOld _) ->
     do { let searchTerm = case args of 
                             []      -> ""
                             (arg:_) -> arg 
 --                                       getStrVal tf
        ; searchField <- mkTextFieldAct searchTerm $ Edit $ return ()
        ; searchButton <- mkButtonWithClick "Search" True $ const ""
-          --jsScript [ "
-          --         ] 
-       --Edit $ viewEdit vid $  
-       --                                                      \(LendersRootView _ tf b c d) -> LendersRootView (Just $ getStrVal tf) tf b c d
+
+       ; let oldSortField = getSelection radioOld
+       
        ; results <- if searchTerm == "" 
                     then return [] 
-                    else do { lenders <- withDb $ \db -> searchLenders searchTerm db
-                            ; case lenders of
+                    else withDb $ \db -> searchLenders searchTerm db
+{-                            ; case lenders of
                                 []   -> fmap singleton $ mkHtmlView $ "Geen resultaten voor zoekterm \""++searchTerm++"\""
                                 lnrs -> mapM (mkLenderView Inline) lnrs
                             }
-                                                                       
-       ; return $ LendersRootView mSearchTerm searchField searchButton results $
+-}
+-- todo: because of incrementality bug (or design flaw?) wv's need to be created in the order in which they appear in the tree 
+-- todo: handling radio selection is awkward.
+       ; liftIO $ putStrLn $ show oldLenderView
+       ; sortFieldRadio <- mkRadioView ["Naam", "Punten"] (getSelection radioOld) True
+       ; let sortFns = [ compare `on` lenderName, compare `on` lenderRating]
+       ; let results' = sortBy (sortFns !! oldSortField) $ results
+       
+       ; resultWvs <- case results' of
+                             []   -> fmap singleton $ mkHtmlView $ "Geen resultaten voor zoekterm \""++searchTerm++"\""
+                             lnrs -> mapM (mkLenderView Inline) lnrs
+       ; liftIO $ putStrLn $ "sortField: " ++ (show $ getSelection radioOld)
+       ; return $ LendersRootView mSearchTerm searchField searchButton resultWvs sortFieldRadio $
                   jsScript $ --"/*"++show (ctSec ct)++"*/" ++
                     let navigateAction = jsNavigateTo $ "'/leners/'+"++jsGetWidgetValue searchField++";"
                     in  [ inertTextView searchField
@@ -85,10 +144,10 @@ mkLendersRootView sessionId args = mkWebView $
 -- otherwise we cannot override return key for textfields without action
 
 instance Presentable LendersRootView where
-  present (LendersRootView searchTerm searchField searchButton lenderViews script) =
+  present (LendersRootView searchTerm searchField searchButton lenderViews sortFieldRadio script) =
     mkLeenclubPage $
       hList [present searchField, present searchButton] +++
-      vList (nbsp : map present lenderViews)
+      vList (nbsp : present sortFieldRadio : map present lenderViews)
       +++ mkScript script
 
 
@@ -148,6 +207,7 @@ instance Presentable LenderView where
   present (LenderView Full lender itemWebViews) =
     mkLeenclubPage $
         vList [ h2 $ (toHtml $ "Lener " ++ lenderName lender)
+              , span_ (presentRating 5 3) ! style "font-size: 20px"
               , hList [ boxedEx 1 $ (image ("leners/" ++ lenderLogin lender ++".jpg")) ! align "top"
                       , nbsp
                       , nbsp
@@ -548,6 +608,8 @@ instance Storeable Database PigView where
 instance Initial PigView where
   initial = PigView (PigId initial) initial "" initial initial initial initial initial initial initial
 -}
+
+deriveInitial ''TestView
 
 deriveInitial ''LendersRootView
 
