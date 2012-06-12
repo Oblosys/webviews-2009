@@ -1,4 +1,4 @@
-{-# OPTIONS -XDeriveDataTypeable -XPatternGuards -XMultiParamTypeClasses -XOverloadedStrings -XTemplateHaskell #-}
+{-# OPTIONS -XDeriveDataTypeable -XPatternGuards -XMultiParamTypeClasses -XOverloadedStrings -XTemplateHaskell -XTupleSections #-}
 module Main where
 
 import Data.List
@@ -63,12 +63,12 @@ unsafeLookupM dbf key = withDb $ \db -> unsafeLookup (dbf db) key
 
 
 data TestView = 
-  TestView (Widget RadioView) (WebView Database) (WebView Database) 
+  TestView Int (Widget RadioView) (WebView Database) (WebView Database) 
     deriving (Eq, Show, Typeable, Data)
 
 mkTestView :: SessionId -> [String] -> WebViewM Database (WebView Database)
 mkTestView sessionId args = mkWebView $
-  \vid oldTestView@(TestView radioOld _ _) ->
+  \vid oldTestView@(TestView _ radioOld _ _) ->
     do { radio <-  mkRadioView ["Naam", "Punten"] (getSelection radioOld) True
        ; let radioSel = getSelection radioOld
        ; (wv1, wv2) <- if True -- radioSel == 0
@@ -82,15 +82,15 @@ mkTestView sessionId args = mkWebView $
                                }
        ; liftIO $ putStrLn $ "radio value " ++ show radioSel
        ; let (wv1',wv2') = if radioSel == 0 then (wv1,wv2) else (wv2,wv1)
-       ; let wv = TestView radio wv1' wv2'
+       ; let wv = TestView radioSel radio wv1' wv2'
        --; liftIO $ putStrLn $ "All top-level webnodes "++(show (everythingTopLevel webNodeQ wv :: [WebNode Database])) 
        
        ; return $ wv 
        }
 
 instance Presentable TestView where
-  present (TestView radio wv1 wv2) =
-      vList [present radio, present wv1, present wv2]
+  present (TestView radioSel radio wv1 wv2) =
+      vList [present radio, toHtml $ show radioSel, present wv1, present wv2]
 
 instance Storeable Database TestView
 
@@ -113,28 +113,27 @@ mkLendersRootView sessionId args = mkWebView $
 
        ; let oldSortField = getSelection radioOld
        
-       ; results <- if searchTerm == "" 
+       
+       -- by generating the lender views in the order of searchLenders and sorting them afterwards
+       -- each lender keeps the same viewId, regardless of sort order, which increases incrementality
+       -- (also possible to use uniqueIds but then we need a unique nr per lender)
+       ; results :: [(Lender, WebView Database)] <- if searchTerm == "" 
                     then return [] 
-                    else withDb $ \db -> searchLenders searchTerm db
-{-                            ; case lenders of
-                                []   -> fmap singleton $ mkHtmlView $ "Geen resultaten voor zoekterm \""++searchTerm++"\""
-                                lnrs -> mapM (mkLenderView Inline) lnrs
+                    else do { lenders <- withDb $ \db -> searchLenders searchTerm db
+                            ; sequence [ fmap (lender,) $ mkLenderView Inline lender | lender <- lenders ]
                             }
--}
--- todo: because of incrementality bug (or design flaw?) wv's need to be created in the order in which they appear in the tree 
+
 -- todo: handling radio selection is awkward.
-       ; liftIO $ putStrLn $ show oldLenderView
        ; sortFieldRadio <- mkRadioView ["Naam", "Punten"] (getSelection radioOld) True
        ; let sortFns = [ compare `on` lenderName, compare `on` lenderRating]
-       ; let results' = sortBy (sortFns !! oldSortField) $ results
+       ; sortedResultViews <- case results of
+                                [] -> fmap singleton $ mkHtmlView $ "Geen resultaten voor zoekterm \""++searchTerm++"\""
+                                _  -> return $ map snd $ sortBy (sortFns !! oldSortField `on` fst) $ results
        
-       ; resultWvs <- case results' of
-                             []   -> fmap singleton $ mkHtmlView $ "Geen resultaten voor zoekterm \""++searchTerm++"\""
-                             lnrs -> mapM (mkLenderView Inline) lnrs
        ; liftIO $ putStrLn $ "sortField: " ++ (show $ getSelection radioOld)
-       ; return $ LendersRootView mSearchTerm searchField searchButton resultWvs sortFieldRadio $
+       ; return $ LendersRootView mSearchTerm searchField searchButton sortedResultViews sortFieldRadio $
                   jsScript $ --"/*"++show (ctSec ct)++"*/" ++
-                    let navigateAction = jsNavigateTo $ "'/leners/'+"++jsGetWidgetValue searchField++";"
+                    let navigateAction = jsNavigateTo $ "'#leners/'+"++jsGetWidgetValue searchField++";"
                     in  [ inertTextView searchField
                         , onClick searchButton navigateAction
                         , onSubmit searchField navigateAction
@@ -207,7 +206,7 @@ instance Presentable LenderView where
   present (LenderView Full lender itemWebViews) =
     mkLeenclubPage $
         vList [ h2 $ (toHtml $ "Lener " ++ lenderName lender)
-              , span_ (presentRating 5 3) ! style "font-size: 20px"
+              , span_ (presentRating 5 $ lenderRating lender) ! style "font-size: 20px"
               , hList [ boxedEx 1 $ (image ("leners/" ++ lenderLogin lender ++".jpg")) ! align "top"
                       , nbsp
                       , nbsp
@@ -220,7 +219,10 @@ instance Presentable LenderView where
   present (LenderView Inline lender itemWebViews) =
     linkedLender lender $
       hList [ boxedEx 1 $ (image ("leners/" ++ lenderLogin lender ++".jpg") ! style "width: 30px") ! align "top"
-            , vList [ toHtml (nbsp +++ nbsp +++ toHtml (lenderName lender))
+            , nbsp
+            , nbsp
+            , vList [ toHtml (lenderName lender)
+                    , span_ (presentRating 5 $ lenderRating lender) ! style "font-size: 20px"
                     ]
             ]
               
