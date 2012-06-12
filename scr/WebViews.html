@@ -189,11 +189,15 @@ function state_Change() {
         queueCommand('');
       }
 	  	
+   	  var moves = new Array();
+   	  
    		// process all the updates from the server
    		while (updates.firstChild) {
-   			updateTree( updates.firstChild );
+   			updateTree( updates.firstChild, moves );
         updates.removeChild(updates.firstChild);
       }
+
+   		processPendingMoves(moves);
    		
    		clearSpinners();
    		
@@ -240,7 +244,7 @@ $(".vList").sortable({connectWith: '.vList, .hList'});
   } // no action if xmlhttp.readyState!=4
 }
 
-function updateTree(update) {
+function updateTree(update, moves) {
 	var op = update.getAttribute('op');
  
   if (op === 'special') { // used for trying out commands in a running WebView
@@ -305,41 +309,67 @@ function updateTree(update) {
     var newElts = document.getElementById('new');
     newElts.appendChild(newChild);
   }
+  else if (op === 'eval') {
+    var scriptTxt = update.textContent; // don't use childNodes[0].data, since on Windows Firefox, the text is split in 1024 sized blocks
+    var scriptLines = scriptTxt.split('\n')
+    try {
+      for (i=0; i<scriptLines.length; i++) {
+        console.log("Eval: ",scriptLines[i]);
+        eval(scriptLines[i]);
+      }
+    }
+   catch (e) {
+      console.error("Error in script: "+e); // log error, so we can see when the problem occurs 
+      alert("Error in script: "+e); // important, so alert
+    }
+  }
   else if (op === 'move') {
 	  var srcId = update.getAttribute('src');
     var dstId = update.getAttribute('dst');
-    breakpointCheck();
-    dlog("Moving "+srcId + " to " + dstId);
     srcElt = document.getElementById(srcId);
     dstElt = document.getElementById(dstId);
-
-    if (srcElt && dstElt) {
-    	parentElt = dstElt.parentNode;
-
-      var parkingElt = document.getElementById('parking');
-      parentElt.replaceChild(srcElt,dstElt); // ParentElt.dstElt -> ParentElt.srcElt (note confusing parameter order)
-
-//    parentElt.insertBefore(srcElt,dstElt);
-      parkingElt.appendChild(dstElt);
+    if (srcElt && dstElt) { // we don't move here, but simply queue each move (see processPending moves). 
+      moves.push({sourceId: srcId, sourceElt: srcElt, destinationId: dstId, destinationParent: dstElt.parentNode,
+      	          destinationIndex: $(dstElt.parentNode).children().index( dstElt ) });
+      dlog('Queue move '+srcId+' '+dstId);
     }
     else
-    	console.error("Source or destination is null. src("+srcId+"):"+srcElt+", dst("+dstId+"):"+dstElt)
-  }
-  else if (op === 'eval') {
-	  var scriptTxt = update.textContent; // don't use childNodes[0].data, since on Windows Firefox, the text is split in 1024 sized blocks
-    var scriptLines = scriptTxt.split('\n')
-	  try {
-		  for (i=0; i<scriptLines.length; i++) {
-			  console.log("Eval: ",scriptLines[i]);
-			  eval(scriptLines[i]);
-		  }
-	  }
-	 catch (e) {
-		  console.error("Error in script: "+e); // log error, so we can see when the problem occurs 
-		  alert("Error in script: "+e); // important, so alert
-	  }
+    	console.error("move source or destination is null. src("+srcId+"):"+srcElt+", dst("+dstId+"):"+dstElt)
   }
   else alert ('Unknown command: '+op); 
+}
+
+/*
+ * Moves are a two-phase process because otherwise move cycles (eg. [a->b, b->a]) cannot be handled.
+ * To account for a destination that may have been moved, we first encode all destinations by parent element and child index,
+ * which remain correct even if the destination node itself is moved (this is done in updateTree). 
+ * For each source node that is moved in processPendingMoves, we need to add an anonymous stub, to keep the indices in the
+ * encoded destinations valid. This is not necessary if the source is new (since it can't be a destination then), or if 
+ * the source is already parked (since then the destination move has already taken place).
+ * The server incrementality algorithm will guarantee that no anonymous stubs remain in the final tree.
+ */
+function processPendingMoves(moves) {
+  var newNodesElt = document.getElementById('new');
+  var parkingElt = document.getElementById('parking');
+  
+  for (i=0; i<moves.length; i++) {
+    var move = moves[i]
+    
+    breakpointCheck();
+   
+    dlog('Processing move of ' + move.sourceId + ' to old location of ' + move.destinationId);;
+    
+    // If the source element is not in newNode, we replace it with an anonymous stub, so any subsequent moves to this element
+    // (encoded by parent + index) will still succeed.
+    if (move.sourceElt.parentNode != newNodesElt && move.sourceElt.parentNode != parkingElt) { 
+      var anonymousStub = document.createElement('span');
+      move.sourceElt.parentNode.replaceChild( anonymousStub, move.sourceElt ); 
+    }
+    
+    var destElt = move.destinationParent.childNodes[ move.destinationIndex ]; // this will either be the element or an anonymous stub
+    move.destinationParent.replaceChild( move.sourceElt, destElt );
+    parkingElt.appendChild(destElt); // this also parks some stubs, but that's no problem
+  }
 }
 
 function select(path, node) {
@@ -422,10 +452,10 @@ function ButtonScript(viewId) {
 
 function TextViewScript(viewId) {
     this.viewId = viewId;
-    this.onSubmit = function () {console.log('onSubmit');queueCommand('SubmitC ('+ viewId +')')} // only for edit actions on text fields (not areas)
-    this.onFocus  = function () {console.log('onFocus');elementGotFocus(viewId)}
-    this.onBlur   = function () {console.log('onBlur');textFieldChanged(viewId)}
-    this.onKeyUp  = function () {}
+    this.onSubmit = function () {console.log('onSubmit');queueCommand('SubmitC ('+ viewId +')')}; // only for edit actions on text fields (not areas)
+    this.onFocus  = function () {console.log('onFocus');elementGotFocus(viewId)};
+    this.onBlur   = function () {console.log('onBlur');textFieldChanged(viewId)};
+    this.onKeyUp  = function () {};
 }
 
 --></script>
