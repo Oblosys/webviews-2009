@@ -238,12 +238,14 @@ type User = Maybe (String, String)
 
 type WebNodeMap db = Map.Map ViewId (WebNode db)
 
+-- TODO: why are stub id and id inside WebView instead of in WebViewNode?
 data WebNode db = WebViewNode (WebView db)
-                | WidgetNode  ViewId Id Id (AnyWidget db)
+                | WidgetNode  ViewId Id Id (AnyWidget db) -- ViewId StubId Id 
                   deriving (Show, Typeable, Data)
 
+
 instance Eq (WebNode db) where
-  (WidgetNode _ _ _ w1) == (WidgetNode _ _ _ w2) = w1 == w2
+  (WidgetNode _ _ _ w1) == (WidgetNode _ _ _ w2) = w1 == w2 -- note that w1 and w2 are not Widget w, but AnyWidget
 -- WebViews are always equal for diff, so descend into them to do a real eq.
   (WebViewNode (WebView _ _ _ _ wv1)) == (WebViewNode (WebView _ _ _ _ wv2)) = 
     case cast wv1 of
@@ -305,9 +307,6 @@ instance Presentable () where
   
 --instance Presentable WebView where
 --  present (WebView _ _ _ _ v) = present v
-
-
-
 
 instance Eq (WebView db) where
   _ == _ = True
