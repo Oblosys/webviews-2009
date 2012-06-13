@@ -219,7 +219,7 @@ instance Initial (MaybeView db) where
   initial = MaybeView "MaybeView not initialized" Nothing
   
 -- TODO: do we want to offer the vid also to mWebViewM? (which will then have type ViewId -> WebViewM db (Maybe (WebView db)))
-mkMaybeView :: forall db . Data db => String -> WebViewM db (Maybe (WebView db)) -> WebViewM db (WebView db)
+mkMaybeView :: Data db => String -> WebViewM db (Maybe (WebView db)) -> WebViewM db (WebView db)
 mkMaybeView nothingStr mWebViewM = mkWebView $
  \vid (MaybeView _ _) ->
    do { mWebView <- mWebViewM
