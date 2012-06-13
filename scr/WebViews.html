@@ -45,11 +45,24 @@ $(document).ready(function(){
 });
 
 function init() {
-	var pathElts = document.location.href.split('/');
-  var rootView = pathElts[3];
-  var args = pathElts.length <= 4 ? '[]' 
-  		       : '["' + (pathElts.slice(4,pathElts.length)).join('","') + '"]'; 
+	// split url:  http:webviews.somewhere.com/rootView/arg0/arg1/../argn#anchorArg0/anchorArg1/../anchorArgm
+	var pathAndAnchor = document.location.href.split('#');
+		  
+	var pathElts = pathAndAnchor[0].split('/');
+	var rootView = pathElts[3];
+  var args = showHaskellList(pathElts.slice(4,pathElts.length)); 
+
+  var anchorElts = pathAndAnchor[1] ? pathAndAnchor[1].split('/') : new Array ();
+  var anchorArgs = showHaskellList(anchorElts); 
+  //dlog("Anchor args"+anchorArgs); 
+  // anchor args are not yet used. When they will be, we need to check for hash-change events:
+  // http://benalman.com/projects/jquery-hashchange-plugin/
+
   queueCommand('Init "'+rootView+'" '+args);
+}
+
+function showHaskellList(array) {
+	return !array || array.length <= 0 ? '[]' : '["' + array.join('","') + '"]';
 }
 
 function startRefreshTimer() {
