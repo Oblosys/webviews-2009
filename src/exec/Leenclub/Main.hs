@@ -133,7 +133,7 @@ mkLendersRootView sessionId args = mkWebView $
        ; liftIO $ putStrLn $ "sortField: " ++ (show $ getSelection radioOld)
        ; return $ LendersRootView mSearchTerm searchField searchButton sortedResultViews sortFieldRadio $
                   jsScript $ --"/*"++show (ctSec ct)++"*/" ++
-                    let navigateAction = jsNavigateTo $ "'#leners/'+"++jsGetWidgetValue searchField++";"
+                    let navigateAction = jsNavigateTo $ "'leners/'+"++jsGetWidgetValue searchField++";"
                     in  [ inertTextView searchField
                         , onClick searchButton navigateAction
                         , onSubmit searchField navigateAction
