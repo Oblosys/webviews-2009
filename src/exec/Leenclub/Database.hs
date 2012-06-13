@@ -14,7 +14,7 @@ lenders = Map.fromList [("martijn", ("p", "Martijn"))
                       ] 
 -- TODO: maybe this can be (a special) part of db?
 
-newtype LenderId = LenderId String deriving (Show, Read, Eq, Ord, Typeable, Data)
+newtype LenderId = LenderId { lenderIdLogin :: String } deriving (Show, Read, Eq, Ord, Typeable, Data)
 
 newtype ItemId = ItemId Int deriving (Show, Read, Eq, Ord, Typeable, Data)
 
@@ -63,6 +63,11 @@ data Item =
 -- put id in element? It is also in the map.
 
 itemIdNr Item{itemId = ItemId i} = i
+
+searchItems :: String -> Database -> [Item]
+searchItems term db = [ item | item <- Map.elems $ allItems db
+                      , any (isInfixOf term) [lenderIdLogin $ itemOwner item, show $ itemPrice item, itemName item, itemDescr item ]
+                      ]
 
 updateItem :: ItemId -> (Item -> Item) -> Database -> Database
 updateItem i f db = 
