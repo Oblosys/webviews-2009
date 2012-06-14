@@ -10,10 +10,11 @@ import qualified Data.Map as Map
 import Control.Monad.State
 import Control.Monad.Identity
 
-import Happstack.State
--- this imports the Typeable1 instance for StateT
--- somehow we cannot import Happstack.State.Types (package is always hidden)
--- Another weird thing is that in scion the instance is imported already
+-- Typeable1 instance for StateT, which comes from happstack-state-6.1.4/src/Happstack/State/Types.hs 
+instance (Typeable st, Typeable1 m) => Typeable1 (StateT st m) where
+    typeOf1 x = mkTyConApp (mkTyCon "Control.Monad.State.StateT") [typeOf (undefined :: st), typeOf1 (m x)]
+        where m :: StateT st m a -> m a
+              m = undefined
 
 data Commands = Commands [Command] 
               | SyntaxError String -- for debugging post from client, replace read by Str in FromData instance
