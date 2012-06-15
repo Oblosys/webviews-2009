@@ -109,6 +109,8 @@ mkTextArea str = assignViewId $ \vid -> textArea vid str
 
 mkRadioView is s en = assignViewId $ \vid -> radioView vid is s en
 
+mkSelectView is s en = assignViewId $ \vid -> selectView vid is s en
+
 mkButton str en ac = mkButtonEx str en "" (const "") ac
 
 mkButtonWithStyle str en st ac = mkButtonEx str en st (const "") ac
@@ -349,9 +351,8 @@ withEditAction (EditAction viewId _) elt =
 withEditActionAttr (EditAction viewId _) =  
   strAttr "onClick" $ "queueCommand('PerformEditActionC ("++show viewId++") []')"
 
-presentRadioView :: RadioView -> Html
 presentRadioView (RadioView viewId items selectedIx enabled) = thespan << sequence_
-  [ radio (show viewId) (show i) !* ( [ id_ (toValue eltId) 
+  [ radio (show viewId) (show i) !* ( [ id_ (toValue eltId) -- all buttons have viewId as name, so they belong to the same radio button set 
                           , strAttr "onChange" ("queueCommand('SetC ("++show viewId++") %22"++show i++"%22')") 
                           , strAttr "onFocus" ("elementGotFocus('"++eltId++"')")
                           ]
@@ -360,6 +361,22 @@ presentRadioView (RadioView viewId items selectedIx enabled) = thespan << sequen
                           >> toHtml item >> br 
   | (i, item) <- zip [0..] items 
   , let eltId = "radio"++show viewId++"button"++show i ] -- these must be unique for setting focus
+
+presentSelectView :: SelectView -> Html
+presentSelectView (SelectView viewId items selectedIx enabled) = 
+  do { select !* ([ id_ $ toValue $ show viewId
+                  , strAttr "onChange" ("script"++viewIdSuffix viewId++".onChange()")
+                  , strAttr "onFocus" ("script"++viewIdSuffix viewId++".onFocus()")
+                  ] ++
+                  if not enabled then [strAttr "disabled" ""] else []) $ 
+              
+         sequence_
+           [ option (toHtml item) !* (if i == selectedIx then [strAttr "selected" ""] else [])
+           | (i, item) <- zip [0..] items ]
+     ; mkScript $ declareWVSelectScript viewId
+     }
+
+declareWVSelectScript viewId = jsDeclareVar (ViewIdT viewId) "script" $ "new SelectScript(\""++show viewId++"\");"
 
 presentJSVar :: JSVar -> Html
 presentJSVar (JSVar viewId name value) = thediv ! (id_ . toValue $ show viewId) << 
@@ -376,11 +393,12 @@ instance Presentable (Widget x) where
   present (Widget (Id stubId) _ _) = mkSpan (show stubId) << "WidgetStub"
 
 
--- todo button text and radio text needs to go into view
+-- todo button text and radio/select text needs to go into view
 instance Presentable (AnyWidget db) where                          
   present (LabelWidget w) = presentLabelView w 
   present (TextWidget w) = presentTextField w
   present (RadioViewWidget w) = presentRadioView w 
+  present (SelectViewWidget w) = presentSelectView w 
   present (ButtonWidget w) = presentButton w 
   present (JSVarWidget w) = presentJSVar w 
   

@@ -1,4 +1,4 @@
-{-# OPTIONS -XDeriveDataTypeable -XPatternGuards -XMultiParamTypeClasses -XOverloadedStrings -XTemplateHaskell -XTupleSections -XFlexibleInstances #-}
+{-# OPTIONS -XDeriveDataTypeable -XPatternGuards -XMultiParamTypeClasses -XOverloadedStrings -XTemplateHaskell -XTupleSections -XFlexibleInstances -XScopedTypeVariables #-}
 module Main where
 
 import Data.List
@@ -71,7 +71,7 @@ data TestView =
 mkTestView :: SessionId -> [String] -> WebViewM Database (WebView Database)
 mkTestView sessionId args = mkWebView $
   \vid oldTestView@(TestView _ radioOld _ _) ->
-    do { radio <-  mkRadioView ["Naam", "Punten"] (getSelection radioOld) True
+    do { radio <-  mkRadioView ["Naaam", "Punten", "Drie"] (getSelection radioOld) True
        ; let radioSel = getSelection radioOld
        ; (wv1, wv2) <- if True -- radioSel == 0
                        then do { wv1 <- mkHtmlView $ "een"
@@ -137,8 +137,8 @@ mkLendersRootView sessionId args = mkWebView $
        ; liftIO $ putStrLn $ "sortField: " ++ (show $ getSelection radioOld)
        ; return $ LendersRootView mSearchTerm searchField searchButton sortedResultViews sortFieldRadio $
                   jsScript $ --"/*"++show (ctSec ct)++"*/" ++
-                    let navigateAction = jsNavigateTo $ "'leners/'+"++jsGetWidgetValue searchField++";"
-                    in  [ inertTextView searchField
+                    let navigateAction = jsNavigateTo $ "'/#leners/'+"++jsGetWidgetValue searchField++";" -- 
+                    in  [ inertTextView searchField -- todo make function to only change hash
                         , onClick searchButton navigateAction
                         , onSubmit searchField navigateAction
                         ]
@@ -253,7 +253,7 @@ instance Presentable ItemsRootView where
 
 
 data ResultsView db = 
-  ResultsView (Widget RadioView) (Widget RadioView) [WebView db]  
+  ResultsView (Widget SelectView) (Widget SelectView) [WebView db]  
     deriving (Eq, Show, Typeable, Data)
 
 instance Data db => Initial (ResultsView db) where
@@ -264,12 +264,12 @@ instance Data db => Storeable db (ResultsView db)
 -- [("sorteer oplopend", id), ("sorteer aflopend", reverse)]
 -- [("Sorteer op naam", 
 mkResultsView namedSortFunctions results = mkWebView $
-  \vid oldView@(ResultsView sortFieldRadioOld sortOrderRadioOld _) ->
-    do { let sortField = getSelection sortFieldRadioOld
-       ; let sortOrder = getSelection sortOrderRadioOld
+  \vid oldView@(ResultsView sortFieldSelectOld sortOrderSelectOld _) ->
+    do { let sortField = getSelection sortFieldSelectOld
+       ; let sortOrder = getSelection sortOrderSelectOld
        ; let (sortFieldNames, sortFunctions) = unzip namedSortFunctions
-       ; sortFieldRadio <- mkRadioView sortFieldNames sortField True
-       ; sortOrderRadio <- mkRadioView ["Oplopend", "Aflopend"] sortOrder True
+       ; sortFieldSelect <- mkSelectView sortFieldNames sortField True
+       ; sortOrderSelect <- mkSelectView ["Oplopend", "Aflopend"] sortOrder True
        
        
        ; sortedResultViews <- case results of
@@ -277,12 +277,12 @@ mkResultsView namedSortFunctions results = mkWebView $
                                 _  -> return $ map snd $ (if sortOrder == 0 then id else reverse) $ 
                                                          sortBy (sortFunctions !! sortField `on` fst) $ results
     
-       ; return $ ResultsView sortFieldRadio sortOrderRadio sortedResultViews
+       ; return $ ResultsView sortFieldSelect sortOrderSelect sortedResultViews
        }
 
 instance Presentable (ResultsView db) where
-  present (ResultsView sortFieldRadio sortOrderRadio webViews) = 
-    vList $ hList [present sortFieldRadio, present sortOrderRadio] : map present webViews 
+  present (ResultsView sortFieldSelect sortOrderSelect webViews) = 
+    vList $ hList [present sortFieldSelect, present sortOrderSelect] : map present webViews 
 
 data SearchView db = 
   SearchView (Widget (TextView db)) (Widget (Button db)) (WebView db) String 
@@ -302,7 +302,7 @@ mkSearchView resultsf = mkWebView $
        ; results <- resultsf searchTerm
        ; return $ SearchView searchField searchButton results $ "" {-
                   jsScript $ --"/*"++show (ctSec ct)++"*/" ++
-                    let navigateAction = jsNavigateTo $ "'leners/'+"++jsGetWidgetValue searchField++";"
+                    let navigateAction = jsNavigateTo $ "'/#leners/'+"++jsGetWidgetValue searchField++";"
                     in  [ inertTextView searchField
                         , onClick searchButton navigateAction
                         , onSubmit searchField navigateAction
@@ -399,12 +399,12 @@ instance Presentable ItemView where
 linkedItemName item@Item{itemId = ItemId i} = linkedItem item $ toHtml (itemName item)
 
 linkedItem item@Item{itemId = ItemId login} html = 
-  a ! (href $ (toValue $ "/spullen/" ++ (show login))) << html
+  a ! (href $ (toValue $ "/#item/" ++ (show login))) << html
 
 linkedLenderName lender@Lender{lenderId = LenderId login} = linkedLender lender $ toHtml login
   
 linkedLender lender@Lender{lenderId = LenderId login} html = 
-  a! (href $ (toValue $ "/lener/" ++ login)) << html
+  a! (href $ (toValue $ "/#lener/" ++ login)) << html
 
 mkLeenclubPage html = 
     mkPage [thestyle "background-color: #e0e0e0; font-family: arial"] $ 

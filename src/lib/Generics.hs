@@ -29,6 +29,7 @@ webNodeQ = (Nothing `mkQ`  (\w -> Just $ WebViewNode w)
                     `extQ` (\w@(Widget stbid id x) -> Just $ let vi = getViewId x in WidgetNode vi stbid id (LabelWidget x))
                     `extQ` (\w@(Widget stbid id x) -> Just $ let vi = getViewId x in WidgetNode vi stbid id (TextWidget x))
                     `extQ` (\w@(Widget stbid id x) -> Just $ let vi = getViewId x in WidgetNode vi stbid id (RadioViewWidget x))
+                    `extQ` (\w@(Widget stbid id x) -> Just $ let vi = getViewId x in WidgetNode vi stbid id (SelectViewWidget x))
                     `extQ` (\w@(Widget stbid id x) -> Just $ let vi = getViewId x in WidgetNode vi stbid id (ButtonWidget x))
                     `extQ` (\w@(Widget stbid id x) -> Just $ let vi = getViewId x in WidgetNode vi stbid id (JSVarWidget x))
            )              -- TODO can we do this bettter?
@@ -39,6 +40,7 @@ webNodeLstQ = (Nothing `mkQ`  (\ws -> Just [ WebViewNode w | w <- ws ])
  `extQ` (\ws -> Just $ map (\w@(Widget stbid id x) -> let vi = getViewId x in WidgetNode vi stbid id (LabelWidget x)) ws)
  `extQ` (\ws -> Just $ map (\w@(Widget stbid id x) -> let vi = getViewId x in WidgetNode vi stbid id (TextWidget x)) ws)
  `extQ` (\ws -> Just $ map (\w@(Widget stbid id x) -> let vi = getViewId x in WidgetNode vi stbid id (RadioViewWidget x)) ws)
+ `extQ` (\ws -> Just $ map (\w@(Widget stbid id x) -> let vi = getViewId x in WidgetNode vi stbid id (SelectViewWidget x)) ws)
  `extQ` (\ws -> Just $ map (\w@(Widget stbid id x) -> let vi = getViewId x in WidgetNode vi stbid id (ButtonWidget x)) ws)
  `extQ` (\ws -> Just $ map (\w@(Widget stbid id x) -> let vi = getViewId x in WidgetNode vi stbid id (JSVarWidget x)) ws)
            )              -- TODO can we do this bettter?
@@ -62,6 +64,7 @@ mkWebNodeMap x = Map.fromList $ everything (++)
       `extQ` (\(Widget sid id w) -> let vid = getViewId w in [(vid, WidgetNode vid sid id $ LabelWidget w)])
       `extQ` (\(Widget sid id w) -> let vid = getViewId w in [(vid, WidgetNode vid sid id $ TextWidget w)])
       `extQ` (\(Widget sid id w) -> let vid = getViewId w in [(vid, WidgetNode vid sid id $ RadioViewWidget w)])
+      `extQ` (\(Widget sid id w) -> let vid = getViewId w in [(vid, WidgetNode vid sid id $ SelectViewWidget w)])
       `extQ` (\(Widget sid id w) -> let vid = getViewId w in [(vid, WidgetNode vid sid id $ ButtonWidget w)])
       `extQ` (\(Widget sid id w) -> let vid = getViewId w in [(vid, WidgetNode vid sid id $ JSVarWidget w)])
   ) x    
@@ -151,7 +154,7 @@ webViewGetInternalIds (WebView _ _ _ _ v) =
       isId :: Id -> Bool
       isId _ = True
       stop :: GenericQ Bool
-      stop = False `mkQ` isWebView `extQ` isWidget1 `extQ` isWidget2 `extQ` isWidget3 `extQ` isWidget4 `extQ` isWidget5
+      stop = False `mkQ` isWebView `extQ` isWidget1 `extQ` isWidget2 `extQ` isWidget3 `extQ` isWidget4 `extQ` isWidget5 `extQ` isWidget6
       isWebView :: WebView  db -> Bool -- TODO: aargh! just one is tricky with the type var in widget
       isWebView _ = True
       isWidget1 :: Widget LabelView -> Bool
@@ -160,10 +163,12 @@ webViewGetInternalIds (WebView _ _ _ _ v) =
       isWidget2 _ = True
       isWidget3 :: Widget RadioView -> Bool
       isWidget3 _ = True
-      isWidget4 :: Widget (Button db) -> Bool
+      isWidget4 :: Widget SelectView -> Bool
       isWidget4 _ = True
-      isWidget5 :: Widget JSVar -> Bool
+      isWidget5 :: Widget (Button db) -> Bool
       isWidget5 _ = True
+      isWidget6 :: Widget JSVar -> Bool
+      isWidget6 _ = True
   in  listifyBut isId stop v 
 
 -- a GenericQ is easier in the callee code, but not as nice for the caller
@@ -220,6 +225,7 @@ type Updates = Map ViewId String  -- maps id's to the string representation of t
 replace :: forall db d . (Typeable db, Data d) => db -> Updates -> d -> d
 replace _ updates v = (everywhere $  mkT    (replaceText updates :: TextView db -> TextView db)
                                      `extT` replaceRadioView updates
+                                     `extT` replaceSelectView updates
                                      `extT` replaceJSVar updates) v
 
 replaceJSVar :: Updates -> JSVar -> JSVar
@@ -238,6 +244,12 @@ replaceRadioView :: Updates -> RadioView -> RadioView
 replaceRadioView updates x@(RadioView i is _ en) =
   case Map.lookup i updates of
     Just str -> (RadioView i is (read str) en)
+    Nothing -> x
+
+replaceSelectView :: Updates -> SelectView -> SelectView
+replaceSelectView updates x@(SelectView i is _ en) =
+  case Map.lookup i updates of
+    Just str -> (SelectView i is (read str) en)
     Nothing -> x
 
 substituteIds :: Data x => [(Id, Id)] -> x -> x 

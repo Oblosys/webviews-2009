@@ -492,6 +492,13 @@ function TextViewScript(viewId) {
     this.onKeyUp  = function () {};
 }
 
+function SelectScript(viewId) {
+  this.viewId = viewId;
+  this.onFocus  = function () {elementGotFocus(viewId)};
+  this.onChange = function () {var i = document.getElementById(viewId).selectedIndex; queueCommand('SetC ('+viewId+') "'+i+'"')};
+}
+
+
 --></script>
 
 <body style="padding:0px; margin:0px">
