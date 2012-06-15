@@ -5,8 +5,9 @@
   margin: 0px 0px 0px 0px;
   padding: 3px;
   /* Rounded corner stuff starts here */
-  -webkit-border-radius: 6px;    /* for Safari */
-  -moz-border-radius: 6px;       /* for Firefox */
+  border-radius: 6px;            /* standard */
+  -webkit-border-radius: 6px;    /* for older Safari */
+  -moz-border-radius: 6px;       /* for older Firefox (<13) */
 }
 
 .tab
@@ -19,9 +20,11 @@
   margin: 0px;
   padding: 5px 10px;
   /* Rounded corner stuff starts here */
-  -webkit-border-top-left-radius: 6px;    /* for Safari */
-  -moz-border-radius-topleft: 6px;       /* for Firefox */
-  -webkit-border-top-right-radius: 6px;    /* for Safari */
-  -moz-border-radius-topright: 6px;       /* for Firefox */
+  border-top-left-radius: 6px;            /* standard */
+  border-top-right-radius: 6px;           /* standard */
+  -webkit-border-top-left-radius: 6px;    /* for older Safari */
+  -webkit-border-top-right-radius: 6px;   /* for older Safari */
+  -moz-border-radius-topleft: 6px;        /* for older Firefox (<13) */
+  -moz-border-radius-topright: 6px;       /* for older Firefox (<13) */
 }
 
