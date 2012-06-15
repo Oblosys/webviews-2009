@@ -41,24 +41,45 @@ var focusedElementId = '';
 var timer;
 
 $(document).ready(function(){
-	init();
+	initCheckHash();
+  init();
 });
 
 function init() {
-	// split url:  http:webviews.somewhere.com/rootView/arg0/arg1/../argn#anchorArg0/anchorArg1/../anchorArgm
-	var pathAndAnchor = document.location.href.split('#');
-		  
-	var pathElts = pathAndAnchor[0].split('/');
-	var rootView = pathElts[3];
-  var args = showHaskellList(pathElts.slice(4,pathElts.length)); 
+	var rva = getRootViewAndArgs()
+  
+  queueCommand('Init "'+rva.rootView+'" '+rva.args);
+}
 
-  var anchorElts = pathAndAnchor[1] ? pathAndAnchor[1].split('/') : new Array ();
-  var anchorArgs = showHaskellList(anchorElts); 
-  //dlog("Anchor args"+anchorArgs); 
-  // anchor args are not yet used. When they will be, we need to check for hash-change events:
-  // http://benalman.com/projects/jquery-hashchange-plugin/
+// For hash events, we could also use http://benalman.com/projects/jquery-hashchange-plugin/, but it's more complex
+// and does not seem to be maintained regularly. This simple though maybe slightly less efficient solution will always work.
+var currentHash;
 
-  queueCommand('Init "'+rootView+'" '+args);
+function initCheckHash() {
+	currentHash = window.location.hash;
+	setInterval("checkHash()", 200);  
+}
+
+function checkHash() {
+  if (window.location.hash != currentHash) {
+  	currentHash = window.location.hash;
+  	hashUpdate();
+  }	
+}
+
+function hashUpdate() {
+  var rva = getRootViewAndArgs()
+  queueCommand('HashUpdate "'+rva.rootView+'" '+rva.args);
+}
+
+function getRootViewAndArgs() {
+  // split url:  http:webviews.somewhere.com/rootView/arg0/arg1/../argn#anchorArg0/anchorArg1/../anchorArgm
+  var hash = window.location.hash.slice(1); // get rid of # (will not give error when hash is "")
+      
+  var hashElts = hash.split('/');
+  var rootView = hashElts.length == 0 ? '' : hashElts[0];
+  var args = showHaskellList(hashElts.slice(1)); 
+  return { "rootView": rootView, "args": args };
 }
 
 function showHaskellList(array) {

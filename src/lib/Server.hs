@@ -182,14 +182,11 @@ handlers rootViews dbFilename theDatabase users serverSessionId globalStateRef =
                             ; liftIO $ putStrLn $ "RequestId: "++show (requestId :: Int)
                             ; method GET >> nullDir >> session rootViews dbFilename theDatabase users serverSessionId globalStateRef requestId cmds
                             })
-  , path $ \rootViewName -> uriRest $ \(args :: String) -> serveRootPage rootViewName (filter (not . null) $ splitOn "/" args)
-  , serveRootPage "" []
+  , serveRootPage -- this generates an init event, which will handle hash arguments
   ] 
- where serveRootPage :: String -> [String] -> ServerPart Response
-       serveRootPage rootViewName args =
-             -- we don't need to do anything with the rootViewName here, since the client takes the view name from the
-             -- browser url and passes it along with the Init event
-        do { liftIO $ putStrLn $ "Root requested "++rootViewName ++ " with args "++show args
+ where serveRootPage :: ServerPart Response
+       serveRootPage =
+        do { liftIO $ putStrLn $ "Root requested"
            ; serveFile (asContentType "text/html") "scr/WebViews.html"
            } 
     
@@ -414,7 +411,15 @@ mkRootView rootViews rootViewName args user db sessionId viewMap =
 
 handleCommand :: Data db => [ (String, SessionId -> [String] -> WebViewM db (WebView db))] -> Map String (String, String) -> SessionStateRef db -> Command -> IO ServerResponse
 handleCommand rootViews _ sessionStateRef (Init rootViewName args) =
- do { putStrLn $ "Init "++show rootViewName ++ " " ++ show args
+ do { putStrLn $ "Init " ++ show rootViewName ++ " " ++ show args
+    ; (sessionId, user, db, oldRootView, _) <- readIORef sessionStateRef
+    ; rootView <- liftIO $ mkRootView rootViews rootViewName args user db sessionId (mkViewMap oldRootView)
+    ; setRootView sessionStateRef rootView
+     
+    ; return ViewUpdate
+    }
+handleCommand rootViews _ sessionStateRef (HashUpdate rootViewName args) = -- fired when hash hash changed in client
+ do { putStrLn $ "HashUpdate " ++ show rootViewName ++ " " ++ show args
     ; (sessionId, user, db, oldRootView, _) <- readIORef sessionStateRef
     ; rootView <- liftIO $ mkRootView rootViews rootViewName args user db sessionId (mkViewMap oldRootView)
     ; setRootView sessionStateRef rootView

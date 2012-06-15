@@ -23,7 +23,10 @@ data Commands = Commands [Command]
 getCommands (Commands cs) = cs
 getCommands _             = []
 
-data Command = Init String [String] | Refresh | Test 
+data Command = Init       String [String] -- rootView args    http://webviews.com/#rootView/arg0/arg1/../argn
+             | HashUpdate String [String] -- rootView args    http://webviews.com/#rootView/arg0/arg1/../argn
+             | Refresh 
+             | Test 
              | SetC ViewId String 
              | ButtonC ViewId
              | SubmitC ViewId
