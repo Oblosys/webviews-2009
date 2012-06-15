@@ -91,24 +91,36 @@ type ServerInstanceId = EpochTime
 
 type SessionCounter = Int
 
-type Sessions db = IntMap (User, WebView db, Maybe (EditCommand db))
+type Sessions db = IntMap (User, WebView db, Maybe (EditCommand db), [String])
 
 type SessionStateRef db = IORef (SessionState db)
 
 getRootView :: SessionStateRef db -> IO (WebView db)
 getRootView sessionStateRef =
- do { (_, _, _, rootView, _) <- readIORef sessionStateRef
+ do { (_, _, _, rootView, _, _) <- readIORef sessionStateRef
     ; return rootView
     }
  
 setRootView :: SessionStateRef db -> WebView db -> IO ()
 setRootView sessionStateRef rootView =
- do { (sessionId, user, db, _, pendingEdit) <- readIORef sessionStateRef
-    ; writeIORef sessionStateRef (sessionId, user, db, rootView, pendingEdit)
+ do { (sessionId, user, db, _, pendingEdit, hashArgs) <- readIORef sessionStateRef
+    ; writeIORef sessionStateRef (sessionId, user, db, rootView, pendingEdit, hashArgs)
+    }
+
+getSessionHashArgs :: SessionStateRef db -> IO [String]
+getSessionHashArgs sessionStateRef =
+ do { (_, _, _, _, _, hashArgs) <- readIORef sessionStateRef
+    ; return hashArgs
     }
  
+setSessionHashArgs :: SessionStateRef db -> [String] -> IO ()
+setSessionHashArgs sessionStateRef hashArgs =
+ do { (sessionId, user, db, rootView, pendingEdit, _) <- readIORef sessionStateRef
+    ; writeIORef sessionStateRef (sessionId, user, db, rootView, pendingEdit, hashArgs)
+    }
+
 server :: (Data db, Typeable db, Show db, Read db, Eq db) =>
-          [ (String, SessionId -> [String] -> WebViewM db (WebView db)) ] -> String -> IO (db) -> Map String (String, String) -> IO ()
+          RootViews db -> String -> IO (db) -> Map String (String, String) -> IO ()
 server rootViews dbFilename mkInitialDatabase users =
  do { hSetBuffering stdout NoBuffering -- necessary to run server in Eclipse
     ; time <- getClockTime
@@ -167,7 +179,7 @@ instance FromData Int where
 
 readInt s = fromMaybe (-1) (safeRead s)
 
-handlers :: (Data db, Show db, Eq db) => [ (String, SessionId -> [String] -> WebViewM db (WebView db)) ] -> String -> db -> Map String (String, String) -> ServerInstanceId -> GlobalStateRef db -> [ServerPart Response]
+handlers :: (Data db, Show db, Eq db) => RootViews db -> String -> db -> Map String (String, String) -> ServerInstanceId -> GlobalStateRef db -> [ServerPart Response]
 handlers rootViews dbFilename theDatabase users serverSessionId globalStateRef = 
   [ dir "favicon.ico" $ serveDirectory DisableBrowsing [] "favicon.ico"
   , dir "scr" $ serveDirectory DisableBrowsing [] "scr"  
@@ -214,7 +226,7 @@ Set-Cookie: webviews="(1242497513,2)";Max-Age=3600;Path=/;Version="1"
 
 type SessionCookie = (String, String)
 
-session :: (Data db, Show db, Eq db) => [ (String, SessionId -> [String] -> WebViewM db (WebView db)) ] -> String -> db -> Map String (String, String) -> ServerInstanceId -> GlobalStateRef db -> Int -> Commands -> ServerPart Response
+session :: (Data db, Show db, Eq db) => RootViews db -> String -> db -> Map String (String, String) -> ServerInstanceId -> GlobalStateRef db -> Int -> Commands -> ServerPart Response
 session rootViews dbFilename theDatabase users serverInstanceId globalStateRef requestId cmds =
  do { mCookieSessionId <- parseCookieSessionId serverInstanceId
       
@@ -252,7 +264,7 @@ parseCookieSessionId serverInstanceId =
     }
 
 mkInitialRootView :: (Data db, Typeable db) => db -> IO (WebView db)
-mkInitialRootView theDatabase = runWebView Nothing theDatabase Map.empty [] 0 $ mkWebView (\_ _ -> return ()) 
+mkInitialRootView theDatabase = runWebView Nothing theDatabase Map.empty [] 0 [] $ mkWebView (\_ _ -> return ()) 
 
 -- this creates a WebView with stubid 0 and id 1
 -- for now, we count on that in the client
@@ -269,7 +281,7 @@ createNewSessionState theDatabase globalStateRef serverInstanceId =
  
     ; initialRootView <- liftIO $ mkInitialRootView theDatabase
                          
-    ; let newSession = (Nothing, initialRootView, Nothing)
+    ; let newSession = (Nothing, initialRootView, Nothing, [])
     ; let sessions' = IntMap.insert sessionId newSession sessions
    
     ; liftIO $ writeIORef globalStateRef (database, sessions', sessionCounter + 1)
@@ -285,24 +297,24 @@ retrieveSessionState globalStateRef sessionId =
                              Nothing                      -> do { lputStrLn "\n\n\n\nInternal error: Session not found\n\n\n\n\n"
                                                                 ; error "Internal error: Session not found"
                                                                 }
-                             Just (user, rootView, pendingEdit) -> 
-                               return (sessionId, user, database, rootView, pendingEdit)
+                             Just (user, rootView, pendingEdit, hashArgs) -> 
+                               return (sessionId, user, database, rootView, pendingEdit, hashArgs)
     ; liftIO $ newIORef sessionState
     }      
  
 storeSessionState :: GlobalStateRef db -> SessionId -> SessionStateRef db -> ServerPart ()
 storeSessionState globalStateRef sessionId sessionStateRef =
  do { (_, sessions, sessionCounter) <- liftIO $ readIORef globalStateRef
-    ; (_, user', database', rootView', pendingEdit') <- liftIO $ readIORef sessionStateRef
-    ; let sessions' = IntMap.insert sessionId (user', rootView', pendingEdit') sessions                                          
+    ; (_, user', database', rootView', pendingEdit', hashArgs) <- liftIO $ readIORef sessionStateRef
+    ; let sessions' = IntMap.insert sessionId (user', rootView', pendingEdit', hashArgs) sessions                                          
     ; liftIO $ writeIORef globalStateRef (database', sessions', sessionCounter)
     }
  
-sessionHandler :: (Data db, Show db, Eq db) => [ (String, SessionId -> [String] -> WebViewM db (WebView db)) ] -> String -> db -> Map String (String, String) -> SessionStateRef db -> Int -> Commands -> ServerPart Html
+sessionHandler :: (Data db, Show db, Eq db) => RootViews db -> String -> db -> Map String (String, String) -> SessionStateRef db -> Int -> Commands -> ServerPart Html
 sessionHandler rootViews dbFilename theDatabase users sessionStateRef requestId cmds = liftIO $  
  do { --putStrLn $ "Received commands" ++ show cmds
     
-    ; (_, _, db, oldRootView', _) <- readIORef sessionStateRef
+    ; (_, _, db, oldRootView', _, _) <- readIORef sessionStateRef
     
     ; let isInitCommand (Init _ _) = True
           isInitCommand _          = False
@@ -322,7 +334,7 @@ sessionHandler rootViews dbFilename theDatabase users sessionStateRef requestId 
               -- this is the modified rootView                      
                                     
             -- save the database if there was a change
-            ; (_, _, db', _, _) <- readIORef sessionStateRef
+            ; (_, _, db', _, _, _) <- readIORef sessionStateRef
             ; if db /= db' then 
                do { fh <- openFile dbFilename WriteMode
                   ; hPutStr fh $ show db'
@@ -402,26 +414,28 @@ handleCommands rootViews users sessionStateRef (Commands commands) =
       --       make sure that id's are not generated between commands
 
 
-mkRootView ::Data db => [ (String, SessionId -> [String] -> WebViewM db (WebView db))] -> String -> [String] -> User -> db -> Int -> ViewMap db -> IO (WebView db)
+mkRootView ::Data db => RootViews db -> String -> [String] -> User -> db -> Int -> ViewMap db -> IO (WebView db)
 mkRootView rootViews rootViewName args user db sessionId viewMap =
-  fmap assignIds $ runWebView user db viewMap [] 0 $ mkMainView sessionId args
+  fmap assignIds $ runWebView user db viewMap [] 0 args $ mkMainView sessionId
  where mkMainView = case lookup rootViewName rootViews of
                       Nothing -> error $ "Unknown view: "++rootViewName
                       Just mkV -> mkV
 
-handleCommand :: Data db => [ (String, SessionId -> [String] -> WebViewM db (WebView db))] -> Map String (String, String) -> SessionStateRef db -> Command -> IO ServerResponse
-handleCommand rootViews _ sessionStateRef (Init rootViewName args) =
- do { putStrLn $ "Init " ++ show rootViewName ++ " " ++ show args
-    ; (sessionId, user, db, oldRootView, _) <- readIORef sessionStateRef
-    ; rootView <- liftIO $ mkRootView rootViews rootViewName args user db sessionId (mkViewMap oldRootView)
+handleCommand :: Data db => RootViews db -> Map String (String, String) -> SessionStateRef db -> Command -> IO ServerResponse
+handleCommand rootViews _ sessionStateRef (Init rootViewName hashArgs) =
+ do { putStrLn $ "Init " ++ show rootViewName ++ " " ++ show hashArgs
+    ; setSessionHashArgs sessionStateRef hashArgs
+    ; (sessionId, user, db, oldRootView, _, _) <- readIORef sessionStateRef
+    ; rootView <- liftIO $ mkRootView rootViews rootViewName hashArgs user db sessionId (mkViewMap oldRootView)
     ; setRootView sessionStateRef rootView
      
     ; return ViewUpdate
     }
-handleCommand rootViews _ sessionStateRef (HashUpdate rootViewName args) = -- fired when hash hash changed in client
- do { putStrLn $ "HashUpdate " ++ show rootViewName ++ " " ++ show args
-    ; (sessionId, user, db, oldRootView, _) <- readIORef sessionStateRef
-    ; rootView <- liftIO $ mkRootView rootViews rootViewName args user db sessionId (mkViewMap oldRootView)
+handleCommand rootViews _ sessionStateRef (HashUpdate rootViewName hashArgs) = -- fired when hash hash changed in client
+ do { putStrLn $ "HashUpdate " ++ show rootViewName ++ " " ++ show hashArgs
+    ; setSessionHashArgs sessionStateRef hashArgs
+    ; (sessionId, user, db, oldRootView, _, _) <- readIORef sessionStateRef
+    ; rootView <- liftIO $ mkRootView rootViews rootViewName hashArgs user db sessionId (mkViewMap oldRootView)
     ; setRootView sessionStateRef rootView
      
     ; return ViewUpdate
@@ -432,11 +446,11 @@ handleCommand _ _ sessionStateRef Refresh =
     ; return ViewUpdate
     }
 handleCommand _ _ sessionStateRef Test =
- do { (_, user, db, rootView, _) <- readIORef sessionStateRef
+ do { (_, user, db, rootView, _, _) <- readIORef sessionStateRef
     ; return ViewUpdate
     }
 handleCommand _ _ sessionStateRef (SetC viewId value) =
- do { (sessionId, user, db, rootView, pendingEdit) <- readIORef sessionStateRef      
+ do { (sessionId, user, db, rootView, pendingEdit, hashArgs) <- readIORef sessionStateRef      
     ; putStrLn $ "Performing: "++show (SetC viewId value)
 
     --; putStrLn $ "RootView:\n" ++ show rootView ++"\n\n\n\n\n"
@@ -445,12 +459,12 @@ handleCommand _ _ sessionStateRef (SetC viewId value) =
     ; let db' = save rootView' db
       -- TODO: check if mkViewMap has correct arg
     -- TODO: instead of updating all, just update the one that was changed
-    ; writeIORef sessionStateRef (sessionId, user, db', rootView', pendingEdit)
+    ; writeIORef sessionStateRef (sessionId, user, db', rootView', pendingEdit, hashArgs)
     ; reloadRootView sessionStateRef
     ; return ViewUpdate
     }
 handleCommand _  users sessionStateRef (ButtonC viewId) =
- do { (_, user, db, rootView, pendingEdit) <- readIORef sessionStateRef
+ do { (_, user, db, rootView, pendingEdit, hashArgs) <- readIORef sessionStateRef
     ; case getButtonByViewId viewId rootView of
         Just (Button _ txt _ _ _ act) ->    
          do { putStrLn $ "Button #" ++ show viewId ++ ":" ++ txt ++ " was clicked"
@@ -465,7 +479,7 @@ handleCommand _  users sessionStateRef (ButtonC viewId) =
             }
     }
 handleCommand _ users sessionStateRef (SubmitC viewId) =
- do { (_, user, db, rootView, pendingEdit) <- readIORef sessionStateRef
+ do { (_, user, db, rootView, pendingEdit, hashArgs) <- readIORef sessionStateRef
     ; let TextView _ _ txt mAct = getTextByViewId viewId rootView
     ; putStrLn $ "TextView #" ++ show viewId ++ ":" ++ txt ++ " was submitted"
 
@@ -476,7 +490,7 @@ handleCommand _ users sessionStateRef (SubmitC viewId) =
     ; return response
     }
 handleCommand _ users sessionStateRef (PerformEditActionC viewId args) =
- do { (_, user, db, rootView, pendingEdit) <- readIORef sessionStateRef
+ do { (_, user, db, rootView, pendingEdit, hashArgs) <- readIORef sessionStateRef
     ; let EditAction _ act = getEditActionByViewId viewId rootView
     ; putStrLn $ "EditAction with ViewId "++show viewId ++ " was executed"
 
@@ -485,8 +499,8 @@ handleCommand _ users sessionStateRef (PerformEditActionC viewId args) =
     ; return response
     }
 handleCommand _ users sessionStateRef ConfirmDialogOk =
- do { (sessionId, user, db, rootView, pendingEdit) <- readIORef sessionStateRef
-    ; writeIORef sessionStateRef (sessionId, user, db, rootView, Nothing) -- clear it, also in case of error
+ do { (sessionId, user, db, rootView, pendingEdit, hashArgs) <- readIORef sessionStateRef
+    ; writeIORef sessionStateRef (sessionId, user, db, rootView, Nothing, hashArgs) -- clear it, also in case of error
     ; response <- case pendingEdit of
                     Nothing -> return ViewUpdate -- error "ConfirmDialogOk event without active dialog"
                     Just ec -> performEditCommand users sessionStateRef ec
@@ -495,18 +509,19 @@ handleCommand _ users sessionStateRef ConfirmDialogOk =
  
 reloadRootView :: Data db => SessionStateRef db -> IO ()
 reloadRootView sessionStateRef =
- do { (sessionId, user, db, rootView, pendingEdit) <- readIORef sessionStateRef
-    ; rootView' <- evalStateT (loadView rootView) (WebViewState user db (mkViewMap rootView) [] 0)
+ do { (sessionId, user, db, rootView, pendingEdit, hashArgs) <- readIORef sessionStateRef
+    ; 
+    ; rootView' <- evalStateT (loadView rootView) (WebViewState user db (mkViewMap rootView) [] 0 hashArgs)
  -- TODO this 0 does not seem right BUG
-    ; writeIORef sessionStateRef (sessionId, user, db, rootView', pendingEdit)
+    ; writeIORef sessionStateRef (sessionId, user, db, rootView', pendingEdit, hashArgs)
     } 
  
 performEditCommand users  sessionStateRef command =
- do { (sessionId, user, db, rootView, pendingEdit) <- readIORef sessionStateRef
+ do { (sessionId, user, db, rootView, pendingEdit, hashArgs) <- readIORef sessionStateRef
     ; case command of  
             AlertEdit str -> return $ Alert str
             ConfirmEdit str ec -> 
-             do { writeIORef sessionStateRef (sessionId, user, db, rootView, Just ec)
+             do { writeIORef sessionStateRef (sessionId, user, db, rootView, Just ec, hashArgs)
                 ; return $ Confirm str
                 }
             AuthenticateEdit userViewId passwordViewId -> authenticate users  sessionStateRef userViewId passwordViewId
@@ -524,7 +539,7 @@ performEdit sessionStateRef edit  =
     }
 
 authenticate users sessionStateRef userEStringViewId passwordEStringViewId =
- do { (sessionId, user, db, rootView, pendingEdit) <- readIORef sessionStateRef
+ do { (sessionId, user, db, rootView, pendingEdit, hashArgs) <- readIORef sessionStateRef
     ; let userName = getTextByViewIdRef db{-dummy arg-} userEStringViewId rootView
           enteredPassword = getTextByViewIdRef db{-dummy arg-} passwordEStringViewId rootView
     ; case Map.lookup userName users of
@@ -533,7 +548,7 @@ authenticate users sessionStateRef userEStringViewId passwordEStringViewId =
                                       do { putStrLn $ "User "++userName++" authenticated"
                                          ; writeIORef sessionStateRef 
                                              (sessionId, Just (userName, fullName)
-                                             , db, rootView, pendingEdit)
+                                             , db, rootView, pendingEdit, hashArgs)
                                          ; reloadRootView sessionStateRef
                                          ; return ViewUpdate
                                          }
@@ -546,8 +561,8 @@ authenticate users sessionStateRef userEStringViewId passwordEStringViewId =
                       }
     }
 logout sessionStateRef =
- do { (sessionId, user, db, rootView, pendingEdit) <- readIORef sessionStateRef
-    ; writeIORef sessionStateRef (sessionId, Nothing, db, rootView, pendingEdit)
+ do { (sessionId, user, db, rootView, pendingEdit, hashArgs) <- readIORef sessionStateRef
+    ; writeIORef sessionStateRef (sessionId, Nothing, db, rootView, pendingEdit, hashArgs)
     ; reloadRootView sessionStateRef
     ; return ViewUpdate
     }  

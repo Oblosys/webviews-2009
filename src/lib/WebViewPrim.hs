@@ -60,26 +60,30 @@ instance Data db => Storeable db (WebView db) where
 
 ---- Monad stuff
 
-runWebView user db viewMap path viewIdCounter wvm =
- do { rv <- evalStateT wvm (WebViewState user db viewMap path viewIdCounter)
+runWebView user db viewMap path viewIdCounter args wvm =
+ do { rv <- evalStateT wvm (WebViewState user db viewMap path viewIdCounter args)
     ; return $ assignIds rv
     }
 
 
-withDb f = do { (WebViewState _ db _ _ _) <- get
+withDb f = do { (WebViewState _ db _ _ _ _) <- get
               ; return $ f db
               }
 
 
 getUser :: WebViewM db User 
-getUser = do { (WebViewState u _ _ _ _) <- get
+getUser = do { (WebViewState u _ _ _ _ _) <- get
              ; return u
              }
 
+getHashArgs :: WebViewM db [String]
+getHashArgs = do { (WebViewState _ _ _ _ _ as) <- get
+                 ; return as
+                 }
 
 liftS :: ([Int] -> Int -> (x,Int)) -> WebViewM db x
-liftS f = StateT (\(WebViewState user db viewMap path i) -> 
-                   (return $ let (x, i')= f path i in (x, WebViewState user db viewMap path i')))
+liftS f = StateT (\(WebViewState user db viewMap path i has) -> 
+                   (return $ let (x, i')= f path i in (x, WebViewState user db viewMap path i' has)))
 
 assignViewId :: (ViewId -> v) -> WebViewM db v
 assignViewId viewConstr = liftS $ \path vidC -> (viewConstr (ViewId $ path ++ [vidC]), vidC +1)
@@ -169,20 +173,20 @@ mkTestView v = mkView $
 
 docEdit :: (db -> db) -> EditM db ()
 docEdit docUpdate =
- do { (sessionId, user, db, rootView, pendingEdit) <- get
-    ; put (sessionId, user, docUpdate db, rootView, pendingEdit)
+ do { (sessionId, user, db, rootView, pendingEdit, hashArgs) <- get
+    ; put (sessionId, user, docUpdate db, rootView, pendingEdit, hashArgs)
     }
 
 viewEdit :: (Typeable db, Data db, Data v) => ViewId -> (v -> v) -> EditM db ()
 viewEdit vid viewUpdate =
-  do{ (sessionId, user, db, rootView, pendingEdit) <- get
+  do{ (sessionId, user, db, rootView, pendingEdit, hashArgs) <- get
     ; let webViewUpdate = \(WebView vi si i lv v) ->
                             WebView vi si i lv $ applyIfCorrectType viewUpdate v
           wv = getWebViewById vid rootView
           wv' = webViewUpdate wv
           rootView' = replaceWebViewById vid wv' rootView 
                           
-    ; put (sessionId, user, save rootView' db, rootView', pendingEdit)
+    ; put (sessionId, user, save rootView' db, rootView', pendingEdit, hashArgs)
     }
 
 -- TODO save automatically, or maybe require explicit save? (after several view updates)
@@ -196,7 +200,7 @@ applyIfCorrectType f x = case cast f of
 -- Experimental, not sure if we need this one and if it works correctly
 withView :: forall db v a . (Typeable db, Data db, Data v, Typeable a) => ViewId -> (v->a) -> EditM db (Maybe a)
 withView vid f =
-  do{ (sessionId, user, db, rootView, pendingEdit) <- get
+  do{ (sessionId, user, db, rootView, pendingEdit, hashArgs) <- get
     ; let wf = \(WebView vi si i lv v) -> case cast f of
                                             Nothing -> Nothing
                                             Just castf -> Just $ castf v
@@ -210,9 +214,9 @@ withView vid f =
 -- like in Proxima
 loadView :: WebView db -> WebViewM db (WebView db)
 loadView (WebView _ si i mkView oldView') =
- do { state@(WebViewState user db viewMap path viewIdCounter) <- get
+ do { state@(WebViewState user db viewMap path viewIdCounter has) <- get
     ; let newViewId = ViewId $ path ++ [viewIdCounter]                             
-    ; put $ WebViewState user db viewMap (path++[viewIdCounter]) 0
+    ; put $ WebViewState user db viewMap (path++[viewIdCounter]) 0 has
     ; let oldView = case lookupOldView newViewId viewMap of
                       Just oldView -> oldView
                       Nothing      -> oldView' -- this will be initial
@@ -267,7 +271,7 @@ Note that the zeros after the uniques are added due to the way mkWebview and loa
 -}
 uniqueIds :: [(Int, WebViewM db (WebView db))] -> WebViewM db [WebView db]
 uniqueIds idsMkWvs =
- do { state@(WebViewState user db viewMap path viewIdCounter) <- get
+ do { state@(WebViewState user db viewMap path viewIdCounter has) <- get
     ; put $ state { getStatePath = path++[viewIdCounter], getStateViewIdCounter = 0 } 
       -- 0 is not used, it will be replaced by the unique ids
       
@@ -516,7 +520,7 @@ callServerEditAction ea args = "queueCommand('PerformEditActionC ("++show (getAc
 -- probably to be deleted, labels do not need to be accessed    
 getLabelContents :: forall db . Data db => Widget LabelView -> EditM db String
 getLabelContents text =
- do { (sessionId, user, db, rootView, pendingEdit) <- get
+ do { (sessionId, user, db, rootView, pendingEdit, hashArgs) <- get
     ; return $ getLabelContentsByViewIdRef (undefined :: db{-dummy arg-}) (widgetGetViewRef text) rootView
     } 
     
@@ -528,7 +532,7 @@ getLabelContentsByViewIdRef _ (ViewIdRef i) view =
 -- not sure if we'll need these, passing vars as arguments works for submit actions.
 getJSVarContents :: forall db . Data db => Widget JSVar -> EditM db String
 getJSVarContents text =
- do { (sessionId, user, db, rootView, pendingEdit) <- get
+ do { (sessionId, user, db, rootView, pendingEdit, hashArgs) <- get
     ; return $ getJSVarContentsByViewIdRef (undefined :: db{-dummy arg-}) (widgetGetViewRef text) rootView
     } 
     

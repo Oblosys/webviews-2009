@@ -399,6 +399,7 @@ instance Data db => Initial (WebView db) where
 data WebViewState db = 
   WebViewState { getStateUser :: User, getStateDb :: db, getStateViewMap :: (ViewMap db) 
                , getStatePath :: [Int], getStateViewIdCounter :: Int 
+               , getStateHashArgs :: [String]
                } deriving (Typeable, Data)
 
 type WebViewM db a = StateT (WebViewState db) IO a
@@ -406,11 +407,15 @@ type WebViewM db a = StateT (WebViewState db) IO a
 
 type SessionId = Int
 
-type SessionState db = (SessionId, User, db, WebView db, Maybe (EditCommand db)) 
-
+type SessionState db = (SessionId, User, db, WebView db, Maybe (EditCommand db), [String]) 
+                     --(sessionId, user, db, rootView,   pendingEdit,            hashArgs)
 type EditM db = StateT (SessionState db) IO 
 -- TODO: maybe call this one SessionM or something like that?
 --       it seems like we could use it in most of the functions in Server as well.
 
 instance Show (EditM db a) where
   show _ = "{EditM _}"
+  
+  
+type RootViews db = [ (String, SessionId -> WebViewM db (WebView db)) ]
+-- for keeping track of the root webviews

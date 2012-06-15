@@ -29,7 +29,7 @@ import TemplateHaskell
 main :: IO ()
 main = server rootViews "LeenclubDB.txt" mkInitialDatabase lenders
 
-rootViews :: [ (String, SessionId -> [String] -> WebViewM Database (WebView Database)) ]
+rootViews :: RootViews Database
 rootViews = [ ("", mkLendersRootView), ("test", mkTestView)
             , ("leners", mkLendersRootView), ("lener", mkLenderRootView)
             , ("items", mkItemsRootView), ("item", mkItemRootView) 
@@ -68,8 +68,8 @@ data TestView =
   TestView Int (Widget RadioView) (WebView Database) (WebView Database) 
     deriving (Eq, Show, Typeable, Data)
 
-mkTestView :: SessionId -> [String] -> WebViewM Database (WebView Database)
-mkTestView sessionId args = mkWebView $
+mkTestView :: SessionId -> WebViewM Database (WebView Database)
+mkTestView sessionId = mkWebView $
   \vid oldTestView@(TestView _ radioOld _ _) ->
     do { radio <-  mkRadioView ["Naaam", "Punten", "Drie"] (getSelection radioOld) True
        ; let radioSel = getSelection radioOld
@@ -105,10 +105,11 @@ data LendersRootView =
 
 instance Storeable Database LendersRootView
 
-mkLendersRootView :: SessionId -> [String] -> WebViewM Database (WebView Database)
-mkLendersRootView sessionId args = mkWebView $
+mkLendersRootView :: SessionId -> WebViewM Database (WebView Database)
+mkLendersRootView sessionId = mkWebView $
   \vid oldLenderView@(LendersRootView mSearchTerm tf _ _ radioOld _) ->
-    do { let searchTerm = case args of 
+    do { args <- getHashArgs 
+       ; let searchTerm = case args of 
                             []      -> ""
                             (arg:_) -> arg 
 --                                       getStrVal tf
@@ -136,7 +137,7 @@ mkLendersRootView sessionId args = mkWebView $
        
        ; liftIO $ putStrLn $ "sortField: " ++ (show $ getSelection radioOld)
        ; return $ LendersRootView mSearchTerm searchField searchButton sortedResultViews sortFieldRadio $
-                  jsScript $ --"/*"++show (ctSec ct)++"*/" ++
+                  jsScript $
                     let navigateAction = jsNavigateTo $ "'/#leners/'+"++jsGetWidgetValue searchField++";" -- 
                     in  [ inertTextView searchField -- todo make function to only change hash
                         , onClick searchButton navigateAction
@@ -157,15 +158,16 @@ instance Presentable LendersRootView where
 
 
 
-mkLenderRootView sessionId args = mkMaybeView "Onbekende lener" $
-  case args of
-    arg:_ -> do { mLender <- withDb $ \db -> Map.lookup (LenderId arg) (allLenders db)
-                ; case mLender of
-                    Nothing    -> return Nothing
-                    Just lender -> fmap Just $ mkLenderView Full lender
-                }
-    _        -> return Nothing
-
+mkLenderRootView sessionId = mkMaybeView "Onbekende lener" $
+  do { args <- getHashArgs 
+     ; case args of
+         arg:_ -> do { mLender <- withDb $ \db -> Map.lookup (LenderId arg) (allLenders db)
+                     ; case mLender of
+                         Nothing    -> return Nothing
+                         Just lender -> fmap Just $ mkLenderView Full lender
+                     }
+         _        -> return Nothing
+     }
 
 
 data Inline = Inline | Full deriving (Eq, Show, Typeable, Data)
@@ -229,8 +231,8 @@ data ItemsRootView =
 
 instance Storeable Database ItemsRootView
 
-mkItemsRootView :: SessionId -> [String] -> WebViewM Database (WebView Database)
-mkItemsRootView sessionId args = mkWebView $
+mkItemsRootView :: SessionId -> WebViewM Database (WebView Database)
+mkItemsRootView sessionId = mkWebView $
   \vid oldLenderView@(ItemsRootView _) ->
     do { let namedSortFunctions = [ ("Naam",     compare `on` itemName) 
                                   , ("Prijs",    compare `on` itemPrice)
@@ -300,13 +302,13 @@ mkSearchView resultsf = mkWebView $
        ; searchField <- mkTextFieldAct searchTerm $ Edit $ return ()
        ; searchButton <- mkButtonWithClick "Search" True $ const ""
        ; results <- resultsf searchTerm
-       ; return $ SearchView searchField searchButton results $ "" {-
-                  jsScript $ --"/*"++show (ctSec ct)++"*/" ++
-                    let navigateAction = jsNavigateTo $ "'/#leners/'+"++jsGetWidgetValue searchField++";"
-                    in  [ inertTextView searchField
+       ; return $ SearchView searchField searchButton results $
+                  jsScript $
+                    let navigateAction = jsNavigateTo $ "'/#items/'+"++jsGetWidgetValue searchField++";" -- 
+                    in  [ inertTextView searchField -- todo make function to only change hash
                         , onClick searchButton navigateAction
                         , onSubmit searchField navigateAction
-                        ] -}
+                        ]
        }
 
 instance Presentable (SearchView db) where
@@ -317,16 +319,17 @@ instance Presentable (SearchView db) where
       +++ mkScript script
 
 
-mkItemRootView sessionId args = mkMaybeView "Onbekend item" $
-  case args of
-    arg:_  | Just i <- readMaybe arg -> 
-      do { mItem <- withDb $ \db -> Map.lookup (ItemId i) (allItems db)
-         ; case mItem of
-                  Nothing    -> return Nothing
-                  Just item -> fmap Just $ mkItemView Full item
-         }
-    _        -> return Nothing
-
+mkItemRootView sessionId = mkMaybeView "Onbekend item" $
+  do { args <- getHashArgs
+     ; case args of
+         arg:_  | Just i <- readMaybe arg -> 
+           do { mItem <- withDb $ \db -> Map.lookup (ItemId i) (allItems db)
+              ; case mItem of
+                       Nothing    -> return Nothing
+                       Just item -> fmap Just $ mkItemView Full item
+              }
+         _        -> return Nothing
+      }
 
 data ItemView = 
   ItemView Inline Item Lender
