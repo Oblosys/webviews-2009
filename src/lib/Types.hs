@@ -1,6 +1,7 @@
 {-# OPTIONS -XExistentialQuantification -XFlexibleContexts -XTypeSynonymInstances -XFlexibleInstances -XDeriveDataTypeable -XMultiParamTypeClasses #-}
 module Types where
 
+import Data.IORef
 import Data.Generics
 
 import BlazeHtml
@@ -23,8 +24,8 @@ data Commands = Commands [Command]
 getCommands (Commands cs) = cs
 getCommands _             = []
 
-data Command = Init       String [String] -- rootView args    http://webviews.com/#rootView/arg0/arg1/../argn
-             | HashUpdate String [String] -- rootView args    http://webviews.com/#rootView/arg0/arg1/../argn
+data Command = Init       String [(String,String)] -- rootView args    http://webviews.com/#rootView/arg0/arg1/../argn
+             | HashUpdate String [(String,String)] -- rootView args    http://webviews.com/#rootView/arg0/arg1/../argn
              | Refresh 
              | Test 
              | SetC ViewId String 
@@ -400,7 +401,7 @@ data WebViewState db =
   WebViewState { getStateUser :: User, getStateDb :: db, getStateViewMap :: (ViewMap db) 
                , getStatePath :: [Int], getStateViewIdCounter :: Int 
                , getStateSessionId :: SessionId -- not sure we really need the session ID here, but it doesn't do any harm
-               , getStateHashArgs :: [String]
+               , getStateHashArgs :: HashArgs
                } deriving (Typeable, Data)
 
 type WebViewM db a = StateT (WebViewState db) IO a
@@ -408,8 +409,11 @@ type WebViewM db a = StateT (WebViewState db) IO a
 
 type SessionId = Int
 
-type SessionState db = (SessionId, User, db, WebView db, Maybe (EditCommand db), [String]) 
+type SessionState db = (SessionId, User, db, WebView db, Maybe (EditCommand db), HashArgs) 
                      --(sessionId, user, db, rootView,   pendingEdit,            hashArgs)
+                     
+type SessionStateRef db = IORef (SessionState db)
+
 type EditM db = StateT (SessionState db) IO 
 -- TODO: maybe call this one SessionM or something like that?
 --       it seems like we could use it in most of the functions in Server as well.
@@ -417,6 +421,7 @@ type EditM db = StateT (SessionState db) IO
 instance Show (EditM db a) where
   show _ = "{EditM _}"
   
+type HashArgs = [(String,String)]
   
 type RootViews db = [ (String, WebViewM db (WebView db)) ]
 -- for keeping track of the root webviews

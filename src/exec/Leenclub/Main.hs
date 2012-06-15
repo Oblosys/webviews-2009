@@ -109,9 +109,9 @@ mkLendersRootView :: WebViewM Database (WebView Database)
 mkLendersRootView = mkWebView $
   \vid oldLenderView@(LendersRootView mSearchTerm tf _ _ radioOld _) ->
     do { args <- getHashArgs 
-       ; let searchTerm = case args of 
-                            []      -> ""
-                            (arg:_) -> arg 
+       ; let searchTerm = case lookup "qlener" args of 
+                            Nothing    -> ""
+                            Just lener -> lener 
 --                                       getStrVal tf
        ; searchField <- mkTextFieldAct searchTerm $ Edit $ return ()
        ; searchButton <- mkButtonWithClick "Search" True $ const ""
@@ -138,7 +138,7 @@ mkLendersRootView = mkWebView $
        ; liftIO $ putStrLn $ "sortField: " ++ (show $ getSelection radioOld)
        ; return $ LendersRootView mSearchTerm searchField searchButton sortedResultViews sortFieldRadio $
                   jsScript $
-                    let navigateAction = jsNavigateTo $ "'/#leners/'+"++jsGetWidgetValue searchField++";" -- 
+                    let navigateAction = jsNavigateTo $ "'/#leners&qlener='+"++jsGetWidgetValue searchField++";" -- 
                     in  [ inertTextView searchField -- todo make function to only change hash
                         , onClick searchButton navigateAction
                         , onSubmit searchField navigateAction
@@ -160,13 +160,13 @@ instance Presentable LendersRootView where
 
 mkLenderRootView = mkMaybeView "Onbekende lener" $
   do { args <- getHashArgs 
-     ; case args of
-         arg:_ -> do { mLender <- withDb $ \db -> Map.lookup (LenderId arg) (allLenders db)
+     ; case lookup "lener" args of
+         Just lener -> do { mLender <- withDb $ \db -> Map.lookup (LenderId lener) (allLenders db)
                      ; case mLender of
                          Nothing    -> return Nothing
                          Just lender -> fmap Just $ mkLenderView Full lender
                      }
-         _        -> return Nothing
+         Nothing    -> return Nothing
      }
 
 
@@ -239,7 +239,7 @@ mkItemsRootView = mkWebView $
                                   , ("Eigenaar", compare `on` itemDescr)
                                   ]
     
-       ; searchView <- mkSearchView $ \searchTerm ->
+       ; searchView <- mkSearchView "qitem" $ \searchTerm ->
           do { results :: [(Item, WebView Database)] <- if searchTerm == "" 
                     then return [] 
                     else do { resultItems <- withDb $ \db -> searchItems searchTerm db
@@ -296,15 +296,19 @@ instance Data db => Initial (SearchView db) where
 instance Data db => Storeable db (SearchView db)
 
 -- todo add mSearchTerm
-mkSearchView resultsf = mkWebView $
+mkSearchView argName resultsf = mkWebView $
   \vid oldLenderView@( SearchView textFieldOld _ _ _) ->
-    do { let searchTerm = getStrVal textFieldOld
+    do { args <- getHashArgs
+       ; let searchTerm = case lookup argName args of 
+                            Nothing    -> ""
+                            Just term -> term 
        ; searchField <- mkTextFieldAct searchTerm $ Edit $ return ()
        ; searchButton <- mkButtonWithClick "Search" True $ const ""
        ; results <- resultsf searchTerm
        ; return $ SearchView searchField searchButton results $
                   jsScript $
-                    let navigateAction = jsNavigateTo $ "'/#items/'+"++jsGetWidgetValue searchField++";" -- 
+                    let navigateAction = "setHashArg('"++argName++"', "++jsGetWidgetValue searchField++");"
+                                       -- jsNavigateTo $ "'/#items&qitem='+"++jsGetWidgetValue searchField++";" -- 
                     in  [ inertTextView searchField -- todo make function to only change hash
                         , onClick searchButton navigateAction
                         , onSubmit searchField navigateAction
@@ -321,14 +325,14 @@ instance Presentable (SearchView db) where
 
 mkItemRootView = mkMaybeView "Onbekend item" $
   do { args <- getHashArgs
-     ; case args of
-         arg:_  | Just i <- readMaybe arg -> 
+     ; case lookup "item" args of
+         Just item | Just i <- readMaybe item -> 
            do { mItem <- withDb $ \db -> Map.lookup (ItemId i) (allItems db)
               ; case mItem of
                        Nothing    -> return Nothing
                        Just item -> fmap Just $ mkItemView Full item
               }
-         _        -> return Nothing
+         Nothing -> return Nothing
       }
 
 data ItemView = 
@@ -402,12 +406,12 @@ instance Presentable ItemView where
 linkedItemName item@Item{itemId = ItemId i} = linkedItem item $ toHtml (itemName item)
 
 linkedItem item@Item{itemId = ItemId login} html = 
-  a ! (href $ (toValue $ "/#item/" ++ (show login))) << html
+  a ! (href $ (toValue $ "/#item&item=" ++ (show login))) << html
 
 linkedLenderName lender@Lender{lenderId = LenderId login} = linkedLender lender $ toHtml login
   
 linkedLender lender@Lender{lenderId = LenderId login} html = 
-  a! (href $ (toValue $ "/#lener/" ++ login)) << html
+  a! (href $ (toValue $ "/#lener&lener=" ++ login)) << html
 
 mkLeenclubPage html = 
     mkPage [thestyle "background-color: #e0e0e0; font-family: arial"] $ 

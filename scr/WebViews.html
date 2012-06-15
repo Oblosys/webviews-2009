@@ -48,7 +48,7 @@ $(document).ready(function(){
 function init() {
 	var rva = getRootViewAndArgs()
   
-  queueCommand('Init "'+rva.rootView+'" '+rva.args);
+  queueCommand('Init "'+rva.rootView+'" '+showHaskellArgs(rva.args));
 }
 
 // For hash events, we could also use http://benalman.com/projects/jquery-hashchange-plugin/, but it's more complex
@@ -69,21 +69,72 @@ function checkHash() {
 
 function hashUpdate() {
   var rva = getRootViewAndArgs()
-  queueCommand('HashUpdate "'+rva.rootView+'" '+rva.args);
+  queueCommand('HashUpdate "'+rva.rootView+'" '+showHaskellArgs(rva.args));
 }
 
 function getRootViewAndArgs() {
-  // split url:  http:webviews.somewhere.com/rootView/arg0/arg1/../argn#anchorArg0/anchorArg1/../anchorArgm
+  // split url:  http:webviews.somewhere.com/#rootView/../pathn&arg0=val0&arg1=val1&..&argm=valm
+  // only first path element of hash is used (rootView) probably in the future we will allow full paths
   var hash = window.location.hash.slice(1); // get rid of # (will not give error when hash is "")
-      
-  var hashElts = hash.split('/');
-  var rootView = hashElts.length == 0 ? '' : hashElts[0];
-  var args = showHaskellList(hashElts.slice(1)); 
+      // parse url to rootview and [(String,String)]
+ 
+  var firstArgIx = hash.indexOf('&');
+  var pathStr = firstArgIx < 0 ? hash : hash.slice(0, firstArgIx); 
+  
+  dlog('path '+pathStr+'   args '+argsStr);
+
+  var pathElts = pathStr.split('/');
+  var rootView = pathElts.length == 0 ? '' : pathElts[0];
+  
+  var args = new Array()
+  if (firstArgIx >= 0) { // if we have a '&'
+  	var argsStr = hash.slice(firstArgIx+1);
+    var argStrs = argsStr.split('&');
+    for (i=0; i<argStrs.length; i++) {
+     	var nameValue = argStrs[i];
+      var eqIx = nameValue.indexOf('=');
+      var name = eqIx < 0 ? nameValue : nameValue.slice(0, eqIx); 
+      var value = eqIx < 0 ? '' : nameValue.slice(eqIx+1);
+     	args.push({"name": name, "value": value});
+    }
+  }
   return { "rootView": rootView, "args": args };
 }
 
-function showHaskellList(array) {
-	return !array || array.length <= 0 ? '[]' : '["' + array.join('","') + '"]';
+// todo: escape args
+function setRootViewAndArgs(rootView, args) {
+  var newHash = '#'+rootView;
+	for (i=0; i<args.length; i++) {
+  	newHash += '&' + args[i].name + '=' + args[i].value;
+  }
+  window.location.hash = newHash;
+}
+
+function setHashArg(name, value) {
+	var rva = getRootViewAndArgs();
+  setRootViewAndArgs(rva.rootView, setArg(rva.args, name, value));
+}
+
+// Sets argument name to value in args, or adds name=value. Array args is updated as well as returned.
+function setArg(args, name, value) {
+	var isSet = false;
+	for (i=0; i<args.length; i++) {
+		if (args[i].name==name) {
+			args[i].value = value;
+			isSet = true;
+			break;
+		}
+	}
+	if (!isSet)
+		args.push({"name": name, "value": value});
+	return args;
+}
+
+function showHaskellArgs(args) {
+	var haskellStrs = args.map(function(arg){ return '("'+arg.name+'","'+arg.value+'")';
+	}); 
+
+	return '['+haskellStrs.join(',')+']';
 }
 
 function startRefreshTimer() {

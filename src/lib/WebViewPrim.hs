@@ -71,7 +71,7 @@ withDb f = fmap (f . getStateDb) $ get
 getUser :: WebViewM db User 
 getUser = fmap getStateUser $ get
 
-getHashArgs :: WebViewM db [String]
+getHashArgs :: WebViewM db HashArgs
 getHashArgs = fmap getStateHashArgs $ get
 
 getSessionId :: WebViewM db SessionId 

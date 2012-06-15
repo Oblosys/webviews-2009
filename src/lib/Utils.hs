@@ -1,5 +1,6 @@
 module Utils where
 
+import Data.IORef
 import Data.Generics
 
 import Generics
@@ -7,6 +8,32 @@ import Types
 import Data.Tree
 import WebViewPrim
 import HtmlLib
+
+getRootView :: SessionStateRef db -> IO (WebView db)
+getRootView sessionStateRef =
+ do { (_, _, _, rootView, _, _) <- readIORef sessionStateRef
+    ; return rootView
+    }
+ 
+setRootView :: SessionStateRef db -> WebView db -> IO ()
+setRootView sessionStateRef rootView =
+ do { (sessionId, user, db, _, pendingEdit, hashArgs) <- readIORef sessionStateRef
+    ; writeIORef sessionStateRef (sessionId, user, db, rootView, pendingEdit, hashArgs)
+    }
+
+getSessionHashArgs :: SessionStateRef db -> IO HashArgs
+getSessionHashArgs sessionStateRef =
+ do { (_, _, _, _, _, hashArgs) <- readIORef sessionStateRef
+    ; return hashArgs
+    }
+ 
+setSessionHashArgs :: SessionStateRef db -> HashArgs -> IO ()
+setSessionHashArgs sessionStateRef hashArgs =
+ do { (sessionId, user, db, rootView, pendingEdit, _) <- readIORef sessionStateRef
+    ; writeIORef sessionStateRef (sessionId, user, db, rootView, pendingEdit, hashArgs)
+    }
+
+
 
 shallowShowWebNode (WebViewNode wv) = "WebNode: " ++ shallowShowWebView wv
 shallowShowWebNode (WidgetNode viewId stubId id w) = "WebNode: ("++show viewId++", stub:"++show (unId stubId)++", id:"++show (unId id)++") " ++ show w 
