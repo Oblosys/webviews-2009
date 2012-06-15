@@ -68,8 +68,8 @@ data TestView =
   TestView Int (Widget RadioView) (WebView Database) (WebView Database) 
     deriving (Eq, Show, Typeable, Data)
 
-mkTestView :: SessionId -> WebViewM Database (WebView Database)
-mkTestView sessionId = mkWebView $
+mkTestView :: WebViewM Database (WebView Database)
+mkTestView = mkWebView $
   \vid oldTestView@(TestView _ radioOld _ _) ->
     do { radio <-  mkRadioView ["Naaam", "Punten", "Drie"] (getSelection radioOld) True
        ; let radioSel = getSelection radioOld
@@ -105,8 +105,8 @@ data LendersRootView =
 
 instance Storeable Database LendersRootView
 
-mkLendersRootView :: SessionId -> WebViewM Database (WebView Database)
-mkLendersRootView sessionId = mkWebView $
+mkLendersRootView :: WebViewM Database (WebView Database)
+mkLendersRootView = mkWebView $
   \vid oldLenderView@(LendersRootView mSearchTerm tf _ _ radioOld _) ->
     do { args <- getHashArgs 
        ; let searchTerm = case args of 
@@ -158,7 +158,7 @@ instance Presentable LendersRootView where
 
 
 
-mkLenderRootView sessionId = mkMaybeView "Onbekende lener" $
+mkLenderRootView = mkMaybeView "Onbekende lener" $
   do { args <- getHashArgs 
      ; case args of
          arg:_ -> do { mLender <- withDb $ \db -> Map.lookup (LenderId arg) (allLenders db)
@@ -231,8 +231,8 @@ data ItemsRootView =
 
 instance Storeable Database ItemsRootView
 
-mkItemsRootView :: SessionId -> WebViewM Database (WebView Database)
-mkItemsRootView sessionId = mkWebView $
+mkItemsRootView ::WebViewM Database (WebView Database)
+mkItemsRootView = mkWebView $
   \vid oldLenderView@(ItemsRootView _) ->
     do { let namedSortFunctions = [ ("Naam",     compare `on` itemName) 
                                   , ("Prijs",    compare `on` itemPrice)
@@ -319,7 +319,7 @@ instance Presentable (SearchView db) where
       +++ mkScript script
 
 
-mkItemRootView sessionId = mkMaybeView "Onbekend item" $
+mkItemRootView = mkMaybeView "Onbekend item" $
   do { args <- getHashArgs
      ; case args of
          arg:_  | Just i <- readMaybe arg -> 

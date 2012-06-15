@@ -399,6 +399,7 @@ instance Data db => Initial (WebView db) where
 data WebViewState db = 
   WebViewState { getStateUser :: User, getStateDb :: db, getStateViewMap :: (ViewMap db) 
                , getStatePath :: [Int], getStateViewIdCounter :: Int 
+               , getStateSessionId :: SessionId -- not sure we really need the session ID here, but it doesn't do any harm
                , getStateHashArgs :: [String]
                } deriving (Typeable, Data)
 
@@ -417,5 +418,5 @@ instance Show (EditM db a) where
   show _ = "{EditM _}"
   
   
-type RootViews db = [ (String, SessionId -> WebViewM db (WebView db)) ]
+type RootViews db = [ (String, WebViewM db (WebView db)) ]
 -- for keeping track of the root webviews

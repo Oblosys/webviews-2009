@@ -264,7 +264,7 @@ parseCookieSessionId serverInstanceId =
     }
 
 mkInitialRootView :: (Data db, Typeable db) => db -> IO (WebView db)
-mkInitialRootView theDatabase = runWebView Nothing theDatabase Map.empty [] 0 [] $ mkWebView (\_ _ -> return ()) 
+mkInitialRootView theDatabase = runWebView Nothing theDatabase Map.empty [] 0 (-1) [] $ mkWebView (\_ _ -> return ()) 
 
 -- this creates a WebView with stubid 0 and id 1
 -- for now, we count on that in the client
@@ -416,7 +416,7 @@ handleCommands rootViews users sessionStateRef (Commands commands) =
 
 mkRootView ::Data db => RootViews db -> String -> [String] -> User -> db -> Int -> ViewMap db -> IO (WebView db)
 mkRootView rootViews rootViewName args user db sessionId viewMap =
-  fmap assignIds $ runWebView user db viewMap [] 0 args $ mkMainView sessionId
+  fmap assignIds $ runWebView user db viewMap [] 0 sessionId args $ mkMainView
  where mkMainView = case lookup rootViewName rootViews of
                       Nothing -> error $ "Unknown view: "++rootViewName
                       Just mkV -> mkV
@@ -511,7 +511,7 @@ reloadRootView :: Data db => SessionStateRef db -> IO ()
 reloadRootView sessionStateRef =
  do { (sessionId, user, db, rootView, pendingEdit, hashArgs) <- readIORef sessionStateRef
     ; 
-    ; rootView' <- evalStateT (loadView rootView) (WebViewState user db (mkViewMap rootView) [] 0 hashArgs)
+    ; rootView' <- evalStateT (loadView rootView) (WebViewState user db (mkViewMap rootView) [] 0 sessionId hashArgs)
  -- TODO this 0 does not seem right BUG
     ; writeIORef sessionStateRef (sessionId, user, db, rootView', pendingEdit, hashArgs)
     } 
