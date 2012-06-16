@@ -109,7 +109,7 @@ mkLendersRootView :: WebViewM Database (WebView Database)
 mkLendersRootView = mkWebView $
   \vid oldLenderView@(LendersRootView mSearchTerm tf _ _ radioOld _) ->
     do { args <- getHashArgs 
-       ; let searchTerm = case lookup "qlener" args of 
+       ; let searchTerm = case lookup "q" args of 
                             Nothing    -> ""
                             Just lener -> lener 
 --                                       getStrVal tf
@@ -138,7 +138,7 @@ mkLendersRootView = mkWebView $
        ; liftIO $ putStrLn $ "sortField: " ++ (show $ getSelection radioOld)
        ; return $ LendersRootView mSearchTerm searchField searchButton sortedResultViews sortFieldRadio $
                   jsScript $
-                    let navigateAction = jsNavigateTo $ "'/#leners&qlener='+"++jsGetWidgetValue searchField++";" -- 
+                    let navigateAction = jsNavigateTo $ "'/#leners&q='+"++jsGetWidgetValue searchField++";" -- 
                     in  [ inertTextView searchField -- todo make function to only change hash
                         , onClick searchButton navigateAction
                         , onSubmit searchField navigateAction
@@ -239,7 +239,7 @@ mkItemsRootView = mkWebView $
                                   , ("Eigenaar", compare `on` itemDescr)
                                   ]
     
-       ; searchView <- mkSearchView "qitem" $ \searchTerm ->
+       ; searchView <- mkSearchView "q" $ \searchTerm ->
           do { results :: [(Item, WebView Database)] <- if searchTerm == "" 
                     then return [] 
                     else do { resultItems <- withDb $ \db -> searchItems searchTerm db
@@ -308,7 +308,7 @@ mkSearchView argName resultsf = mkWebView $
        ; return $ SearchView searchField searchButton results $
                   jsScript $
                     let navigateAction = "setHashArg('"++argName++"', "++jsGetWidgetValue searchField++");"
-                                       -- jsNavigateTo $ "'/#items&qitem='+"++jsGetWidgetValue searchField++";" -- 
+                                       -- jsNavigateTo $ "'/#items&q='+"++jsGetWidgetValue searchField++";" -- 
                     in  [ inertTextView searchField -- todo make function to only change hash
                         , onClick searchButton navigateAction
                         , onSubmit searchField navigateAction
