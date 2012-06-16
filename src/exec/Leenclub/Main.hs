@@ -240,12 +240,12 @@ mkItemsRootView = mkWebView $
                                   ]
     
        ; searchView <- mkSearchView "q" $ \searchTerm ->
-          do { results :: [(Item, WebView Database)] <- if searchTerm == "" 
+          do { results :: [Item] <- if searchTerm == "" 
                     then return [] 
                     else do { resultItems <- withDb $ \db -> searchItems searchTerm db
-                            ; sequence [ fmap (item,) $ mkItemView Inline item | item <- resultItems ]
+                            ; return resultItems
                             }
-             ; mkResultsView namedSortFunctions results
+             ; mkResultsView namedSortFunctions (mkItemView Inline) results
              }
        ; dialogView <- mkDialogView $ mkHtmlView "dialog"
        ; dialogButton <- mkButton "Dialog" True $ Edit $ viewEdit (getViewId dialogView) $ \(DialogView _ a v :: DialogView Database) -> (DialogView True a v)
@@ -325,7 +325,8 @@ instance Data db => Storeable db (ResultsView db)
 
 -- [("sorteer oplopend", id), ("sorteer aflopend", reverse)]
 -- [("Sorteer op naam", 
-mkResultsView namedSortFunctions results = mkWebView $
+mkResultsView :: [(String, a->a->Ordering)] -> (a-> WebViewM Database (WebView Database)) -> [a] -> WebViewM Database (WebView Database)
+mkResultsView namedSortFunctions mkResultWV results = mkWebView $
   \vid oldView@(ResultsView sortFieldSelectOld sortOrderSelectOld _) ->
     do { let sortField = getSelection sortFieldSelectOld
        ; let sortOrder = getSelection sortOrderSelectOld
@@ -333,11 +334,11 @@ mkResultsView namedSortFunctions results = mkWebView $
        ; sortFieldSelect <- mkSelectView sortFieldNames sortField True
        ; sortOrderSelect <- mkSelectView ["Oplopend", "Aflopend"] sortOrder True
        
-       
+       ; resultsWVs <- sequence [ fmap (r,) $ mkResultWV r | r <- results ]
        ; sortedResultViews <- case results of
                                 [] -> fmap singleton $ mkHtmlView $ "Geen resultaten"
                                 _  -> return $ map snd $ (if sortOrder == 0 then id else reverse) $ 
-                                                         sortBy (sortFunctions !! sortField `on` fst) $ results
+                                                         sortBy (sortFunctions !! sortField `on` fst) $ resultsWVs
     
        ; return $ ResultsView sortFieldSelect sortOrderSelect sortedResultViews
        }
@@ -472,7 +473,7 @@ linkedLender lender@Lender{lenderId = LenderId login} html =
   a! (href $ (toValue $ "/#lener&lener=" ++ login)) << html
 
 mkLeenclubPage html =  -- imdb: background-color: #E3E2DD; background-image: -moz-linear-gradient(50% 0%, #B3B3B0 0px, #E3E2DD 500px);  
-    mkPage [thestyle $ gradientStyle (Just 500) "#000000" {- "#B3B3B0" -} "#E3E2DD"  ++ " font-family: arial"] $ 
+    mkPage [thestyle $ gradientStyle (Just 500) "#444" {- "#B3B3B0" -} "#E3E2DD"  ++ " font-family: arial"] $ 
       div_ ! thestyle "border: 1px solid black; background-color: #f0f0f0; box-shadow: 0 0 8px rgba(0, 0, 0, 0.7);" $ 
         vList[ table !* [cellpadding "0", cellspacing "0"
                         , thestyle $ "color: white; font-size: 16px;"++ gradientStyle Nothing "#707070" "#101010"
