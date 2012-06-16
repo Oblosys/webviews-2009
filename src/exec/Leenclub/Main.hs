@@ -226,14 +226,14 @@ instance Presentable LenderView where
 
 
 data ItemsRootView = 
-  ItemsRootView (WebView Database) 
+  ItemsRootView (WebView Database) (WebView Database) (Widget (Button Database))
     deriving (Eq, Show, Typeable, Data)
 
 instance Storeable Database ItemsRootView
 
 mkItemsRootView ::WebViewM Database (WebView Database)
 mkItemsRootView = mkWebView $
-  \vid oldLenderView@(ItemsRootView _) ->
+  \vid oldLenderView@(ItemsRootView _ _ _) ->
     do { let namedSortFunctions = [ ("Naam",     compare `on` itemName) 
                                   , ("Prijs",    compare `on` itemPrice)
                                   , ("Eigenaar", compare `on` itemDescr)
@@ -247,11 +247,71 @@ mkItemsRootView = mkWebView $
                             }
              ; mkResultsView namedSortFunctions results
              }
-       ; return $ ItemsRootView searchView
+       ; dialogView <- mkDialogView $ mkHtmlView "dialog"
+       ; dialogButton <- mkButton "Dialog" True $ Edit $ viewEdit (getViewId dialogView) $ \(DialogView _ a v :: DialogView Database) -> (DialogView True a v)
+       ; return $ ItemsRootView searchView dialogView dialogButton
        }
+-- TODO: don't like the getViewId for dialogView, can we make a webview and return a result somehow?
+--       or will typed webviews make this safe enough?
 
 instance Presentable ItemsRootView where
-  present (ItemsRootView child) = present child
+  present (ItemsRootView child dialog dialogButton) =
+        mkLeenclubPage $ present child >> present dialogButton >> present dialog
+
+
+data DialogView db = DialogView Bool (EditAction db) (Maybe (WebView db)) 
+    deriving (Eq, Show, Typeable, Data)
+
+instance Data db => Initial (DialogView db) where
+  initial = DialogView False initial initial
+
+instance Data db => Storeable db (DialogView db)
+
+-- todo add mSearchTerm
+mkDialogView :: forall db . Data db => WebViewM db (WebView db) -> WebViewM db (WebView db)
+mkDialogView contentsViewM = mkWebView $
+  \vid oldView@(DialogView isShowing _ _) ->
+    do { cancelAction <- mkEditAction $ Edit $ viewEdit vid $ \(DialogView _ a v :: DialogView db) -> (DialogView False a v)
+--       ; showAction <- mkEditAction $ Edit $ viewEdit vid $ \(DialogView _ a v :: DialogView db) -> (DialogView True a v)
+       ; mContentsView <- 
+           if isShowing
+           then fmap Just contentsViewM
+           else return Nothing
+       ; return $ ( DialogView isShowing cancelAction mContentsView
+               --   , showAction
+                  )
+       }
+
+instance Presentable (DialogView db) where
+  present (DialogView _ _       Nothing)             = noHtml
+  present (DialogView isShowing cancelAction (Just contentsView)) = 
+    withEditAction cancelAction $ -- TODO: withEditAction should be onClick
+    (div_ ! thestyle "position: absolute; top:0; left:0; width:100%; height: 100%; background-color:black; opacity:0.1; filter:alpha(opacity=40);" $ noHtml) >>
+    (div_ ! thestyle "position: absolute; top:0; left:0; width:100%; height: 100%; " $ 
+      table !* [cellpadding "0", cellspacing "0", width "100%", height "100%"] $ tr $ 
+        sequence_ [ td ! width "50%" $ noHtml
+                  , td ! align "center" $
+                      div_ !* [onclick "event.stopPropagation();", thestyle "border: 1px solid black; padding: 3px; background-color: lightgrey"] $
+                        present contentsView 
+                  , td ! width "50%" $ noHtml
+                  ]
+    )--div_
+    -- $ 
+{-
+    <span id="dialog">
+    <div style="position: absolute; top:0; left:0; width:100%; height: 100%; background-color:black; opacity:0.1; filter:alpha(opacity=40);"></div>
+    <div style="position: absolute; top:0; left:0; width:100%; height: 100%; " onclick="$('#dialog').hide()">
+      <table cellpadding="0" cellspacing="0" width=100% height=100% ><tr><td width=50%></td>
+  <td align=center>
+  <div onclick="event.stopPropagation();" style="border: 1px solid black; padding: 3px; background-color: lightgrey">
+        dialogdialogdialogdialogdialogdialogdialogdialogdialogdialog<br>
+      <input type=button value="Cancel"><input type=button value="Ok" onclick="alert('hallo')">
+  </div>
+ </td>  
+ <td width=50%></td></tr></table>
+    </div>
+  </span> <!-- dialog -->
+    -}
 
 
 data ResultsView db = 
@@ -297,7 +357,7 @@ instance Data db => Storeable db (SearchView db)
 
 -- todo add mSearchTerm
 mkSearchView argName resultsf = mkWebView $
-  \vid oldLenderView@( SearchView textFieldOld _ _ _) ->
+  \vid oldView@( SearchView textFieldOld _ _ _) ->
     do { args <- getHashArgs
        ; let searchTerm = case lookup argName args of 
                             Nothing    -> ""
@@ -317,11 +377,9 @@ mkSearchView argName resultsf = mkWebView $
 
 instance Presentable (SearchView db) where
   present (SearchView searchField searchButton wv script) =
-    mkLeenclubPage $
       hList [present searchField, present searchButton] +++
       present wv
       +++ mkScript script
-
 
 mkItemRootView = mkMaybeView "Onbekend item" $
   do { args <- getHashArgs
@@ -413,11 +471,19 @@ linkedLenderName lender@Lender{lenderId = LenderId login} = linkedLender lender 
 linkedLender lender@Lender{lenderId = LenderId login} html = 
   a! (href $ (toValue $ "/#lener&lener=" ++ login)) << html
 
-mkLeenclubPage html = 
-    mkPage [thestyle "background-color: #808080; font-family: arial"] $ 
-      div_ ! thestyle "border: 1px solid black; padding: 5px; width: 500px; background-color: #e0e0e0" $ html   
+mkLeenclubPage html =  -- imdb: background-color: #E3E2DD; background-image: -moz-linear-gradient(50% 0%, #B3B3B0 0px, #E3E2DD 500px);  
+    mkPage [thestyle $ gradientStyle (Just 500) "#000000" {- "#B3B3B0" -} "#E3E2DD"  ++ " font-family: arial"] $ 
+      div_ ! thestyle "border: 1px solid black; background-color: #f0f0f0; box-shadow: 0 0 8px rgba(0, 0, 0, 0.7);" $ 
+        vList[ table !* [cellpadding "0", cellspacing "0"
+                        , thestyle $ "color: white; font-size: 16px;"++ gradientStyle Nothing "#707070" "#101010"
+                        ] $ tr $ sequence_ $
+                          let space = td ! width (toValue $ show (100 `div` 4) ++"%") $ noHtml in [space, td "Home", space,td "Leners", space, td "Login", space] 
+             , div_ ! thestyle "padding: 5px" $ html ] ! width "500px"
 
-
+gradientStyle :: Maybe Int -> String -> String -> String
+gradientStyle mHeight topColor bottomColor =
+    "background: -moz-linear-gradient("++topColor++" 0px, "++bottomColor++ maybe "" (\h -> " "++show h++"px") mHeight ++ "); "
+  ++"background: -webkit-gradient(linear, left top, left "++maybe "bottom" show mHeight ++", from("++topColor++"), to("++bottomColor++"));"
  {-
 -- Visits ----------------------------------------------------------------------  
 
