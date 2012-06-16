@@ -414,8 +414,8 @@ linkedLender lender@Lender{lenderId = LenderId login} html =
   a! (href $ (toValue $ "/#lener&lener=" ++ login)) << html
 
 mkLeenclubPage html = 
-    mkPage [thestyle "background-color: #e0e0e0; font-family: arial"] $ 
-      withPad 5 0 5 0 html   
+    mkPage [thestyle "background-color: #808080; font-family: arial"] $ 
+      div_ ! thestyle "border: 1px solid black; padding: 5px; width: 500px; background-color: #e0e0e0" $ html   
 
 
  {-
