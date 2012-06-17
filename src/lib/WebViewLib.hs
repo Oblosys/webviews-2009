@@ -235,6 +235,126 @@ instance Data db => Storeable db (MaybeView db)
 
 
 
+-- Experimental webviews
+
+-- DialogView ---------------------------------------------------------------------  
+
+-- dialog view that can be added anywhere in the presentation
+-- 
+-- todo: need to make this phantom typed, so firing the dialog is safer
+
+data DialogView db = DialogView Bool (EditAction db) (Maybe (WebView db)) 
+    deriving (Eq, Show, Typeable, Data)
+
+instance Data db => Initial (DialogView db) where
+  initial = DialogView False initial initial
+
+instance Data db => Storeable db (DialogView db)
+
+viewShowDialog :: forall db . Data db => WebView db -> EditM db ()
+viewShowDialog dialogView = viewEdit (getViewId dialogView) $ \(DialogView _ a v :: DialogView db) -> (DialogView True a v)
+
+-- todo add mSearchTerm
+mkDialogView :: forall db . Data db => WebViewM db (WebView db) -> WebViewM db (WebView db)
+mkDialogView contentsViewM = mkWebView $
+  \vid oldView@(DialogView isShowing _ _) ->
+    do { cancelAction <- mkEditAction $ Edit $ viewEdit vid $ \(DialogView _ a v :: DialogView db) -> (DialogView False a v)
+       ; mContentsView <- 
+           if isShowing
+           then fmap Just contentsViewM
+           else return Nothing
+       ; return $ ( DialogView isShowing cancelAction mContentsView
+               --   , showAction
+                  )
+       }
+
+instance Presentable (DialogView db) where
+  present (DialogView _ _       Nothing)             = noHtml
+  present (DialogView isShowing cancelAction (Just contentsView)) = 
+    withEditAction cancelAction $ -- TODO: withEditAction should be onClick
+    (div_ ! thestyle "position: absolute; top:0; left:0; width:100%; height: 100%; background-color:black; opacity:0.1; filter:alpha(opacity=40);" $ noHtml) >>
+    (div_ ! thestyle "position: absolute; top:0; left:0; width:100%; height: 100%; " $ 
+      table !* [cellpadding "0", cellspacing "0", width "100%", height "100%"] $ tr $ 
+        sequence_ [ td ! width "50%" $ noHtml
+                  , td ! align "center" $
+                      div_ !* [onclick "event.stopPropagation();", thestyle "border: 1px solid black; padding: 3px; background-color: lightgrey"] $
+                        present contentsView 
+                  , td ! width "50%" $ noHtml
+                  ]
+    )
+
+
+-- PresentView ---------------------------------------------------------------------  
+
+{- Very experimental webview for providing presentation functions as arguments, instead of declaring instances.
+
+This requires the function to be in the WebView, and hence instance of Data, Typeable, Eq, and Show.
+
+Data and Typeable are handled by creating a Wrapped type with a Data instance that does not descend into its argument (not
+sure if this is correct now)
+
+Because the present function may change, we need to test for equality. This can be done by supplying a list of dummy
+noHtml arguments with the same length as the list of webview children. Differences in length are caught by comparing the child lists.
+
+Comparing Html is not very efficient, so PresentViews should be used only for small presentations.
+
+The Eq constraint on the presentation is the reason why it has type [Html] -> Html instead of a -> Html, as we cannot
+compare the latter with dummy arguments, and would have to compare the Html for the entire PresentView, including its children.
+
+TODO: 
+    -- don't use ByteString instead of show and string for comparing Html
+    -- check Wrapped Data and Typeable instances
+-}
+newtype Wrapped = Wrapped ([Html] -> Html)
+
+instance Eq Wrapped where
+  (==) = error "no == for Wrapped"
+
+instance Show Wrapped where
+  show _ = "Wrapped" -- TODO: why do we need show? For seq'ing?
+
+instance Initial Wrapped where
+  initial = error "no initial for Wrapped"
+
+instance Typeable Wrapped where
+  typeOf _ = mkTyConApp (mkTyCon3 "WebViews" "Main" "Wrapped") []
+  
+instance  Data Wrapped where
+  gfoldl k z x@(Wrapped a) = z x --error "gfold not defined for WrappedHtml" -- z WrappedHtml `k` undefined
+  gunfold k z c = error "gunfold not defined for WrappedHtml"
+     
+  toConstr (Wrapped _) =  con_Html
+ 
+  dataTypeOf _ = ty_Html
+  
+ty_Html = mkDataType "Wrapped" [con_StateT]
+con_Html = mkConstr ty_StateT "Wrapped" [] Prefix
+
+data PresentView db = PresentView Wrapped [WebView db] deriving (Show, Typeable, Data)
+
+instance Eq (PresentView db) where
+  (PresentView (Wrapped pres1) wvs1) == (PresentView (Wrapped pres2) wvs2) =
+    (show $ pres1 (replicate (length wvs1) $ noHtml)) == (show $ pres2 (replicate (length wvs2) $ noHtml)) &&
+    wvs1 == wvs2
+    -- just compare the html for dummy arguments (since the presentation will never depend on the arguments themselves)
+
+instance Data db => Storeable db (PresentView db)
+
+instance  Initial (PresentView db) where
+  initial = PresentView initial initial
+
+mkPresentView :: Data db => ([Html] -> Html) -> WebViewM db [WebView db] -> WebViewM db (WebView db)
+mkPresentView presentList mkSubWebViews = mkWebView $
+  \vid oldView@(PresentView _ _) ->
+    do { wvs <- mkSubWebViews
+       ; return $ PresentView (Wrapped presentList) wvs
+       }
+
+instance Presentable (PresentView db) where
+  present (PresentView (Wrapped presentList) wvs) = presentList $ map present wvs
+
+
+
 -- Utils
 
 

@@ -30,7 +30,7 @@ main :: IO ()
 main = server rootViews "LeenclubDB.txt" mkInitialDatabase lenders
 
 rootViews :: RootViews Database
-rootViews = [ ("", mkLendersRootView), ("test", mkTestView)
+rootViews = [ ("", mkLendersRootView), ("test", mkTestView), ("test2", mkTestView2 "msg")
             , ("leners", mkLendersRootView), ("lener", mkLenderRootView)
             , ("items", mkItemsRootView), ("item", mkItemRootView) 
             ] 
@@ -60,17 +60,16 @@ template view with menu bar
 
 unsafeLookupM dbf key = withDb $ \db -> unsafeLookup (dbf db) key
 
--- WebViews
 
-
+--- Testing
 
 data TestView = 
-  TestView Int (Widget RadioView) (WebView Database) (WebView Database) 
+  TestView Int (Widget RadioView) (WebView Database) (WebView Database) (WebView Database) 
     deriving (Eq, Show, Typeable, Data)
 
 mkTestView :: WebViewM Database (WebView Database)
 mkTestView = mkWebView $
-  \vid oldTestView@(TestView _ radioOld _ _) ->
+  \vid oldTestView@(TestView _ radioOld _ _ _) ->
     do { radio <-  mkRadioView ["Naaam", "Punten", "Drie"] (getSelection radioOld) True
        ; let radioSel = getSelection radioOld
        ; (wv1, wv2) <- if True -- radioSel == 0
@@ -83,18 +82,30 @@ mkTestView = mkWebView $
                                ; return (wv1,wv2)
                                }
        ; liftIO $ putStrLn $ "radio value " ++ show radioSel
+       ; presViewTest <- mkTestView2 $ "Radio value is " ++ show radioSel
        ; let (wv1',wv2') = if radioSel == 0 then (wv1,wv2) else (wv2,wv1)
-       ; let wv = TestView radioSel radio wv1' wv2'
+       ; let wv = TestView radioSel radio wv1' wv2' presViewTest
+       
        --; liftIO $ putStrLn $ "All top-level webnodes "++(show (everythingTopLevel webNodeQ wv :: [WebNode Database])) 
        
        ; return $ wv 
        }
 
 instance Presentable TestView where
-  present (TestView radioSel radio wv1 wv2) =
-      vList [present radio, toHtml $ show radioSel, present wv1, present wv2]
+  present (TestView radioSel radio wv1 wv2 wv3) =
+      vList [present radio, toHtml $ show radioSel, present wv1, present wv2, present wv3]
 
 instance Storeable Database TestView
+
+
+mkTestView2 msg = mkPresentView (\hs -> hList $ toHtml (msg :: String) : hs) $
+    do { wv1 <- mkHtmlView $ "een"
+       ; wv2 <- mkHtmlTemplateView "test.html" []
+       ; return $ [wv1,wv2] 
+       }
+
+
+-- WebViews
 
 
 
@@ -248,7 +259,7 @@ mkItemsRootView = mkWebView $
              ; mkResultsView namedSortFunctions (mkItemView Inline) results
              }
        ; dialogView <- mkDialogView $ mkHtmlView "dialog"
-       ; dialogButton <- mkButton "Dialog" True $ Edit $ viewEdit (getViewId dialogView) $ \(DialogView _ a v :: DialogView Database) -> (DialogView True a v)
+       ; dialogButton <- mkButton "Dialog" True $ Edit $ viewShowDialog dialogView 
        ; return $ ItemsRootView searchView dialogView dialogButton
        }
 -- TODO: don't like the getViewId for dialogView, can we make a webview and return a result somehow?
@@ -259,61 +270,28 @@ instance Presentable ItemsRootView where
         mkLeenclubPage $ present child >> present dialogButton >> present dialog
 
 
-data DialogView db = DialogView Bool (EditAction db) (Maybe (WebView db)) 
-    deriving (Eq, Show, Typeable, Data)
 
-instance Data db => Initial (DialogView db) where
-  initial = DialogView False initial initial
-
-instance Data db => Storeable db (DialogView db)
-
--- todo add mSearchTerm
-mkDialogView :: forall db . Data db => WebViewM db (WebView db) -> WebViewM db (WebView db)
-mkDialogView contentsViewM = mkWebView $
-  \vid oldView@(DialogView isShowing _ _) ->
-    do { cancelAction <- mkEditAction $ Edit $ viewEdit vid $ \(DialogView _ a v :: DialogView db) -> (DialogView False a v)
---       ; showAction <- mkEditAction $ Edit $ viewEdit vid $ \(DialogView _ a v :: DialogView db) -> (DialogView True a v)
-       ; mContentsView <- 
-           if isShowing
-           then fmap Just contentsViewM
-           else return Nothing
-       ; return $ ( DialogView isShowing cancelAction mContentsView
-               --   , showAction
-                  )
-       }
-
-instance Presentable (DialogView db) where
-  present (DialogView _ _       Nothing)             = noHtml
-  present (DialogView isShowing cancelAction (Just contentsView)) = 
-    withEditAction cancelAction $ -- TODO: withEditAction should be onClick
-    (div_ ! thestyle "position: absolute; top:0; left:0; width:100%; height: 100%; background-color:black; opacity:0.1; filter:alpha(opacity=40);" $ noHtml) >>
-    (div_ ! thestyle "position: absolute; top:0; left:0; width:100%; height: 100%; " $ 
-      table !* [cellpadding "0", cellspacing "0", width "100%", height "100%"] $ tr $ 
-        sequence_ [ td ! width "50%" $ noHtml
-                  , td ! align "center" $
-                      div_ !* [onclick "event.stopPropagation();", thestyle "border: 1px solid black; padding: 3px; background-color: lightgrey"] $
-                        present contentsView 
-                  , td ! width "50%" $ noHtml
-                  ]
-    )--div_
-    -- $ 
 {-
-    <span id="dialog">
-    <div style="position: absolute; top:0; left:0; width:100%; height: 100%; background-color:black; opacity:0.1; filter:alpha(opacity=40);"></div>
-    <div style="position: absolute; top:0; left:0; width:100%; height: 100%; " onclick="$('#dialog').hide()">
-      <table cellpadding="0" cellspacing="0" width=100% height=100% ><tr><td width=50%></td>
-  <td align=center>
-  <div onclick="event.stopPropagation();" style="border: 1px solid black; padding: 3px; background-color: lightgrey">
-        dialogdialogdialogdialogdialogdialogdialogdialogdialogdialog<br>
-      <input type=button value="Cancel"><input type=button value="Ok" onclick="alert('hallo')">
-  </div>
- </td>  
- <td width=50%></td></tr></table>
-    </div>
-  </span> <!-- dialog -->
-    -}
+Ideas
+
+composeView   $ \vid (a,b) -> do bla return (a,b)
+instance Present (ComposeView ..)
+
+Can't presentView simply supply a (PresentView )->Html?
+
+mkWebViewInit (wv->wv) (wv->wv)       init arg is initial 
+
+nice sort buttons with triangles
 
 
+
+Home FAQ Profiel spullen geschiedenis Berichten aanmelden inloggen
+
+-}
+
+
+
+  
 data ResultsView db = 
   ResultsView (Widget SelectView) (Widget SelectView) [WebView db]  
     deriving (Eq, Show, Typeable, Data)
@@ -322,6 +300,9 @@ instance Data db => Initial (ResultsView db) where
   initial = ResultsView initial initial initial
 
 instance Data db => Storeable db (ResultsView db)
+
+
+
 
 -- [("sorteer oplopend", id), ("sorteer aflopend", reverse)]
 -- [("Sorteer op naam", 
