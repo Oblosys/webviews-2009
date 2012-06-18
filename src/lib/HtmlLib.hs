@@ -72,15 +72,17 @@ roundedBoxed mColor elt =
  -}
   
 -- TODO: name!!!
-data ListElt = E Html | Space
+data ListElt = E Html | Stretch Html
 
-hSpacedList :: [ListElt] -> Html
-hSpacedList listElts = table ! width "100%" $ tr $ sequence_ 
-                         [ case listElt of E html -> td html
-                                           Space  -> td ! thestyle ("width: "++show spaceWidth++"%") $  noHtml 
-                         | listElt <- listElts 
-                         ]
- where nrOfSpaces = length [ () | Space <- listElts ]
+space = Stretch noHtml
+
+hStretchList :: [ListElt] -> Html
+hStretchList listElts = table ! width "100%" $ tr $ sequence_ 
+                          [ case listElt of E html       -> td html
+                                            Stretch html -> td ! thestyle ("width: "++show spaceWidth++"%") $  html 
+                          | listElt <- listElts 
+                          ]
+ where nrOfSpaces = length [ () | Stretch _ <- listElts ]
        spaceWidth = if nrOfSpaces == 0 then 0 else 100 `div` nrOfSpaces 
 
 hDistribute e1 e2 =
