@@ -108,8 +108,8 @@ function checkAttrs() {
     </div>
   </td>
 </table>
-</body>
-</html>
+
+
 <tr><td style="background-color: grey">bla</td> <td style="background-color: lightgrey">adsads</td> <td style="background-color: grey">vijftien</td></tr>
 <p>
 <table cellpadding="0" cellspacing="0" style="">
@@ -139,6 +139,48 @@ function checkAttrs() {
   </td>
 </table>
 
+<div style="width: 500px; height: 500px; background-color: blue">
+ <ul style="display: inline; list-style-type: none; width: 100%; height: 500px">
+  <li style="display: inline">d<div style="display: inline; background-color: yellow; width: 50px; height: 60px">elt11</div></li>
+  <li style="display: inline">d<div style="background-color: green">elt2</div></li>  
+  
+ </ul>
+</div>
+
+<!-- trying to find basic hList and vList combinators with understandable stretching
+Tricky, html seems to take child table's elements into account, so [e,e,[e,e]] gets width [25%,25%,[25%,25%] instead of [33,33,[16,16]]
+ -->
+<table cellpadding="0" cellspacing="0" width="600px" height="400px" style="background-color: #eee">
+ <tr>
+  <td>
+
+
+<table cellpadding="0" cellspacing="0" width="100%" height="" style="background-color: red; table-layout: auto">
+ <tr>
+  <td style="background-color: yellow">elt1</td>
+  <td style="background-color: green">largerelement2</td>
+  <td style="background-color: white; ">glue</td>
+  <td style="background-color: white; width: 100%">
+    <table cellpadding="0" cellspacing="0" style="background-color: red">
+    <tr>
+     <td style="background-color: #ccc">elt6</td>
+     <td style="background-color: white; width: 100%">glue</td>
+     <td style="background-color: #ccc">elt3</td>
+    </tr>
+   </table>
+  </td>
+
+
+ </tr>
+ 
+</table>
+
+
+  </td>
+ </tr>
+ 
+</table>
+
 <table cellpadding="0" cellspacing="0" style="">
 <tr><td>  </td></tr></table>
 <button onclick="checkAttrs()">g</button>
@@ -152,7 +194,7 @@ border-width (or any other border property) only has effect when border-style is
   <span style="background-color: grey">
 
 
-<!-- Dialog div that can be placed anywhere in the DOM. It's contents are centered in the middle of the page -->
+<!-- Dialog div that can be placed anywhere in the DOM. It's contents are centered in the middle of the page 
     <span id="dialog">
     <div style="position: absolute; top:0; left:0; width:100%; height: 100%; background-color:black; opacity:0.1; filter:alpha(opacity=40);"></div>
     <div style="position: absolute; top:0; left:0; width:100%; height: 100%; " onclick="$('#dialog').hide()">
@@ -165,7 +207,7 @@ border-width (or any other border property) only has effect when border-style is
  </td>  
  <td width=50%></td></tr></table>
     </div>
-  </span> <!-- dialog -->
+  </span> --><!-- dialog -->
     
      </span>
   </td></tr></table>

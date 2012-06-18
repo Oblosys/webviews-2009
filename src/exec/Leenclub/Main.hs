@@ -4,7 +4,7 @@ module Main where
 import Data.List
 import BlazeHtml
 import Data.Generics
-import Data.Char
+import Data.Char hiding (Space)
 import Data.Function
 import Data.Maybe
 import Data.Map (Map)
@@ -312,12 +312,9 @@ rootViewLink rootViewName html = a ! (href $ (toValue $ "/#" ++ rootViewName)) <
 mkLeenclubPage html =  -- imdb: background-color: #E3E2DD; background-image: -moz-linear-gradient(50% 0%, #B3B3B0 0px, #E3E2DD 500px);  
     mkPage [thestyle $ gradientStyle (Just 500) "#444" {- "#B3B3B0" -} "#E3E2DD"  ++ " font-family: arial"] $ 
       div_ ! thestyle "border: 1px solid black; background-color: #f0f0f0; box-shadow: 0 0 8px rgba(0, 0, 0, 0.7);" $ 
-        vList[ table !* [cellpadding "0", cellspacing "0"
-                        , thestyle $ "color: white; font-size: 16px;"++ gradientStyle Nothing "#707070" "#101010"
-                        ] $ tr $ sequence_ $                                -- nasty, we don't want to specify space width
-                          let space = td ! width (toValue $ show (100 `div` (length menuItems + 1)) ++"%") $ noHtml 
-                          in space : concatMap (\(label,rootView) -> [td $ rootViewLink rootView $ label, space]) menuItems  
-             , div_ ! thestyle "padding: 5px" $ html ] ! width "500px"
+        vList [ hSpacedList (Space :  concatMap (\(label,rootView) -> [E $ rootViewLink rootView $ label, Space]) menuItems)
+                  ! (thestyle $ "color: white; font-size: 16px;"++ gradientStyle Nothing "#707070" "#101010")
+              , div_ ! thestyle "padding: 5px" $ html ] ! width "500px"
  where menuItems = [("Home",""), ("Leners", "leners"), ("Spullen", "items"), ("Login","login")]
  
 gradientStyle :: Maybe Int -> String -> String -> String
