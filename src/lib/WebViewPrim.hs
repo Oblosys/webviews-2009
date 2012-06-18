@@ -367,7 +367,7 @@ presentSelectView (SelectView viewId items selectedIx enabled) =
   do { select !* ([ id_ $ toValue $ show viewId
                   , strAttr "onChange" ("script"++viewIdSuffix viewId++".onChange()")
                   , strAttr "onFocus" ("script"++viewIdSuffix viewId++".onFocus()")
-                  , style "width: 100%"
+                  --, style "width: 100%" -- this causes problems in a stretchlist: if there is a space, the selectview gets minimized 
                   ] ++
                   if not enabled then [strAttr "disabled" ""] else []) $ 
               
