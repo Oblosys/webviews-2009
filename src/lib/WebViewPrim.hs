@@ -311,12 +311,12 @@ presentTextField (TextView viewId textType str mEditAction) =
   let inputField = case textType of TextField -> textfield ""
                                     PasswordField -> password ""
                                     
-  in form !* [ thestyle "display: inline"
+  in form !* [ thestyle "display: inline; width: 100%"
             , strAttr "onSubmit" $ (case mEditAction of
                                     Nothing -> "return false"
                                     Just _  -> "script"++viewIdSuffix viewId++".onSubmit();"++
                                                "return false")] $ -- return false, since we don't actually submit the form
-       inputField !* [ id_ (toValue $ show viewId), strAttr "value" str, width "100%"
+       inputField !* [ id_ (toValue $ show viewId), strAttr "value" str, style "width: 100%"
                     , strAttr "onFocus" $ "script"++viewIdSuffix viewId++".onFocus()"
                     , strAttr "onBlur" $ "script"++viewIdSuffix viewId++".onBlur()"
                     , strAttr "onKeyUp" $ "script"++viewIdSuffix viewId++".onKeyUp()" ]  >>
@@ -367,6 +367,7 @@ presentSelectView (SelectView viewId items selectedIx enabled) =
   do { select !* ([ id_ $ toValue $ show viewId
                   , strAttr "onChange" ("script"++viewIdSuffix viewId++".onChange()")
                   , strAttr "onFocus" ("script"++viewIdSuffix viewId++".onFocus()")
+                  , style "width: 100%"
                   ] ++
                   if not enabled then [strAttr "disabled" ""] else []) $ 
               
