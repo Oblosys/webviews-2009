@@ -5,7 +5,7 @@ module BlazeHtml (module Text.Blaze.Html5, module Text.Blaze.Html5.Attributes
 import Data.String
 import Data.Monoid
 
-import Text.Blaze.Html5 hiding (div,span,button,map,   style)
+import Text.Blaze.Html5 hiding (div,span,button,map,   style, table)
 import Text.Blaze.Html5.Attributes hiding (id,min,max,   cite, form, label, span, summary, title)
 import qualified Text.Blaze.Html5 as H
 import qualified Text.Blaze.Html5.Attributes as A
@@ -49,6 +49,7 @@ textfield str = input ! type_ "text" ! name (fromString str)
 password str = input ! type_ "password" ! name (fromString str)
 radio str val = input ! type_ "radio" ! name (fromString str) ! value (fromString val)
 
+table = H.table ! cellpadding "0" ! cellspacing "0"
 -- TODO
 {-  
 
