@@ -28,3 +28,8 @@
   -moz-border-radius-topright: 6px;       /* for older Firefox (<13) */
 }
 
+/* don't make links blue/purple and underlined */
+a {
+	color: currentColor;
+	text-decoration: inherit! important
+}
