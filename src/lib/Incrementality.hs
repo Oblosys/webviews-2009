@@ -41,8 +41,8 @@ isMove _          = False
 mkIncrementalUpdates :: forall db . Data db => WebView db -> WebView db -> IO ([Html], WebView db)
 mkIncrementalUpdates oldRootView rootView =
  do { let (newWebNodes :: [WebNode db], updates) = diffViews oldRootView rootView
-    ; putStrLn $ "\nChanged or new web nodes\n" ++ unlines (map shallowShowWebNode newWebNodes) 
-    ; putStrLn $ "\nUpdates\n" ++ unlines (map show updates)
+    --; putStrLn $ "\nChanged or new web nodes\n" ++ unlines (map shallowShowWebNode newWebNodes) 
+    --; putStrLn $ "\nUpdates\n" ++ unlines (map show updates)
     
     ; let (newCommands, mEvalCommands) = unzip $ map newWebNodeHtml newWebNodes
     ; let evalCommands = catMaybes mEvalCommands 
@@ -57,9 +57,9 @@ mkIncrementalUpdates oldRootView rootView =
     -- todo: check restoration on views, and esp. on root.
     
     ; let rootView' = substituteIds subs rootView
-    ; putStrLn $ "Old root:"++ (drawWebNodes $ WebViewNode oldRootView)
-    ; putStrLn $ "Updated root:"++ (drawWebNodes $ WebViewNode rootView)
-    ; putStrLn $ "Restored Id root:"++(drawWebNodes $ WebViewNode rootView')
+    --; putStrLn $ "Old root:"++ (drawWebNodes $ WebViewNode oldRootView)
+    --; putStrLn $ "Updated root:"++ (drawWebNodes $ WebViewNode rootView)
+    --; putStrLn $ "Restored Id root:"++(drawWebNodes $ WebViewNode rootView')
     --; putStrLn $ "Html:\n" ++ show responseHtml
     ; return (htmlUpdates, rootView')
     }
