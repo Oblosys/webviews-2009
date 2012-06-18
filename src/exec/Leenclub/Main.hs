@@ -51,6 +51,24 @@ search items view
 autocomplete
 template view with menu bar
 
+TODO: don't prevent submit when no textfield action is present!!!! (instead change script for this or something)
+otherwise we cannot override return key for textfields without action
+
+
+Ideas
+
+composeView   $ \vid (a,b) -> do bla return (a,b)
+instance Present (ComposeView ..)
+
+Can't presentView simply supply a (PresentView )->Html?
+
+mkWebViewInit (wv->wv) (wv->wv)       init arg is initial 
+
+nice sort buttons with triangles
+
+
+
+Home FAQ Profiel spullen geschiedenis Berichten aanmelden inloggen
 
 -}
 
@@ -70,7 +88,7 @@ data TestView =
 mkTestView :: WebViewM Database (WebView Database)
 mkTestView = mkWebView $
   \vid oldTestView@(TestView _ radioOld _ _ _) ->
-    do { radio <-  mkRadioView ["Naaam", "Punten", "Drie"] (getSelection radioOld) True
+    do { radio <-  mkRadioView ["Naam", "Punten", "Drie"] (getSelection radioOld) True
        ; let radioSel = getSelection radioOld
        ; (wv1, wv2) <- if True -- radioSel == 0
                        then do { wv1 <- mkHtmlView $ "een"
@@ -109,16 +127,57 @@ mkTestView2 msg = mkPresentView (\hs -> hList $ toHtml (msg :: String) : hs) $
 
 
 
-data LendersRootView = 
-  LendersRootView (Maybe String) (Widget (TextView Database)) (Widget (Button Database)) [WebView Database] 
-                  (Widget RadioView) String
+data LendersRootView = LendersRootView (WebView Database)
     deriving (Eq, Show, Typeable, Data)
 
 instance Storeable Database LendersRootView
+{-
+mkItemsRootView ::WebViewM Database (WebView Database)
+mkItemsRootView = mkWebView $
+  \vid oldLenderView@(ItemsRootView _ _ _) ->
+    do { let namedSortFunctions = [ ("Naam",     compare `on` itemName) 
+                                  , ("Prijs",    compare `on` itemPrice)
+                                  , ("Eigenaar", compare `on` itemDescr)
+                                  ]
+    
+       ; searchView <- mkSearchView "q" $ \searchTerm ->
+          do { results :: [Item] <- if searchTerm == "" 
+                    then return [] 
+                    else do { resultItems <- withDb $ \db -> searchItems searchTerm db
+                            ; return resultItems
+                            }
+             ; mkSortView namedSortFunctions (mkItemView Inline) results
+             }
+       ; dialogView <- mkDialogView $ mkHtmlView "dialog"
+       ; dialogButton <- mkButton "Dialog" True $ Edit $ viewShowDialog dialogView 
+       ; return $ ItemsRootView searchView dialogView dialogButton
+       }
+-- TODO: don't like the getViewId for dialogView, can we make a webview and return a result somehow?
+--       or will typed webviews make this safe enough?
 
+instance Presentable ItemsRootView where
+  present (ItemsRootView child dialog dialogButton) =
+        mkLeenclubPage $ present child >> present dialogButton >> present dialog
+
+-}
 mkLendersRootView :: WebViewM Database (WebView Database)
 mkLendersRootView = mkWebView $
-  \vid oldLenderView@(LendersRootView mSearchTerm tf _ _ radioOld _) ->
+  \vid oldLenderView@(LendersRootView _) ->
+    do { let namedSortFunctions = [ ("Naam",     compare `on` lenderName) 
+                                  , ("Rating",    compare `on` lenderRating)
+                                  ]
+    
+       ; searchView <- mkSearchView "q" $ \searchTerm ->
+          do { results :: [Lender] <- if searchTerm == "" 
+                    then return [] 
+                    else do { resultLenders <- withDb $ \db -> searchLenders searchTerm db
+                            ; return resultLenders
+                            }
+             ; mkSortView namedSortFunctions (mkLenderView Inline) results
+             }
+       ; return $ LendersRootView searchView
+       }
+{-
     do { args <- getHashArgs 
        ; let searchTerm = case lookup "q" args of 
                             Nothing    -> ""
@@ -155,16 +214,10 @@ mkLendersRootView = mkWebView $
                         , onSubmit searchField navigateAction
                         ]
        }
--- TODO: don't prevent submit when no textfield action is present!!!! (instead change script for this or something)
--- otherwise we cannot override return key for textfields without action
+       -}
 
 instance Presentable LendersRootView where
-  present (LendersRootView searchTerm searchField searchButton lenderViews sortFieldRadio script) =
-    mkLeenclubPage $
-      hList [present searchField, present searchButton] +++
-      vList (nbsp : present sortFieldRadio : map present lenderViews)
-      +++ mkScript script
-
+  present (LendersRootView searchView) = mkLeenclubPage $ present searchView
 
 
 
@@ -256,7 +309,7 @@ mkItemsRootView = mkWebView $
                     else do { resultItems <- withDb $ \db -> searchItems searchTerm db
                             ; return resultItems
                             }
-             ; mkResultsView namedSortFunctions (mkItemView Inline) results
+             ; mkSortView namedSortFunctions (mkItemView Inline) results
              }
        ; dialogView <- mkDialogView $ mkHtmlView "dialog"
        ; dialogButton <- mkButton "Dialog" True $ Edit $ viewShowDialog dialogView 
@@ -266,49 +319,32 @@ mkItemsRootView = mkWebView $
 --       or will typed webviews make this safe enough?
 
 instance Presentable ItemsRootView where
-  present (ItemsRootView child dialog dialogButton) =
-        mkLeenclubPage $ present child >> present dialogButton >> present dialog
+  present (ItemsRootView searchView dialog dialogButton) =
+        mkLeenclubPage $ present searchView >> present dialogButton >> present dialog
 
 
 
-{-
-Ideas
-
-composeView   $ \vid (a,b) -> do bla return (a,b)
-instance Present (ComposeView ..)
-
-Can't presentView simply supply a (PresentView )->Html?
-
-mkWebViewInit (wv->wv) (wv->wv)       init arg is initial 
-
-nice sort buttons with triangles
-
-
-
-Home FAQ Profiel spullen geschiedenis Berichten aanmelden inloggen
-
--}
 
 
 
   
-data ResultsView db = 
-  ResultsView (Widget SelectView) (Widget SelectView) [WebView db]  
+data SortView db = 
+  SortView (Widget SelectView) (Widget SelectView) [WebView db]  
     deriving (Eq, Show, Typeable, Data)
 
-instance Data db => Initial (ResultsView db) where
-  initial = ResultsView initial initial initial
+instance Data db => Initial (SortView db) where
+  initial = SortView initial initial initial
 
-instance Data db => Storeable db (ResultsView db)
+instance Data db => Storeable db (SortView db)
 
 
 
 
 -- [("sorteer oplopend", id), ("sorteer aflopend", reverse)]
 -- [("Sorteer op naam", 
-mkResultsView :: [(String, a->a->Ordering)] -> (a-> WebViewM Database (WebView Database)) -> [a] -> WebViewM Database (WebView Database)
-mkResultsView namedSortFunctions mkResultWV results = mkWebView $
-  \vid oldView@(ResultsView sortFieldSelectOld sortOrderSelectOld _) ->
+mkSortView :: [(String, a->a->Ordering)] -> (a-> WebViewM Database (WebView Database)) -> [a] -> WebViewM Database (WebView Database)
+mkSortView namedSortFunctions mkResultWV results = mkWebView $
+  \vid oldView@(SortView sortFieldSelectOld sortOrderSelectOld _) ->
     do { let sortField = getSelection sortFieldSelectOld
        ; let sortOrder = getSelection sortOrderSelectOld
        ; let (sortFieldNames, sortFunctions) = unzip namedSortFunctions
@@ -321,11 +357,11 @@ mkResultsView namedSortFunctions mkResultWV results = mkWebView $
                                 _  -> return $ map snd $ (if sortOrder == 0 then id else reverse) $ 
                                                          sortBy (sortFunctions !! sortField `on` fst) $ resultsWVs
     
-       ; return $ ResultsView sortFieldSelect sortOrderSelect sortedResultViews
+       ; return $ SortView sortFieldSelect sortOrderSelect sortedResultViews
        }
 
-instance Presentable (ResultsView db) where
-  present (ResultsView sortFieldSelect sortOrderSelect webViews) = 
+instance Presentable (SortView db) where
+  present (SortView sortFieldSelect sortOrderSelect webViews) = 
     vList $ hList [present sortFieldSelect, present sortOrderSelect] : map present webViews 
 
 data SearchView db = 
