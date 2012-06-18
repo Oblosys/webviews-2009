@@ -139,7 +139,7 @@ mkLendersRootView = mkWebView $
                                   , ("Rating",    compare `on` lenderRating)
                                   ]
     
-       ; searchView <- mkSearchView "q" $ \searchTerm ->
+       ; searchView <- mkSearchView "Zoek in leners: " "q" $ \searchTerm ->
           do { results :: [Lender] <- if searchTerm == "" 
                     then return [] 
                     else do { resultLenders <- withDb $ \db -> searchLenders searchTerm db
@@ -235,7 +235,7 @@ mkItemsRootView = mkWebView $
                                   , ("Eigenaar", compare `on` itemDescr)
                                   ]
     
-       ; searchView <- mkSearchView "q" $ \searchTerm ->
+       ; searchView <- mkSearchView "Zoek in spullen:" "q" $ \searchTerm ->
           do { results :: [Item] <- if searchTerm == "" 
                     then return [] 
                     else do { resultItems <- withDb $ \db -> searchItems searchTerm db
@@ -312,7 +312,7 @@ rootViewLink rootViewName html = a ! (href $ (toValue $ "/#" ++ rootViewName)) <
 mkLeenclubPage html =  -- imdb: background-color: #E3E2DD; background-image: -moz-linear-gradient(50% 0%, #B3B3B0 0px, #E3E2DD 500px);  
     mkPage [thestyle $ gradientStyle (Just 500) "#444" {- "#B3B3B0" -} "#E3E2DD"  ++ " font-family: arial"] $ 
       div_ ! thestyle "border: 1px solid black; background-color: #f0f0f0; box-shadow: 0 0 8px rgba(0, 0, 0, 0.7);" $ 
-        vList [ hSpacedList (Space :  concatMap (\(label,rootView) -> [E $ rootViewLink rootView $ label, Space]) menuItems)
+        vList [ hStretchList (space :  concatMap (\(label,rootView) -> [E $ rootViewLink rootView $ label, space]) menuItems)
                   ! (thestyle $ "color: white; font-size: 16px;"++ gradientStyle Nothing "#707070" "#101010")
               , div_ ! thestyle "padding: 5px" $ html ] ! width "500px"
  where menuItems = [("Home",""), ("Leners", "leners"), ("Spullen", "items"), ("Login","login")]
@@ -322,6 +322,13 @@ gradientStyle mHeight topColor bottomColor =
     "background: -moz-linear-gradient("++topColor++" 0px, "++bottomColor++ maybe "" (\h -> " "++show h++"px") mHeight ++ "); "
   ++"background: -webkit-gradient(linear, left top, left "++maybe "bottom" show mHeight ++", from("++topColor++"), to("++bottomColor++"));"
   
+  
+  
+  
+  
+  
+  
+  
 data SortView db = 
   SortView (Widget SelectView) (Widget SelectView) [WebView db]  
     deriving (Eq, Show, Typeable, Data)
@@ -330,12 +337,6 @@ instance Data db => Initial (SortView db) where
   initial = SortView initial initial initial
 
 instance Data db => Storeable db (SortView db)
-
-
-
-
-
-
 
 -- [("sorteer oplopend", id), ("sorteer aflopend", reverse)]
 -- [("Sorteer op naam", 
@@ -359,20 +360,26 @@ mkSortView namedSortFunctions mkResultWV results = mkWebView $
 
 instance Presentable (SortView db) where
   present (SortView sortFieldSelect sortOrderSelect webViews) = 
-    vList $ hList [present sortFieldSelect, present sortOrderSelect] : map present webViews 
+    (vList $ hStretchList [space, E $ "Sorteer" +++ nbsp, E $ present sortOrderSelect, E $ nbsp +++ "op" +++ nbsp, E $ present sortFieldSelect] 
+              ! style "margin: 4 0 4 0"
+            : intersperse hSep (map present webViews)
+    ) ! style "width: 100%"        
+   where hSep = div_ ! style "width: 100%; height:1px; background-color: black; margin: 5 0 5 0" $ noHtml
+ 
+ 
 
 data SearchView db = 
-  SearchView (Widget (TextView db)) (Widget (Button db)) (WebView db) String 
+  SearchView String (Widget (TextView db)) (Widget (Button db)) (WebView db) String 
     deriving (Eq, Show, Typeable, Data)
 
 instance Data db => Initial (SearchView db) where
-  initial = SearchView initial initial initial initial
+  initial = SearchView initial initial initial initial initial
 
 instance Data db => Storeable db (SearchView db)
 
 -- todo add mSearchTerm
-mkSearchView argName resultsf = mkWebView $
-  \vid oldView@( SearchView textFieldOld _ _ _) ->
+mkSearchView label argName resultsf = mkWebView $
+  \vid oldView@( SearchView _ _ _ _ _) ->
     do { args <- getHashArgs
        ; let searchTerm = case lookup argName args of 
                             Nothing    -> ""
@@ -380,10 +387,9 @@ mkSearchView argName resultsf = mkWebView $
        ; searchField <- mkTextFieldAct searchTerm $ Edit $ return ()
        ; searchButton <- mkButtonWithClick "Search" True $ const ""
        ; results <- resultsf searchTerm
-       ; return $ SearchView searchField searchButton results $
+       ; return $ SearchView label searchField searchButton results $
                   jsScript $
                     let navigateAction = "setHashArg('"++argName++"', "++jsGetWidgetValue searchField++");"
-                                       -- jsNavigateTo $ "'/#items&q='+"++jsGetWidgetValue searchField++";" -- 
                     in  [ inertTextView searchField -- todo make function to only change hash
                         , onClick searchButton navigateAction
                         , onSubmit searchField navigateAction
@@ -391,8 +397,8 @@ mkSearchView argName resultsf = mkWebView $
        }
 
 instance Presentable (SearchView db) where
-  present (SearchView searchField searchButton wv script) =
-      hList [present searchField, present searchButton] +++
+  present (SearchView label searchField searchButton wv script) =
+      (hStretchList [E $ toHtml label +++ nbsp, Stretch $ with [style "width: 100%; background-color: red"] (present searchField), E $ present searchButton]) +++
       present wv
       +++ mkScript script
 
