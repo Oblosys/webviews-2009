@@ -78,7 +78,7 @@ space = Stretch noHtml
 
 hStretchList :: [ListElt] -> Html
 hStretchList listElts = table ! width "100%" $ tr $ sequence_ 
-                          [ case listElt of E html       -> td html
+                          [ case listElt of E html       -> td ! style "white-space: nowrap" $ html
                                             Stretch html -> td ! thestyle ("width: "++show spaceWidth++"%") $  html 
                           | listElt <- listElts 
                           ]
