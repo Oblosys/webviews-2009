@@ -28,6 +28,9 @@
   -moz-border-radius-topright: 6px;       /* for older Firefox (<13) */
 }
 
+/* no idea why this is necessary, but otherwise tables don't inherit color */
+table { color: inherit }
+
 /* don't make links blue/purple and underlined */
 a {
 	color: currentColor;
