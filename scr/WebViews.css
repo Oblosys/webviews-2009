@@ -28,12 +28,12 @@
   -moz-border-radius-topright: 6px;       /* for older Firefox (<13) */
 }
 
-.ellipses {
+.ellipsis {
         white-space: nowrap;
         overflow: hidden;
 }
 
-.ellipses.multiline {
+.ellipsis.multiline {
         white-space: normal;
 }
 

@@ -36,17 +36,17 @@ function clearSpinners() {
 
 
 (function($) { // from http://stackoverflow.com/questions/536814/insert-ellipsis-into-html-tag-if-content-too-wide
-	$.fn.ellipses = function() {
+	$.fn.ellipsis = function() {
 		return this.each(function() {
 			var el = $(this);
 
-			// after execution, the width and height are stored in ellipsesWidth/Height, so if these are equal
+			// after execution, the width and height are stored in ellipsisWidth/Height, so if these are equal
 			// to the current width/height, we don't need to execute again.
-			var isDirty = el.attr('ellipsesWidth') != el.width() || el.attr('ellipsesHeight') != el.height();
+			var isDirty = el.attr('ellipsisWidth') != el.width() || el.attr('ellipsisHeight') != el.height();
 			
 			if(el.css("overflow") == "hidden"  && isDirty) {
-				dlog('Evaluating ellipses on '+el.attr('id')+ ' for width: '+el.width()+' and height: '+el.height()
-						 + ' ('+el.attr('ellipsesWidth')+','+el.attr('ellipsesHeight')+')');
+				dlog('Evaluating ellipsis on '+el.attr('id')+ ' for width: '+el.width()+' and height: '+el.height()
+						 + ' ('+el.attr('ellipsisWidth')+','+el.attr('ellipsisHeight')+')');
 				
 				var text = el.html();
 				var multiline = el.hasClass('multiline');
@@ -77,8 +77,8 @@ function clearSpinners() {
 				}
 
 				el.html( text.substr(0,p-1) + "..." ); // subtract one more, since binary search can end up one char too long (quick & dirty solution)
-				el.attr('ellipsesWidth', el.width());
-				el.attr('ellipsesHeight', el.height());
+				el.attr('ellipsisWidth', el.width());
+				el.attr('ellipsisHeight', el.height());
 				t.remove();
 			}
 		});
