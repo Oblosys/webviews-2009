@@ -285,7 +285,7 @@ instance Presentable RestaurantView where
       [ present dayView
       , vSpace 15
       , with [thestyle "font-size:80%"] $
-          with [id_ "betweenPlaceholder"] "Reservations on XX October between Yh and Y+1h"
+          with [id_ "betweenPlaceholder"] "uninitialized 'between' placeholder"
       , vSpace 6
       , present hourView
       , vSpace 15
