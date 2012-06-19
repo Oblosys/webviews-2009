@@ -435,8 +435,9 @@ mkWebViewT mkViewT =
     ; return $ WebViewT wv
     }
 
-rootWebView :: String -> (SessionId -> [String] -> WebViewM db (WebViewT  v db)) -> (String, SessionId -> [String] -> WebViewM db (WebView db) )
-rootWebView name mkWV = (name, \sessionId args -> fmap unWebViewT $ mkWV sessionId args)
+-- removes the phantom type parameter. Need to do this for each view, because we can't put the phantom typed views in a list.
+rootView :: String -> (WebViewM db (WebViewT  v db)) -> (String, WebViewM db (WebView db) )
+rootView name mkWV = (name, fmap unWebViewT mkWV)
     
 viewEditT :: (Typeable db, Data db, Data v) => ViewIdT v -> (v -> v) -> EditM db ()
 viewEditT (ViewIdT vid) viewUpdate = viewEdit vid viewUpdate

@@ -27,11 +27,12 @@ import ClientWebView
 main :: IO ()
 main = server rootViews "ReservationsDB.txt" mkInitialDatabase users
 
--- the webviews here are phantom typed, so we need rootWebView to get rid of the phantom types
-rootViews = [ rootWebView "" $ \sessionId args -> mkMainRootView sessionId
-            , rootWebView "client" $ \sessionId args -> mkClientView
-            , rootWebView "restaurant" $ \sessionId args -> mkRestaurantView
-            , rootWebView "test" $ \sessionId args -> mkTestView1 sessionId ] 
+-- the webviews here are phantom typed, so we need rootView to get rid of the phantom types
+rootViews = [ rootView ""           mkMainRootView
+            , rootView "client"     mkClientView
+            , rootView "restaurant" mkRestaurantView
+            , rootView "test"       mkTestView1 ]
+             
   -- TODO: id's here?
   -- TODO: fix the sessionId stuff
   -- TODO: find good names for root, main, etc.
@@ -46,7 +47,7 @@ instance Initial TestView1 where
   
 -- pass client state back with an edit action
 -- seems easier than using JSVar's below
-mkTestView1 _ = mkWebViewT $
+mkTestView1 = mkWebViewT $
  \vid (TestView1 ea _ status _) ->
   do { ea <- mkEditActionEx $ \args -> Edit $ do { debugLn $ "edit action executed "++show args
                                                  ; viewEditT vid $ (\(TestView1 a b _ d) -> TestView1 a b (head args) d)
@@ -74,7 +75,7 @@ data TestView2 =
 instance Initial TestView2 where
   initial = TestView2 initial initial initial initial
   
-mkTestView2 _ = mkWebViewT $
+mkTestView2 = mkWebViewT $
  \vid (TestView2 oldXVar@(Widget _ _ (JSVar _ _ v)) _ status _) ->
   do { x <- mkJSVar "x" (if v == "" then "6" else v) 
      -- todo Even though the initial value is only assigned once to the client variable, it is also
@@ -110,7 +111,7 @@ instance Initial MainView where
   initial = MainView initial initial
 
 
-mkMainRootView sessionId = mkWebViewT $
+mkMainRootView = mkWebViewT $
  \vid (MainView _ _) ->
   do { clientView <- mkClientView
      ; restaurantView <- mkRestaurantView                                            
