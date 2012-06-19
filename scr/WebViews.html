@@ -418,7 +418,7 @@ function updateTree(update, moves) {
     dstElt = document.getElementById(dstId);
     if (srcElt && dstElt) { // we don't move here, but simply queue each move (see processPending moves). 
       moves.push({sourceId: srcId, sourceElt: srcElt, destinationId: dstId, destinationParent: dstElt.parentNode,
-      	          destinationIndex: $(dstElt.parentNode).children().index( dstElt ) });
+      	          destinationIndex: $(dstElt.parentNode).contents().index( dstElt ) });
       dlog('Queue move '+srcId+' '+dstId);
     }
     else
