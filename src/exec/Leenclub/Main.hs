@@ -260,35 +260,42 @@ instance Presentable ItemsRootView where
 
 
 data ItemView = 
-  ItemView Inline Item Lender (Maybe (Widget (Button Database)))
+  ItemView Inline Item Lender (Either (Widget (Button Database)) Lender)
     deriving (Eq, Show, Typeable, Data)
 
-
+--updateById id update db = let object = unsafeLookup 
+ 
 mkItemView inline item = mkWebView $
   \vid oldItemView@ItemView{} -> 
     do { owner <- unsafeLookupM allLenders (itemOwner item)
-       ; mBorrowButton <- fmap Just $ mkButton "Leen" True $ Edit $ docEdit id 
+       ; mBorrowButton <- case itemBorrowed item of
+           Nothing -> fmap Left $ mkButton "Leen" True $ Edit $ docEdit $ \db -> 
+                        let items' = Map.update (\i -> Just $ item{itemBorrowed = Just $ LenderId "martijn"}) (itemId item) (allItems db) 
+                        in  db{allItems = items'}
+           Just borrowerId -> do { borrower <- unsafeLookupM allLenders borrowerId
+                                 ; return $ Right $ borrower 
+                                 } 
        ; let descrId = mkHtmlViewId vid 
        ; return $ ItemView inline item owner mBorrowButton
        }
        
 instance Presentable ItemView where
-  present (ItemView Full item owner mBorrowButton) =
+  present (ItemView Full item owner eBorrowButton) =
     mkLeenclubPage $
         vList [ h2 $ (toHtml $ "Item " ++ itemName item)
               , hList [ boxedEx 1 $ (image ("items/" ++ (show $ itemIdNr item) ++".jpg") ! style "width: 200px") ! align "top"
                       , nbsp
                       , nbsp
                       , toHtml $ "Eigenaar: " ++ lenderName owner
-                      , vList [ maybe "Uitgeleend" present  mBorrowButton
+                      , vList [ either present (\borrower -> toHtml $ "Uitgeleend aan " ++ lenderName borrower) eBorrowButton
                               ]
                       ]
               ]
-  present (ItemView Inline item owner mBorrowButton) =
-    linkedItem item $
-      hList [ boxedEx 1 $ (image ("items/" ++ (show $ itemIdNr item) ++".jpg") ! style "height: 120px") ! align "top"
+  present (ItemView Inline item owner eBorrowButton) =
+    
+      hList [ linkedItem item $ boxedEx 1 $ (image ("items/" ++ (show $ itemIdNr item) ++".jpg") ! style "height: 120px") ! align "top"
             , nbsp +++ nbsp
-            , div_ ! style "height: 120px" $ sequence_ 
+            , linkedItem item $ div_ ! style "height: 120px" $ sequence_ 
                            [ with [style "font-weight: bold; font-size: 16px"] $ toHtml (itemName item) 
                            , with [style "color: #333"] $
                                presentProperties [ ("Categorie", "boek")
@@ -307,7 +314,7 @@ instance Presentable ItemView where
                                   , ("Postcode", toHtml $ take 4 $ lenderZipCode owner)
                                   ]
                   --, div_ $ presentPrice (itemPrice item)
-                , maybe "Uitgeleend" present  mBorrowButton
+                , either present (\borrower -> with [style "color: red; font-size: 12px"] $ toHtml $ "Uitgeleend: " ++ lenderName borrower) eBorrowButton
                 ] ! style "width: 150px; height: 120px; padding: 5"
             ]
             
