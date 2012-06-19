@@ -311,10 +311,8 @@ instance Presentable ItemView where
             
 vDivList elts = div_ $ mapM_ div_ elts 
 
-{- ellipsis from http://stackoverflow.com/questions/536814/insert-ellipsis-into-html-tag-if-content-too-wide
+{- 
 
-check if bin search is ok this way. might end on overflow.
-put ellipsis call in script
 
 also try:
 .ellipsis {
