@@ -316,6 +316,9 @@ $(".hList").sortable({connectWith: '.vList, .hList'});
 $(".vList").sortable({connectWith: '.vList, .hList'});
 });
 */
+      $(".ellipsis").ellipsis(); // need to do this after dom is built, so we can't do it in the jsScripts
+                                 // but since ellipsis only executes when necessary, this is no big deal.
+      
       // start refresh timer again
       if (commandQueue == '') // only if command handling did not queue any new commands
         if (sendingRandomCommands)

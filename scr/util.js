@@ -33,3 +33,53 @@ function clearSpinners() {
 	}
 	
 }
+
+(function($) {
+	$.fn.ellipsis = function() {
+		return this.each(function() {
+			var el = $(this);
+
+			// after execution, the width and height are stored in ellipsisWidth/Height, so if these are equal
+			// to the current width/height, we don't need to execute again.
+			var isDirty = el.attr('ellipsisWidth') != el.width() || el.attr('ellipsisHeight') != el.height();
+			
+			if(el.css("overflow") == "hidden"  && isDirty) {
+				dlog('Evaluating ellipsis on '+el.attr('id')+ ' for width: '+el.width()+' and height: '+el.height()
+						 + ' ('+el.attr('ellipsisWidth')+','+el.attr('ellipsisHeight')+')');
+				
+				var text = el.html();
+				var multiline = el.hasClass('multiline');
+				var t = $(this.cloneNode(true))
+								.hide()
+								.css('position', 'absolute')
+								.css('overflow', 'visible')
+								.width(multiline ? el.width() : 'auto')
+								.height(multiline ? 'auto' : el.height());
+
+				el.after(t);
+
+				function height() { return t.height() > el.height(); };
+				function width() { return t.width() > el.width(); };
+
+				var func = multiline ? height : width;
+
+				var i = text.length / 2;
+				var p = 0;
+
+				while (i>0.5) {
+					t.html(text.substr(0, p) + "...");
+					if (func())
+						p-=i;
+					else
+						p+=i;
+					i = Math.floor(i / 2);
+				}
+
+				el.html(t.html());
+				el.attr('ellipsisWidth', el.width());
+				el.attr('ellipsisHeight', el.height());
+				t.remove();
+			}
+		});
+	};
+})(jQuery);
