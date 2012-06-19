@@ -25,8 +25,8 @@ import Database
 main :: IO ()
 main = server rootViews "PigletDB.txt" mkInitialDatabase users
 
-rootViews :: [ (String, SessionId -> [String] -> WebViewM Database (WebView Database)) ]
-rootViews = [ ("", \sessionId args -> mkVisitsView sessionId)] -- ignore args 
+rootViews :: RootViews Database
+rootViews = [ ("", mkVisitsView) ] 
     
 -- Visits ----------------------------------------------------------------------  
 
@@ -42,7 +42,7 @@ instance Initial VisitsView where
 modifyViewedVisit fn (VisitsView a v b c d e f g h i j k l m n) = 
   VisitsView a (fn v) b c d e f g h i j k l m n
 
-mkVisitsView sessionId = mkWebView $
+mkVisitsView = mkWebView $
  \vid (VisitsView fresh oldViewedVisit _ _ _ _ _  _ _ _ _ _ oldCommentIds _ _) ->
   do { (visitIds, visits) <- withDb $ (\db -> unzip $ Map.toList $ allVisits db)
      ; let viewedVisit = constrain 0 (length visits - 1) oldViewedVisit
@@ -84,6 +84,8 @@ mkVisitsView sessionId = mkWebView $
                               Nothing -> return Nothing 
                               Just (login,_) -> fmap Just $ mkButton "Add a comment" True $ 
                                                  addComment login today
+     ; sessionId <- getSessionId
+     
      ;  return $ VisitsView False viewedVisit sessionId user
                  [ (zipCode visit, date visit) | visit <- visits ]
                  loginOutView selectionActions 
