@@ -311,17 +311,6 @@ instance Presentable ItemView where
             
 vDivList elts = div_ $ mapM_ div_ elts 
 
-{- 
-
-
-also try:
-.ellipsis {
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    -o-text-overflow: ellipsis;
-}
--}
 
 presentProperties :: [(String, Html)] -> Html            
 presentProperties props =
