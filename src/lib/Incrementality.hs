@@ -47,6 +47,7 @@ mkIncrementalUpdates oldRootView rootView =
     ; let (newCommands, mEvalCommands) = unzip $ map newWebNodeHtml newWebNodes
     ; let evalCommands = catMaybes mEvalCommands 
     ; let htmlUpdates =newCommands  ++ map updateHtml updates ++ evalCommands
+    -- TODO: we could separate the evalCommands from the rest, so we don't have to do it at client level.
     --; mapM (putStrLn . show) evalCommands
     ; let subs = concat [ case upd of  -- TODO: fix something here
                                     RestoreId (IdRef o) (IdRef n) -> [(Id o, Id n)]  
