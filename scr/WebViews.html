@@ -90,7 +90,7 @@ function getRootViewAndArgs() {
   if (firstArgIx >= 0) { // if we have a '&'
   	var argsStr = hash.slice(firstArgIx+1);
     var argStrs = argsStr.split('&');
-    for (i=0; i<argStrs.length; i++) {
+    for (var i=0; i<argStrs.length; i++) {
      	var nameValue = argStrs[i];
       var eqIx = nameValue.indexOf('=');
       var name = eqIx < 0 ? nameValue : nameValue.slice(0, eqIx); 
@@ -104,7 +104,7 @@ function getRootViewAndArgs() {
 // todo: escape args
 function setRootViewAndArgs(rootView, args) {
   var newHash = '#'+rootView;
-	for (i=0; i<args.length; i++) {
+	for (var i=0; i<args.length; i++) {
   	newHash += '&' + args[i].name + '=' + args[i].value;
   }
   window.location.hash = newHash;
@@ -118,7 +118,7 @@ function setHashArg(name, value) {
 // Sets argument name to value in args, or adds name=value. Array args is updated as well as returned.
 function setArg(args, name, value) {
 	var isSet = false;
-	for (i=0; i<args.length; i++) {
+	for (var i=0; i<args.length; i++) {
 		if (args[i].name==name) {
 			args[i].value = value;
 			isSet = true;
@@ -433,7 +433,7 @@ function processPendingMoves(moves) {
   var newNodesElt = document.getElementById('new');
   var parkingElt = document.getElementById('parking');
   
-  for (i=0; i<moves.length; i++) {
+  for (var i=0; i<moves.length; i++) {
     var move = moves[i]
     
     breakpointCheck();
@@ -452,7 +452,6 @@ function processPendingMoves(moves) {
     parkingElt.appendChild(destElt); // this also parks some stubs, but that's no problem
   }
 }
-
 
 function processPendingScripts(scripts) {
 	for (var i=0; i<scripts.length; i++) {    
