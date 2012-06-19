@@ -291,7 +291,7 @@ the update
 -}
 
 presentLabelView :: LabelView -> Html
-presentLabelView (LabelView viewId str) = div_ ! id_ (toValue $ show viewId) $ toHtml str
+presentLabelView (LabelView viewId str) = div_ ! id_ (mkHtmlViewIdVal viewId) $ toHtml str
 
 -- textfields are in forms, that causes registering text field updates on pressing enter
 -- (or Done) on the iPhone.
@@ -300,7 +300,7 @@ presentTextField :: TextView db -> Html
 presentTextField (TextView viewId TextArea str _) =
    form !* [ thestyle "display: inline; width: 100%;"
          , strAttr "onSubmit" $ "return false"] $  -- return false, since we don't actually submit the form
-     textarea !* [ id_ (toValue $ show viewId)
+     textarea !* [ id_ (mkHtmlViewIdVal viewId)
                 , thestyle "width: 100%; height: 100%;"
                 , strAttr "onFocus" $ "script"++viewIdSuffix viewId++".onFocus()"
                 , strAttr "onBlur" $ "script"++viewIdSuffix viewId++".onBlur()"
@@ -316,7 +316,7 @@ presentTextField (TextView viewId textType str mEditAction) =
                                     Nothing -> "return false"
                                     Just _  -> "script"++viewIdSuffix viewId++".onSubmit();"++
                                                "return false")] $ -- return false, since we don't actually submit the form
-       inputField !* [ id_ (toValue $ show viewId), strAttr "value" str, style "width: 100%"
+       inputField !* [ id_ $ mkHtmlViewIdVal viewId, strAttr "value" str, style "width: 100%"
                     , strAttr "onFocus" $ "script"++viewIdSuffix viewId++".onFocus()"
                     , strAttr "onBlur" $ "script"++viewIdSuffix viewId++".onBlur()"
                     , strAttr "onKeyUp" $ "script"++viewIdSuffix viewId++".onKeyUp()" ]  >>
@@ -327,11 +327,11 @@ declareWVTextViewScript viewId = jsDeclareVar (ViewIdT viewId) "script" $ "new T
 -- For the moment, onclick disables the standard server ButtonC command
 presentButton :: Button db -> Html
 presentButton (Button viewId txt enabled style onclick _) =
-{-  (primHtml $ "<button id=\""++ show viewId++"\" "++ (if enabled then "" else "disabled ") ++ (if style /="" then " style=\"" ++style++"\" " else "")++
+{-  (primHtml $ "<button id=\""++ mkHtmlViewId viewId++"\" "++ (if enabled then "" else "disabled ") ++ (if style /="" then " style=\"" ++style++"\" " else "")++
                             "onclick=\""++ (if onclick /= "" then onclick else "queueCommand('ButtonC ("++show viewId++")')" )++
                                      "\" "++
                             "onfocus=\"elementGotFocus('"++show viewId++"')\">"++txt++"</button>") -}
-  (primHtml $ "<button id=\""++ show viewId++"\" "++ (if enabled then "" else "disabled ") ++ (if style /="" then " style=\"" ++style++"\" " else "")++
+  (primHtml $ "<button id=\""++ mkHtmlViewId viewId++"\" "++ (if enabled then "" else "disabled ") ++ (if style /="" then " style=\"" ++style++"\" " else "")++
                             "onclick="++ (if onclick /= "" then show onclick else "\"script"++viewIdSuffix viewId++".onClick()\"")++" "++
                             "onfocus=\"script"++viewIdSuffix viewId++".onFocus()\">"++txt++"</button>") >>
   (mkScript $ declareWVButtonScript viewId)
@@ -345,14 +345,14 @@ declareWVButtonScript viewId = jsDeclareVar (ViewIdT viewId) "script" $ "new But
 -- which button was pressed. However, it is not sure if this works okay with restoring id's
 -- though it probably works out, as the ea id is the only one needing restoration.
 withEditAction (EditAction viewId _) elt =
-  thespan !* [ id_ $ toValue $ show viewId
+  thespan !* [ id_ $ mkHtmlViewIdVal viewId
              , strAttr "onClick" $ "queueCommand('PerformEditActionC ("++show viewId++") []')"] << elt
 
 withEditActionAttr (EditAction viewId _) =  
   strAttr "onClick" $ "queueCommand('PerformEditActionC ("++show viewId++") []')"
 
 presentRadioView (RadioView viewId items selectedIx enabled) = thespan << sequence_
-  [ radio (show viewId) (show i) !* ( [ id_ (toValue eltId) -- all buttons have viewId as name, so they belong to the same radio button set 
+  [ radio (mkHtmlViewId viewId) (show i) !* ( [ id_ (toValue eltId) -- all buttons have viewId as name, so they belong to the same radio button set 
                           , strAttr "onChange" ("queueCommand('SetC ("++show viewId++") %22"++show i++"%22')") 
                           , strAttr "onFocus" ("elementGotFocus('"++eltId++"')")
                           ]
@@ -360,11 +360,11 @@ presentRadioView (RadioView viewId items selectedIx enabled) = thespan << sequen
                           ++ (if not enabled then [strAttr "disabled" ""] else [])) 
                           >> toHtml item >> br 
   | (i, item) <- zip [0..] items 
-  , let eltId = "radio"++show viewId++"button"++show i ] -- these must be unique for setting focus
+  , let eltId = "radio"++mkHtmlViewId viewId++"button"++show i ] -- these must be unique for setting focus
 
 presentSelectView :: SelectView -> Html
 presentSelectView (SelectView viewId items selectedIx enabled) = 
-  do { select !* ([ id_ $ toValue $ show viewId
+  do { select !* ([ id_ $ mkHtmlViewIdVal viewId
                   , strAttr "onChange" ("script"++viewIdSuffix viewId++".onChange()")
                   , strAttr "onFocus" ("script"++viewIdSuffix viewId++".onFocus()")
                   --, style "width: 100%" -- this causes problems in a stretchlist: if there is a space, the selectview gets minimized 
@@ -380,7 +380,7 @@ presentSelectView (SelectView viewId items selectedIx enabled) =
 declareWVSelectScript viewId = jsDeclareVar (ViewIdT viewId) "script" $ "new SelectScript(\""++show viewId++"\");"
 
 presentJSVar :: JSVar -> Html
-presentJSVar (JSVar viewId name value) = thediv ! (id_ . toValue $ show viewId) << 
+presentJSVar (JSVar viewId name value) = thediv ! (id_ $ mkHtmlViewIdVal viewId) << 
   (mkScript $ let jsVar = name++viewIdSuffix viewId
               in  "if (typeof "++jsVar++" ==\"undefined\") {"++jsVar++" = "++value++"};")
               -- no "var " here, does not work when evaluated with eval
@@ -460,7 +460,7 @@ jsScript lines = intercalate ";\n" lines
 jsIf c t = "if ("++c++") {"++intercalate ";" t++"}"
 jsIfElse c t e = "if ("++c++") {"++intercalate ";" t++"} else {"++intercalate ";" e++ "}"
 jsFor c b = "for ("++c++") {"++intercalate ";" b++"}"
-jsGetElementByIdRef (ViewIdRef id) = "document.getElementById('"++show (ViewId id)++"')"
+jsGetElementByIdRef (ViewIdRef id) = "document.getElementById('"++mkHtmlViewId (ViewId id)++"')"
 jsArr elts = "["++intercalate"," elts ++"]"
 jsLog e = "console.log("++e++")";
 

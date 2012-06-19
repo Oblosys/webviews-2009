@@ -45,6 +45,14 @@ unViewId  (ViewId pth) = pth -- not defined as a field, since ViewId's are now s
 
 noViewId = ViewId []
 
+-- Html id attributes may only contain letters, digits, '_' and '-', so we can't simply show the viewId in html id attrs.
+mkHtmlViewId :: ViewId -> String
+mkHtmlViewId (ViewId is) = "ViewId"++concatMap (\i->"_"++show i) is
+
+-- we define an AttributeValue rather than the id_ Attribute, so each application will still contain the id_ combinator
+mkHtmlViewIdVal :: ViewId -> AttributeValue
+mkHtmlViewIdVal vid = toValue $ mkHtmlViewId vid
+
 newtype Id = Id { unId :: Int } deriving (Show, Eq, Ord, Data, Typeable)
 
 noId = Id (-1)

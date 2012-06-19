@@ -140,12 +140,9 @@ instance Presentable (TabbedView db) where
 instance Presentable TabbedView where
   present (TabbedView _ tabViews) = 
     thediv![theclass "tabbed"] <<
-      ((ulist $ concatHtml [li $ anchor![href $ "#"++escapeId webView] $ stringToHtml label 
+      ((ulist $ concatHtml [li $ anchor![href $ "#"++mkHtmlViewId webView] $ stringToHtml label 
                            | (webView,label)  <- zip tabViews ["een","twee","drie"] ] ) +++
-       (concatHtml [ mkDiv (escapeId tabView) $ present tabView | tabView <- tabViews ] ))
-
-escapeId wv = let ViewId path = getViewId wv
-              in  [ if c `elem` "[,]" then '-' else c | c <- show path ]
+       (concatHtml [ mkDiv (mkHtmlViewId tabView) $ present tabView | tabView <- tabViews ] ))
 -}
 
 

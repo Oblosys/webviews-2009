@@ -453,11 +453,12 @@ function processPendingMoves(moves) {
   }
 }
 
+
 function processPendingScripts(scripts) {
-	for (i=0; i<scripts.length; i++) {    
+	for (var i=0; i<scripts.length; i++) {    
     var scriptLines = scripts[i].split('\n')
     try {
-      for (j=0; j<scriptLines.length; j++) {
+      for (var j=0; j<scriptLines.length; j++) {
         console.log("Eval: ",scriptLines[j]);
         eval(scriptLines[j]);
       }
@@ -541,6 +542,7 @@ function elementGotFocus(id) {
 }  
 
 // constructors for script nodes associated with each webview
+// Note: the viewId's here are Haskell ViewId's (eg. ViewId [path])
 function ButtonScript(viewId) {
     this.viewId = viewId;
     this.onFocus = function () {elementGotFocus(viewId)};
