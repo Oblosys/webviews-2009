@@ -51,6 +51,8 @@ search items view
 autocomplete
 template view with menu bar
 
+TODO: hash paths don't seem to work okay when scripts are present. Reservations example has problems when switching from main to client or restaurant views
+
 TODO: don't prevent submit when no textfield action is present!!!! (instead change script for this or something)
 otherwise we cannot override return key for textfields without action
 
