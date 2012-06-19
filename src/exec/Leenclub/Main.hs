@@ -54,6 +54,7 @@ template view with menu bar
 TODO: don't prevent submit when no textfield action is present!!!! (instead change script for this or something)
 otherwise we cannot override return key for textfields without action
 
+Fix weird <div op="new"> elements appearing before <html> element
 
 Ideas
 
@@ -257,39 +258,82 @@ instance Presentable ItemsRootView where
 
 
 data ItemView = 
-  ItemView Inline Item Lender
+  ItemView Inline Item Lender (Maybe (Widget (Button Database)))
     deriving (Eq, Show, Typeable, Data)
 
 
 mkItemView inline item = mkWebView $
-  \vid oldItemView@(ItemView _ _ _) -> 
+  \vid oldItemView@ItemView{} -> 
     do { owner <- unsafeLookupM allLenders (itemOwner item)
-       ; return $ Just (item, owner)
-       ; return $ ItemView inline item owner
+       ; mBorrowButton <- fmap Just $ mkButton "Leen" True $ Edit $ docEdit id 
+       ; let descrId = mkHtmlViewId vid 
+       ; return $ ItemView inline item owner mBorrowButton
        }
-        
+       
 instance Presentable ItemView where
-  present (ItemView Full item owner) =
+  present (ItemView Full item owner mBorrowButton) =
     mkLeenclubPage $
         vList [ h2 $ (toHtml $ "Item " ++ itemName item)
               , hList [ boxedEx 1 $ (image ("items/" ++ (show $ itemIdNr item) ++".jpg") ! style "width: 200px") ! align "top"
                       , nbsp
                       , nbsp
                       , toHtml $ "Eigenaar: " ++ lenderName owner
-                      , vList [ 
+                      , vList [ maybe "Uitgeleend" present  mBorrowButton
                               ]
                       ]
               ]
-  present (ItemView Inline item owner) =
+  present (ItemView Inline item owner mBorrowButton) =
     linkedItem item $
-      hList [ boxedEx 1 $ (image ("items/" ++ (show $ itemIdNr item) ++".jpg") ! style "width: 80px") ! align "top"
-            , nbsp
-            , nbsp
-            , vList [ toHtml (itemName item)
-                    , toHtml $ "Eigenaar: " ++ lenderName owner
-                    , toHtml $ "Prijs:" ++ show (itemPrice item)
-                    ]
+      hList [ boxedEx 1 $ (image ("items/" ++ (show $ itemIdNr item) ++".jpg") ! style "height: 120px") ! align "top"
+            , nbsp +++ nbsp
+            , div_ ! style "height: 120px" $ sequence_ 
+                           [ with [style "font-weight: bold; font-size: 16px"] $ toHtml (itemName item) 
+                           , with [style "color: #333"] $
+                               presentProperties [ ("Categorie", "boek")
+                                                 , ("Jaartal", "1859")
+                                                 , ("Taal",    "Engels")
+                                                 ]
+                           , with [style "font-weight: bold; font-size: 12px"] $ "Beschrijving:" 
+                           , with [ class_ "ellipsis multiline", style "font-size: 12px; height: 44px;"] $
+                                                                  {- 44 : 3 * 14 + 2 -}
+                               multiLineStringToHtml $ itemDescr item
+                           ] 
+            , nbsp +++ nbsp
+            , vDivList   
+                [ presentProperties [ ("Eigenaar", toHtml $ lenderName owner)
+                                  , ("Rating", with [style "font-size: 17px; position: relative; top: -2px" ] $ presentRating 5 $ lenderRating owner)
+                                  , ("Postcode", toHtml $ take 4 $ lenderZipCode owner)
+                                  ]
+                  --, div_ $ presentPrice (itemPrice item)
+                , maybe "Uitgeleend" present  mBorrowButton
+                ] ! style "width: 150px; height: 120px; padding: 5"
             ]
+            
+vDivList elts = div_ $ mapM_ div_ elts 
+
+{- ellipsis from http://stackoverflow.com/questions/536814/insert-ellipsis-into-html-tag-if-content-too-wide
+
+check if bin search is ok this way. might end on overflow.
+put ellipsis call in script
+
+also try:
+.ellipsis {
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    -o-text-overflow: ellipsis;
+}
+-}
+
+presentProperties :: [(String, Html)] -> Html            
+presentProperties props =
+  table $ sequence_ [ tr $ sequence_ [ td $ with [style "font-weight: bold"] $ toHtml propName, td $ nbsp +++ ":" +++ nbsp, td $ toHtml propVal ] 
+                    | (propName, propVal) <- props
+                    ] ! style "font-size: 12px"
+                    
+presentPrice price =
+  with [style "width:30px; height:28px; padding: 2 0 0 0; color: white; background-color: black; font-family: arial; font-size:24px; text-align: center"] $
+    toHtml $ show price 
 
 instance Storeable Database ItemView
 
@@ -314,7 +358,7 @@ mkLeenclubPage html =  -- imdb: background-color: #E3E2DD; background-image: -mo
       div_ ! thestyle "border: 1px solid black; background-color: #f0f0f0; box-shadow: 0 0 8px rgba(0, 0, 0, 0.7);" $ 
         vList [ hStretchList (space :  concatMap (\(label,rootView) -> [E $ rootViewLink rootView $ label, space]) menuItems)
                   ! (thestyle $ "color: white; font-size: 16px;"++ gradientStyle Nothing "#707070" "#101010")
-              , div_ ! thestyle "padding: 5px" $ html ] ! width "500px"
+              , div_ ! thestyle "padding: 5px" $ html ] ! width "800px"
  where menuItems = [("Home",""), ("Leners", "leners"), ("Spullen", "items"), ("Login","login")]
  
 gradientStyle :: Maybe Int -> String -> String -> String
@@ -377,7 +421,7 @@ instance Data db => Initial (SearchView db) where
 
 instance Data db => Storeable db (SearchView db)
 
--- todo add mSearchTerm
+-- todo: different languages 
 mkSearchView label argName resultsf = mkWebView $
   \vid oldView@( SearchView _ _ _ _ _) ->
     do { args <- getHashArgs
@@ -385,7 +429,7 @@ mkSearchView label argName resultsf = mkWebView $
                             Nothing    -> ""
                             Just term -> term 
        ; searchField <- mkTextFieldAct searchTerm $ Edit $ return ()
-       ; searchButton <- mkButtonWithClick "Search" True $ const ""
+       ; searchButton <- mkButtonWithClick "Zoek" True $ const ""
        ; results <- resultsf searchTerm
        ; return $ SearchView label searchField searchButton results $
                   jsScript $
