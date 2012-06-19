@@ -76,10 +76,20 @@ data ListElt = E Html | Stretch Html
 
 space = Stretch noHtml
 
+-- TODO make hList elts height 100% and vList elts width 100%
 hStretchList :: [ListElt] -> Html
 hStretchList listElts = table ! width "100%" $ tr $ sequence_ 
                           [ case listElt of E html       -> td ! style "white-space: nowrap" $ html
                                             Stretch html -> td ! thestyle ("width: "++show spaceWidth++"%") $  html 
+                          | listElt <- listElts 
+                          ]
+ where nrOfSpaces = length [ () | Stretch _ <- listElts ]
+       spaceWidth = if nrOfSpaces == 0 then 0 else 100 `div` nrOfSpaces 
+
+vStretchList :: [ListElt] -> Html
+vStretchList listElts = table ! height "100%" ! style "background-color: red" $ sequence_ 
+                          [ case listElt of E html       -> tr $ td $ html
+                                            Stretch html -> tr $ td ! thestyle ("height: "++show spaceWidth++"%") $ html 
                           | listElt <- listElts 
                           ]
  where nrOfSpaces = length [ () | Stretch _ <- listElts ]
