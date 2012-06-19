@@ -26,8 +26,8 @@ import Database
 main :: IO ()
 main = server rootViews "TracDB.txt" mkInitialDatabase Map.empty
 
-rootViews :: [ (String, SessionId -> [String] -> WebViewM Database (WebView Database)) ]
-rootViews = [ ("", \args -> mkTicketsView)] -- ignore args 
+rootViews :: RootViews Database
+rootViews = [ ("", mkTicketsView)] 
     
 -- Tickets ----------------------------------------------------------------------  
 
@@ -39,7 +39,7 @@ instance Initial TicketsView where
   initial = TicketsView initial
 
 
-mkTicketsView sessionId = mkWebView $
+mkTicketsView = mkWebView $
  \vid (TicketsView str) ->
   do { contents <- liftIO $ fmap (tail . lines . either id id) $
                    openURIString "http://sourceforge.net/apps/trac/ampersand/report/12?format=tab&USER=anonymous"
