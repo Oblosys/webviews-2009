@@ -453,13 +453,14 @@ function processPendingMoves(moves) {
   }
 }
 
-function processPendingScripts(scripts) {
-	for (var i=0; i<scripts.length; i++) {    
-    var scriptLines = scripts[i].split('\n')
+// Because eval may change local parameters, we put ___ after the identifiers.
+function processPendingScripts(scripts___) {
+	for (var i___=0; i___<scripts___.length; i___++) {    
+    var scriptLines___ = scripts___[i___].split('\n')
     try {
-      for (var j=0; j<scriptLines.length; j++) {
-        console.log("Eval: ",scriptLines[j]);
-        eval(scriptLines[j]);
+      for (var j___=0; j___<scriptLines___.length; j___++) {
+        console.log("Eval: ",scriptLines___[j___]);
+        eval(scriptLines___[j___]);
       }
     }
    catch (e) {
