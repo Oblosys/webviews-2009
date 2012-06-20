@@ -42,6 +42,14 @@ search items view
 autocomplete
 template view with menu bar
 
+TODO IMPORTANT
+Current event override mechanism for widgets is broken.
+Say we have Button_0 which is presented and has its handlers overwritten by script code in its parents.
+If we then change the presentation to a new one that has a button in the same tree position, it will also be Button_0,
+and since it hasn't changed, the incrementality will not update it, causing it to have the old button's handlers.
+(what happens with widget content?)
+
+
 TODO: hash paths don't seem to work okay when scripts are present. Reservations example has problems when switching from main to client or restaurant views
 
 TODO: don't prevent submit when no textfield action is present!!!! (instead change script for this or something)
@@ -63,6 +71,10 @@ nice sort buttons with triangles
 
 
 Home FAQ Profiel spullen geschiedenis Berichten aanmelden inloggen
+
+
+
+
 
 -}
 
@@ -175,6 +187,7 @@ instance Initial ItemId where
 deriveInitial ''Item
 
 deriveInitial ''ItemView
+
 
 --updateById id update db = let object = unsafeLookup 
  
@@ -425,7 +438,7 @@ mkLenderRootView = mkMaybeView "Onbekende lener" $
      }
 
 -- unnecessary at the moment, as the page has no controls of its own
-data LeenclubPageView = LeenclubPageView User (WebView Database) deriving (Eq, Show, Typeable, Data)
+data LeenclubPageView = LeenclubPageView User (EditAction Database) (WebView Database) deriving (Eq, Show, Typeable, Data)
 
 deriveInitial ''LeenclubPageView
 
@@ -437,22 +450,24 @@ mkLeenclubPageView mWebViewM = mkWebView $
   \vid oldItemView@LeenclubPageView{} ->
    do { user <- getUser
       ; wv <- mWebViewM
-      ; return $ LeenclubPageView user wv
+      ; logoutAction <- mkEditAction LogoutEdit
+      ; return $ LeenclubPageView user logoutAction wv
       } 
 
 instance Presentable LeenclubPageView where
-  present (LeenclubPageView user wv) =
+  present (LeenclubPageView user logoutAction wv) =
     -- imdb: background-color: #E3E2DD; background-image: -moz-linear-gradient(50% 0%, #B3B3B0 0px, #E3E2DD 500px);  
     mkPage [thestyle $ gradientStyle (Just 500) "#444" {- "#B3B3B0" -} "#E3E2DD"  ++ " font-family: arial"] $ 
       vList [ with [style "font-size: 50px; color: #ddd"] "Leenclub"
             --, present loginOutView
             , div_ ! thestyle "border: 1px solid black; background-color: #f0f0f0; box-shadow: 0 0 8px rgba(0, 0, 0, 0.7);" $ 
-                vList [ hStretchList (space :  concatMap (\(label,rootView) -> [E $ rootViewLink rootView $ label, space]) menuItems)
+                vList [ hStretchList (space :  concatMap (\menuItem -> [E menuItem, space]) menuItems)
                          ! (thestyle $ "color: white; font-size: 16px;"++ gradientStyle Nothing "#707070" "#101010")
                       , div_ ! thestyle "padding: 5px" $ present wv ] ! width "800px"
             ]
-   where menuItems = [("Home",""), ("Leners", "leners"), ("Spullen", "items")] ++ userMenuItems user ++
-                     [ (if user == Nothing then "Login" else "Logout","login")]
+   where menuItems = (map (\(label,rootView) -> rootViewLink rootView label) $
+                        [("Home",""), ("Leners", "leners"), ("Spullen", "items")] ++ userMenuItems user) ++
+                       [ if user == Nothing then rootViewLink "login" "Login" else withEditAction logoutAction "Logout" ]
          userMenuItems Nothing = []
          userMenuItems (Just (userId, _)) = [("Mijn profiel", "lener&lener="++userId), ("Geleend", ""), ("Berichten", "")]
            
