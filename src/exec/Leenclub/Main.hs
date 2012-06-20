@@ -33,6 +33,7 @@ rootViews :: RootViews Database
 rootViews = [ ("",       mkLeenclubPageView mkLendersRootView), ("test", mkTestView), ("test2", mkTestView2 "msg")
             , ("leners", mkLeenclubPageView mkLendersRootView), ("lener", mkLeenclubPageView mkLenderRootView)
             , ("items",  mkLeenclubPageView mkItemsRootView),   ("item",  mkLeenclubPageView mkItemRootView) 
+            , ("login",  mkLeenclubPageView mkLeenClubLoginOutView)
             ] 
 
 {-
@@ -269,7 +270,6 @@ mkItemView inline item = mkWebView $
   \vid oldItemView@ItemView{} -> 
     do { owner <- unsafeLookupM "itemView" allLenders (itemOwner item)
        ; user <- getUser
-       ; liftIO $ putStrLn $ "User : " ++ show user
        ; mBorrowButton <- case (itemBorrowed item, user) of
            (Nothing, Nothing)         -> fmap Left $ mkButton "Leen" False $ Edit $ return () 
            (Nothing, Just (userId,_)) -> fmap Left $ mkButton "Leen" True  $ Edit $ docEdit $ \db -> 
@@ -332,9 +332,6 @@ presentPrice price =
 
 instance Storeable Database ItemView
 
-
-
-
 linkedItemName item@Item{itemId = ItemId i} = linkedItem item $ toHtml (itemName item)
 
 linkedItem item@Item{itemId = ItemId login} html = 
@@ -349,30 +346,46 @@ rootViewLink :: String -> Html -> Html
 rootViewLink rootViewName html = a ! (href $ (toValue $ "/#" ++ rootViewName)) << html
 
 
-data LeenclubPageView = LeenclubPageView (WebView Database) (WebView Database) deriving (Eq, Show, Typeable, Data)
+data LeenclubLoginOutView = LeenclubLoginOutView (WebView Database) deriving (Eq, Show, Typeable, Data)
+
+instance Storeable Database LeenclubLoginOutView
+
+mkLeenClubLoginOutView = mkWebView $
+  \vid oldItemView@LeenclubLoginOutView{} ->
+   do { user <- getUser
+      ; loginOutView <- if user == Nothing then mkLoginView 
+                                          else mkLogoutView
+      ; return $ LeenclubLoginOutView loginOutView
+      }
+       
+instance Presentable LeenclubLoginOutView where
+  present (LeenclubLoginOutView loginOutView) =
+    present loginOutView
+    
+-- unnecessary at the moment, as the page has no controls of its own
+data LeenclubPageView = LeenclubPageView (WebView Database) deriving (Eq, Show, Typeable, Data)
 
 instance Storeable Database LeenclubPageView
 
 --updateById id update db = let object = unsafeLookup 
- 
+
 mkLeenclubPageView mWebViewM = mkWebView $
   \vid oldItemView@LeenclubPageView{} ->
-   do { user <- getUser
-      ; loginOutView <- if user == Nothing then mkLoginView 
-                                           else mkLogoutView
-      ; wv <- mWebViewM
-      ; return $ LeenclubPageView loginOutView wv
+   do { wv <- mWebViewM
+      ; return $ LeenclubPageView wv
       } 
 
 instance Presentable LeenclubPageView where
-  present (LeenclubPageView loginOutView wv) =
+  present (LeenclubPageView wv) =
     -- imdb: background-color: #E3E2DD; background-image: -moz-linear-gradient(50% 0%, #B3B3B0 0px, #E3E2DD 500px);  
     mkPage [thestyle $ gradientStyle (Just 500) "#444" {- "#B3B3B0" -} "#E3E2DD"  ++ " font-family: arial"] $ 
-      div_ ! thestyle "border: 1px solid black; background-color: #f0f0f0; box-shadow: 0 0 8px rgba(0, 0, 0, 0.7);" $ 
-        vList [ present loginOutView
-              , hStretchList (space :  concatMap (\(label,rootView) -> [E $ rootViewLink rootView $ label, space]) menuItems)
-                  ! (thestyle $ "color: white; font-size: 16px;"++ gradientStyle Nothing "#707070" "#101010")
-              , div_ ! thestyle "padding: 5px" $ present wv ] ! width "800px"
+      vList [ with [style "font-size: 50px; color: #ddd"] "Leenclub"
+            --, present loginOutView
+            , div_ ! thestyle "border: 1px solid black; background-color: #f0f0f0; box-shadow: 0 0 8px rgba(0, 0, 0, 0.7);" $ 
+                vList [ hStretchList (space :  concatMap (\(label,rootView) -> [E $ rootViewLink rootView $ label, space]) menuItems)
+                         ! (thestyle $ "color: white; font-size: 16px;"++ gradientStyle Nothing "#707070" "#101010")
+                      , div_ ! thestyle "padding: 5px" $ present wv ] ! width "800px"
+            ]
    where menuItems = [("Home",""), ("Leners", "leners"), ("Spullen", "items"), ("Login","login")]
  
 gradientStyle :: Maybe Int -> String -> String -> String
@@ -448,7 +461,7 @@ mkSearchView label argName resultsf = mkWebView $
        ; return $ SearchView label searchField searchButton results $
                   jsScript $
                     let navigateAction = "setHashArg('"++argName++"', "++jsGetWidgetValue searchField++");"
-                    in  [ inertTextView searchField -- todo make function to only change hash
+                    in  [ inertTextView searchField
                         , onClick searchButton navigateAction
                         , onSubmit searchField navigateAction
                         ]
@@ -493,5 +506,7 @@ deriveInitial ''Item
 
 instance Initial ItemId where
   initial = ItemId (-1)
+
+deriveInitial ''LeenclubLoginOutView
 
 deriveInitial ''LeenclubPageView
