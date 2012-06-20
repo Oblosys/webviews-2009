@@ -30,9 +30,9 @@ main :: IO ()
 main = server rootViews "LeenclubDB.txt" mkInitialDatabase lenders
 
 rootViews :: RootViews Database
-rootViews = [ ("", mkLendersRootView), ("test", mkTestView), ("test2", mkTestView2 "msg")
-            , ("leners", mkLendersRootView), ("lener", mkLenderRootView)
-            , ("items", mkItemsRootView), ("item", mkItemRootView) 
+rootViews = [ ("",       mkLeenclubPageView mkLendersRootView), ("test", mkTestView), ("test2", mkTestView2 "msg")
+            , ("leners", mkLeenclubPageView mkLendersRootView), ("lener", mkLeenclubPageView mkLenderRootView)
+            , ("items",  mkLeenclubPageView mkItemsRootView),   ("item",  mkLeenclubPageView mkItemRootView) 
             ] 
 
 {-
@@ -79,20 +79,21 @@ Home FAQ Profiel spullen geschiedenis Berichten aanmelden inloggen
 -- Utils
 
 
-unsafeLookupM dbf key = withDb $ \db -> unsafeLookup (dbf db) key
+unsafeLookupM tag dbf key = withDb $ \db -> unsafeLookup tag (dbf db) key
 
 
 --- Testing
 
 data TestView = 
-  TestView Int (Widget RadioView) (WebView Database) (WebView Database) (WebView Database) 
+  TestView Int (Widget RadioView) (Widget (TextView Database)) (WebView Database) (WebView Database) (WebView Database) 
     deriving (Eq, Show, Typeable, Data)
 
 mkTestView :: WebViewM Database (WebView Database)
 mkTestView = mkWebView $
-  \vid oldTestView@(TestView _ radioOld _ _ _) ->
+  \vid oldTestView@(TestView _ radioOld _ _ _ _) ->
     do { radio <-  mkRadioView ["Naam", "Punten", "Drie"] (getSelection radioOld) True
        ; let radioSel = getSelection radioOld
+       ; tf <- mkTextField "bla"
        ; (wv1, wv2) <- if True -- radioSel == 0
                        then do { wv1 <- mkHtmlView $ "een"
                                ; wv2 <- mkHtmlTemplateView "test.html" []
@@ -105,7 +106,7 @@ mkTestView = mkWebView $
        ; liftIO $ putStrLn $ "radio value " ++ show radioSel
        ; presViewTest <- mkTestView2 $ "Radio value is " ++ show radioSel
        ; let (wv1',wv2') = if radioSel == 0 then (wv1,wv2) else (wv2,wv1)
-       ; let wv = TestView radioSel radio wv1' wv2' presViewTest
+       ; let wv = TestView radioSel radio tf wv1' wv2' presViewTest
        
        --; liftIO $ putStrLn $ "All top-level webnodes "++(show (everythingTopLevel webNodeQ wv :: [WebNode Database])) 
        
@@ -113,8 +114,8 @@ mkTestView = mkWebView $
        }
 
 instance Presentable TestView where
-  present (TestView radioSel radio wv1 wv2 wv3) =
-      vList [present radio, toHtml $ show radioSel, present wv1, present wv2, present wv3]
+  present (TestView radioSel radio tf wv1 wv2 wv3) =
+      vList [present radio, present tf, toHtml $ show radioSel, present wv1, present wv2, present wv3]
 
 instance Storeable Database TestView
 
@@ -154,7 +155,7 @@ mkLendersRootView = mkWebView $
        }
 
 instance Presentable LendersRootView where
-  present (LendersRootView searchView) = mkLeenclubPage $ present searchView
+  present (LendersRootView searchView) = present searchView
 
 
 mkLenderRootView = mkMaybeView "Onbekende lener" $
@@ -189,7 +190,7 @@ modifyViewedPig f (LenderView vid name) =
 mkLenderView inline lender = mkWebView $
   \vid oldLenderView@(LenderView _ _ _) -> 
     do { let itemIds = lenderItems lender
-       ; items <- mapM (\itemId -> withDb $ \db -> unsafeLookup (allItems db) itemId) itemIds
+       ; items <- mapM (\itemId -> withDb $ \db -> unsafeLookup "lenderView" (allItems db) itemId) itemIds
        ; itemWebViews <- if isInline inline then return [] else mapM (mkItemView Inline) items
        --; ea <- mkEditAction $ Edit $ liftIO $ putStrLn "edit!!!\n\n"
        --; w <- mkRadioView ["Ja", "Nee"] 0 True
@@ -201,7 +202,6 @@ mkLenderView inline lender = mkWebView $
         
 instance Presentable LenderView where
   present (LenderView Full lender itemWebViews) =
-    mkLeenclubPage $
         vList [ h2 $ (toHtml $ "Lener " ++ lenderName lender)
               , span_ (presentRating 5 $ lenderRating lender) ! style "font-size: 20px"
               , hList [ boxedEx 1 $ (image ("leners/" ++ lenderLogin lender ++".jpg")) ! align "top"
@@ -255,7 +255,7 @@ mkItemsRootView = mkWebView $
 
 instance Presentable ItemsRootView where
   present (ItemsRootView searchView dialog dialogButton) =
-        mkLeenclubPage $ present searchView >> present dialogButton >> present dialog
+        present searchView >> present dialogButton >> present dialog
 
 
 
@@ -267,21 +267,22 @@ data ItemView =
  
 mkItemView inline item = mkWebView $
   \vid oldItemView@ItemView{} -> 
-    do { owner <- unsafeLookupM allLenders (itemOwner item)
-       ; mBorrowButton <- case itemBorrowed item of
-           Nothing -> fmap Left $ mkButton "Leen" True $ Edit $ docEdit $ \db -> 
-                        let items' = Map.update (\i -> Just $ item{itemBorrowed = Just $ LenderId "martijn"}) (itemId item) (allItems db) 
-                        in  db{allItems = items'}
-           Just borrowerId -> do { borrower <- unsafeLookupM allLenders borrowerId
-                                 ; return $ Right $ borrower 
-                                 } 
+    do { owner <- unsafeLookupM "itemView" allLenders (itemOwner item)
+       ; user <- getUser
+       ; liftIO $ putStrLn $ "User : " ++ show user
+       ; mBorrowButton <- case (itemBorrowed item, user) of
+           (_, _)         -> fmap Left $ mkButton "Leen" False $ Edit $ return () 
+     {-      (Nothing, Just (userId,_)) -> fmap Left $ mkButton "Leen" True  $ Edit $ docEdit $ \db -> 
+                        let items' = Map.update (\i -> Just $ item{itemBorrowed = Just $ LenderId userId}) (itemId item) (allItems db) 
+                        in  db -- {allItems = items'}
+           (Just borrowerId,_) -> fmap Right $ unsafeLookupM "itemView2" allLenders borrowerId
+       -}
        ; let descrId = mkHtmlViewId vid 
        ; return $ ItemView inline item owner mBorrowButton
        }
        
 instance Presentable ItemView where
   present (ItemView Full item owner eBorrowButton) =
-    mkLeenclubPage $
         vList [ h2 $ (toHtml $ "Item " ++ itemName item)
               , hList [ boxedEx 1 $ (image ("items/" ++ (show $ itemIdNr item) ++".jpg") ! style "width: 200px") ! align "top"
                       , nbsp
@@ -349,13 +350,32 @@ linkedLender lender@Lender{lenderId = LenderId login} html =
 rootViewLink :: String -> Html -> Html 
 rootViewLink rootViewName html = a ! (href $ (toValue $ "/#" ++ rootViewName)) << html
 
-mkLeenclubPage html =  -- imdb: background-color: #E3E2DD; background-image: -moz-linear-gradient(50% 0%, #B3B3B0 0px, #E3E2DD 500px);  
+
+data LeenclubPageView = LeenclubPageView (WebView Database) (WebView Database) deriving (Eq, Show, Typeable, Data)
+
+instance Storeable Database LeenclubPageView
+
+--updateById id update db = let object = unsafeLookup 
+ 
+mkLeenclubPageView mWebViewM = mkWebView $
+  \vid oldItemView@LeenclubPageView{} ->
+   do { user <- getUser
+      ; loginOutView <- if user == Nothing then mkLoginView 
+                                           else mkLogoutView
+      ; wv <- mWebViewM
+      ; return $ LeenclubPageView loginOutView wv
+      } 
+
+instance Presentable LeenclubPageView where
+  present (LeenclubPageView loginOutView wv) =
+    -- imdb: background-color: #E3E2DD; background-image: -moz-linear-gradient(50% 0%, #B3B3B0 0px, #E3E2DD 500px);  
     mkPage [thestyle $ gradientStyle (Just 500) "#444" {- "#B3B3B0" -} "#E3E2DD"  ++ " font-family: arial"] $ 
       div_ ! thestyle "border: 1px solid black; background-color: #f0f0f0; box-shadow: 0 0 8px rgba(0, 0, 0, 0.7);" $ 
-        vList [ hStretchList (space :  concatMap (\(label,rootView) -> [E $ rootViewLink rootView $ label, space]) menuItems)
+        vList [ present loginOutView
+              , hStretchList (space :  concatMap (\(label,rootView) -> [E $ rootViewLink rootView $ label, space]) menuItems)
                   ! (thestyle $ "color: white; font-size: 16px;"++ gradientStyle Nothing "#707070" "#101010")
-              , div_ ! thestyle "padding: 5px" $ html ] ! width "800px"
- where menuItems = [("Home",""), ("Leners", "leners"), ("Spullen", "items"), ("Login","login")]
+              , div_ ! thestyle "padding: 5px" $ present wv ] ! width "800px"
+   where menuItems = [("Home",""), ("Leners", "leners"), ("Spullen", "items"), ("Login","login")]
  
 gradientStyle :: Maybe Int -> String -> String -> String
 gradientStyle mHeight topColor bottomColor =
@@ -475,3 +495,5 @@ deriveInitial ''Item
 
 instance Initial ItemId where
   initial = ItemId (-1)
+
+deriveInitial ''LeenclubPageView
