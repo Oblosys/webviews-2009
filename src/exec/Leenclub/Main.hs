@@ -271,13 +271,11 @@ mkItemView inline item = mkWebView $
        ; user <- getUser
        ; liftIO $ putStrLn $ "User : " ++ show user
        ; mBorrowButton <- case (itemBorrowed item, user) of
-           (_, _)         -> fmap Left $ mkButton "Leen" False $ Edit $ return () 
-     {-      (Nothing, Just (userId,_)) -> fmap Left $ mkButton "Leen" True  $ Edit $ docEdit $ \db -> 
+           (Nothing, Nothing)         -> fmap Left $ mkButton "Leen" False $ Edit $ return () 
+           (Nothing, Just (userId,_)) -> fmap Left $ mkButton "Leen" True  $ Edit $ docEdit $ \db -> 
                         let items' = Map.update (\i -> Just $ item{itemBorrowed = Just $ LenderId userId}) (itemId item) (allItems db) 
-                        in  db -- {allItems = items'}
+                        in  db{allItems = items'}
            (Just borrowerId,_) -> fmap Right $ unsafeLookupM "itemView2" allLenders borrowerId
-       -}
-       ; let descrId = mkHtmlViewId vid 
        ; return $ ItemView inline item owner mBorrowButton
        }
        
