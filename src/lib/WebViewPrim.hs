@@ -489,7 +489,7 @@ jsVar (ViewIdT vid) name = name++viewIdSuffix vid
 jsAssignVar (ViewIdT vid) name value = name++viewIdSuffix vid++" = "++value++";"
 -- TODO: maybe refVar and assignVar are more appropriate?
 jsDeclareVar (ViewIdT vid) name value = let jsVar = name++viewIdSuffix vid
-                            in  "if (typeof "++jsVar++" ==\"undefined\") {"++jsVar++" = "++value++";};"
+                            in  jsVar++" = "++value++";"
 -- no "var " here, does not work when evaluated with eval
 
 jsCallFunction (ViewIdT vid) name params = name++viewIdSuffix vid++"("++intercalate "," params++")"
