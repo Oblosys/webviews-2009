@@ -11,6 +11,10 @@ import Data.Map (Map)
 import qualified Data.Map as Map 
 import Control.Monad.State
 import Control.Monad.Identity
+import GHC.Read (parens, readPrec, lexP)
+import Text.Read.Lex (Lexeme(Ident))
+import Text.ParserCombinators.ReadPrec (pfail)
+
 
 -- Typeable1 instance for StateT, which comes from happstack-state-6.1.4/src/Happstack/State/Types.hs 
 instance (Typeable st, Typeable1 m) => Typeable1 (StateT st m) where
@@ -52,18 +56,19 @@ instance Show ViewId where
   show (ViewId is) = "VID_"++concatMap (\i->show i++"_") is
 
 
--- not the greatest Read instance, but it is sufficient for the basic cases in which we use read.
 instance Read ViewId where
-  readsPrec d s = case dropWhile isSpace s of 
-                    ('V':'I':'D':'_':rest) -> let (path,rest') = takePathElts rest 
-                                              in  [(ViewId path, rest')]
-                    _                      -> []
-   where takePathElts :: String -> ([Int], String)
-         takePathElts rest = case span isDigit rest of
-                               (digits@(_:_), ('_': rest')) -> let (path, rest'') = takePathElts rest'
-                                                               in  (read digits: path, rest'')
-                               _                      -> ([], rest)
-
+  readPrec = parens $ do { Ident ('V':'I':'D':'_':pathStr) <- lexP
+                         ; case takePathElts pathStr of
+                             Just path -> return $ ViewId path
+                             Nothing   -> pfail
+                         }
+   where takePathElts :: String -> Maybe [Int] -- return path if we can parse the entire string
+         takePathElts ""   = Just []
+         takePathElts str = case span isDigit str of
+                              (digits@(_:_), ('_': rest')) -> do { path <- takePathElts rest'
+                                                                 ; return $ read digits : path
+                                                                 }      
+                              _                      -> Nothing                               
 
 -- we define an AttributeValue rather than the id_ Attribute, so each application will still contain the id_ combinator (which 
 -- makes it more clear that an id is set)
