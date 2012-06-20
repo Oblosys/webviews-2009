@@ -17,8 +17,9 @@ import Text.ParserCombinators.ReadPrec (pfail)
 
 
 -- Typeable1 instance for StateT, which comes from happstack-state-6.1.4/src/Happstack/State/Types.hs 
+-- (and has been updated to use mkTyCon3 instead of the deprecated mkTycon)
 instance (Typeable st, Typeable1 m) => Typeable1 (StateT st m) where
-    typeOf1 x = mkTyConApp (mkTyCon "Control.Monad.State.StateT") [typeOf (undefined :: st), typeOf1 (m x)]
+    typeOf1 x = mkTyConApp (mkTyCon3 "mtl" "Control.Monad.State.Lazy" "StateT") [typeOf (undefined :: st), typeOf1 (m x)]
         where m :: StateT st m a -> m a
               m = undefined
 
