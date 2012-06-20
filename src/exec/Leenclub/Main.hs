@@ -26,16 +26,6 @@ import Database
 import TemplateHaskell
 
 
-main :: IO ()
-main = server rootViews "LeenclubDB.txt" mkInitialDatabase lenders
-
-rootViews :: RootViews Database
-rootViews = [ ("",       mkLeenclubPageView mkLendersRootView), ("test", mkTestView), ("test2", mkTestView2 "msg")
-            , ("leners", mkLeenclubPageView mkLendersRootView), ("lener", mkLeenclubPageView mkLenderRootView)
-            , ("items",  mkLeenclubPageView mkItemsRootView),   ("item",  mkLeenclubPageView mkItemRootView) 
-            , ("login",  mkLeenclubPageView mkLeenClubLoginOutView)
-            ] 
-
 {-
 Doc
 
@@ -82,93 +72,84 @@ Home FAQ Profiel spullen geschiedenis Berichten aanmelden inloggen
 
 unsafeLookupM tag dbf key = withDb $ \db -> unsafeLookup tag (dbf db) key
 
-
---- Testing
-
-data TestView = 
-  TestView Int (Widget RadioView) (Widget (TextView Database)) (WebView Database) (WebView Database) (WebView Database) 
+data SortView db = 
+  SortView (Widget SelectView) (Widget SelectView) [WebView db]  
     deriving (Eq, Show, Typeable, Data)
 
-mkTestView :: WebViewM Database (WebView Database)
-mkTestView = mkWebView $
-  \vid oldTestView@(TestView _ radioOld _ _ _ _) ->
-    do { radio <-  mkRadioView ["Naam", "Punten", "Drie"] (getSelection radioOld) True
-       ; let radioSel = getSelection radioOld
-       ; tf <- mkTextField "bla"
-       ; (wv1, wv2) <- if True -- radioSel == 0
-                       then do { wv1 <- mkHtmlView $ "een"
-                               ; wv2 <- mkHtmlTemplateView "test.html" []
-                               ; return (wv1,wv2)
-                               }
-                       else do { wv1 <- mkHtmlTemplateView "test.html" []
-                               ; wv2 <- mkHtmlView $ "een"
-                               ; return (wv1,wv2)
-                               }
-       ; liftIO $ putStrLn $ "radio value " ++ show radioSel
-       ; presViewTest <- mkTestView2 $ "Radio value is " ++ show radioSel
-       ; let (wv1',wv2') = if radioSel == 0 then (wv1,wv2) else (wv2,wv1)
-       ; let wv = TestView radioSel radio tf wv1' wv2' presViewTest
+instance Data db => Initial (SortView db) where
+  initial = SortView initial initial initial
+
+instance Data db => Storeable db (SortView db)
+
+-- [("sorteer oplopend", id), ("sorteer aflopend", reverse)]
+-- [("Sorteer op naam", 
+mkSortView :: [(String, a->a->Ordering)] -> (a-> WebViewM Database (WebView Database)) -> [a] -> WebViewM Database (WebView Database)
+mkSortView namedSortFunctions mkResultWV results = mkWebView $
+  \vid oldView@(SortView sortFieldSelectOld sortOrderSelectOld _) ->
+    do { let sortField = getSelection sortFieldSelectOld
+       ; let sortOrder = getSelection sortOrderSelectOld
+       ; let (sortFieldNames, sortFunctions) = unzip namedSortFunctions
+       ; sortFieldSelect <- mkSelectView sortFieldNames sortField True
+       ; sortOrderSelect <- mkSelectView ["Oplopend", "Aflopend"] sortOrder True
        
-       --; liftIO $ putStrLn $ "All top-level webnodes "++(show (everythingTopLevel webNodeQ wv :: [WebNode Database])) 
-       
-       ; return $ wv 
+       ; resultsWVs <- sequence [ fmap (r,) $ mkResultWV r | r <- results ]
+       ; sortedResultViews <- case results of
+                                [] -> fmap singleton $ mkHtmlView $ "Geen resultaten"
+                                _  -> return $ map snd $ (if sortOrder == 0 then id else reverse) $ 
+                                                         sortBy (sortFunctions !! sortField `on` fst) $ resultsWVs
+    
+       ; return $ SortView sortFieldSelect sortOrderSelect sortedResultViews
        }
 
-instance Presentable TestView where
-  present (TestView radioSel radio tf wv1 wv2 wv3) =
-      vList [present radio, present tf, toHtml $ show radioSel, present wv1, present wv2, present wv3]
+instance Presentable (SortView db) where
+  present (SortView sortFieldSelect sortOrderSelect webViews) = 
+    (vList $ hStretchList [space, E $ "Sorteer" +++ nbsp, E $ present sortOrderSelect, E $ nbsp +++ "op" +++ nbsp, E $ present sortFieldSelect] 
+              ! style "margin: 4 0 4 0"
+            : intersperse hSep (map present webViews)
+    ) ! style "width: 100%"        
+   where hSep = div_ ! style "width: 100%; height:1px; background-color: black; margin: 5 0 5 0" $ noHtml
+ 
+ 
 
-instance Storeable Database TestView
+data SearchView db = 
+  SearchView String (Widget (TextView db)) (Widget (Button db)) (WebView db) String 
+    deriving (Eq, Show, Typeable, Data)
 
+instance Data db => Initial (SearchView db) where
+  initial = SearchView initial initial initial initial initial
 
-mkTestView2 msg = mkPresentView (\hs -> hList $ toHtml (msg :: String) : hs) $
-    do { wv1 <- mkHtmlView $ "een"
-       ; wv2 <- mkHtmlTemplateView "test.html" []
-       ; return $ [wv1,wv2] 
+instance Data db => Storeable db (SearchView db)
+
+-- todo: different languages 
+mkSearchView label argName resultsf = mkWebView $
+  \vid oldView@( SearchView _ _ _ _ _) ->
+    do { args <- getHashArgs
+       ; let searchTerm = case lookup argName args of 
+                            Nothing    -> ""
+                            Just term -> term 
+       ; searchField <- mkTextFieldAct searchTerm $ Edit $ return ()
+       ; searchButton <- mkButtonWithClick "Zoek" True $ const ""
+       ; results <- resultsf searchTerm
+       ; return $ SearchView label searchField searchButton results $
+                  jsScript $
+                    let navigateAction = "setHashArg('"++argName++"', "++jsGetWidgetValue searchField++");"
+                    in  [ inertTextView searchField
+                        , onClick searchButton navigateAction
+                        , onSubmit searchField navigateAction
+                        ]
        }
+
+instance Presentable (SearchView db) where
+  present (SearchView label searchField searchButton wv script) =
+      (hStretchList [E $ toHtml label +++ nbsp, Stretch $ with [style "width: 100%;"] (present searchField), E $ present searchButton]) +++
+      present wv
+      +++ mkScript script
 
 
 -- WebViews
 
 
 
-data LendersRootView = LendersRootView (WebView Database)
-    deriving (Eq, Show, Typeable, Data)
-
-instance Storeable Database LendersRootView
-
-mkLendersRootView :: WebViewM Database (WebView Database)
-mkLendersRootView = mkWebView $
-  \vid oldLenderView@(LendersRootView _) ->
-    do { let namedSortFunctions = [ ("Naam",     compare `on` lenderName) 
-                                  , ("Rating",    compare `on` lenderRating)
-                                  ]
-    
-       ; searchView <- mkSearchView "Zoek in leners: " "q" $ \searchTerm ->
-          do { results :: [Lender] <- if searchTerm == "" 
-                    then return [] 
-                    else do { resultLenders <- withDb $ \db -> searchLenders searchTerm db
-                            ; return resultLenders
-                            }
-             ; mkSortView namedSortFunctions (mkLenderView Inline) results
-             }
-       ; return $ LendersRootView searchView
-       }
-
-instance Presentable LendersRootView where
-  present (LendersRootView searchView) = present searchView
-
-
-mkLenderRootView = mkMaybeView "Onbekende lener" $
-  do { args <- getHashArgs 
-     ; case lookup "lener" args of
-         Just lener -> do { mLender <- withDb $ \db -> Map.lookup (LenderId lener) (allLenders db)
-                     ; case mLender of
-                         Nothing    -> return Nothing
-                         Just lender -> fmap Just $ mkLenderView Full lender
-                     }
-         Nothing    -> return Nothing
-     }
 
 
 data Inline = Inline | Full deriving (Eq, Show, Typeable, Data)
@@ -176,93 +157,24 @@ data Inline = Inline | Full deriving (Eq, Show, Typeable, Data)
 isInline Inline = True
 isInline Full   = False
 
-data LenderView = 
-  LenderView Inline Lender [WebView Database]
-    deriving (Eq, Show, Typeable, Data)
-
-instance Storeable Database LenderView
-
-
-{-
-modifyViewedPig f (LenderView vid name) =
-  LenderView vid zipCode date (f viewedPig) b1 b2 b3 pigs pignames mSubview
--}
---mkLenderView :: Int -> WebViewM Database (WebView Database)
-mkLenderView inline lender = mkWebView $
-  \vid oldLenderView@(LenderView _ _ _) -> 
-    do { let itemIds = lenderItems lender
-       ; items <- mapM (\itemId -> withDb $ \db -> unsafeLookup "lenderView" (allItems db) itemId) itemIds
-       ; itemWebViews <- if isInline inline then return [] else mapM (mkItemView Inline) items
-       --; ea <- mkEditAction $ Edit $ liftIO $ putStrLn "edit!!!\n\n"
-       --; w <- mkRadioView ["Ja", "Nee"] 0 True
-       --; w  <- mkButton "Test"      True         $ Edit $ return ()
-       --; w <- mkTextField "test"
-       --; t <- mkHtmlTemplateView "test.html" [("lender","Martijn")]
-       ; return $ LenderView inline lender itemWebViews
-       }
-        
-instance Presentable LenderView where
-  present (LenderView Full lender itemWebViews) =
-        vList [ h2 $ (toHtml $ "Lener " ++ lenderName lender)
-              , span_ (presentRating 5 $ lenderRating lender) ! style "font-size: 20px"
-              , hList [ boxedEx 1 $ (image ("leners/" ++ lenderLogin lender ++".jpg")) ! align "top"
-                      , nbsp
-                      , nbsp
-                      , vList [ toHtml (lenderZipCode lender)
-                              ]
-                      ]
-              , h2 << "Spullen"
-              , vList $ map present itemWebViews
-              ]
-  present (LenderView Inline lender itemWebViews) =
-    linkedLender lender $
-      hList [ boxedEx 1 $ (image ("leners/" ++ lenderLogin lender ++".jpg") ! style "width: 30px") ! align "top"
-            , nbsp
-            , nbsp
-            , vList [ toHtml (lenderName lender)
-                    , span_ (presentRating 5 $ lenderRating lender) ! style "font-size: 20px"
-                    ]
-            ]
-
-
-data ItemsRootView = 
-  ItemsRootView (WebView Database) (WebView Database) (Widget (Button Database))
-    deriving (Eq, Show, Typeable, Data)
-
-instance Storeable Database ItemsRootView
-
-mkItemsRootView ::WebViewM Database (WebView Database)
-mkItemsRootView = mkWebView $
-  \vid oldLenderView@(ItemsRootView _ _ _) ->
-    do { let namedSortFunctions = [ ("Naam",     compare `on` itemName) 
-                                  , ("Prijs",    compare `on` itemPrice)
-                                  , ("Eigenaar", compare `on` itemDescr)
-                                  ]
-    
-       ; searchView <- mkSearchView "Zoek in spullen:" "q" $ \searchTerm ->
-          do { results :: [Item] <- if searchTerm == "" 
-                    then return [] 
-                    else do { resultItems <- withDb $ \db -> searchItems searchTerm db
-                            ; return resultItems
-                            }
-             ; mkSortView namedSortFunctions (mkItemView Inline) results
-             }
-       ; dialogView <- mkDialogView $ mkHtmlView "dialog"
-       ; dialogButton <- mkButton "Dialog" True $ Edit $ viewShowDialog dialogView 
-       ; return $ ItemsRootView searchView dialogView dialogButton
-       }
--- TODO: don't like the getViewId for dialogView, can we make a webview and return a result somehow?
---       or will typed webviews make this safe enough?
-
-instance Presentable ItemsRootView where
-  present (ItemsRootView searchView dialog dialogButton) =
-        present searchView >> present dialogButton >> present dialog
 
 
 
 data ItemView = 
   ItemView Inline Item Lender (Either (Widget (Button Database)) Lender)
     deriving (Eq, Show, Typeable, Data)
+
+instance Initial LenderId where
+  initial = LenderId "_uninitializedId_"
+
+deriveInitial ''Lender
+
+instance Initial ItemId where
+  initial = ItemId (-1)
+      
+deriveInitial ''Item
+
+deriveInitial ''ItemView
 
 --updateById id update db = let object = unsafeLookup 
  
@@ -346,7 +258,10 @@ rootViewLink :: String -> Html -> Html
 rootViewLink rootViewName html = a ! (href $ (toValue $ "/#" ++ rootViewName)) << html
 
 
+
 data LeenclubLoginOutView = LeenclubLoginOutView (WebView Database) deriving (Eq, Show, Typeable, Data)
+
+deriveInitial ''LeenclubLoginOutView
 
 instance Storeable Database LeenclubLoginOutView
 
@@ -361,9 +276,158 @@ mkLeenClubLoginOutView = mkWebView $
 instance Presentable LeenclubLoginOutView where
   present (LeenclubLoginOutView loginOutView) =
     present loginOutView
+
+
+
+mkItemRootView = mkMaybeView "Onbekend item" $
+  do { args <- getHashArgs
+     ; case lookup "item" args of
+         Just item | Just i <- readMaybe item -> 
+           do { mItem <- withDb $ \db -> Map.lookup (ItemId i) (allItems db)
+              ; case mItem of
+                       Nothing    -> return Nothing
+                       Just item -> fmap Just $ mkItemView Full item
+              }
+         Nothing -> return Nothing
+      }
+
+
+data LenderView = 
+  LenderView Inline Lender [WebView Database]
+    deriving (Eq, Show, Typeable, Data)
+
+
+deriveInitial ''Inline
+
+deriveInitial ''LenderView
+
+
+instance Storeable Database LenderView
+
+
+{-
+modifyViewedPig f (LenderView vid name) =
+  LenderView vid zipCode date (f viewedPig) b1 b2 b3 pigs pignames mSubview
+-}
+--mkLenderView :: Int -> WebViewM Database (WebView Database)
+mkLenderView inline lender = mkWebView $
+  \vid oldLenderView@(LenderView _ _ _) -> 
+    do { let itemIds = lenderItems lender
+       ; items <- mapM (\itemId -> withDb $ \db -> unsafeLookup "lenderView" (allItems db) itemId) itemIds
+       ; itemWebViews <- if isInline inline then return [] else mapM (mkItemView Inline) items
+       --; ea <- mkEditAction $ Edit $ liftIO $ putStrLn "edit!!!\n\n"
+       --; w <- mkRadioView ["Ja", "Nee"] 0 True
+       --; w  <- mkButton "Test"      True         $ Edit $ return ()
+       --; w <- mkTextField "test"
+       --; t <- mkHtmlTemplateView "test.html" [("lender","Martijn")]
+       ; return $ LenderView inline lender itemWebViews
+       }
+        
+instance Presentable LenderView where
+  present (LenderView Full lender itemWebViews) =
+        vList [ h2 $ (toHtml $ "Lener " ++ lenderName lender)
+              , span_ (presentRating 5 $ lenderRating lender) ! style "font-size: 20px"
+              , hList [ boxedEx 1 $ (image ("leners/" ++ lenderLogin lender ++".jpg")) ! align "top"
+                      , nbsp
+                      , nbsp
+                      , vList [ toHtml (lenderZipCode lender)
+                              ]
+                      ]
+              , h2 << "Spullen"
+              , vList $ map present itemWebViews
+              ]
+  present (LenderView Inline lender itemWebViews) =
+    linkedLender lender $
+      hList [ boxedEx 1 $ (image ("leners/" ++ lenderLogin lender ++".jpg") ! style "width: 30px") ! align "top"
+            , nbsp
+            , nbsp
+            , vList [ toHtml (lenderName lender)
+                    , span_ (presentRating 5 $ lenderRating lender) ! style "font-size: 20px"
+                    ]
+            ]
+
+
+data ItemsRootView = 
+  ItemsRootView (WebView Database) (WebView Database) (Widget (Button Database))
+    deriving (Eq, Show, Typeable, Data)
+
+deriveInitial ''ItemsRootView
+
+instance Storeable Database ItemsRootView
+
+mkItemsRootView ::WebViewM Database (WebView Database)
+mkItemsRootView = mkWebView $
+  \vid oldLenderView@(ItemsRootView _ _ _) ->
+    do { let namedSortFunctions = [ ("Naam",     compare `on` itemName) 
+                                  , ("Prijs",    compare `on` itemPrice)
+                                  , ("Eigenaar", compare `on` itemDescr)
+                                  ]
     
+       ; searchView <- mkSearchView "Zoek in spullen:" "q" $ \searchTerm ->
+          do { results :: [Item] <- if searchTerm == "" 
+                    then return [] 
+                    else do { resultItems <- withDb $ \db -> searchItems searchTerm db
+                            ; return resultItems
+                            }
+             ; mkSortView namedSortFunctions (mkItemView Inline) results
+             }
+       ; dialogView <- mkDialogView $ mkHtmlView "dialog"
+       ; dialogButton <- mkButton "Dialog" True $ Edit $ viewShowDialog dialogView 
+       ; return $ ItemsRootView searchView dialogView dialogButton
+       }
+-- TODO: don't like the getViewId for dialogView, can we make a webview and return a result somehow?
+--       or will typed webviews make this safe enough?
+
+instance Presentable ItemsRootView where
+  present (ItemsRootView searchView dialog dialogButton) =
+        present searchView >> present dialogButton >> present dialog
+
+
+    
+data LendersRootView = LendersRootView (WebView Database)
+    deriving (Eq, Show, Typeable, Data)
+
+deriveInitial ''LendersRootView
+
+instance Storeable Database LendersRootView
+
+mkLendersRootView :: WebViewM Database (WebView Database)
+mkLendersRootView = mkWebView $
+  \vid oldLenderView@(LendersRootView _) ->
+    do { let namedSortFunctions = [ ("Naam",     compare `on` lenderName) 
+                                  , ("Rating",    compare `on` lenderRating)
+                                  ]
+    
+       ; searchView <- mkSearchView "Zoek in leners: " "q" $ \searchTerm ->
+          do { results :: [Lender] <- if searchTerm == "" 
+                    then return [] 
+                    else do { resultLenders <- withDb $ \db -> searchLenders searchTerm db
+                            ; return resultLenders
+                            }
+             ; mkSortView namedSortFunctions (mkLenderView Inline) results
+             }
+       ; return $ LendersRootView searchView
+       }
+
+instance Presentable LendersRootView where
+  present (LendersRootView searchView) = present searchView
+
+
+mkLenderRootView = mkMaybeView "Onbekende lener" $
+  do { args <- getHashArgs 
+     ; case lookup "lener" args of
+         Just lener -> do { mLender <- withDb $ \db -> Map.lookup (LenderId lener) (allLenders db)
+                     ; case mLender of
+                         Nothing    -> return Nothing
+                         Just lender -> fmap Just $ mkLenderView Full lender
+                     }
+         Nothing    -> return Nothing
+     }
+
 -- unnecessary at the moment, as the page has no controls of its own
 data LeenclubPageView = LeenclubPageView User (WebView Database) deriving (Eq, Show, Typeable, Data)
+
+deriveInitial ''LeenclubPageView
 
 instance Storeable Database LeenclubPageView
 
@@ -404,113 +468,69 @@ gradientStyle mHeight topColor bottomColor =
   
   
   
-data SortView db = 
-  SortView (Widget SelectView) (Widget SelectView) [WebView db]  
+
+
+
+
+
+--- Testing
+
+data TestView = 
+  TestView Int (Widget RadioView) (Widget (TextView Database)) (WebView Database) (WebView Database) (WebView Database) 
     deriving (Eq, Show, Typeable, Data)
-
-instance Data db => Initial (SortView db) where
-  initial = SortView initial initial initial
-
-instance Data db => Storeable db (SortView db)
-
--- [("sorteer oplopend", id), ("sorteer aflopend", reverse)]
--- [("Sorteer op naam", 
-mkSortView :: [(String, a->a->Ordering)] -> (a-> WebViewM Database (WebView Database)) -> [a] -> WebViewM Database (WebView Database)
-mkSortView namedSortFunctions mkResultWV results = mkWebView $
-  \vid oldView@(SortView sortFieldSelectOld sortOrderSelectOld _) ->
-    do { let sortField = getSelection sortFieldSelectOld
-       ; let sortOrder = getSelection sortOrderSelectOld
-       ; let (sortFieldNames, sortFunctions) = unzip namedSortFunctions
-       ; sortFieldSelect <- mkSelectView sortFieldNames sortField True
-       ; sortOrderSelect <- mkSelectView ["Oplopend", "Aflopend"] sortOrder True
-       
-       ; resultsWVs <- sequence [ fmap (r,) $ mkResultWV r | r <- results ]
-       ; sortedResultViews <- case results of
-                                [] -> fmap singleton $ mkHtmlView $ "Geen resultaten"
-                                _  -> return $ map snd $ (if sortOrder == 0 then id else reverse) $ 
-                                                         sortBy (sortFunctions !! sortField `on` fst) $ resultsWVs
-    
-       ; return $ SortView sortFieldSelect sortOrderSelect sortedResultViews
-       }
-
-instance Presentable (SortView db) where
-  present (SortView sortFieldSelect sortOrderSelect webViews) = 
-    (vList $ hStretchList [space, E $ "Sorteer" +++ nbsp, E $ present sortOrderSelect, E $ nbsp +++ "op" +++ nbsp, E $ present sortFieldSelect] 
-              ! style "margin: 4 0 4 0"
-            : intersperse hSep (map present webViews)
-    ) ! style "width: 100%"        
-   where hSep = div_ ! style "width: 100%; height:1px; background-color: black; margin: 5 0 5 0" $ noHtml
- 
- 
-
-data SearchView db = 
-  SearchView String (Widget (TextView db)) (Widget (Button db)) (WebView db) String 
-    deriving (Eq, Show, Typeable, Data)
-
-instance Data db => Initial (SearchView db) where
-  initial = SearchView initial initial initial initial initial
-
-instance Data db => Storeable db (SearchView db)
-
--- todo: different languages 
-mkSearchView label argName resultsf = mkWebView $
-  \vid oldView@( SearchView _ _ _ _ _) ->
-    do { args <- getHashArgs
-       ; let searchTerm = case lookup argName args of 
-                            Nothing    -> ""
-                            Just term -> term 
-       ; searchField <- mkTextFieldAct searchTerm $ Edit $ return ()
-       ; searchButton <- mkButtonWithClick "Zoek" True $ const ""
-       ; results <- resultsf searchTerm
-       ; return $ SearchView label searchField searchButton results $
-                  jsScript $
-                    let navigateAction = "setHashArg('"++argName++"', "++jsGetWidgetValue searchField++");"
-                    in  [ inertTextView searchField
-                        , onClick searchButton navigateAction
-                        , onSubmit searchField navigateAction
-                        ]
-       }
-
-instance Presentable (SearchView db) where
-  present (SearchView label searchField searchButton wv script) =
-      (hStretchList [E $ toHtml label +++ nbsp, Stretch $ with [style "width: 100%;"] (present searchField), E $ present searchButton]) +++
-      present wv
-      +++ mkScript script
-
-mkItemRootView = mkMaybeView "Onbekend item" $
-  do { args <- getHashArgs
-     ; case lookup "item" args of
-         Just item | Just i <- readMaybe item -> 
-           do { mItem <- withDb $ \db -> Map.lookup (ItemId i) (allItems db)
-              ; case mItem of
-                       Nothing    -> return Nothing
-                       Just item -> fmap Just $ mkItemView Full item
-              }
-         Nothing -> return Nothing
-      }
 
 deriveInitial ''TestView
 
-deriveInitial ''LendersRootView
+mkTestView :: WebViewM Database (WebView Database)
+mkTestView = mkWebView $
+  \vid oldTestView@(TestView _ radioOld _ _ _ _) ->
+    do { radio <-  mkRadioView ["Naam", "Punten", "Drie"] (getSelection radioOld) True
+       ; let radioSel = getSelection radioOld
+       ; tf <- mkTextField "bla"
+       ; (wv1, wv2) <- if True -- radioSel == 0
+                       then do { wv1 <- mkHtmlView $ "een"
+                               ; wv2 <- mkHtmlTemplateView "test.html" []
+                               ; return (wv1,wv2)
+                               }
+                       else do { wv1 <- mkHtmlTemplateView "test.html" []
+                               ; wv2 <- mkHtmlView $ "een"
+                               ; return (wv1,wv2)
+                               }
+       ; liftIO $ putStrLn $ "radio value " ++ show radioSel
+       ; presViewTest <- mkTestView2 $ "Radio value is " ++ show radioSel
+       ; let (wv1',wv2') = if radioSel == 0 then (wv1,wv2) else (wv2,wv1)
+       ; let wv = TestView radioSel radio tf wv1' wv2' presViewTest
+       
+       --; liftIO $ putStrLn $ "All top-level webnodes "++(show (everythingTopLevel webNodeQ wv :: [WebNode Database])) 
+       
+       ; return $ wv 
+       }
 
-deriveInitial ''Inline
+instance Presentable TestView where
+  present (TestView radioSel radio tf wv1 wv2 wv3) =
+      vList [present radio, present tf, toHtml $ show radioSel, present wv1, present wv2, present wv3]
 
-deriveInitial ''LenderView
+instance Storeable Database TestView
 
-instance Initial LenderId where
-  initial = LenderId "_uninitializedId_"
 
-deriveInitial ''Lender
+mkTestView2 msg = mkPresentView (\hs -> hList $ toHtml (msg :: String) : hs) $
+    do { wv1 <- mkHtmlView $ "een"
+       ; wv2 <- mkHtmlTemplateView "test.html" []
+       ; return $ [wv1,wv2] 
+       }
 
-deriveInitial ''ItemsRootView
 
-deriveInitial ''ItemView
 
-deriveInitial ''Item
 
-instance Initial ItemId where
-  initial = ItemId (-1)
 
-deriveInitial ''LeenclubLoginOutView
 
-deriveInitial ''LeenclubPageView
+
+main :: IO ()
+main = server rootViews "LeenclubDB.txt" mkInitialDatabase lenders
+
+rootViews :: RootViews Database
+rootViews = [ ("",       mkLeenclubPageView mkLendersRootView), ("test", mkTestView), ("test2", mkTestView2 "msg")
+            , ("leners", mkLeenclubPageView mkLendersRootView), ("lener", mkLeenclubPageView mkLenderRootView)
+            , ("items",  mkLeenclubPageView mkItemsRootView),   ("item",  mkLeenclubPageView mkItemRootView) 
+            , ("login",  mkLeenclubPageView mkLeenClubLoginOutView)
+            ] 
