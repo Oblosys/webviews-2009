@@ -354,7 +354,7 @@ mkLeenClubLoginOutView = mkWebView $
   \vid oldItemView@LeenclubLoginOutView{} ->
    do { user <- getUser
       ; loginOutView <- if user == Nothing then mkLoginView 
-                                          else mkLogoutView
+                                           else mkLogoutView
       ; return $ LeenclubLoginOutView loginOutView
       }
        
@@ -363,7 +363,7 @@ instance Presentable LeenclubLoginOutView where
     present loginOutView
     
 -- unnecessary at the moment, as the page has no controls of its own
-data LeenclubPageView = LeenclubPageView (WebView Database) deriving (Eq, Show, Typeable, Data)
+data LeenclubPageView = LeenclubPageView User (WebView Database) deriving (Eq, Show, Typeable, Data)
 
 instance Storeable Database LeenclubPageView
 
@@ -371,12 +371,13 @@ instance Storeable Database LeenclubPageView
 
 mkLeenclubPageView mWebViewM = mkWebView $
   \vid oldItemView@LeenclubPageView{} ->
-   do { wv <- mWebViewM
-      ; return $ LeenclubPageView wv
+   do { user <- getUser
+      ; wv <- mWebViewM
+      ; return $ LeenclubPageView user wv
       } 
 
 instance Presentable LeenclubPageView where
-  present (LeenclubPageView wv) =
+  present (LeenclubPageView user wv) =
     -- imdb: background-color: #E3E2DD; background-image: -moz-linear-gradient(50% 0%, #B3B3B0 0px, #E3E2DD 500px);  
     mkPage [thestyle $ gradientStyle (Just 500) "#444" {- "#B3B3B0" -} "#E3E2DD"  ++ " font-family: arial"] $ 
       vList [ with [style "font-size: 50px; color: #ddd"] "Leenclub"
@@ -386,8 +387,11 @@ instance Presentable LeenclubPageView where
                          ! (thestyle $ "color: white; font-size: 16px;"++ gradientStyle Nothing "#707070" "#101010")
                       , div_ ! thestyle "padding: 5px" $ present wv ] ! width "800px"
             ]
-   where menuItems = [("Home",""), ("Leners", "leners"), ("Spullen", "items"), ("Login","login")]
- 
+   where menuItems = [("Home",""), ("Leners", "leners"), ("Spullen", "items")] ++ userMenuItems user ++
+                     [ (if user == Nothing then "Login" else "Logout","login")]
+         userMenuItems Nothing = []
+         userMenuItems (Just (userId, _)) = [("Mijn profiel", "lener&lener="++userId), ("Geleend", ""), ("Berichten", "")]
+           
 gradientStyle :: Maybe Int -> String -> String -> String
 gradientStyle mHeight topColor bottomColor =
     "background: -moz-linear-gradient("++topColor++" 0px, "++bottomColor++ maybe "" (\h -> " "++show h++"px") mHeight ++ "); "
