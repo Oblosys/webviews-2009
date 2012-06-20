@@ -3,7 +3,8 @@ module Types where
 
 import Data.IORef
 import Data.Generics
-
+import Data.List.Split
+import Data.Char
 import BlazeHtml
 import Text.Show.Functions
 import Data.Map (Map)
@@ -29,16 +30,17 @@ data Command = Init       String [(String,String)] -- rootView args    http://we
              | Refresh 
              | Test 
              | SetC ViewId String 
-             | ButtonC ViewId
-             | SubmitC ViewId
-             | PerformEditActionC ViewId [String]
+             | ButtonC ViewId -- ViewId
+             | SubmitC ViewId -- ViewId
+             | PerformEditActionC ViewId [String] 
              | ConfirmDialogOk 
                deriving (Eq, Show, Read) 
+
 
 -- view id's are for identifying views and widgets with regard to incrementality
 -- they remain constant over the view's/widget's life
 -- for now, we assign them at mkView
-newtype ViewId = ViewId [Int] deriving (Show, Read, Eq, Ord, Typeable, Data)
+newtype ViewId = ViewId [Int] deriving (Eq, Ord, Typeable, Data)
 
 unViewId  (ViewId pth) = pth -- not defined as a field, since ViewId's are now simply showed to get javascript id's, and we don't
                              -- want them to look like ... id = "ViewID {unViewId = [..]}" 
@@ -46,12 +48,28 @@ unViewId  (ViewId pth) = pth -- not defined as a field, since ViewId's are now s
 noViewId = ViewId []
 
 -- Html id attributes may only contain letters, digits, '_' and '-', so we can't simply show the viewId in html id attrs.
-mkHtmlViewId :: ViewId -> String
-mkHtmlViewId (ViewId is) = "ViewId"++concatMap (\i->"_"++show i) is
+instance Show ViewId where
+  show (ViewId is) = "VID_"++concatMap (\i->show i++"_") is
 
--- we define an AttributeValue rather than the id_ Attribute, so each application will still contain the id_ combinator
+
+-- not the greatest Read instance, but it is sufficient for the basic cases in which we use read.
+instance Read ViewId where
+  readsPrec d s = case dropWhile isSpace s of 
+                    ('V':'I':'D':'_':rest) -> let (path,rest') = takePathElts rest 
+                                              in  [(ViewId path, rest')]
+                    _                      -> []
+   where takePathElts :: String -> ([Int], String)
+         takePathElts rest = case span isDigit rest of
+                               (digits@(_:_), ('_': rest')) -> let (path, rest'') = takePathElts rest'
+                                                               in  (read digits: path, rest'')
+                               _                      -> ([], rest)
+
+
+-- we define an AttributeValue rather than the id_ Attribute, so each application will still contain the id_ combinator (which 
+-- makes it more clear that an id is set)
 mkHtmlViewIdVal :: ViewId -> AttributeValue
-mkHtmlViewIdVal vid = toValue $ mkHtmlViewId vid
+mkHtmlViewIdVal vid = toValue $ show vid
+
 
 newtype Id = Id { unId :: Int } deriving (Show, Eq, Ord, Data, Typeable)
 

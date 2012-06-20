@@ -532,7 +532,7 @@ function sendRandomCommand() {
 
 function textFieldChanged(textFieldId) {
 	value = escape(document.getElementById(textFieldId).value);
-  queueCommand ('SetC ('+textFieldId+') "'+value+'"');
+  queueCommand ('SetC '+textFieldId+' "'+value+'"');
   console.log('textFieldChanged '+value);
 }
 
@@ -546,12 +546,12 @@ function elementGotFocus(id) {
 function ButtonScript(viewId) {
     this.viewId = viewId;
     this.onFocus = function () {elementGotFocus(viewId)};
-    this.onClick = function () {queueCommand('ButtonC ('+viewId+')')};
+    this.onClick = function () {queueCommand('ButtonC '+viewId)};
 }
 
 function TextViewScript(viewId) {
     this.viewId = viewId;
-    this.onSubmit = function () {console.log('onSubmit');queueCommand('SubmitC ('+ viewId +')')}; // only for edit actions on text fields (not areas)
+    this.onSubmit = function () {console.log('onSubmit');queueCommand('SubmitC '+ viewId)}; // only for edit actions on text fields (not areas)
     this.onFocus  = function () {console.log('onFocus');elementGotFocus(viewId)};
     this.onBlur   = function () {console.log('onBlur');textFieldChanged(viewId)};
     this.onKeyUp  = function () {};
@@ -560,7 +560,7 @@ function TextViewScript(viewId) {
 function SelectScript(viewId) {
   this.viewId = viewId;
   this.onFocus  = function () {elementGotFocus(viewId)};
-  this.onChange = function () {var i = document.getElementById(viewId).selectedIndex; queueCommand('SetC ('+viewId+') "'+i+'"')};
+  this.onChange = function () {var i = document.getElementById(viewId).selectedIndex; queueCommand('SetC '+viewId+' "'+i+'"')};
 }
 
 

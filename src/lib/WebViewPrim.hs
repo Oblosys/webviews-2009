@@ -331,7 +331,7 @@ presentButton (Button viewId txt enabled style onclick _) =
                             "onclick=\""++ (if onclick /= "" then onclick else "queueCommand('ButtonC ("++show viewId++")')" )++
                                      "\" "++
                             "onfocus=\"elementGotFocus('"++show viewId++"')\">"++txt++"</button>") -}
-  (primHtml $ "<button id=\""++ mkHtmlViewId viewId++"\" "++ (if enabled then "" else "disabled ") ++ (if style /="" then " style=\"" ++style++"\" " else "")++
+  (primHtml $ "<button id=\""++ show viewId++"\" "++ (if enabled then "" else "disabled ") ++ (if style /="" then " style=\"" ++style++"\" " else "")++
                             "onclick="++ (if onclick /= "" then show onclick else "\"script"++viewIdSuffix viewId++".onClick()\"")++" "++
                             "onfocus=\"script"++viewIdSuffix viewId++".onFocus()\">"++txt++"</button>") >>
   (mkScript $ declareWVButtonScript viewId)
@@ -346,21 +346,21 @@ declareWVButtonScript viewId = jsDeclareVar (ViewIdT viewId) "script" $ "new But
 -- though it probably works out, as the ea id is the only one needing restoration.
 withEditAction (EditAction viewId _) elt =
   thespan !* [ id_ $ mkHtmlViewIdVal viewId
-             , strAttr "onClick" $ "queueCommand('PerformEditActionC ("++show viewId++") []')"] << elt
+             , strAttr "onClick" $ "queueCommand('PerformEditActionC "++show viewId++" []')"] << elt
 
 withEditActionAttr (EditAction viewId _) =  
   strAttr "onClick" $ "queueCommand('PerformEditActionC ("++show viewId++") []')"
 
 presentRadioView (RadioView viewId items selectedIx enabled) = thespan << sequence_
-  [ radio (mkHtmlViewId viewId) (show i) !* ( [ id_ (toValue eltId) -- all buttons have viewId as name, so they belong to the same radio button set 
-                          , strAttr "onChange" ("queueCommand('SetC ("++show viewId++") %22"++show i++"%22')") 
+  [ radio (show viewId) (show i) !* ( [ id_ (toValue eltId) -- all buttons have viewId as name, so they belong to the same radio button set 
+                          , strAttr "onChange" ("queueCommand('SetC "++show viewId++" %22"++show i++"%22')") 
                           , strAttr "onFocus" ("elementGotFocus('"++eltId++"')")
                           ]
                           ++ (if enabled && i == selectedIx then [strAttr "checked" ""] else []) 
                           ++ (if not enabled then [strAttr "disabled" ""] else [])) 
                           >> toHtml item >> br 
   | (i, item) <- zip [0..] items 
-  , let eltId = "radio"++mkHtmlViewId viewId++"button"++show i ] -- these must be unique for setting focus
+  , let eltId = "radio"++show viewId++"button"++show i ] -- these must be unique for setting focus
 
 presentSelectView :: SelectView -> Html
 presentSelectView (SelectView viewId items selectedIx enabled) = 
@@ -460,7 +460,7 @@ jsScript lines = intercalate ";\n" lines
 jsIf c t = "if ("++c++") {"++intercalate ";" t++"}"
 jsIfElse c t e = "if ("++c++") {"++intercalate ";" t++"} else {"++intercalate ";" e++ "}"
 jsFor c b = "for (var "++c++") {"++intercalate ";" b++"}"
-jsGetElementByIdRef (ViewIdRef id) = "document.getElementById('"++mkHtmlViewId (ViewId id)++"')"
+jsGetElementByIdRef (ViewIdRef id) = "document.getElementById('"++show (ViewId id)++"')"
 jsArr elts = "["++intercalate"," elts ++"]"
 jsLog e = "console.log("++e++")";
 
