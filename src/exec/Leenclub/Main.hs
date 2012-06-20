@@ -456,7 +456,7 @@ mkSearchView label argName resultsf = mkWebView $
 
 instance Presentable (SearchView db) where
   present (SearchView label searchField searchButton wv script) =
-      (hStretchList [E $ toHtml label +++ nbsp, Stretch $ with [style "width: 100%; background-color: red"] (present searchField), E $ present searchButton]) +++
+      (hStretchList [E $ toHtml label +++ nbsp, Stretch $ with [style "width: 100%;"] (present searchField), E $ present searchButton]) +++
       present wv
       +++ mkScript script
 
