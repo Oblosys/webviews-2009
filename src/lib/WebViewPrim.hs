@@ -504,9 +504,9 @@ jsNavigateTo href = "window.location.href = "++ href ++ ";"
 
 inertTextView :: (Widget (TextView db)) -> String
 inertTextView tv = jsScript [ onEvent "Submit" tv ""
-                            , onEvent "Focus" tv ""
                             , onEvent "Blur" tv ""
-                            ]
+                            ] -- prevent this text widget from firing updates to the server
+                              -- Focus event is still necessary though
                             
 callServerEditAction ea args = "queueCommand('PerformEditActionC ("++show (getActionViewId ea)++") [\"'+"++
                                       intercalate "+'\",\"'+" args ++"+'\"]')"
