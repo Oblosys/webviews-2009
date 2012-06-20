@@ -527,8 +527,8 @@ authenticate users sessionStateRef userEStringViewId passwordEStringViewId =
                                          ; return ViewUpdate
                                          }
                                      else
-                                      do { putStrLn $ "User "++userName++" entered a wrong password"
-                                         ; return $ Alert "Incorect password"
+                                      do { putStrLn $ "User \""++userName++"\" entered a wrong password"
+                                         ; return $ Alert $ "Incorect password for '"++userName++"'"
                                          }
         Nothing -> do { putStrLn $ "User "++userName++" entered a wrong password"
                       ; return $ Alert $ "Unknown username: "++userName
