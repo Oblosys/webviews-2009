@@ -392,6 +392,24 @@ instance Initial Bool where
 instance Initial [a] where
   initial = []
 
+instance (Initial a1, Initial a2) => Initial (a1,a2) where
+  initial = (initial, initial)
+
+instance (Initial a1, Initial a2, Initial a3) => Initial (a1,a2,a3) where
+  initial = (initial, initial, initial)
+
+instance (Initial a1, Initial a2, Initial a3, Initial a4) => Initial (a1,a2,a3,a4) where
+  initial = (initial, initial, initial, initial)
+
+instance (Initial a1, Initial a2, Initial a3, Initial a4, Initial a5) => Initial (a1,a2,a3,a4,a5) where
+  initial = (initial, initial, initial, initial, initial)
+
+instance (Initial a1, Initial a2, Initial a3, Initial a4, Initial a5, Initial a6) => Initial (a1,a2,a3,a4,a5,a6) where
+  initial = (initial, initial, initial, initial, initial, initial)
+
+instance (Initial a1, Initial a2, Initial a3, Initial a4, Initial a5, Initial a6, Initial a7) => Initial (a1,a2,a3,a4,a5,a6,a7) where
+  initial = (initial, initial, initial, initial, initial, initial, initial)
+
 instance Initial (Maybe a) where
   initial = Nothing
 
@@ -400,6 +418,12 @@ instance Initial a => Initial (Either a b) where
 
 instance Initial Int where
   initial = 0
+
+instance Initial Float where
+  initial = 0.0
+
+instance Initial Double where
+  initial = 0.0
 
 instance Initial w => Initial (Widget w) where
   initial = Widget noId noId initial
