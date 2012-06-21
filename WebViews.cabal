@@ -25,8 +25,6 @@ Flag leenclub
   description:  Build WebViews Leenclub
   default:      False       
     
--- Mains are in separate dirs, cannot use Main-is: Main1.hs etc., since scion demands that the module name is the file name (and ghc demands that the main module is called Main)
--- Main is not qualified, since GHC doesn't even allow Module.Main as main.
 Library
   hs-source-dirs:   src/lib
   build-depends:  base >=4.5 && <4.6,
@@ -117,7 +115,9 @@ Executable Leenclub
                   mtl >=2.0 && <2.1,
                   old-time >=1.1 && <1.2,
                   html >=1.0 && <1.1,
-                  template-haskell >=2.7 && <2.8
+                  template-haskell >=2.7 && <2.8,
+                  download-curl >=0.1 && <0.2,
+                  gps >= 1.0 && <1.1
 
   GHC-Options: 
   Extensions: ExistentialQuantification RankNTypes DeriveDataTypeable ScopedTypeVariables OverloadedStrings TemplateHaskell, PatternGuards

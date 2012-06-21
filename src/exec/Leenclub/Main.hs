@@ -20,10 +20,10 @@ import WebViewLib
 import HtmlLib
 import Control.Monad.State
 import Server
+import TemplateHaskell
 
 import Database
-
-import TemplateHaskell
+import LeenclubUtils
 
 
 {-
@@ -158,8 +158,13 @@ instance Presentable (SearchView db) where
       +++ mkScript script
 
 
--- WebViews
+-- Leenclub utils
 
+showName lender = lenderFirstName lender ++ " " ++ lenderLastName lender
+
+
+
+-- WebViews
 
 
 
@@ -171,9 +176,9 @@ isInline Full   = False
 
 
 
-
+-- TODO: maybe distance
 data ItemView = 
-  ItemView Inline Item Lender (Either (Widget (Button Database)) Lender)
+  ItemView Inline Double Item Lender (Either (Widget (Button Database)) Lender)
     deriving (Eq, Show, Typeable, Data)
 
 instance Initial LenderId where
@@ -184,16 +189,18 @@ deriveInitial ''Lender
 instance Initial ItemId where
   initial = ItemId (-1)
       
+deriveInitial ''Category
+
 deriveInitial ''Item
 
 deriveInitial ''ItemView
-
 
 --updateById id update db = let object = unsafeLookup 
  
 mkItemView inline item = mkWebView $
   \vid oldItemView@ItemView{} -> 
     do { owner <- unsafeLookupM "itemView" allLenders (itemOwner item)
+       
        ; user <- getUser
        ; mBorrowButton <- case (itemBorrowed item, user) of
            (Nothing, Nothing)         -> fmap Left $ mkButton "Leen" False $ Edit $ return () 
@@ -201,21 +208,27 @@ mkItemView inline item = mkWebView $
                         let items' = Map.update (\i -> Just $ item{itemBorrowed = Just $ LenderId userId}) (itemId item) (allItems db) 
                         in  db{allItems = items'}
            (Just borrowerId,_) -> fmap Right $ unsafeLookupM "itemView2" allLenders borrowerId
-       ; return $ ItemView inline item owner mBorrowButton
+
+       ; distance <- case user of
+           Just (userId,_) -> do { userLender <- unsafeLookupM "itemView3" allLenders (LenderId userId)
+                                 ; return $ lenderDistance userLender owner
+                                 }   
+           _               -> return $ -1
+       ; return $ ItemView inline distance item owner mBorrowButton
        }
        
 instance Presentable ItemView where
-  present (ItemView Full item owner eBorrowButton) =
+  present (ItemView Full dist item owner eBorrowButton) =
         vList [ h2 $ (toHtml $ "Item " ++ itemName item)
               , hList [ boxedEx 1 $ (image ("items/" ++ (show $ itemIdNr item) ++".jpg") ! style "width: 200px") ! align "top"
                       , nbsp
                       , nbsp
-                      , toHtml $ "Eigenaar: " ++ lenderName owner
-                      , vList [ either present (\borrower -> toHtml $ "Uitgeleend aan " ++ lenderName borrower) eBorrowButton
+                      , toHtml $ "Eigenaar: " ++ showName owner
+                      , vList [ either present (\borrower -> toHtml $ "Uitgeleend aan " ++ showName borrower) eBorrowButton
                               ]
                       ]
               ]
-  present (ItemView Inline item owner eBorrowButton) =
+  present (ItemView Inline dist item owner eBorrowButton) =
     
       hList [ linkedItem item $ boxedEx 1 $ (image ("items/" ++ (show $ itemIdNr item) ++".jpg") ! style "height: 120px") ! align "top"
             , nbsp +++ nbsp
@@ -233,12 +246,12 @@ instance Presentable ItemView where
                            ] 
             , nbsp +++ nbsp
             , vDivList   
-                [ presentProperties [ ("Eigenaar", toHtml $ lenderName owner)
-                                  , ("Rating", with [style "font-size: 17px; position: relative; top: -2px" ] $ presentRating 5 $ lenderRating owner)
-                                  , ("Postcode", toHtml $ take 4 $ lenderZipCode owner)
-                                  ]
+                [ presentProperties $ [ ("Eigenaar", toHtml $ showName owner)
+                                      , ("Rating", with [style "font-size: 17px; position: relative; top: -2px" ] $ presentRating 5 $ lenderRating owner)
+                                      ] ++
+                                  (if dist > 0 then [ ("Afstand", toHtml $ showDistance dist) ] else [])
                   --, div_ $ presentPrice (itemPrice item)
-                , either present (\borrower -> with [style "color: red; font-size: 12px"] $ toHtml $ "Uitgeleend: " ++ lenderName borrower) eBorrowButton
+                , either present (\borrower -> with [style "color: red; font-size: 12px"] $ toHtml $ "Uitgeleend: " ++ showName borrower) eBorrowButton
                 ] ! style "width: 150px; height: 120px; padding: 5"
             ]
             
@@ -338,7 +351,7 @@ mkLenderView inline lender = mkWebView $
         
 instance Presentable LenderView where
   present (LenderView Full lender itemWebViews) =
-        vList [ h2 $ (toHtml $ "Lener " ++ lenderName lender)
+        vList [ h2 $ (toHtml $ "Lener " ++ showName lender)
               , span_ (presentRating 5 $ lenderRating lender) ! style "font-size: 20px"
               , hList [ boxedEx 1 $ (image ("leners/" ++ lenderLogin lender ++".jpg")) ! align "top"
                       , nbsp
@@ -354,7 +367,7 @@ instance Presentable LenderView where
       hList [ boxedEx 1 $ (image ("leners/" ++ lenderLogin lender ++".jpg") ! style "width: 30px") ! align "top"
             , nbsp
             , nbsp
-            , vList [ toHtml (lenderName lender)
+            , vList [ toHtml (showName lender)
                     , span_ (presentRating 5 $ lenderRating lender) ! style "font-size: 20px"
                     ]
             ]
@@ -407,8 +420,9 @@ instance Storeable Database LendersRootView
 mkLendersRootView :: WebViewM Database (WebView Database)
 mkLendersRootView = mkWebView $
   \vid oldLenderView@(LendersRootView _) ->
-    do { let namedSortFunctions = [ ("Naam",     compare `on` lenderName) 
-                                  , ("Rating",    compare `on` lenderRating)
+    do { let namedSortFunctions = [ ("Voornaam",   compare `on` lenderFirstName) 
+                                  , ("Achternaam", compare `on` lenderLastName) 
+                                  , ("Rating",     compare `on` lenderRating)
                                   ]
     
        ; searchView <- mkSearchView "Zoek in leners: " "q" $ \searchTerm ->
