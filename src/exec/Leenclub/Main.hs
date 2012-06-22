@@ -184,6 +184,9 @@ data ItemView =
 instance Initial LenderId where
   initial = LenderId "_uninitializedId_"
 
+
+deriveInitial ''Gender
+
 deriveInitial ''Lender
 
 instance Initial ItemId where
@@ -223,22 +226,24 @@ instance Presentable ItemView where
               , hList [ boxedEx 1 $ (image ("items/" ++ (show $ itemIdNr item) ++".jpg") ! style "width: 200px") ! align "top"
                       , nbsp
                       , nbsp
-                      , toHtml $ "Eigenaar: " ++ showName owner
+                      , vList [ toHtml $ "Eigenaar: " ++ showName owner
+                              , with [style "color: #333"] $
+                                  presentProperties $ map (\(p,v)->(p, toHtml v)) $ getCategoryProps $ itemCategory item
+                              ]
                       , vList [ either present (\borrower -> toHtml $ "Uitgeleend aan " ++ showName borrower) eBorrowButton
                               ]
                       ]
+              , with [ style "font-weight: bold; font-size: 12px"] $ "Beschrijving:" 
+              , multiLineStringToHtml $ itemDescr item
               ]
   present (ItemView Inline dist item owner eBorrowButton) =
-    
+    -- todo present imdb link, present movieOrSeries
       hList [ linkedItem item $ boxedEx 1 $ (image ("items/" ++ (show $ itemIdNr item) ++".jpg") ! style "height: 120px") ! align "top"
             , nbsp +++ nbsp
             , linkedItem item $ div_ ! style "height: 120px" $ sequence_ 
                            [ with [style "font-weight: bold; font-size: 16px"] $ toHtml (itemName item) 
                            , with [style "color: #333"] $
-                               presentProperties [ ("Categorie", "boek")
-                                                 , ("Jaartal", "1859")
-                                                 , ("Taal",    "Engels")
-                                                 ]
+                               presentProperties $ map (\(p,v)->(p, toHtml v)) $ filter (not . null . snd) $ getCategoryProps $ itemCategory item
                            , with [style "font-weight: bold; font-size: 12px"] $ "Beschrijving:" 
                            , with [ class_ "ellipsis multiline", style "font-size: 12px; height: 44px;"] $
                                                                   {- 44 : 3 * 14 + 2 -}
@@ -254,13 +259,26 @@ instance Presentable ItemView where
                 , either present (\borrower -> with [style "color: red; font-size: 12px"] $ toHtml $ "Uitgeleend: " ++ showName borrower) eBorrowButton
                 ] ! style "width: 150px; height: 120px; padding: 5"
             ]
-            
 vDivList elts = div_ $ mapM_ div_ elts 
 
+getCategoryProps :: Category -> [(String,String)]
+getCategoryProps c@Book{} = [("Auteur", bookAuthor c),("Jaar", show $ bookYear c),("taal", bookLanguage c),("Genre", bookGenre c), ("Aantal bladz.", show $ bookPages c) ]
+getCategoryProps c@Game{} = [("Platform", gamePlatform c),("Jaar", show $ gameYear c),("Developer", gameDeveloper c),("Genre", gameGenre c)]
+getCategoryProps c@CD{}   = [("Artiest", cdArtist c),("Jaar", show $ cdYear c),("Genre", cdGenre c)]
+getCategoryProps c@DVD{}  = [("Seizoen", show $ dvdSeason c),("Taal", dvdLanguage c),("Jaar", show $ dvdYear c),("Genre", dvdGenre c),("Regisseur", dvdDirector c)
+                            ,("Aantal afl.", show $ dvdNrOfEpisodes c), ("Speelduur", show $ dvdRunningTime c)
+                            ,("IMdb", show $ dvdIMDb c)]
+--              | DVD  { dvdMovieOrSeries :: MovieOrSeries, dvdDirector :: String, dvdLanguage :: String, dvdYear :: Int, dvdGenre :: String
+--                     , dvdRunningTime :: Int, dvdIMDb :: String, dvdSeason :: Int, dvdNrOfEpisodes :: Int }
+
+getCategoryProps c@Tool{} = [("Merk", toolBrand c),("Type", toolType c)]
+getCategoryProps c@Electronics{} = []
+getCategoryProps c@Misc{} =[] 
 
 presentProperties :: [(String, Html)] -> Html            
 presentProperties props =
-  table $ sequence_ [ tr $ sequence_ [ td $ with [style "font-weight: bold"] $ toHtml propName, td $ nbsp +++ ":" +++ nbsp, td $ toHtml propVal ] 
+  table $ sequence_ [ tr $ sequence_ [ td $ with [style "font-weight: bold"] $ toHtml propName, td $ nbsp +++ ":" +++ nbsp
+                                     , td $ toHtml propVal ] 
                     | (propName, propVal) <- props
                     ] ! style "font-size: 12px"
                     
@@ -359,7 +377,7 @@ instance Presentable LenderView where
                       , vList [ toHtml (lenderZipCode lender)
                               ]
                       ]
-              , h2 << "Spullen"
+              , h2 << (toHtml $ "Spullen van "++lenderFirstName lender)
               , vList $ map present itemWebViews
               ]
   present (LenderView Inline lender itemWebViews) =
