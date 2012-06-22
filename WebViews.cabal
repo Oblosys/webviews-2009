@@ -116,8 +116,8 @@ Executable Leenclub
                   old-time >=1.1 && <1.2,
                   html >=1.0 && <1.1,
                   template-haskell >=2.7 && <2.8,
-                  download-curl >=0.1 && <0.2,
-                  gps >= 1.0 && <1.1
+                  download-curl >=0.1 && <0.2
+--                  gps >= 1.0 && <1.1
 
   GHC-Options: 
   Extensions: ExistentialQuantification RankNTypes DeriveDataTypeable ScopedTypeVariables OverloadedStrings TemplateHaskell, PatternGuards
