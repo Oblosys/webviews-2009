@@ -452,7 +452,7 @@ mkLenderRootView = mkMaybeView "Onbekende lener" $
      }
 
 -- unnecessary at the moment, as the page has no controls of its own
-data LeenclubPageView = LeenclubPageView User (EditAction Database) (WebView Database) deriving (Eq, Show, Typeable, Data)
+data LeenclubPageView = LeenclubPageView User String (EditAction Database) (WebView Database) deriving (Eq, Show, Typeable, Data)
 
 deriveInitial ''LeenclubPageView
 
@@ -460,31 +460,41 @@ instance Storeable Database LeenclubPageView
 
 --updateById id update db = let object = unsafeLookup 
 
-mkLeenclubPageView mWebViewM = mkWebView $
+mkLeenclubPageView menuItemLabel mWebViewM = mkWebView $
   \vid oldItemView@LeenclubPageView{} ->
    do { user <- getUser
       ; wv <- mWebViewM
       ; logoutAction <- mkEditAction LogoutEdit
-      ; return $ LeenclubPageView user logoutAction wv
+      ; return $ LeenclubPageView user menuItemLabel logoutAction wv
       } 
 
+-- TODO: click in padding does not select item
 instance Presentable LeenclubPageView where
-  present (LeenclubPageView user logoutAction wv) =
+  present (LeenclubPageView user menuItemLabel logoutAction wv) =
     -- imdb: background-color: #E3E2DD; background-image: -moz-linear-gradient(50% 0%, #B3B3B0 0px, #E3E2DD 500px);  
     mkPage [thestyle $ gradientStyle (Just 500) "#444" {- "#B3B3B0" -} "#E3E2DD"  ++ " font-family: arial"] $ 
-      vList [ with [style "font-size: 50px; color: #ddd"] "Leenclub"
+      vList [ with [style "font-size: 50px; color: #ddd"] "Leenclub.nl"
             --, present loginOutView
             , div_ ! thestyle "border: 1px solid black; background-color: #f0f0f0; box-shadow: 0 0 8px rgba(0, 0, 0, 0.7);" $ 
-                vList [ hStretchList (space :  concatMap (\menuItem -> [E menuItem, space]) menuItems)
-                         ! (thestyle $ "color: white; font-size: 16px;"++ gradientStyle Nothing "#707070" "#101010")
+                vList [ hStretchList (map (E . highlightItem) leftMenuItems ++ [space] ++ map (E . highlightItem) rightMenuItems)
+                         ! (thestyle $ "color: white; font-size: 17px;"++ gradientStyle Nothing "#707070" "#101010")
                       , div_ ! thestyle "padding: 5px" $ present wv ] ! width "800px"
             ]
-   where menuItems = (map (\(label,rootView) -> rootViewLink rootView label) $
-                        [("Home",""), ("Leners", "leners"), ("Spullen", "items")] ++ userMenuItems user) ++
-                       [ if user == Nothing then rootViewLink "login" "Login" else withEditAction logoutAction "Logout" ]
+   where leftMenuItems = (map (\(label,rootView) -> (label, rootViewLink rootView $ toHtml label)) $
+                        [("Home",""), ("Leners", "leners"), ("Spullen", "items")] ++ userMenuItems user)
+         rightMenuItems = [ if user == Nothing then ("Login", rootViewLink "login" "Login") 
+                                               else ("Logout", withEditAction logoutAction "Logout") ] -- Logout is not menu, so it will not be highlighted
          userMenuItems Nothing = []
          userMenuItems (Just (userId, _)) = [("Mijn profiel", "lener&lener="++userId), ("Geleend", ""), ("Berichten", "")]
-           
+         
+         highlightItem (label, e) = with [ onmouseover "this.style.backgroundColor='#666'" -- not nice, but it works and prevents
+                                         , onmouseout  "this.style.backgroundColor=''"     -- the need for a css declaration
+                                         , thestyle $ "height: 25px; margin: 0 20 0 20; " ++ 
+                                                    if label == menuItemLabel 
+                                                    then gradientStyle Nothing "#303030" "#101010" 
+                                                    else "" ] $
+                                    with [style "padding: 2 10 5 10;" ] e
+                                     
 gradientStyle :: Maybe Int -> String -> String -> String
 gradientStyle mHeight topColor bottomColor =
     "background: -moz-linear-gradient("++topColor++" 0px, "++bottomColor++ maybe "" (\h -> " "++show h++"px") mHeight ++ "); "
@@ -558,8 +568,8 @@ main :: IO ()
 main = server rootViews "LeenclubDB.txt" mkInitialDatabase lenders
 
 rootViews :: RootViews Database
-rootViews = [ ("",       mkLeenclubPageView mkLendersRootView), ("test", mkTestView), ("test2", mkTestView2 "msg")
-            , ("leners", mkLeenclubPageView mkLendersRootView), ("lener", mkLeenclubPageView mkLenderRootView)
-            , ("items",  mkLeenclubPageView mkItemsRootView),   ("item",  mkLeenclubPageView mkItemRootView) 
-            , ("login",  mkLeenclubPageView mkLeenClubLoginOutView)
+rootViews = [ ("",       mkLeenclubPageView "Home"   mkLendersRootView), ("test", mkTestView), ("test2", mkTestView2 "msg")
+            , ("leners", mkLeenclubPageView "Leners" mkLendersRootView), ("lener", mkLeenclubPageView "Lener" mkLenderRootView)
+            , ("items",  mkLeenclubPageView "Spullen" mkItemsRootView),   ("item",  mkLeenclubPageView "Item"  mkItemRootView) 
+            , ("login",  mkLeenclubPageView "Login"  mkLeenClubLoginOutView)
             ] 
