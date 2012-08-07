@@ -1,4 +1,4 @@
-{-# OPTIONS -XDeriveDataTypeable #-}
+{-# LANGUAGE DeriveDataTypeable #-}
 module Database where
 
 import Data.Generics
@@ -30,6 +30,7 @@ data Lender =
          , lenderMail :: String
          , lenderStreet :: String, lenderStreetNr :: String, lenderCity :: String, lenderZipCode :: String
          , lenderCoord :: (Double, Double) -- http://maps.google.com/maps/geo?q=adres&output=xml for lat/long
+         , lenderImage :: String
          , lenderRating :: Int, lenderItems :: [ItemId]
          } deriving (Eq, Show, Read, Typeable, Data)
 
@@ -72,6 +73,7 @@ data Category = Book { bookAuthor :: String, bookYear :: Int, bookLanguage :: St
 
 data Item = 
   Item { itemId :: ItemId, itemOwner :: LenderId, itemPrice :: Int, itemName :: String, itemDescr :: String, itemState :: String
+       , itemImage :: String
        , itemCategory :: Category
        , itemBorrowed :: Maybe LenderId
        } deriving (Eq, Show, Read, Typeable,Data)
@@ -105,7 +107,7 @@ newItem :: LenderId -> Database -> (Item, Database)
 newItem uid db =
   let ids = [ i | ItemId i <- map fst (Map.toList $ allItems db) ]
       newId = ItemId $ if null ids then 0 else (maximum ids + 1)
-      newItem = Item newId uid 1 "<new>" "" "" Misc Nothing
+      newItem = Item newId uid 1 "<new>" "" "" "" Misc Nothing
   in  ( newItem, db { allItems = Map.insert newId newItem (allItems db) } )
 
 --loginnaam, geslacht, voornaam, tussenvoegsel, achternaam, straatnaam, nr, postcode, lat, long
@@ -114,15 +116,15 @@ mkInitialDatabase :: IO (Database)
 mkInitialDatabase =
  do { return $ Database 
                 (Map.fromList [ (LenderId "martijn", Lender (LenderId "martijn") "Martijn" "Schrage" M "martijn@oblomov.com" "Kerkstraat" "15" "Utrecht"
-                                                     "3581 RA" (5.1308620,52.0927779)
+                                                     "3581 RA" (5.1308620,52.0927779) "martijn.jpg"
                                                       4 
                                                       [ItemId 0, ItemId 1, ItemId 2, ItemId 7])
                               , (LenderId "jaap", Lender (LenderId "jaap") "Jaap" "Lageman" M "jaap@bpcutrecht.nl" "Kerkstraat" "15" "Utrecht"
-                                                     "3581 RA" (5.1309057,52.0927960) 
+                                                     "3581 RA" (5.1309057,52.0927960) "jaap.jpg"
                                                       5 
                                                       [ItemId 3, ItemId 4])
                               , (LenderId "henny", Lender (LenderId "henny") "Henny" "Verweij" M "henny.verweij@gmail.com" "Franz Schubertstraat" "39" "Utrecht"
-                                                     "3533 GT" (5.0868797,52.0864543) 
+                                                     "3533 GT" (5.0868797,52.0864543) "henny.jpg"
                                                       5
                                                       [ItemId 5, ItemId 6])
                 ])
@@ -132,41 +134,49 @@ mkInitialDatabase =
 spullen = [ Item (ItemId 0) (LenderId "martijn") 2 "Oblomov"
                                                  "Een boek schrijven van ruim vijfhonderd bladzijden waarin de held bijna tweehonderd bladzijden lang zijn bed niet uit komt, maar dat geen moment verveelt, zoiets is alleen een zeer groot schrijver gegeven. Oblomov, het magnum opus van Ivan Gontsjarov, is een roman die alles mist waar zoveel andere boeken het van moeten hebben; we lezen slechts over de kleine, alledaagse belevenissen van de goedige, maar aartsluie Ilja Oblomov. Zelfs zijn liefde voor de betoverende Olga kan Oblomov niet uit zijn apathie halen en hem aanzetten tot de grootse daden die zij van hem verwacht. De ondergang van een antiheld."
                                                  "Beduimeld"
+                                                 "0.jpg"
                                                  (Book "Ivan Gontsjarov" 1859 "Engels" "Roman" 552 "9074113052")
                                                  Nothing
           , Item (ItemId 1) (LenderId "martijn") 3 "Grand Theft Auto 4"
                                                  "Wat is er tegenwoordig nog over van die legendarische 'American Dream'? Niko Bellic is net aan wal gestapt na een lange bootreis uit Europa en hoopt in Amerika zijn verleden te begraven. Zijn neef Roman droomt ervan het helemaal te maken in Liberty City, in het land van de onbegrensde mogelijkheden.\nZe raken in de schulden en komen in het criminele circuit terecht door toedoen van oplichters, dieven en ander tuig. Langzamerhand komen ze erachter dat ze hun dromen niet kunnen waarmaken in een stad waar alles draait om geld en status. Heb je genoeg geld, dan staan alle deuren voor je open. Zonder een cent beland je in de goot."
                                                  "Uitstekend"
+                                                 "1.jpg"
                                                  (Game "Playstation 3" 2011 "Rockstar Games" "Action adventure / open world" )
                                                  Nothing
           , Item (ItemId 2) (LenderId "martijn") 2 "iPhone 3gs"
                                                  "Apple iPhone 3gs, 32Gb"
                                                  "Paar krasjes"
+                                                 "2.jpg"
                                                  Electronics
                                                  (Just $ LenderId "henny")
           , Item (ItemId 3) (LenderId "jaap")    1 "Boormachine"
                                                  "Het krachtige en compacte toestel Krachtig motor van 600 Watt, ideaal om te boren tot 10 mm boordiameter in metaal Bevestiging van boorspil in het lager voor hoge precisie Compact design en gering gewicht voor optimale bediening bij middelzware boortoepassingen Besturings-electronic voor exact aanboren Metalen snelspanboorhouder voor hoge precisie en lange levensduur Rechts- en linksdraaien Bijzonder geschikt voor boorgaten tot 10 mm in staal Functies: Rechts- en linksdraaien Electronic Softgrip Leveromvang: Snelspanboorhouder 1 - 10 mm"
                                                  "Goed"
+                                                 "3.jpg"
                                                  (Tool "Bosch" "XP33" 2005)
                                                  Nothing
           , Item (ItemId 4) (LenderId "jaap")    1 "Spyder calibratie-apparaat"
                                                  "De Datacolor Spyder 4 Elite geeft nauwkeurig en natuurgetrouwe kleuren bij fotobewerkingen, films en games. Daarmee is hij geschikt voor professionele fotografen en andere creatievelingen. Verder is dit de eerste Spyder die iPhone en iPad ready is. Dit betekent dat hij via een app kan kalibreren met deze gadgets en de weergave van kleuren op je smartphone of tablet kan optimaliseren."
                                                  "Goed"
+                                                 "4.jpg"
                                                  Electronics
                                                  Nothing
           , Item (ItemId 5) (LenderId "henny")   2 "Tomtom"
                                                  "Voor de prijsbewuste bestuurder die toch graag in breedbeeld navigeert is er de TomTom XL Classic. Uitermate gemakkelijk in gebruik - plug de 12V autoadapter in en begin onbezorgd aan je reis. Het IQ Routes systeem zorgt op ieder moment van de dag voor de snelste route."
                                                  "Goed"
+                                                 "5.jpg"
                                                  Electronics
                                                  (Just $ LenderId "jaap")
           , Item (ItemId 6) (LenderId "henny")   1 "Boormachine"
                                                  "De Makita Accuboormachine BDF343SHE Li-Ion 14,4V beschikt niet alleen over uitzonderlijke krachten, hij is ook nog eens bijzonder comfortabel. Hij heeft namelijk een ergonomisch ontwerp meegekregen van Makita. Zo weet u zeker dat u nooit meer last van uw polsen of ellebogen hebt na het klussen. Daarnaast zorgt het softgrip handvat er voor dat hij erg lekker in de hand ligt. En ook blijft liggen, want zelfs met bezwete handen hanteert u hem nog steeds moeiteloos. Dus wilt u een machine die kracht en gebruikscomfort combineert, dan is de Makita Accuboormachine BDF343SHE Li-Ion 14,4V de juiste keuze."
                                                  "Goed"
+                                                 "6.jpg"
                                                  (Tool "Makita" "BDF343SHE" 2009)
                                                  Nothing
           , Item (ItemId 7) (LenderId "martijn")  1 "Abbey Road"
                                                  ""
                                                  "Goed"
+                                                 "7.jpg"
                                                  (CD "The Beatles" 1969 "Pop/Rock")
                                                  Nothing
           ]
