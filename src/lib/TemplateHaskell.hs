@@ -1,4 +1,4 @@
-{-# OPTIONS -XDeriveDataTypeable -XFlexibleInstances -XTemplateHaskell #-}
+{-# LANGUAGE DeriveDataTypeable, FlexibleInstances, TemplateHaskell #-}
 module TemplateHaskell where
 
 import Language.Haskell.TH
