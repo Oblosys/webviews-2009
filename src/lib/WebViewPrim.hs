@@ -1,4 +1,4 @@
-{-# OPTIONS -XFlexibleInstances -XMultiParamTypeClasses -XScopedTypeVariables -XDeriveDataTypeable #-}
+{-# LANGUAGE FlexibleInstances, MultiParamTypeClasses, ScopedTypeVariables, DeriveDataTypeable #-}
 module WebViewPrim where
 
 import Control.Monad.State

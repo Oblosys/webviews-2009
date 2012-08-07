@@ -1,4 +1,4 @@
-{-# OPTIONS -XTypeSynonymInstances -XFlexibleInstances -XNoMonomorphismRestriction -XOverloadedStrings #-}
+{-# LANGUAGE TypeSynonymInstances, FlexibleInstances, NoMonomorphismRestriction, OverloadedStrings #-}
 module BlazeHtml (module Text.Blaze.Html5, module Text.Blaze.Html5.Attributes
                  , module BlazeHtml) where
 

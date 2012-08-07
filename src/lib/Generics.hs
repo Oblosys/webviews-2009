@@ -1,4 +1,4 @@
-{-# OPTIONS -XExistentialQuantification -XRankNTypes -XDeriveDataTypeable -XScopedTypeVariables #-}
+{-# LANGUAGE ExistentialQuantification, RankNTypes, DeriveDataTypeable, ScopedTypeVariables #-}
 module Generics where
 
 import Types

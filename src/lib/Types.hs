@@ -1,4 +1,4 @@
-{-# OPTIONS -XExistentialQuantification -XFlexibleContexts -XTypeSynonymInstances -XFlexibleInstances -XDeriveDataTypeable -XMultiParamTypeClasses #-}
+{-# LANGUAGE ExistentialQuantification, FlexibleContexts, TypeSynonymInstances, FlexibleInstances, DeriveDataTypeable, MultiParamTypeClasses #-}
 module Types where
 
 import Data.IORef

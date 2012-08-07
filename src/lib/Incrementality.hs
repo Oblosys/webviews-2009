@@ -1,4 +1,4 @@
-{-# OPTIONS -XScopedTypeVariables #-}
+{-# LANGUAGE ScopedTypeVariables #-}
 module Incrementality (mkIncrementalUpdates) where
 
 import Control.Monad.Trans
