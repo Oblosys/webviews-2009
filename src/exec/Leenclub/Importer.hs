@@ -1,9 +1,11 @@
 module Importer where
 
+import Prelude hiding (readFile)
 import Text.ParserCombinators.Parsec
-import System.IO
+import System.IO.UTF8 (readFile)
 import Data.Maybe
 import Data.List
+import Debug.Trace
 
 {-
 TODO: price in excel, excel in separate files
@@ -30,9 +32,10 @@ importCSVFile build filename =
     }
   
 buildCD :: Record -> Maybe Item
-buildCD [afb,eigenaar,titel,artiest,jaartal,genre,staat,beschrijving] | eigenaar /= "" =
-  Just $ Item (ItemId $ -1) (LenderId eigenaar) 10 titel beschrijving staat (CD artiest (read jaartal) genre) Nothing
-buildCD fields = Nothing
+buildCD fields@[afb,eigenaar,titel,artiest,uitvoerende,jaartal,genre,staat, punten,beschrijving] | eigenaar /= "" =
+  -- trace (show fields) $
+  Just $ Item (ItemId $ -1) (LenderId eigenaar) 10 titel beschrijving staat (CD artiest (fromMaybe 0 $ readMaybe jaartal) genre) Nothing
+buildCD fields = trace (show $ length fields) Nothing
 
  
  {-
@@ -93,4 +96,19 @@ parseCSV = parse csv
 
 -- | Given a file name, read from that file and run the parser
 parseCSVFromFile :: FilePath -> IO (Either ParseError CSV)
-parseCSVFromFile = parseFromFile csv
+parseCSVFromFile csvFile = --parseFromFile doesn't handle UTF8 well
+ do { contents <- readFile csvFile
+    ; return $ parseCSV "cd" contents
+    }
+
+
+
+
+
+
+
+readMaybe :: Read a => String -> Maybe a
+readMaybe str = case reads str of 
+                  [(x,"")] -> Just x
+                  _        -> Nothing
+             
