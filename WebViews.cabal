@@ -24,6 +24,10 @@ Flag trac
 Flag leenclub
   description:  Build WebViews Leenclub
   default:      False       
+
+Flag importer
+  description:  Build Leenclub Importer
+  default:      False       
     
 Library
   hs-source-dirs:   src/lib
@@ -46,7 +50,7 @@ Library
   extensions: ExistentialQuantification RankNTypes DeriveDataTypeable ScopedTypeVariables OverloadedStrings TemplateHaskell, PatternGuards
   exposed-modules: WebViewPrim, WebViewLib, Generics, HtmlLib, Incrementality, Server, Types, BlazeHtml, TemplateHaskell, Utils
 
-Executable Piglet
+Executable piglet
   Main-is:    Main.hs 
   Build-Depends:  WebViews,
                   base >=4.5 && <4.6,
@@ -65,7 +69,7 @@ Executable Piglet
   else
     buildable:  False
 
-Executable Reservations
+Executable reservations
   Main-is:    Main.hs 
   Build-Depends:  WebViews,
                   base >=4.5 && <4.6,
@@ -85,7 +89,7 @@ Executable Reservations
   else
     buildable:  False
 
-Executable Trac
+Executable trac
   Main-is:    Main.hs 
   Build-Depends:  WebViews,
                   base >=4.5 && <4.6,
@@ -106,7 +110,7 @@ Executable Trac
   else
     buildable:  False
 
-Executable Leenclub
+Executable leenclub
   Main-is:    Main.hs 
   Build-Depends:  WebViews,
                   base >=4.5 && <4.6,
@@ -124,6 +128,24 @@ Executable Leenclub
   HS-Source-Dirs:  src/exec/Leenclub
   Other-Modules:
   if flag(leenclub)
+    buildable:  True
+  else
+    buildable:  False
+
+Executable importer
+  Main-is:    Importer.hs 
+  Build-Depends:  WebViews,
+                  base >=4.5 && <4.6,
+                  containers >=0.4 && <0.5,
+                  syb >=0.3 && <0.4,
+                  utf8-string >=0.3 && <0.4,
+                  parsec >=3.1 && <3.2 
+                  
+  GHC-Options: 
+  Extensions: 
+  HS-Source-Dirs:  src/exec/Leenclub
+  Other-Modules:
+  if flag(importer)
     buildable:  True
   else
     buildable:  False
