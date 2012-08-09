@@ -223,7 +223,7 @@ mkItemView inline item = mkWebView $
 instance Presentable ItemView where
   present (ItemView Full dist item owner eBorrowButton) =
         vList [ h2 $ (toHtml $ "Item " ++ itemName item)
-              , hList [ boxedEx 1 $ (image ("items/" ++ itemImage item ++".jpg") ! style "width: 200px") ! align "top"
+              , hList [ boxedEx 1 $ (image ("items/" ++ itemImage item) ! style "width: 200px") ! align "top"
                       , nbsp
                       , nbsp
                       , vList [ toHtml $ "Eigenaar: " ++ showName owner
@@ -238,7 +238,7 @@ instance Presentable ItemView where
               ]
   present (ItemView Inline dist item owner eBorrowButton) =
     -- todo present imdb link, present movieOrSeries
-      hList [ linkedItem item $ boxedEx 1 $ (image ("items/" ++ itemImage item ++".jpg") ! style "height: 120px") ! align "top"
+      hList [ linkedItem item $ boxedEx 1 $ (image ("items/" ++ itemImage item) ! style "height: 120px") ! align "top"
             , nbsp +++ nbsp
             , linkedItem item $ div_ ! style "height: 120px" $ sequence_ 
                            [ with [style "font-weight: bold; font-size: 16px"] $ toHtml (itemName item) 
@@ -371,7 +371,7 @@ instance Presentable LenderView where
   present (LenderView Full lender itemWebViews) =
         vList [ h2 $ (toHtml $ "Lener " ++ showName lender)
               , span_ (presentRating 5 $ lenderRating lender) ! style "font-size: 20px"
-              , hList [ boxedEx 1 $ (image ("leners/" ++ lenderImage lender ++".jpg")) ! align "top"
+              , hList [ boxedEx 1 $ (image ("leners/" ++ lenderImage lender)) ! align "top"
                       , nbsp
                       , nbsp
                       , vList [ toHtml (lenderZipCode lender)
@@ -382,7 +382,7 @@ instance Presentable LenderView where
               ]
   present (LenderView Inline lender itemWebViews) =
     linkedLender lender $
-      hList [ boxedEx 1 $ (image ("leners/" ++ lenderImage lender ++".jpg") ! style "width: 30px") ! align "top"
+      hList [ boxedEx 1 $ (image ("leners/" ++ lenderImage lender) ! style "width: 30px") ! align "top"
             , nbsp
             , nbsp
             , vList [ toHtml (showName lender)
