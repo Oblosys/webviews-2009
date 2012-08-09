@@ -3,6 +3,7 @@ module Main where
 import Prelude hiding (readFile)
 import Text.ParserCombinators.Parsec
 import System.IO.UTF8 (readFile)
+import Data.Char
 import Data.Maybe
 import Data.List
 import Debug.Trace
@@ -14,13 +15,13 @@ other builders
 -}
 
 import Database
-builders = [ {- (buildUser, "user.csv")
-           ,  -} (buildCD, "cd.csv") {-, (buildBook, "book.csv"), (buildDvd, "dvd.csv")
+builders = [ (buildCD, "cd.csv") {-, (buildBook, "book.csv"), (buildDvd, "dvd.csv")
            , (buildGame, "game.csv"), (buildTool, "tool.csv"), (buildGadget, "gadget.csv"), (buildMisc, "misc.csv") -} ]
 
 main =
- do { itemStrs <- fmap concat $ sequence [ importCSVFile build filename | (build, filename) <- builders ]
-    ; writeFile "src/exec/Leenclub/Imported.hs" $ makeModule itemStrs
+ do { lenderStrs <- importCSVFile buildLender "lender.csv"
+    ; itemStrs <- fmap concat $ sequence [ importCSVFile build filename | (build, filename) <- builders ]
+    ; writeFile "src/exec/Leenclub/Imported.hs" $ makeModule lenderStrs itemStrs
     ; putStrLn $ concat itemStrs
     }
     
@@ -28,11 +29,30 @@ importCSVFile build filename =
  do { ecsv <- parseCSVFromFile $ "LeenclubImport/" ++ filename
     ; case ecsv of
         Left err  -> error $ show err
-        Right csv -> return $ map show $ catMaybes $ map build $ drop 3 csv
+        Right csv -> return $ map show $ mapMaybe build $ drop 3 csv
     }
+
+buildLender :: Record -> Maybe Lender
+buildLender fields@[afb,login,voornaam,achternaam,geslacht,email,straat,nr,plaats,postcode,rating] | login /= "" && voornaam /= "" =
+  -- trace (show fields) $
+  Just $ Lender { lenderId = (LenderId login)
+                , lenderFirstName = voornaam
+                , lenderLastName = achternaam
+                , lenderGender = if (map toUpper geslacht) == "M" then M else F
+                , lenderMail = email
+                , lenderStreet = straat
+                , lenderStreetNr = nr
+                , lenderCity = plaats
+                , lenderZipCode = postcode
+                , lenderCoord = (0,0) -- http://maps.google.com/maps/geo?q=adres&output=xml for lat/long
+                , lenderImage = afb
+                , lenderRating = fromMaybe 0 $ readMaybe rating
+                , lenderItems = [] -- filled in automatically based on spullen 
+                }       
+buildLender fields = trace (show $ length fields) Nothing
   
 buildCD :: Record -> Maybe Item
-buildCD fields@[afb,eigenaar,naam,artiest,uitvoerende,jaartal,genre,staat, punten,beschrijving] | eigenaar /= "" =
+buildCD fields@[afb,eigenaar,naam,artiest,uitvoerende,jaartal,genre,staat, punten,beschrijving] | eigenaar /= "" && naam /= "" =
   -- trace (show fields) $
   Just $ Item (ItemId $ -1) (LenderId eigenaar) (fromMaybe 0 $ readMaybe punten) 
               naam beschrijving staat afb (CD artiest (fromMaybe 0 $ readMaybe jaartal) genre) Nothing
@@ -40,6 +60,15 @@ buildCD fields = trace (show $ length fields) Nothing
 
  
  {-
+ data Lender = 
+  Lender { lenderId :: LenderId, lenderFirstName :: String, lenderLastName :: String, lenderGender :: Gender 
+         , lenderMail :: String
+         , lenderStreet :: String, lenderStreetNr :: String, lenderCity :: String, lenderZipCode :: String
+         , lenderCoord :: (Double, Double) -- http://maps.google.com/maps/geo?q=adres&output=xml for lat/long
+         , lenderImage :: String
+         , lenderRating :: Int, lenderItems :: [ItemId]
+         } deriving (Eq, Show, Read, Typeable, Data)
+         
 data Category = Book { bookAuthor :: String, bookYear :: Int, bookLanguage :: String, bookGenre :: String, bookPages :: Int, bookISBN :: String}
               | Game { gamePlatform :: String, gameYear :: Int, gameDeveloper :: String, gameGenre :: String }
               | CD   { cdArtist :: String, cdYear :: Int, cdGenre :: String }
@@ -58,8 +87,9 @@ data Item =
 
  -}
  
-makeModule dataDecls = "module Imported where\n\nimport DatabaseTypes\n\nitems = [ " ++
-                       intercalate "\n        , " dataDecls ++ "\n        ]"
+makeModule lenderDecls itemDecls = "module Imported where\n\nimport DatabaseTypes\n\nlenders = [ " ++
+                       intercalate "\n         , " lenderDecls ++ "\n         ]\nitems = [ " ++
+                       intercalate "\n        , " itemDecls ++ "\n        ]"
  
 type CSV = [Record]
 

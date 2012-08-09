@@ -371,7 +371,7 @@ instance Presentable LenderView where
   present (LenderView Full lender itemWebViews) =
         vList [ h2 $ (toHtml $ "Lener " ++ showName lender)
               , span_ (presentRating 5 $ lenderRating lender) ! style "font-size: 20px"
-              , hList [ boxedEx 1 $ (image ("leners/" ++ lenderImage lender)) ! align "top"
+              , hList [ boxedEx 1 $ (image ("leners/" ++ lenderImage lender)! style "width: 200px") ! align "top"
                       , nbsp
                       , nbsp
                       , vList [ toHtml (lenderZipCode lender)
