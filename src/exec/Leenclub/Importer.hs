@@ -1,4 +1,4 @@
-module Importer where
+module Main where
 
 import Prelude hiding (readFile)
 import Text.ParserCombinators.Parsec
@@ -20,26 +20,26 @@ builders = [ {- (buildUser, "user.csv")
 
 main =
  do { itemStrs <- fmap concat $ sequence [ importCSVFile build filename | (build, filename) <- builders ]
-    ; writeFile "Imported.hs" $ makeModule itemStrs
+    ; writeFile "src/exec/Leenclub/Imported.hs" $ makeModule itemStrs
     ; putStrLn $ concat itemStrs
     }
     
 importCSVFile build filename =
- do { ecsv <- parseCSVFromFile filename
+ do { ecsv <- parseCSVFromFile $ "LeenclubImport/" ++ filename
     ; case ecsv of
         Left err  -> error $ show err
         Right csv -> return $ map show $ catMaybes $ map build $ drop 3 csv
     }
   
 buildCD :: Record -> Maybe Item
-buildCD fields@[afb,eigenaar,titel,artiest,uitvoerende,jaartal,genre,staat, punten,beschrijving] | eigenaar /= "" =
+buildCD fields@[afb,eigenaar,naam,artiest,uitvoerende,jaartal,genre,staat, punten,beschrijving] | eigenaar /= "" =
   -- trace (show fields) $
-  Just $ Item (ItemId $ -1) (LenderId eigenaar) 10 titel beschrijving staat (CD artiest (fromMaybe 0 $ readMaybe jaartal) genre) Nothing
+  Just $ Item (ItemId $ -1) (LenderId eigenaar) (fromMaybe 0 $ readMaybe punten) beschrijving naam beschrijving staat (CD artiest (fromMaybe 0 $ readMaybe jaartal) genre) Nothing
 buildCD fields = trace (show $ length fields) Nothing
 
  
  {-
- Category = Book { bookAuthor :: String, bookYear :: Int, bookLanguage :: String, bookGenre :: String, bookPages :: Int, bookISBN :: String}
+data Category = Book { bookAuthor :: String, bookYear :: Int, bookLanguage :: String, bookGenre :: String, bookPages :: Int, bookISBN :: String}
               | Game { gamePlatform :: String, gameYear :: Int, gameDeveloper :: String, gameGenre :: String }
               | CD   { cdArtist :: String, cdYear :: Int, cdGenre :: String }
               | DVD  { dvdMovieOrSeries :: MovieOrSeries, dvdDirector :: String, dvdLanguage :: String, dvdYear :: Int, dvdGenre :: String
@@ -50,6 +50,7 @@ buildCD fields = trace (show $ length fields) Nothing
 
 data Item = 
   Item { itemId :: ItemId, itemOwner :: LenderId, itemPrice :: Int, itemName :: String, itemDescr :: String, itemState :: String
+       , itemImage :: String
        , itemCategory :: Category
        , itemBorrowed :: Maybe LenderId
        } deriving (Eq, Show, Read, Typeable,Data)
