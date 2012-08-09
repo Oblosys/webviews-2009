@@ -496,7 +496,7 @@ instance Presentable LeenclubPageView where
             , div_ ! thestyle "border: 1px solid black; background-color: #f0f0f0; box-shadow: 0 0 8px rgba(0, 0, 0, 0.7);" $ 
                 vList [ hStretchList (map (E . highlightItem) leftMenuItems ++ [space] ++ map (E . highlightItem) rightMenuItems)
                          ! (thestyle $ "color: white; font-size: 17px;"++ gradientStyle Nothing "#707070" "#101010")
-                      , div_ ! thestyle "padding: 5px" $ present wv ] ! width "800px"
+                      , div_ ! thestyle "padding: 10px" $ present wv ] ! width "800px"
             ]
    where leftMenuItems = (map (\(label,rootView) -> (label, rootViewLink rootView $ toHtml label)) $
                         [("Home",""), ("Leners", "leners"), ("Spullen", "items")] ++ userMenuItems user)
@@ -521,14 +521,10 @@ gradientStyle mHeight topColor bottomColor =
   
   
   
-  
-  
-  
-  
 
 
-
-
+mkHomeView :: WebViewM Database (WebView Database)
+mkHomeView = mkHtmlTemplateView "LeenclubWelcome.html" []
 
 --- Testing
 
@@ -586,7 +582,7 @@ main :: IO ()
 main = server rootViews "LeenclubDB.txt" mkInitialDatabase lenders
 
 rootViews :: RootViews Database
-rootViews = [ ("",       mkLeenclubPageView "Home"   mkLendersRootView), ("test", mkTestView), ("test2", mkTestView2 "msg")
+rootViews = [ ("",       mkLeenclubPageView "Home"   mkHomeView), ("test", mkTestView), ("test2", mkTestView2 "msg")
             , ("leners", mkLeenclubPageView "Leners" mkLendersRootView), ("lener", mkLeenclubPageView "Lener" mkLenderRootView)
             , ("items",  mkLeenclubPageView "Spullen" mkItemsRootView),   ("item",  mkLeenclubPageView "Item"  mkItemRootView) 
             , ("login",  mkLeenclubPageView "Login"  mkLeenClubLoginOutView)
