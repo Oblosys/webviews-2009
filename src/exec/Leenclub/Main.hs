@@ -245,8 +245,8 @@ instance Presentable ItemView where
                            , with [style "color: #333"] $
                                presentProperties $ map (\(p,v)->(p, toHtml v)) $ filter (not . null . snd) $ getCategoryProps $ itemCategory item
                            , with [style "font-weight: bold; font-size: 12px"] $ "Beschrijving:" 
-                           , with [ class_ "ellipsis multiline", style "font-size: 12px; height: 44px;"] $
-                                                                  {- 44 : 3 * 14 + 2 -}
+                           , with [ class_ "ellipsis multiline", style "font-size: 12px; height: 30px;"] $
+                                                                  {- 30 : 2 * 14 + 2 -}
                                multiLineStringToHtml $ itemDescr item
                            ] 
             , nbsp +++ nbsp
@@ -262,7 +262,7 @@ instance Presentable ItemView where
 vDivList elts = div_ $ mapM_ div_ elts 
 
 getCategoryProps :: Category -> [(String,String)]
-getCategoryProps c@Book{} = [("Auteur", bookAuthor c),("Jaar", show $ bookYear c),("taal", bookLanguage c),("Genre", bookGenre c), ("Aantal bladz.", show $ bookPages c) ]
+getCategoryProps c@Book{} = [("Auteur", bookAuthor c),("Jaar", show $ bookYear c),("taal", bookLanguage c),("Genre", bookGenre c) {-, ("Aantal bladz.", show $ bookPages c) -} ]
 getCategoryProps c@Game{} = [("Platform", gamePlatform c),("Jaar", show $ gameYear c),("Developer", gameDeveloper c),("Genre", gameGenre c)]
 getCategoryProps c@CD{}   = [("Artiest", cdArtist c),("Jaar", show $ cdYear c),("Genre", cdGenre c)]
 getCategoryProps c@DVD{}  = [("Seizoen", show $ dvdSeason c),("Taal", dvdLanguage c),("Jaar", show $ dvdYear c),("Genre", dvdGenre c),("Regisseur", dvdDirector c)
