@@ -34,7 +34,8 @@ importCSVFile build filename =
 buildCD :: Record -> Maybe Item
 buildCD fields@[afb,eigenaar,naam,artiest,uitvoerende,jaartal,genre,staat, punten,beschrijving] | eigenaar /= "" =
   -- trace (show fields) $
-  Just $ Item (ItemId $ -1) (LenderId eigenaar) (fromMaybe 0 $ readMaybe punten) beschrijving naam beschrijving staat (CD artiest (fromMaybe 0 $ readMaybe jaartal) genre) Nothing
+  Just $ Item (ItemId $ -1) (LenderId eigenaar) (fromMaybe 0 $ readMaybe punten) 
+              naam beschrijving staat afb (CD artiest (fromMaybe 0 $ readMaybe jaartal) genre) Nothing
 buildCD fields = trace (show $ length fields) Nothing
 
  
@@ -57,7 +58,7 @@ data Item =
 
  -}
  
-makeModule dataDecls = "module Imported where\n\nimport Database\n\nitems = [ " ++
+makeModule dataDecls = "module Imported where\n\nimport DatabaseTypes\n\nitems = [ " ++
                        intercalate "\n        , " dataDecls ++ "\n        ]"
  
 type CSV = [Record]

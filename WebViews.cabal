@@ -126,7 +126,7 @@ Executable leenclub
   GHC-Options: 
   Extensions: ExistentialQuantification RankNTypes DeriveDataTypeable ScopedTypeVariables OverloadedStrings TemplateHaskell, PatternGuards
   HS-Source-Dirs:  src/exec/Leenclub
-  Other-Modules:
+  Other-Modules:DatabaseTypes
   if flag(leenclub)
     buildable:  True
   else
@@ -144,7 +144,7 @@ Executable importer
   GHC-Options: 
   Extensions: 
   HS-Source-Dirs:  src/exec/Leenclub
-  Other-Modules:
+  Other-Modules:DatabaseTypes
   if flag(importer)
     buildable:  True
   else
