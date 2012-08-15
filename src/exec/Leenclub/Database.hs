@@ -87,14 +87,13 @@ newItem uid db =
 
 --loginnaam, geslacht, voornaam, tussenvoegsel, achternaam, straatnaam, nr, postcode, lat, long
 
-mkInitialDatabase :: IO (Database)
-mkInitialDatabase =
- do { let db = Database 
-                (Map.fromList $ map (\l -> (lenderId l, l)) $ assignItems spullen Imported.lenders)
-                (Map.fromList [  (id,item) | item@Item{itemId = id} <- spullen ])
---    ; print db
-    ; return db
-    }
+mkInitialDatabase :: IO Database
+mkInitialDatabase = return initialDatabase
+ 
+initialDatabase :: Database
+initialDatabase = Database 
+                   (Map.fromList $ map (\l -> (lenderId l, l)) $ assignItems spullen Imported.lenders)
+                   (Map.fromList [  (id,item) | item@Item{itemId = id} <- spullen ])
 
 spullen = assignUniqueItemIds $
           [ Item noItemId (LenderId "martijn") 3 "Grand Theft Auto 4"
