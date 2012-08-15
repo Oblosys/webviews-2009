@@ -15,14 +15,14 @@ other builders
 -}
 
 import Database
-builders = [ (buildCD, "cd.csv") {-, (buildBook, "book.csv"), (buildDvd, "dvd.csv")
-           , (buildGame, "game.csv"), (buildTool, "tool.csv"), (buildGadget, "gadget.csv"), (buildMisc, "misc.csv") -} ]
+builders = [ (buildCD, "cd.csv"), (buildBook, "book.csv"), (buildDVD, "dvd.csv")
+           , (buildGame, "game.csv"), (buildTool, "tool.csv") {-, (buildGadget, "gadget.csv"), (buildMisc, "misc.csv") -} ]
 
 main =
  do { lenderStrs <- importCSVFile buildLender "lender.csv"
     ; itemStrs <- fmap concat $ sequence [ importCSVFile build filename | (build, filename) <- builders ]
     ; writeFile "src/exec/Leenclub/Imported.hs" $ makeModule lenderStrs itemStrs
-    ; putStrLn $ concat itemStrs
+    --; putStrLn $ concat itemStrs
     }
     
 importCSVFile build filename =
@@ -52,13 +52,109 @@ buildLender fields@[afb,login,voornaam,achternaam,geslacht,email,straat,nr,plaat
 buildLender fields = trace (show $ length fields) Nothing
   
 buildCD :: Record -> Maybe Item
-buildCD fields@[afb,eigenaar,naam,artiest,uitvoerende,jaartal,genre,staat, punten,beschrijving] | eigenaar /= "" && naam /= "" =
+buildCD fields@[afb,eigenaar,titel,artiest,uitvoerende,jaartal,genre,staat, punten,beschrijving] | eigenaar /= "" && titel /= "" =
   -- trace (show fields) $
-  Just $ Item (ItemId $ -1) (LenderId eigenaar) (fromMaybe 0 $ readMaybe punten) 
-              naam beschrijving staat afb (CD artiest (fromMaybe 0 $ readMaybe jaartal) genre) Nothing
-buildCD fields = trace (show $ length fields) Nothing
+  Just $ Item { itemId = ItemId $ -1
+              , itemOwner = LenderId eigenaar
+              , itemPrice = fromMaybe 0 $ readMaybe punten
+              , itemName = titel
+              , itemDescr = beschrijving
+              , itemState = staat
+              , itemImage = afb 
+              , itemBorrowed = Nothing
+              , itemCategory = CD artiest (fromMaybe 0 $ readMaybe jaartal) genre
+              }
+buildCD fields = trace ("buildCD: " ++ show (length fields)) Nothing
 
  
+buildBook :: Record -> Maybe Item
+buildBook fields@[afb,eigenaar,titel,auteur,taal,jaartal,genre,aantalPag,isbn,staat, punten,beschrijving] | eigenaar /= "" && titel /= "" =
+  -- trace (show fields) $
+  Just $ Item { itemId = ItemId $ -1
+              , itemOwner = LenderId eigenaar
+              , itemPrice = fromMaybe 0 $ readMaybe punten
+              , itemName = titel
+              , itemDescr = beschrijving
+              , itemState = staat
+              , itemImage = afb 
+              , itemBorrowed = Nothing
+              , itemCategory = Book { bookAuthor = auteur
+                                    , bookYear = fromMaybe 0 $ readMaybe jaartal
+                                    , bookLanguage = taal
+                                    , bookGenre = genre
+                                    , bookPages = fromMaybe 0 $ readMaybe aantalPag
+                                    , bookISBN = isbn
+                                    }
+              }
+buildBook fields = trace ("buildBook: " ++ show (length fields)++"\n"++show fields) Nothing
+
+
+buildDVD :: Record -> Maybe Item
+buildDVD fields@[afb,eigenaar,filmSerie,titel,regisseur,taal,jaartal,genre,speelduur,imdb,seizoen,aantalAfl,staat, punten,beschrijving] | eigenaar /= "" && titel /= "" =
+  -- trace (show fields) $
+  Just $ Item { itemId = ItemId $ -1
+              , itemOwner = LenderId eigenaar
+              , itemPrice = fromMaybe 0 $ readMaybe punten
+              , itemName = titel
+              , itemDescr = beschrijving
+              , itemState = staat
+              , itemImage = afb 
+              , itemBorrowed = Nothing
+              , itemCategory = DVD { dvdMovieOrSeries =  if (map toUpper filmSerie) == "film" then Movie else Series
+                                   , dvdDirector = regisseur
+                                   , dvdLanguage = taal
+                                   , dvdYear = fromMaybe 0 $ readMaybe jaartal
+                                   , dvdGenre = genre
+                                   , dvdRunningTime = fromMaybe 0 $ readMaybe speelduur
+                                   , dvdIMDb = imdb
+                                   , dvdSeason = fromMaybe 0 $ readMaybe seizoen
+                                   , dvdNrOfEpisodes = fromMaybe 0 $ readMaybe aantalAfl
+                                   }
+                     
+              }
+buildDVD fields = trace ("buildDVD: " ++ show (length fields)++"\n"++show fields) Nothing
+
+buildGame :: Record -> Maybe Item
+buildGame fields@[afb,eigenaar,titel,platform,jaartal,genre,developer,staat, punten,beschrijving] | eigenaar /= "" && titel /= "" =
+  -- trace (show fields) $
+  Just $ Item { itemId = ItemId $ -1
+              , itemOwner = LenderId eigenaar
+              , itemPrice = fromMaybe 0 $ readMaybe punten
+              , itemName = titel
+              , itemDescr = beschrijving
+              , itemState = staat
+              , itemImage = afb 
+              , itemBorrowed = Nothing
+              , itemCategory = Game { gamePlatform = platform
+                                    , gameYear = fromMaybe 0 $ readMaybe jaartal
+                                    , gameDeveloper = developer
+                                    , gameGenre = genre
+                                    }
+                     
+              }
+buildGame fields = trace ("buildGame: " ++ show (length fields)++"\n"++show fields) Nothing
+
+buildTool :: Record -> Maybe Item
+buildTool fields@[afb,eigenaar,soort,merk,typenr,bouwjaar,staat, punten,beschrijving] | eigenaar /= "" && soort /= "" =
+  -- trace (show fields) $
+  Just $ Item { itemId = ItemId $ -1
+              , itemOwner = LenderId eigenaar
+              , itemPrice = fromMaybe 0 $ readMaybe punten
+              , itemName  = soort
+              , itemDescr = beschrijving
+              , itemState = staat
+              , itemImage = afb 
+              , itemBorrowed = Nothing
+              , itemCategory =  Tool { toolBrand = merk
+                                     , toolType = typenr
+                                     , toolYear = fromMaybe 0 $ readMaybe bouwjaar
+                                     }
+                     
+              }
+buildTool fields = trace ("buildTool: " ++ show (length fields)++"\n"++show fields) Nothing
+
+-- Gadget and Misc have no fixed data type yet
+
  {-
  data Lender = 
   Lender { lenderId :: LenderId, lenderFirstName :: String, lenderLastName :: String, lenderGender :: Gender 
