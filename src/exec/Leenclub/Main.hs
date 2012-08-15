@@ -408,11 +408,7 @@ mkItemsRootView = mkWebView $
                                   ]
     
        ; searchView <- mkSearchView "Zoek in spullen:" "q" $ \searchTerm ->
-          do { results :: [Item] <- if searchTerm == "" 
-                    then return [] 
-                    else do { resultItems <- withDb $ \db -> searchItems searchTerm db
-                            ; return resultItems
-                            }
+          do { results :: [Item] <- withDb $ \db -> searchItems searchTerm db 
              ; mkSortView namedSortFunctions (mkItemView Inline) results
              }
        ; dialogView <- mkDialogView $ mkHtmlView "dialog"
@@ -444,11 +440,7 @@ mkLendersRootView = mkWebView $
                                   ]
     
        ; searchView <- mkSearchView "Zoek in leners: " "q" $ \searchTerm ->
-          do { results :: [Lender] <- if searchTerm == "" 
-                    then return [] 
-                    else do { resultLenders <- withDb $ \db -> searchLenders searchTerm db
-                            ; return resultLenders
-                            }
+          do { results :: [Lender] <- withDb $ \db -> searchLenders searchTerm db
              ; mkSortView namedSortFunctions (mkLenderView Inline) results
              }
        ; return $ LendersRootView searchView
