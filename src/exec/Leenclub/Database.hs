@@ -64,6 +64,7 @@ searchItems term db = [ item | item <- Map.elems $ allItems db
                       ]
  where categorySearchFields Book{ bookAuthor=f1, bookGenre=f2} = [f1, f2]
        categorySearchFields Game{ gamePlatform=f1, gameDeveloper=f2, gameGenre=f3} = [f1,f2,f3]
+       categorySearchFields DVD{ dvdMovieOrSeries=f1, dvdDirector=f2, dvdGenre=f3 } = [if f1 == Movie then "film" else "serie",f2,f3]
        categorySearchFields CD{ cdArtist=f1, cdGenre=f2 } = [f1,f2]
        categorySearchFields Tool{} = []
        categorySearchFields Electronics = []

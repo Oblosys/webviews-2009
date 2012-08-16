@@ -262,12 +262,12 @@ instance Presentable ItemView where
 vDivList elts = div_ $ mapM_ div_ elts 
 
 getCategoryProps :: Category -> [(String,String)]
-getCategoryProps c@Book{} = [("Auteur", bookAuthor c),("Jaar", show $ bookYear c),("taal", bookLanguage c),("Genre", bookGenre c) {-, ("Aantal bladz.", show $ bookPages c) -} ]
-getCategoryProps c@Game{} = [("Platform", gamePlatform c),("Jaar", show $ gameYear c),("Developer", gameDeveloper c),("Genre", gameGenre c)]
+getCategoryProps c@Book{} = [("Auteur", bookAuthor c) {- ,("Jaar", show $ bookYear c) -},("taal", bookLanguage c),("Genre", bookGenre c) {-, ("Aantal bladz.", show $ bookPages c) -} ]
+getCategoryProps c@Game{} = [("Platform", gamePlatform c),("Jaar", show $ gameYear c) {-,("Developer", gameDeveloper c)-},("Genre", gameGenre c)]
 getCategoryProps c@CD{}   = [("Artiest", cdArtist c),("Jaar", show $ cdYear c),("Genre", cdGenre c)]
-getCategoryProps c@DVD{}  = [("Seizoen", show $ dvdSeason c),("Taal", dvdLanguage c),("Jaar", show $ dvdYear c),("Genre", dvdGenre c),("Regisseur", dvdDirector c)
-                            ,("Aantal afl.", show $ dvdNrOfEpisodes c), ("Speelduur", show $ dvdRunningTime c)
-                            ,("IMdb", show $ dvdIMDb c)]
+getCategoryProps c@DVD{}  = [ {- ("Seizoen", show $ dvdSeason c),("Taal", dvdLanguage c),("Jaar", show $ dvdYear c),-}("Genre", dvdGenre c),("Regisseur", dvdDirector c)
+                            , {-("Aantal afl.", show $ dvdNrOfEpisodes c), ("Speelduur", show $ dvdRunningTime c)
+                            ,-}("IMdb", show $ dvdIMDb c) ]
 --              | DVD  { dvdMovieOrSeries :: MovieOrSeries, dvdDirector :: String, dvdLanguage :: String, dvdYear :: Int, dvdGenre :: String
 --                     , dvdRunningTime :: Int, dvdIMDb :: String, dvdSeason :: Int, dvdNrOfEpisodes :: Int }
 

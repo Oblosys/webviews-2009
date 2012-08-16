@@ -7,6 +7,13 @@ import Data.Char
 import Data.Maybe
 import Data.List
 import Debug.Trace
+import GHC.Exts
+import Data.Aeson
+import qualified Data.ByteString.Lazy.Char8 -- only for the IsString instance
+import Network.Curl
+import qualified Data.HashMap.Strict as HM
+import qualified Data.Vector as V
+import Data.Attoparsec.Number (Number(..))
 
 {-
 TODO: price in excel, excel in separate files
@@ -14,22 +21,29 @@ image in Item
 other builders
 -}
 
-import Database
+import DatabaseTypes
+
 builders = [ (buildCD, "cd.csv"), (buildBook, "book.csv"), (buildDVD, "dvd.csv")
            , (buildGame, "game.csv"), (buildTool, "tool.csv") {-, (buildGadget, "gadget.csv"), (buildMisc, "misc.csv") -} ]
 
 main =
- do { lenderStrs <- importCSVFile buildLender "lender.csv"
+ do { lenderStrs <- importCSVFilePP buildLender addLenderCoords "lender.csv"
     ; itemStrs <- fmap concat $ sequence [ importCSVFile build filename | (build, filename) <- builders ]
     ; writeFile "src/exec/Leenclub/Imported.hs" $ makeModule lenderStrs itemStrs
     --; putStrLn $ concat itemStrs
     }
-    
-importCSVFile build filename =
+
+importCSVFile build filename = importCSVFilePP build (\x -> do { putStrLn ""; return x }) filename
+
+importCSVFilePP :: Show a => (Record -> Maybe a) -> (a -> IO a) -> [Char] -> IO [String]
+importCSVFilePP build postProcess filename =
  do { ecsv <- parseCSVFromFile $ "LeenclubImport/" ++ filename
     ; case ecsv of
         Left err  -> error $ show err
-        Right csv -> return $ map show $ mapMaybe build $ drop 3 csv
+        Right csv -> do { let decls = mapMaybe build $ drop 3 csv
+                        ; declsPP <- mapM postProcess decls
+                        ; return $ map show declsPP
+                        }
     }
 
 buildLender :: Record -> Maybe Lender
@@ -44,13 +58,39 @@ buildLender fields@[afb,login,voornaam,achternaam,geslacht,email,straat,nr,plaat
                 , lenderStreetNr = nr
                 , lenderCity = plaats
                 , lenderZipCode = postcode
-                , lenderCoord = (0,0) -- http://maps.google.com/maps/geo?q=adres&output=xml for lat/long
+                , lenderCoords = (0,0) -- http://maps.google.com/maps/geo?q=adres&output=xml for lat/long
                 , lenderImage = afb
                 , lenderRating = fromMaybe 0 $ readMaybe rating
                 , lenderItems = [] -- filled in automatically based on spullen 
                 }       
 buildLender fields = trace (show $ length fields) Nothing
   
+addLenderCoords lender =
+ do { let queryString = intercalate " " $ map ($ lender) [lenderStreet, lenderStreetNr, lenderCity, lenderZipCode]
+    ; mCoords <- getCoords $ queryString
+    ; putStrLn $ "Map query: " ++ queryString ++ " -> " ++ show mCoords
+    ; return $ maybe lender (\coords -> lender{ lenderCoords = coords}) mCoords
+    }
+
+getCoords :: String -> IO (Maybe (Double,Double))
+getCoords address =
+ do { let escapedAddress = concatMap (\c -> if c==' ' then "%20" else [c]) address
+    ; (_,text) <- curlGetString ("http://maps.google.com/maps/geo?q="++escapedAddress) []
+    ; let Just (Object value) = decode (fromString text) 
+    ; let coords = do { (Array objArr) <- HM.lookup (fromString "Placemark") value -- Maybe monad
+                      ; addressDetails <- case V.toList objArr of
+                          Object addressDetails:_ -> Just addressDetails
+                          _                       -> Nothing
+                      ; (Object coords) <- HM.lookup (fromString "Point") addressDetails 
+                      ;  (Array latlong) <- HM.lookup (fromString "coordinates") coords
+                      ; case V.toList latlong of
+                          Number (D lat): Number (D long):_ -> Just (lat, long)
+                          _                                 -> Nothing
+                      }      
+    ; return coords
+    }
+
+
 buildCD :: Record -> Maybe Item
 buildCD fields@[afb,eigenaar,titel,artiest,uitvoerende,jaartal,genre,staat, punten,beschrijving] | eigenaar /= "" && titel /= "" =
   -- trace (show fields) $

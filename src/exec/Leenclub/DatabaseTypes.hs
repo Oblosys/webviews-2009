@@ -21,7 +21,7 @@ data Lender =
   Lender { lenderId :: LenderId, lenderFirstName :: String, lenderLastName :: String, lenderGender :: Gender 
          , lenderMail :: String
          , lenderStreet :: String, lenderStreetNr :: String, lenderCity :: String, lenderZipCode :: String
-         , lenderCoord :: (Double, Double) -- http://maps.google.com/maps/geo?q=adres&output=xml for lat/long
+         , lenderCoords :: (Double, Double) -- http://maps.google.com/maps/geo?q=adres&output=xml for lat/long
          , lenderImage :: String
          , lenderRating :: Int, lenderItems :: [ItemId]
          } deriving (Eq, Show, Read, Typeable, Data)

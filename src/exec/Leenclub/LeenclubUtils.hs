@@ -3,7 +3,7 @@ module LeenclubUtils where
 --import Data.GPS
 import Database
 
-lenderDistance Lender{lenderCoord=(lat1,long1)} Lender{lenderCoord=(lat2,long2)} = 300 {-
+lenderDistance Lender{lenderCoords=(lat1,long1)} Lender{lenderCoords=(lat2,long2)} = 300 {-
   distance (pt (latitude lat1) (longitude long1) Nothing Nothing) (pt (latitude lat2) (longitude long2) Nothing Nothing)
  -}
 showDistance d | d < 100 = "< 100m"
