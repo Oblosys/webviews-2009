@@ -238,19 +238,20 @@ instance Presentable ItemView where
               ]
   present (ItemView Inline dist item owner eBorrowButton) =
     -- todo present imdb link, present movieOrSeries
-      hList [ (div_ (boxedEx 1 $ image ("items/" ++ itemImage item) ! style "height: 120px")) ! style "width: 124px" ! align "top"
-            , nbsp +++ nbsp
-            , linkedItem item $ div_ ! style "height: 120px" $ sequence_ 
+      hStretchList
+            [ E $ (div_ (boxedEx 1 $ image ("items/" ++ itemImage item) ! style "height: 120px")) ! style "width: 124px" ! align "top"
+            , E $  nbsp +++ nbsp
+            , Stretch $ linkedItem item $ div_ ! style "height: 120px" $ sequence_ 
                            [ with [style "font-weight: bold; font-size: 16px"] $ toHtml (itemName item) 
                            , with [style "color: #333"] $
                                presentProperties $ map (\(p,v)->(p, toHtml v)) $ filter (not . null . snd) $ getCategoryProps $ itemCategory item
                            , with [style "font-weight: bold; font-size: 12px"] $ "Beschrijving:" 
-                           , with [ class_ "ellipsis multiline", style "font-size: 12px; height: 30px;"] $
+                           , with [class_ "ellipsis multiline", style "font-size: 12px; height: 30px;"] $
                                                                   {- 30 : 2 * 14 + 2 -}
                                multiLineStringToHtml $ itemDescr item
-                           ] 
-            , nbsp +++ nbsp
-            , vDivList   
+                           ] ! width "100%"
+            , E $ nbsp +++ nbsp
+            , E $  vDivList   
                 [ presentProperties $ [ ("Eigenaar", toHtml $ showName owner)
                                       , ("Rating", with [style "font-size: 17px; position: relative; top: -2px" ] $ presentRating 5 $ lenderRating owner)
                                       ] ++
