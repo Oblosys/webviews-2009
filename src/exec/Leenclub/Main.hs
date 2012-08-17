@@ -241,8 +241,10 @@ instance Presentable ItemView where
       hStretchList
             [ E $ (div_ (boxedEx 1 $ image ("items/" ++ itemImage item) ! style "height: 120px")) ! style "width: 124px" ! align "top"
             , E $  nbsp +++ nbsp
-            , Stretch $ linkedItem item $ div_ ! style "height: 120px" $ sequence_ 
-                           [ with [style "font-weight: bold; font-size: 16px"] $ toHtml (itemName item) 
+            
+            -- TODO: this stretch doesn't work. Until we have good compositional layout combinators, just set the width.
+            , Stretch $ linkedItem item $ div_ ! style "height: 120px; width: 428px" $ sequence_ 
+                           [ with [style "font-weight: bold; font-size: 16px"] $ toHtml (getItemCategoryName item ++ ": " ++ itemName item) 
                            , with [style "color: #333"] $
                                presentProperties $ map (\(p,v)->(p, toHtml v)) $ filter (not . null . snd) $ getCategoryProps $ itemCategory item
                            , with [style "font-weight: bold; font-size: 12px"] $ "Beschrijving:" 
@@ -258,9 +260,18 @@ instance Presentable ItemView where
                                   (if dist > 0 then [ ("Afstand", toHtml $ showDistance dist) ] else [])
                   --, div_ $ presentPrice (itemPrice item)
                 , either present (\borrower -> with [style "color: red; font-size: 12px"] $ toHtml $ "Uitgeleend: " ++ showName borrower) eBorrowButton
-                ] ! style "width: 150px; height: 120px; padding: 5"
+                ] ! style "width: 200px; height: 120px; padding: 5"
             ]
 vDivList elts = div_ $ mapM_ div_ elts 
+
+getItemCategoryName :: Item -> String
+getItemCategoryName Item{itemCategory=Book{}} = "Boek"
+getItemCategoryName Item{itemCategory=Game{}} = "Game"
+getItemCategoryName Item{itemCategory=CD{}}   = "CD"
+getItemCategoryName Item{itemCategory=DVD{}}  = "DVD"
+getItemCategoryName Item{itemCategory=Tool{}} = "Gereedschap"
+getItemCategoryName Item{itemCategory=Electronics{}} = "Gadget"
+getItemCategoryName Item{itemCategory=Misc{}} = "Misc"
 
 getCategoryProps :: Category -> [(String,String)]
 getCategoryProps c@Book{} = [("Auteur", bookAuthor c) {- ,("Jaar", show $ bookYear c) -},("taal", bookLanguage c),("Genre", bookGenre c) {-, ("Aantal bladz.", show $ bookPages c) -} ]
