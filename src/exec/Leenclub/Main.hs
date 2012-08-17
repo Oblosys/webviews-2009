@@ -226,11 +226,11 @@ instance Presentable ItemView where
               , hList [ (div_ (boxedEx 1 $ image ("items/" ++ itemImage item) ! style "height: 200px")) ! style "width: 204px" ! align "top"
                       , nbsp
                       , nbsp
-                      , vList [ toHtml $ "Eigenaar: " ++ showName owner
+                      , vList [ "Eigenaar: " +++ linkedLenderFullName owner
                               , with [style "color: #333"] $
                                   presentProperties $ map (\(p,v)->(p, toHtml v)) $ getCategoryProps $ itemCategory item
                               ]
-                      , vList [ either present (\borrower -> toHtml $ "Uitgeleend aan " ++ showName borrower) eBorrowButton
+                      , vList [ either present (\borrower -> "Uitgeleend aan " +++ linkedLenderFullName borrower) eBorrowButton
                               ]
                       ]
               , with [ style "font-weight: bold; font-size: 12px"] $ "Beschrijving:" 
@@ -239,11 +239,12 @@ instance Presentable ItemView where
   present (ItemView Inline dist item owner eBorrowButton) =
     -- todo present imdb link, present movieOrSeries
       hStretchList
-            [ E $ (div_ (boxedEx 1 $ image ("items/" ++ itemImage item) ! style "height: 120px")) ! style "width: 124px" ! align "top"
+            [ E $ linkedItem item $ (div_ (boxedEx 1 $ image ("items/" ++ itemImage item) ! style "height: 120px")) ! style "width: 124px" ! align "top"
             , E $  nbsp +++ nbsp
             
             -- TODO: this stretch doesn't work. Until we have good compositional layout combinators, just set the width.
-            , Stretch $ linkedItem item $ div_ ! style "height: 120px; width: 428px" $ sequence_ 
+            , Stretch $ linkedItem item $
+                 div_ ! style "height: 120px; width: 428px" $ sequence_ 
                            [ with [style "font-weight: bold; font-size: 16px"] $ toHtml (getItemCategoryName item ++ ": " ++ itemName item) 
                            , with [style "color: #333"] $
                                presentProperties $ map (\(p,v)->(p, toHtml v)) $ filter (not . null . snd) $ getCategoryProps $ itemCategory item
@@ -254,12 +255,12 @@ instance Presentable ItemView where
                            ] ! width "100%"
             , E $ nbsp +++ nbsp
             , E $  vDivList   
-                [ presentProperties $ [ ("Eigenaar", toHtml $ showName owner)
+                [ presentProperties $ [ ("Eigenaar", linkedLenderFullName owner)
                                       , ("Rating", with [style "font-size: 17px; position: relative; top: -2px" ] $ presentRating 5 $ lenderRating owner)
                                       ] ++
                                   (if dist > 0 then [ ("Afstand", toHtml $ showDistance dist) ] else [])
                   --, div_ $ presentPrice (itemPrice item)
-                , either present (\borrower -> with [style "color: red; font-size: 12px"] $ toHtml $ "Uitgeleend: " ++ showName borrower) eBorrowButton
+                , either present (\borrower -> with [style "color: red; font-size: 12px"] $ "Uitgeleend aan " +++ linkedLenderFullName borrower) eBorrowButton
                 ] ! style "width: 200px; height: 120px; padding: 5"
             ]
 vDivList elts = div_ $ mapM_ div_ elts 
@@ -306,6 +307,8 @@ linkedItem item@Item{itemId = ItemId login} html =
   a ! (href $ (toValue $ "/#item&item=" ++ (show login))) << html
 
 linkedLenderName lender@Lender{lenderId = LenderId login} = linkedLender lender $ toHtml login
+
+linkedLenderFullName lender = linkedLender lender $ toHtml (lenderFirstName lender ++ " " ++ lenderLastName lender)
   
 linkedLender lender@Lender{lenderId = LenderId login} html = 
   a! (href $ (toValue $ "/#lener&lener=" ++ login)) << html
