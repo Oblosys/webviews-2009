@@ -9,8 +9,8 @@ import qualified Imported
 
 lenders :: Map String (String, String)
 lenders = Map.fromList [ ("martijn", ("p", "Martijn"))
-                       , ("henny", ("h", "Henny Verweij")) 
-                       , ("jaap", ("j", "Jaap Lageman"))
+                       , ("Henny", ("h", "Henny Verweij")) 
+                       , ("Jaap", ("j", "Jaap Lageman"))
                        ] 
 -- TODO: maybe this can be (a special) part of db?
 
