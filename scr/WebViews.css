@@ -1,3 +1,8 @@
+table { /* for some weird reason tables don't inherit font and color by default */
+  font: inherit;
+  color: inherit
+}
+
 .roundedBorder
 {
   border:solid; 
@@ -37,8 +42,6 @@
         white-space: normal;
 }
 
-/* no idea why this is necessary, but otherwise tables don't inherit color */
-table { color: inherit }
 
 /* don't make links blue/purple and underlined */
 a {
