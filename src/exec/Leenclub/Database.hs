@@ -71,6 +71,7 @@ searchItems term db = [ item | item <- Map.elems $ allItems db
        categorySearchFields Electronics = []
        categorySearchFields Misc = []
 
+-- this is more efficient than looking up the lender and looking up all of its owned itemId's
 getOwnedItems :: LenderId -> Database -> [Item]
 getOwnedItems ownerId db = filter ((ownerId ==) . (itemOwner)) $ Map.elems (allItems db) 
 
