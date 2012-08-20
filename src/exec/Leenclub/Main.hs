@@ -233,7 +233,7 @@ instance Presentable ItemView where
               , hList [ (div_ (boxedEx 1 $ image ("items/" ++ itemImage item) ! style "height: 200px")) ! style "width: 204px" ! align "top"
                       , nbsp
                       , nbsp
-                      , vList $ [ with [style "color: #333; font-size: 12px"] $
+                      , vList $ [ with [style "color: #333; font-size: 16px"] $
                                     presentProperties $ ("Eigenaar: ", linkedLenderFullName owner):
                                                         (map (\(p,v)->(p, toHtml v)) $ getFullCategoryProps $ itemCategory item)
                                 , vSpace 10
@@ -253,13 +253,13 @@ instance Presentable ItemView where
             
             -- TODO: this stretch doesn't work. Until we have good compositional layout combinators, just set the width.
             , Stretch $ linkedItem item $
-                 div_ ! style "height: 120px; width: 428px" $ sequence_ 
-                           [ with [style "font-weight: bold; font-size: 16px"] $ toHtml (getItemCategoryName item ++ ": " ++ itemName item) 
+                 div_ ! style "height: 120px; width: 428px; font-size: 12px" $ sequence_ 
+                           [ with [style "font-weight: bold"] $ toHtml (getItemCategoryName item ++ ": " ++ itemName item) 
                            , with [style "color: #333"] $
                                presentProperties $ getInlineCategoryProps $ itemCategory item
                            , vSpace 3
-                           , with [style "font-weight: bold; font-size: 12px"] $ "Beschrijving:" 
-                           , with [class_ "ellipsis multiline", style "font-size: 12px; height: 30px;"] $
+                           , with [style "font-weight: bold"] $ "Beschrijving:" 
+                           , with [class_ "ellipsis multiline", style "height: 30px;"] $
                                                                   {- 30 : 2 * 14 + 2 -}
                                multiLineStringToHtml $ itemDescr item
                            ] ! width "100%"
@@ -272,7 +272,7 @@ instance Presentable ItemView where
                   --, div_ $ presentPrice (itemPrice item)
                 , present button ] ++
                   maybe [] (\borrower -> [with [style "color: red; font-size: 12px"] $ "Uitgeleend aan " +++ linkedLenderFullName borrower]) mBorrower
-                ) ! style "width: 200px; height: 120px; padding: 5"
+                ) ! style "width: 200px; height: 120px; padding: 5; font-size: 12px"
             ]
 vDivList elts = div_ $ mapM_ div_ elts 
 
