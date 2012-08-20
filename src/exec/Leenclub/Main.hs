@@ -207,7 +207,8 @@ mkItemView inline item = mkWebView $
        ; user <- getUser
        ; mBorrowButton <- case (itemBorrowed item, user) of
            (Nothing, Nothing)         -> fmap Left $ mkButton "Leen" False $ Edit $ return () 
-           (Nothing, Just (userId,_)) -> fmap Left $ mkButton "Leen" True  $ Edit $ docEdit $ \db -> 
+           (Nothing, Just (userId,_)) | itemOwner item == LenderId userId -> fmap Left $ mkButton "Lenen" False $ Edit $ return ()
+                                      | otherwise                         -> fmap Left $ mkButton "Lenen" True  $ Edit $ docEdit $ \db -> 
                         let items' = Map.update (\i -> Just $ item{itemBorrowed = Just $ LenderId userId}) (itemId item) (allItems db) 
                         in  db{allItems = items'}
            (Just borrowerId,_) -> fmap Right $ unsafeLookupM "itemView2" allLenders borrowerId
@@ -372,7 +373,7 @@ modifyViewedPig f (LenderView vid name) =
 mkLenderView inline lender = mkWebView $
   \vid oldLenderView@(LenderView _ _ _) -> 
     do { let itemIds = lenderItems lender
-       ; items <- mapM (\itemId -> withDb $ \db -> unsafeLookup "lenderView" (allItems db) itemId) itemIds
+       ; items <- withDb $ \db -> getOwnedItems (lenderId lender) db
        ; itemWebViews <- if isInline inline then return [] else mapM (mkItemView Inline) items
        --; ea <- mkEditAction $ Edit $ liftIO $ putStrLn "edit!!!\n\n"
        --; w <- mkRadioView ["Ja", "Nee"] 0 True
@@ -476,6 +477,33 @@ mkLenderRootView = mkMaybeView "Onbekende lener" $
          Nothing    -> return Nothing
      }
 
+
+
+data BorrowedRootView = BorrowedRootView [WebView Database]  [WebView Database]
+    deriving (Eq, Show, Typeable, Data)
+
+deriveInitial ''BorrowedRootView
+
+instance Storeable Database BorrowedRootView
+
+mkBorrowedRootView :: WebViewM Database (WebView Database)
+mkBorrowedRootView = mkWebView $
+  \vid oldLenderView@(BorrowedRootView _ _) ->
+   do { Just (login,_) <- getUser
+      ; borrowedItems <- withDb $ \db -> getBorrowedItems (LenderId login) db
+      ; borrowed <- mapM (mkItemView Inline) borrowedItems
+      ; lendedItems <- withDb $ \db -> getLendedItems (LenderId login) db
+      ; lended <- mapM (mkItemView Inline) lendedItems
+      ; return $ BorrowedRootView borrowed lended
+      }
+
+instance Presentable BorrowedRootView where
+  present (BorrowedRootView borrowed lended) =
+    h3 "Geleend" +++
+    vList (map present borrowed) +++
+    h3 "Uitgeleend" +++ 
+    vList (map present lended)
+
 -- unnecessary at the moment, as the page has no controls of its own
 data LeenclubPageView = LeenclubPageView User String (EditAction Database) (WebView Database) deriving (Eq, Show, Typeable, Data)
 
@@ -510,7 +538,7 @@ instance Presentable LeenclubPageView where
          rightMenuItems = [ if user == Nothing then ("Login", rootViewLink "login" "Login") 
                                                else ("Logout", withEditAction logoutAction "Logout") ] -- Logout is not menu, so it will not be highlighted
          userMenuItems Nothing = []
-         userMenuItems (Just (userId, _)) = [("Mijn profiel", "lener&lener="++userId), ("Geleend", ""), ("Berichten", "")]
+         userMenuItems (Just (userId, _)) = [("Mijn profiel", "lener&lener="++userId), ("Geleend", "geleend"), ("Berichten", "")]
          
          highlightItem (label, e) = with [ onmouseover "this.style.backgroundColor='#666'" -- not nice, but it works and prevents
                                          , onmouseout  "this.style.backgroundColor=''"     -- the need for a css declaration
@@ -592,5 +620,6 @@ rootViews :: RootViews Database
 rootViews = [ ("",       mkLeenclubPageView "Home"   mkHomeView), ("test", mkTestView), ("test2", mkTestView2 "msg")
             , ("leners", mkLeenclubPageView "Leners" mkLendersRootView), ("lener", mkLeenclubPageView "Lener" mkLenderRootView)
             , ("items",  mkLeenclubPageView "Spullen" mkItemsRootView),   ("item",  mkLeenclubPageView "Item"  mkItemRootView) 
+            , ("geleend", mkLeenclubPageView "Geleend" mkBorrowedRootView)
             , ("login",  mkLeenclubPageView "Login"  mkLeenClubLoginOutView)
             ] 
