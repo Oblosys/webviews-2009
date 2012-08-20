@@ -178,7 +178,7 @@ isInline Full   = False
 
 -- TODO: maybe distance
 data ItemView = 
-  ItemView Inline Double Item Lender (Either (Widget (Button Database)) Lender)
+  ItemView Inline Double Item Lender (Widget (Button Database)) (Maybe Lender)
     deriving (Eq, Show, Typeable, Data)
 
 instance Initial LenderId where
@@ -205,24 +205,30 @@ mkItemView inline item = mkWebView $
     do { owner <- unsafeLookupM "itemView" allLenders (itemOwner item)
        
        ; user <- getUser
-       ; mBorrowButton <- case (itemBorrowed item, user) of
-           (Nothing, Nothing)         -> fmap Left $ mkButton "Leen" False $ Edit $ return () 
-           (Nothing, Just (userId,_)) | itemOwner item == LenderId userId -> fmap Left $ mkButton "Lenen" False $ Edit $ return ()
-                                      | otherwise                         -> fmap Left $ mkButton "Lenen" True  $ Edit $ docEdit $ \db -> 
-                        let items' = Map.update (\i -> Just $ item{itemBorrowed = Just $ LenderId userId}) (itemId item) (allItems db) 
-                        in  db{allItems = items'}
-           (Just borrowerId,_) -> fmap Right $ unsafeLookupM "itemView2" allLenders borrowerId
+       ; button <- case (itemBorrowed item, user) of
+           (Nothing, Nothing)         -> mkButton "Leen" False $ Edit $ return () 
+           (Nothing, Just (userId,_)) | itemOwner item == LenderId userId -> mkButton "Lenen" False $ Edit $ return ()
+                                      | otherwise                         -> 
+             mkButton "Lenen" True  $ Edit $ docEdit $ \db -> 
+               let items' = Map.update (\i -> Just $ item{itemBorrowed = Just $ LenderId userId}) (itemId item) (allItems db) 
+               in  db{allItems = items'}
+           (Just borrowerId,_) -> 
+             mkButton "Terug ontvangen" True  $ Edit $ docEdit $ \db -> 
+               let items' = Map.update (\i -> Just $ item{itemBorrowed = Nothing}) (itemId item) (allItems db) 
+               in  db{allItems = items'}
+           
+       ; mBorrower <- maybe (return Nothing) (\borrowerId -> fmap Just $ unsafeLookupM "itemView2" allLenders borrowerId) $ itemBorrowed item
 
        ; distance <- case user of
            Just (userId,_) -> do { userLender <- unsafeLookupM "itemView3" allLenders (LenderId userId)
                                  ; return $ lenderDistance userLender owner
                                  }   
            _               -> return $ -1
-       ; return $ ItemView inline distance item owner mBorrowButton
+       ; return $ ItemView inline distance item owner button mBorrower
        }
        
 instance Presentable ItemView where
-  present (ItemView Full dist item owner eBorrowButton) =
+  present (ItemView Full dist item owner button mBorrower) =
         vList [ h2 $ (toHtml $ "Item " ++ itemName item)
               , hList [ (div_ (boxedEx 1 $ image ("items/" ++ itemImage item) ! style "height: 200px")) ! style "width: 204px" ! align "top"
                       , nbsp
@@ -231,13 +237,14 @@ instance Presentable ItemView where
                               , with [style "color: #333"] $
                                   presentProperties $ map (\(p,v)->(p, toHtml v)) $ getCategoryProps $ itemCategory item
                               ]
-                      , vList [ either present (\borrower -> "Uitgeleend aan " +++ linkedLenderFullName borrower) eBorrowButton
-                              ]
+                      , vList $ present button
+                              : maybe [] (\borrower -> [ with [style "color: red; font-size: 12px"] $ 
+                                                           "Uitgeleend aan " +++ linkedLenderFullName borrower]) mBorrower
                       ]
               , with [ style "font-weight: bold; font-size: 12px"] $ "Beschrijving:" 
               , multiLineStringToHtml $ itemDescr item
               ]
-  present (ItemView Inline dist item owner eBorrowButton) =
+  present (ItemView Inline dist item owner button mBorrower) =
     -- todo present imdb link, present movieOrSeries
       hStretchList
             [ E $ linkedItem item $ (div_ (boxedEx 1 $ image ("items/" ++ itemImage item) ! style "height: 120px")) ! style "width: 124px" ! align "top"
@@ -256,13 +263,14 @@ instance Presentable ItemView where
                            ] ! width "100%"
             , E $ nbsp +++ nbsp
             , E $  vDivList   
-                [ presentProperties $ [ ("Eigenaar", linkedLenderFullName owner)
+               ([ presentProperties $ [ ("Eigenaar", linkedLenderFullName owner)
                                       , ("Rating", with [style "font-size: 17px; position: relative; top: -2px" ] $ presentRating 5 $ lenderRating owner)
                                       ] ++
                                   (if dist > 0 then [ ("Afstand", toHtml $ showDistance dist) ] else [])
                   --, div_ $ presentPrice (itemPrice item)
-                , either present (\borrower -> with [style "color: red; font-size: 12px"] $ "Uitgeleend aan " +++ linkedLenderFullName borrower) eBorrowButton
-                ] ! style "width: 200px; height: 120px; padding: 5"
+                , present button ] ++
+                  maybe [] (\borrower -> [with [style "color: red; font-size: 12px"] $ "Uitgeleend aan " +++ linkedLenderFullName borrower]) mBorrower
+                ) ! style "width: 200px; height: 120px; padding: 5"
             ]
 vDivList elts = div_ $ mapM_ div_ elts 
 
@@ -538,7 +546,7 @@ instance Presentable LeenclubPageView where
          rightMenuItems = [ if user == Nothing then ("Login", rootViewLink "login" "Login") 
                                                else ("Logout", withEditAction logoutAction "Logout") ] -- Logout is not menu, so it will not be highlighted
          userMenuItems Nothing = []
-         userMenuItems (Just (userId, _)) = [("Mijn profiel", "lener&lener="++userId), ("Geleend", "geleend"), ("Berichten", "")]
+         userMenuItems (Just (userId, _)) = [("Mijn profiel", "lener&lener="++userId), ("Geleend", "geleend")]
          
          highlightItem (label, e) = with [ onmouseover "this.style.backgroundColor='#666'" -- not nice, but it works and prevents
                                          , onmouseout  "this.style.backgroundColor=''"     -- the need for a css declaration
