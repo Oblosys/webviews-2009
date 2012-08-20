@@ -119,14 +119,14 @@ simpleTable tableAttrs allCellAttrs rows = mkTable tableAttrs [] allCellAttrs ro
 
 mkTable :: [HtmlAttr] -> [[HtmlAttr]] -> [HtmlAttr] -> [[Html]] -> Html
 mkTable tableAttrs rowAttrss allCellAttrs rows =
-  table!!!tableAttrs << concatHtml
+  table!!!tableAttrs $ tbody ! valign "top" $ concatHtml
     [ tr !!! rowAttrs $ mapM_ (td!!!allCellAttrs) row 
     | (rowAttrs, row) <- zip (rowAttrss++repeat []) rows
     ] -- if no row attrss are given (or not enough), just assume no attrs ([])
 
 mkTableEx :: [HtmlAttr] -> [[HtmlAttr]] -> [HtmlAttr] -> [[([HtmlAttr],Html)]] -> Html
 mkTableEx tableAttrs rowAttrss allCellAttrs rows =
-  table!!!tableAttrs << concatHtml
+  table!!!tableAttrs $ tbody ! valign "top" $ concatHtml
     [ tr !!! rowAttrs $ sequence_ [ td!!!(allCellAttrs++cellAttrs) $ cell | (cellAttrs,cell)<-row] 
     | (rowAttrs, row) <- zip (rowAttrss++repeat []) rows
     ] -- if no row attrss are given (or not enough), just assume no attrs ([])
