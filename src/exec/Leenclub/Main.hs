@@ -255,7 +255,7 @@ instance Presentable ItemView where
                  div_ ! style "height: 120px; width: 428px" $ sequence_ 
                            [ with [style "font-weight: bold; font-size: 16px"] $ toHtml (getItemCategoryName item ++ ": " ++ itemName item) 
                            , with [style "color: #333"] $
-                               presentProperties $ map (\(p,v)->(p, toHtml v)) $ filter (not . null . snd) $ getCategoryProps $ itemCategory item
+                               presentProperties $ getCategoryProps $ itemCategory item
                            , with [style "font-weight: bold; font-size: 12px"] $ "Beschrijving:" 
                            , with [class_ "ellipsis multiline", style "font-size: 12px; height: 30px;"] $
                                                                   {- 30 : 2 * 14 + 2 -}
@@ -274,6 +274,15 @@ instance Presentable ItemView where
             ]
 vDivList elts = div_ $ mapM_ div_ elts 
 
+
+presentProperties :: [(String, Html)] -> Html            
+presentProperties props =
+  table $ sequence_ [ tr $ sequence_ [ td $ with [style "font-weight: bold; height: 13px"] $ toHtml propName, td $ nbsp +++ ":" +++ nbsp
+                                     , td $ toHtml propVal ] 
+                    | (propName, propVal) <- props
+                    ] ! style "font-size: 12px"
+
+
 getItemCategoryName :: Item -> String
 getItemCategoryName Item{itemCategory=Book{}} = "Boek"
 getItemCategoryName Item{itemCategory=Game{}} = "Game"
@@ -283,26 +292,18 @@ getItemCategoryName Item{itemCategory=Tool{}} = "Gereedschap"
 getItemCategoryName Item{itemCategory=Electronics{}} = "Gadget"
 getItemCategoryName Item{itemCategory=Misc{}} = "Misc"
 
-getCategoryProps :: Category -> [(String,String)]
-getCategoryProps c@Book{} = [("Auteur", bookAuthor c) {- ,("Jaar", show $ bookYear c) -},("taal", bookLanguage c),("Genre", bookGenre c) {-, ("Aantal bladz.", show $ bookPages c) -} ]
-getCategoryProps c@Game{} = [("Platform", gamePlatform c),("Jaar", show $ gameYear c) {-,("Developer", gameDeveloper c)-},("Genre", gameGenre c)]
-getCategoryProps c@CD{}   = [("Artiest", cdArtist c),("Jaar", show $ cdYear c),("Genre", cdGenre c)]
-getCategoryProps c@DVD{}  = [ {- ("Seizoen", show $ dvdSeason c),("Taal", dvdLanguage c),("Jaar", show $ dvdYear c),-}("Genre", dvdGenre c),("Regisseur", dvdDirector c)
-                            , {-("Aantal afl.", show $ dvdNrOfEpisodes c), ("Speelduur", show $ dvdRunningTime c)
-                            ,-}("IMdb", show $ dvdIMDb c) ]
---              | DVD  { dvdMovieOrSeries :: MovieOrSeries, dvdDirector :: String, dvdLanguage :: String, dvdYear :: Int, dvdGenre :: String
---                     , dvdRunningTime :: Int, dvdIMDb :: String, dvdSeason :: Int, dvdNrOfEpisodes :: Int }
+getCategoryProps :: Category -> [(String,Html)]
+getCategoryProps c@Book{} = [("Auteur", toHtml $ bookAuthor c) {- ,("Jaar", html $ show $ bookYear c) -},("taal", toHtml $ bookLanguage c),("Genre", toHtml $ bookGenre c) {-, ("Aantal bladz.", toHtml . show $ bookPages c) -} ]
+getCategoryProps c@Game{} = [("Platform", toHtml $ gamePlatform c),("Jaar", toHtml . show $ gameYear c) {-,("Developer", gameDeveloper c)-},("Genre", toHtml $ gameGenre c)]
+getCategoryProps c@CD{}   = [("Artiest", toHtml $ cdArtist c),("Jaar", toHtml . show $ cdYear c),("Genre", toHtml $ cdGenre c)]
+getCategoryProps c@DVD{}  = [ {- ("Seizoen", toHtml . show $ dvdSeason c),("Taal", toHtml $ dvdLanguage c),("Jaar", toHtml . show $ dvdYear c),-}("Genre", toHtml $ dvdGenre c),("Regisseur", toHtml $ dvdDirector c)
+                            , {-("Aantal afl.", toHtml . show $ dvdNrOfEpisodes c), ("Speelduur", toHtml . show $ dvdRunningTime c)
+                            ,-}("IMdb", if null $ dvdIMDb c then "" else a (toHtml $ dvdIMDb c) ! href (toValue $ dvdIMDb c) ! target "_blank" ! style "color: blue") ]
 
-getCategoryProps c@Tool{} = [("Merk", toolBrand c),("Type", toolType c)]
+getCategoryProps c@Tool{} = [("Merk", toHtml $ toolBrand c),("Type", toHtml $ toolType c)]
 getCategoryProps c@Electronics{} = []
 getCategoryProps c@Misc{} =[] 
 
-presentProperties :: [(String, Html)] -> Html            
-presentProperties props =
-  table $ sequence_ [ tr $ sequence_ [ td $ with [style "font-weight: bold"] $ toHtml propName, td $ nbsp +++ ":" +++ nbsp
-                                     , td $ toHtml propVal ] 
-                    | (propName, propVal) <- props
-                    ] ! style "font-size: 12px"
                     
 presentPrice price =
   with [style "width:30px; height:28px; padding: 2 0 0 0; color: white; background-color: black; font-family: arial; font-size:24px; text-align: center"] $
