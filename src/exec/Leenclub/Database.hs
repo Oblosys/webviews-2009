@@ -2,6 +2,7 @@ module Database (module Database, module DatabaseTypes) where
 
 import Data.Generics
 import Data.List
+import Data.Maybe
 import Data.Map (Map)
 import qualified Data.Map as Map
 import DatabaseTypes
@@ -69,7 +70,16 @@ searchItems term db = [ item | item <- Map.elems $ allItems db
        categorySearchFields Tool{} = []
        categorySearchFields Electronics = []
        categorySearchFields Misc = []
-       
+
+getOwnedItems :: LenderId -> Database -> [Item]
+getOwnedItems ownerId db = filter ((ownerId ==) . (itemOwner)) $ Map.elems (allItems db) 
+
+getLendedItems :: LenderId -> Database -> [Item]
+getLendedItems ownerId db =  filter (isJust . itemBorrowed) $ getOwnedItems ownerId db 
+
+getBorrowedItems :: LenderId -> Database -> [Item]
+getBorrowedItems lenderId db = filter (maybe False (\borrower -> borrower == lenderId) . itemBorrowed) $ Map.elems (allItems db)
+
 updateItem :: ItemId -> (Item -> Item) -> Database -> Database
 updateItem i f db = 
   let visit = unsafeLookup "updateItem" (allItems db) i
@@ -102,7 +112,7 @@ spullen = assignUniqueItemIds $
                                                  "Uitstekend"
                                                  "1.jpg"
                                                  (Game "Playstation 3" 2011 "Rockstar Games" "Action adventure / open world" )
-                                                 Nothing
+                                                 (Just $ LenderId "Jaap")
           , Item noItemId (LenderId "martijn") 2 "iPhone 3gs"
                                                  "Apple iPhone 3gs, 32Gb"
                                                  "Paar krasjes"
