@@ -229,19 +229,20 @@ mkItemView inline item = mkWebView $
        
 instance Presentable ItemView where
   present (ItemView Full dist item owner button mBorrower) =
-        vList [ h2 $ (toHtml $ "Item " ++ itemName item)
+        vList [ h2 $ toHtml (getItemCategoryName item ++ ": " ++ itemName item)
               , hList [ (div_ (boxedEx 1 $ image ("items/" ++ itemImage item) ! style "height: 200px")) ! style "width: 204px" ! align "top"
                       , nbsp
                       , nbsp
-                      , vList [ "Eigenaar: " +++ linkedLenderFullName owner
-                              , with [style "color: #333"] $
-                                  presentProperties $ map (\(p,v)->(p, toHtml v)) $ getCategoryProps $ itemCategory item
-                              ]
-                      , vList $ present button
-                              : maybe [] (\borrower -> [ with [style "color: red; font-size: 12px"] $ 
+                      , vList $ [ with [style "color: #333; font-size: 12px"] $
+                                    presentProperties $ ("Eigenaar: ", linkedLenderFullName owner):
+                                                        (map (\(p,v)->(p, toHtml v)) $ getFullCategoryProps $ itemCategory item)
+                                , vSpace 10
+                                , present button ]
+                                ++ maybe [] (\borrower -> [ with [style "color: red; font-size: 12px"] $ 
                                                            "Uitgeleend aan " +++ linkedLenderFullName borrower]) mBorrower
                       ]
-              , with [ style "font-weight: bold; font-size: 12px"] $ "Beschrijving:" 
+              , vSpace 10
+              , with [ style "font-weight: bold"] $ "Beschrijving:" 
               , multiLineStringToHtml $ itemDescr item
               ]
   present (ItemView Inline dist item owner button mBorrower) =
@@ -255,7 +256,8 @@ instance Presentable ItemView where
                  div_ ! style "height: 120px; width: 428px" $ sequence_ 
                            [ with [style "font-weight: bold; font-size: 16px"] $ toHtml (getItemCategoryName item ++ ": " ++ itemName item) 
                            , with [style "color: #333"] $
-                               presentProperties $ getCategoryProps $ itemCategory item
+                               presentProperties $ getInlineCategoryProps $ itemCategory item
+                           , vSpace 3
                            , with [style "font-weight: bold; font-size: 12px"] $ "Beschrijving:" 
                            , with [class_ "ellipsis multiline", style "font-size: 12px; height: 30px;"] $
                                                                   {- 30 : 2 * 14 + 2 -}
@@ -277,10 +279,10 @@ vDivList elts = div_ $ mapM_ div_ elts
 
 presentProperties :: [(String, Html)] -> Html            
 presentProperties props =
-  table $ sequence_ [ tr $ sequence_ [ td $ with [style "font-weight: bold; height: 13px"] $ toHtml propName, td $ nbsp +++ ":" +++ nbsp
+  table $ sequence_ [ tr $ sequence_ [ td $ with [style "font-weight: bold"] $ toHtml propName, td $ nbsp +++ ":" +++ nbsp
                                      , td $ toHtml propVal ] 
                     | (propName, propVal) <- props
-                    ] ! style "font-size: 12px"
+                    ]
 
 
 getItemCategoryName :: Item -> String
@@ -292,17 +294,20 @@ getItemCategoryName Item{itemCategory=Tool{}} = "Gereedschap"
 getItemCategoryName Item{itemCategory=Electronics{}} = "Gadget"
 getItemCategoryName Item{itemCategory=Misc{}} = "Misc"
 
-getCategoryProps :: Category -> [(String,Html)]
-getCategoryProps c@Book{} = [("Auteur", toHtml $ bookAuthor c) {- ,("Jaar", html $ show $ bookYear c) -},("taal", toHtml $ bookLanguage c),("Genre", toHtml $ bookGenre c) {-, ("Aantal bladz.", toHtml . show $ bookPages c) -} ]
-getCategoryProps c@Game{} = [("Platform", toHtml $ gamePlatform c),("Jaar", toHtml . show $ gameYear c) {-,("Developer", gameDeveloper c)-},("Genre", toHtml $ gameGenre c)]
-getCategoryProps c@CD{}   = [("Artiest", toHtml $ cdArtist c),("Jaar", toHtml . show $ cdYear c),("Genre", toHtml $ cdGenre c)]
-getCategoryProps c@DVD{}  = [ {- ("Seizoen", toHtml . show $ dvdSeason c),("Taal", toHtml $ dvdLanguage c),("Jaar", toHtml . show $ dvdYear c),-}("Genre", toHtml $ dvdGenre c),("Regisseur", toHtml $ dvdDirector c)
-                            , {-("Aantal afl.", toHtml . show $ dvdNrOfEpisodes c), ("Speelduur", toHtml . show $ dvdRunningTime c)
-                            ,-}("IMdb", if null $ dvdIMDb c then "" else a (toHtml $ dvdIMDb c) ! href (toValue $ dvdIMDb c) ! target "_blank" ! style "color: blue") ]
+getInlineCategoryProps c = [ inlineProp | Left inlineProp <- getAllCategoryProps c ] 
+getFullCategoryProps c = [ either id id prop  | prop <- getAllCategoryProps c ] 
 
-getCategoryProps c@Tool{} = [("Merk", toHtml $ toolBrand c),("Type", toHtml $ toolType c)]
-getCategoryProps c@Electronics{} = []
-getCategoryProps c@Misc{} =[] 
+getAllCategoryProps :: Category -> [Either (String,Html) (String,Html)]
+getAllCategoryProps c@Book{} = [Left ("Auteur", toHtml $ bookAuthor c), Right ("Jaar", toHtml . show $ bookYear c), Left ("taal", toHtml $ bookLanguage c), Left ("Genre", toHtml $ bookGenre c), Right ("Aantal bladz.", toHtml . show $ bookPages c) ]
+getAllCategoryProps c@Game{} = [Left ("Platform", toHtml $ gamePlatform c),Left ("Jaar", toHtml . show $ gameYear c), Right ("Developer", toHtml $ gameDeveloper c), Right ("Genre", toHtml $ gameGenre c)]
+getAllCategoryProps c@CD{}   = [Left ("Artiest", toHtml $ cdArtist c), Left ("Jaar", toHtml . show $ cdYear c), Left ("Genre", toHtml $ cdGenre c)]
+getAllCategoryProps c@DVD{}  = [Right ("Seizoen", toHtml . show $ dvdSeason c),Right ("Taal", toHtml $ dvdLanguage c),Right ("Jaar", toHtml . show $ dvdYear c), Left ("Genre", toHtml $ dvdGenre c),Left ("Regisseur", toHtml $ dvdDirector c)
+                            ,Right ("Aantal afl.", toHtml . show $ dvdNrOfEpisodes c), Right ("Speelduur", toHtml . show $ dvdRunningTime c)
+                            ,Left ("IMdb", if null $ dvdIMDb c then "" else a (toHtml $ dvdIMDb c) ! href (toValue $ dvdIMDb c) ! target "_blank" ! style "color: blue") ]
+
+getAllCategoryProps c@Tool{} = [Left ("Merk", toHtml $ toolBrand c), Left ("Type", toHtml $ toolType c)]
+getAllCategoryProps c@Electronics{} = []
+getAllCategoryProps c@Misc{} =[] 
 
                     
 presentPrice price =
