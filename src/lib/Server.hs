@@ -100,10 +100,10 @@ server rootViews dbFilename mkInitialDatabase users =
     ; time <- getClockTime
     ; putStrLn $ "\n\n### Started WebViews server (port "++show webViewsPort++"): "++show time ++"\n"
     ; serverSessionId <- epochTime
-        
+
     ; mDatabase <-
        do { fh <- openFile dbFilename ReadMode
-          ; dbStr <- hGetContents fh 
+          ; dbStr <- hGetContents fh
           ; seq (length dbStr) $ return ()
           ; hClose fh
           ; return $ safeRead dbStr
@@ -114,16 +114,16 @@ server rootViews dbFilename mkInitialDatabase users =
           ; db <- mkInitialDatabase
           ; return $ Just db
           }
-       
+
     ; theDatabase <- case mDatabase of -- if the database exists but cannot be read, something is wrong and we exit to prevent overwriting it
                        Just db -> return db
                        Nothing -> do { putStrLn $ "Database file "++dbFilename++" cannot be read, exiting server.\n"
                                      ; exitWith $ ExitFailure 1
                                      }
-        
+
     ; globalStateRef <- newIORef $ initGlobalState theDatabase
-        
-    ; simpleHTTP nullConf { port = webViewsPort, logAccess = Nothing {-Just logWebViewAccess-} } $ 
+
+    ; simpleHTTP nullConf { port = webViewsPort, logAccess = Nothing {-Just logWebViewAccess-} } $
         msum (handlers rootViews dbFilename theDatabase users serverSessionId globalStateRef)
     }
 {-
@@ -254,8 +254,9 @@ createNewSessionState theDatabase globalStateRef serverInstanceId =
     -- cookie lasts for one hour
  
     ; initialRootView <- liftIO $ mkInitialRootView theDatabase
-                         
-    ; let newSession = (Nothing, initialRootView, Nothing, [])
+                        
+                       -- for debugging, begin with user martijn  
+    ; let newSession = (Just ("martijn", "Martijn Schrage") {- Nothing -}, initialRootView, Nothing, [])
     ; let sessions' = IntMap.insert sessionId newSession sessions
    
     ; liftIO $ writeIORef globalStateRef (database, sessions', sessionCounter + 1)
