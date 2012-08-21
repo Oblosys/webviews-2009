@@ -236,10 +236,11 @@ instance Presentable ItemView where
                       , vList $ [ with [style "color: #333; font-size: 16px"] $
                                     presentProperties $ ("Eigenaar: ", linkedLenderFullName owner):
                                                         (map (\(p,v)->(p, toHtml v)) $ getFullCategoryProps $ itemCategory item)
-                                , vSpace 10
-                                , present button ]
+                                ] 
                                 ++ maybe [] (\borrower -> [ with [style "color: red; font-size: 12px"] $ 
                                                            "Uitgeleend aan " +++ linkedLenderFullName borrower]) mBorrower
+                                ++ [ vSpace 10
+                                , present button ]
                       ]
               , vSpace 10
               , with [ style "font-weight: bold"] $ "Beschrijving:" 
@@ -254,9 +255,11 @@ instance Presentable ItemView where
             -- TODO: this stretch doesn't work. Until we have good compositional layout combinators, just set the width.
             , Stretch $ linkedItem item $
                  div_ ! style "height: 120px; width: 428px; font-size: 12px" $ sequence_ 
-                           [ with [style "font-weight: bold"] $ toHtml (getItemCategoryName item ++ ": " ++ itemName item) 
+                           [ with [style "font-weight: bold; font-size: 15px"] $ toHtml (getItemCategoryName item ++ ": " ++ itemName item) 
+                           , vSpace 2
                            , with [style "color: #333"] $
-                               presentProperties $ getInlineCategoryProps $ itemCategory item
+                               presentProperties $ (getInlineCategoryProps $ itemCategory item) ++
+                                                   [("Punten", toHtml . show $ itemPrice item)]
                            , vSpace 3
                            , with [style "font-weight: bold"] $ "Beschrijving:" 
                            , with [class_ "ellipsis multiline", style "height: 30px;"] $
@@ -270,8 +273,10 @@ instance Presentable ItemView where
                                       ] ++
                                   (if dist > 0 then [ ("Afstand", toHtml $ showDistance dist) ] else [])
                   --, div_ $ presentPrice (itemPrice item)
-                , present button ] ++
+                ] ++
                   maybe [] (\borrower -> [with [style "color: red; font-size: 12px"] $ "Uitgeleend aan " +++ linkedLenderFullName borrower]) mBorrower
+                  ++ [ vSpace 5
+                , present button ]
                 ) ! style "width: 200px; height: 120px; padding: 5; font-size: 12px"
             ]
 vDivList elts = div_ $ mapM_ div_ elts 
