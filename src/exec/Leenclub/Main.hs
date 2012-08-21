@@ -269,7 +269,7 @@ instance Presentable ItemView where
             , E $ nbsp +++ nbsp
             , E $  vDivList   
                ([ presentProperties $ [ ("Eigenaar", linkedLenderFullName owner)
-                                      , ("Rating", with [style "font-size: 17px; position: relative; top: -2px" ] $ presentRating 5 $ lenderRating owner)
+                                      , ("Rating", with [style "font-size: 17px; position: relative; top: -6px; height: 12px" ] $ presentRating 5 $ lenderRating owner)
                                       ] ++
                                   (if dist > 0 then [ ("Afstand", toHtml $ showDistance dist) ] else [])
                   --, div_ $ presentPrice (itemPrice item)
@@ -291,29 +291,34 @@ presentProperties props =
 
 
 getItemCategoryName :: Item -> String
-getItemCategoryName Item{itemCategory=Book{}} = "Boek"
-getItemCategoryName Item{itemCategory=Game{}} = "Game"
-getItemCategoryName Item{itemCategory=CD{}}   = "CD"
-getItemCategoryName Item{itemCategory=DVD{}}  = "DVD"
-getItemCategoryName Item{itemCategory=Tool{}} = "Gereedschap"
+getItemCategoryName Item{itemCategory=Book{}}        = "Boek"
+getItemCategoryName Item{itemCategory=Game{}}        = "Game"
+getItemCategoryName Item{itemCategory=CD{}}          = "CD"
+getItemCategoryName Item{itemCategory=DVD{}}         = "DVD"
+getItemCategoryName Item{itemCategory=Tool{}}        = "Gereedschap"
 getItemCategoryName Item{itemCategory=Electronics{}} = "Gadget"
-getItemCategoryName Item{itemCategory=Misc{}} = "Misc"
+getItemCategoryName Item{itemCategory=Misc{}}        = "Misc"
 
 getInlineCategoryProps c = [ inlineProp | Left inlineProp <- getAllCategoryProps c ] 
 getFullCategoryProps c = [ either id id eProp  | eProp <- getAllCategoryProps c ] 
 
 -- Left is only Full, Right is Full and Inline
 getAllCategoryProps :: Category -> [Either (String,Html) (String,Html)]
-getAllCategoryProps c@Book{} = [Left ("Auteur", toHtml $ bookAuthor c), Right ("Jaar", toHtml . show $ bookYear c), Left ("taal", toHtml $ bookLanguage c), Left ("Genre", toHtml $ bookGenre c), Right ("Aantal bladz.", toHtml . show $ bookPages c) ]
-getAllCategoryProps c@Game{} = [Left ("Platform", toHtml $ gamePlatform c),Left ("Jaar", toHtml . show $ gameYear c), Right ("Developer", toHtml $ gameDeveloper c), Right ("Genre", toHtml $ gameGenre c)]
-getAllCategoryProps c@CD{}   = [Left ("Artiest", toHtml $ cdArtist c), Left ("Jaar", toHtml . show $ cdYear c), Left ("Genre", toHtml $ cdGenre c)]
-getAllCategoryProps c@DVD{}  = [Right ("Seizoen", toHtml . show $ dvdSeason c),Right ("Taal", toHtml $ dvdLanguage c),Right ("Jaar", toHtml . show $ dvdYear c), Left ("Genre", toHtml $ dvdGenre c),Left ("Regisseur", toHtml $ dvdDirector c)
-                            ,Right ("Aantal afl.", toHtml . show $ dvdNrOfEpisodes c), Right ("Speelduur", toHtml . show $ dvdRunningTime c)
-                            ,Left ("IMdb", if null $ dvdIMDb c then "" else a (toHtml $ dvdIMDb c) ! href (toValue $ dvdIMDb c) ! target "_blank" ! style "color: blue") ]
-
-getAllCategoryProps c@Tool{} = [Left ("Merk", toHtml $ toolBrand c), Left ("Type", toHtml $ toolType c)]
+getAllCategoryProps c@Book{}        = [ Left ("Auteur", toHtml $ bookAuthor c), Right ("Jaar", toHtml . show $ bookYear c), Left ("Taal", toHtml $ bookLanguage c), Left ("Genre", toHtml $ bookGenre c), Right ("Aantal bladz.", toHtml . show $ bookPages c) ]
+getAllCategoryProps c@Game{}        = [ Left ("Platform", toHtml $ gamePlatform c), Left ("Jaar", toHtml . show $ gameYear c), Right ("Developer", toHtml $ gameDeveloper c), Right ("Genre", toHtml $ gameGenre c) ]
+getAllCategoryProps c@CD{}          = [ Left ("Artiest", toHtml $ cdArtist c), Left ("Jaar", toHtml . show $ cdYear c), Left ("Genre", toHtml $ cdGenre c) ]
+getAllCategoryProps c@DVD{}         = [ Right ("Seizoen", toHtml . show $ dvdSeason c)
+                                      , Right ("Taal", toHtml $ dvdLanguage c)
+                                      , Right ("Jaar", toHtml . show $ dvdYear c)
+                                      , Left ("Genre", toHtml $ dvdGenre c)
+                                      , Left ("Regisseur", toHtml $ dvdDirector c)
+                                      , Right ("Aantal afl.", toHtml . show $ dvdNrOfEpisodes c)
+                                      , Right ("Speelduur", toHtml . show $ dvdRunningTime c)
+                                      , Left ("IMdb", if null $ dvdIMDb c then "" else a (toHtml $ dvdIMDb c) ! href (toValue $ dvdIMDb c) ! target "_blank" ! style "color: blue")
+                                      ]
+getAllCategoryProps c@Tool{}        = [ Left ("Merk", toHtml $ toolBrand c), Left ("Type", toHtml $ toolType c) ]
 getAllCategoryProps c@Electronics{} = []
-getAllCategoryProps c@Misc{} =[] 
+getAllCategoryProps c@Misc{}        = [] 
 
                     
 presentPrice price =
@@ -371,9 +376,8 @@ mkItemRootView = mkMaybeView "Onbekend item" $
          Nothing -> return Nothing
       }
 
-
 data LenderView = 
-  LenderView Inline User Lender [WebView Database]
+  LenderView Inline Bool User Lender [WebView Database] (Widget (Button Database))
     deriving (Eq, Show, Typeable, Data)
 
 
@@ -391,39 +395,40 @@ modifyViewedPig f (LenderView vid name) =
 -}
 --mkLenderView :: Int -> WebViewM Database (WebView Database)
 mkLenderView inline lender = mkWebView $
-  \vid oldLenderView@(LenderView _ _ _ _) -> 
+  \vid oldLenderView@(LenderView _ editing _ _ _ _) ->
     do { mUser <- getUser
        ; let itemIds = lenderItems lender
        ; items <- withDb $ \db -> getOwnedItems (lenderId lender) db
        ; itemWebViews <- if isInline inline then return [] else mapM (mkItemView Inline) items
-       --; ea <- mkEditAction $ Edit $ liftIO $ putStrLn "edit!!!\n\n"
-       --; w <- mkRadioView ["Ja", "Nee"] 0 True
-       --; w  <- mkButton "Test"      True         $ Edit $ return ()
-       --; w <- mkTextField "test"
-       --; t <- mkHtmlTemplateView "test.html" [("lender","Martijn")]
-       ; return $ LenderView inline mUser lender itemWebViews
+       ; editButton <- mkButton (if editing then "Gereed" else "Aanpassen") True         $ 
+           Edit $ viewEdit vid $ (\(LenderView a b c d e f) -> LenderView a (not b) c d e f)
+       ; return $ LenderView inline editing mUser lender itemWebViews editButton
        }
        
 lenderIsUser lender Nothing          = False
 lenderIsUser lender (Just (login,_)) = lenderLogin lender == login
  
 instance Presentable LenderView where
-  present (LenderView Full mUser lender itemWebViews)   =
-        vList [ hList [ (div_ (boxedEx 1 $ image ("leners/" ++ lenderImage lender) ! style "height: 200px")) ! style "width: 204px" ! align "top"
+  present (LenderView Full editing mUser lender itemWebViews editButton)   =
+        vList [ vSpace 20
+              , hList [ (div_ (boxedEx 1 $ image ("leners/" ++ lenderImage lender) ! style "height: 200px")) ! style "width: 204px" ! align "top"
                       , hSpace 20
                       , vList [ h2 $ (toHtml $ showName lender)
-                              , hList [ presentProperties $
-                                          (if lenderIsUser lender mUser then getLenderPropsSelf else getLenderPropsEveryone) lender
+                              , hList [ vList [ presentProperties $
+                                                 (if lenderIsUser lender mUser then getLenderPropsSelf else getLenderPropsEveryone) lender
+                                              , vSpace 20
+                                              , present editButton
+                                              ]
                                       , hSpace 20
                                       , presentProperties $ getExtraProps lender
                                       ]
                               ]
                       ]
-              , vSpace 10
+              , vSpace 20
               , h2 $ (toHtml $ "Spullen van "++lenderFirstName lender)
               , vList $ map present itemWebViews
               ]
-  present (LenderView Inline mUser lender itemWebViews) =
+  present (LenderView Inline editing mUser lender itemWebViews editButton) =
     linkedLender lender $
       hList [ (div_ (boxedEx 1 $ image ("leners/" ++ lenderImage lender) ! style "height: 30px")) ! style "width: 34px" ! align "top"
             , nbsp
@@ -431,6 +436,7 @@ instance Presentable LenderView where
             , vList [ toHtml (showName lender)
                     , span_ (presentRating 5 $ lenderRating lender) ! style "font-size: 20px"
                     ]
+            , with [style "display: none"] $ present editButton -- todo: not nice! 
             ]
 
 getLenderPropsEveryone lender = [ prop | Left prop <- getLenderPropsAll lender ]
@@ -445,9 +451,9 @@ getLenderPropsAll lender = [ Right ("LeenClub ID", toHtml $ lenderLogin lender)
                            , Right ("Woonplaats", toHtml $ lenderCity lender)
                            ]
 
-getExtraProps lender = [ ("Rating:", span_ (presentRating 5 $ lenderRating lender) ! style "font-size: 20px")
-                       , ("Puntenbalans:", toHtml . show $ lenderNrOfPoints lender)
-                       , ("Aantal spullen:", toHtml . show $ length (lenderItems lender))
+getExtraProps lender = [ ("Rating", with [style "font-size: 20px; position: relative; top: -5px; height: 17px" ] (presentRating 5 $ lenderRating lender)) 
+                       , ("Puntenbalans", toHtml . show $ lenderNrOfPoints lender)
+                       , ("Aantal spullen", toHtml . show $ length (lenderItems lender))
                        ]
 
 {-
