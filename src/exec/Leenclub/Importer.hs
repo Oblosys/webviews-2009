@@ -47,7 +47,7 @@ importCSVFilePP build postProcess filename =
     }
 
 buildLender :: Record -> Maybe Lender
-buildLender fields@[afb,login,voornaam,achternaam,geslacht,email,straat,nr,plaats,postcode,rating] | login /= "" && voornaam /= "" =
+buildLender fields@[afb,login,voornaam,achternaam,geslacht,email,straat,nr,plaats,postcode,rating, punten] | login /= "" && voornaam /= "" =
   -- trace (show fields) $
   Just $ Lender { lenderId = (LenderId login)
                 , lenderFirstName = voornaam
@@ -61,6 +61,7 @@ buildLender fields@[afb,login,voornaam,achternaam,geslacht,email,straat,nr,plaat
                 , lenderCoords = (0,0) -- http://maps.google.com/maps/geo?q=adres&output=xml for lat/long
                 , lenderImage = afb
                 , lenderRating = fromMaybe 0 $ readMaybe rating
+                , lenderNrOfPoints = fromMaybe 0 $ readMaybe punten
                 , lenderItems = [] -- filled in automatically based on spullen 
                 }       
 buildLender fields = trace (show $ length fields) Nothing

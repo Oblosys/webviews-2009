@@ -23,7 +23,7 @@ data Lender =
          , lenderStreet :: String, lenderStreetNr :: String, lenderCity :: String, lenderZipCode :: String
          , lenderCoords :: (Double, Double) -- http://maps.google.com/maps/geo?q=adres&output=xml for lat/long
          , lenderImage :: String
-         , lenderRating :: Int, lenderItems :: [ItemId]
+         , lenderRating :: Int, lenderNrOfPoints :: Int, lenderItems :: [ItemId]
          } deriving (Eq, Show, Read, Typeable, Data)
 
 data MovieOrSeries = Movie | Series deriving (Eq, Show, Read, Typeable,Data)

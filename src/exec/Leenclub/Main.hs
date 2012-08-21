@@ -441,6 +441,7 @@ getLenderPropsAll lender = [ Right ("LeenClub ID", toHtml $ lenderLogin lender)
                            ]
 
 getExtraProps lender = [ ("Rating:", span_ (presentRating 5 $ lenderRating lender) ! style "font-size: 20px")
+                       , ("Puntenbalans:", toHtml . show $ lenderNrOfPoints lender)
                        , ("Aantal spullen:", toHtml . show $ length (lenderItems lender))
                        ]
 
