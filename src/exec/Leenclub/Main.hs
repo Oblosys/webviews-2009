@@ -295,8 +295,9 @@ getItemCategoryName Item{itemCategory=Electronics{}} = "Gadget"
 getItemCategoryName Item{itemCategory=Misc{}} = "Misc"
 
 getInlineCategoryProps c = [ inlineProp | Left inlineProp <- getAllCategoryProps c ] 
-getFullCategoryProps c = [ either id id prop  | prop <- getAllCategoryProps c ] 
+getFullCategoryProps c = [ either id id eProp  | eProp <- getAllCategoryProps c ] 
 
+-- Left is only Full, Right is Full and Inline
 getAllCategoryProps :: Category -> [Either (String,Html) (String,Html)]
 getAllCategoryProps c@Book{} = [Left ("Auteur", toHtml $ bookAuthor c), Right ("Jaar", toHtml . show $ bookYear c), Left ("taal", toHtml $ bookLanguage c), Left ("Genre", toHtml $ bookGenre c), Right ("Aantal bladz.", toHtml . show $ bookPages c) ]
 getAllCategoryProps c@Game{} = [Left ("Platform", toHtml $ gamePlatform c),Left ("Jaar", toHtml . show $ gameYear c), Right ("Developer", toHtml $ gameDeveloper c), Right ("Genre", toHtml $ gameGenre c)]
@@ -367,7 +368,7 @@ mkItemRootView = mkMaybeView "Onbekend item" $
 
 
 data LenderView = 
-  LenderView Inline Lender [WebView Database]
+  LenderView Inline User Lender [WebView Database]
     deriving (Eq, Show, Typeable, Data)
 
 
@@ -385,8 +386,9 @@ modifyViewedPig f (LenderView vid name) =
 -}
 --mkLenderView :: Int -> WebViewM Database (WebView Database)
 mkLenderView inline lender = mkWebView $
-  \vid oldLenderView@(LenderView _ _ _) -> 
-    do { let itemIds = lenderItems lender
+  \vid oldLenderView@(LenderView _ _ _ _) -> 
+    do { mUser <- getUser
+       ; let itemIds = lenderItems lender
        ; items <- withDb $ \db -> getOwnedItems (lenderId lender) db
        ; itemWebViews <- if isInline inline then return [] else mapM (mkItemView Inline) items
        --; ea <- mkEditAction $ Edit $ liftIO $ putStrLn "edit!!!\n\n"
@@ -394,23 +396,29 @@ mkLenderView inline lender = mkWebView $
        --; w  <- mkButton "Test"      True         $ Edit $ return ()
        --; w <- mkTextField "test"
        --; t <- mkHtmlTemplateView "test.html" [("lender","Martijn")]
-       ; return $ LenderView inline lender itemWebViews
+       ; return $ LenderView inline mUser lender itemWebViews
        }
-        
+       
+lenderIsUser lender Nothing          = False
+lenderIsUser lender (Just (login,_)) = lenderLogin lender == login
+ 
 instance Presentable LenderView where
-  present (LenderView Full lender itemWebViews) =
-        vList [ h2 $ (toHtml $ "Lener " ++ showName lender)
-              , span_ (presentRating 5 $ lenderRating lender) ! style "font-size: 20px"
-              , hList [ (div_ (boxedEx 1 $ image ("leners/" ++ lenderImage lender) ! style "height: 200px")) ! style "width: 204px" ! align "top"
-                      , nbsp
-                      , nbsp
-                      , vList [ toHtml (lenderZipCode lender)
+  present (LenderView Full mUser lender itemWebViews)   =
+        vList [ hList [ (div_ (boxedEx 1 $ image ("leners/" ++ lenderImage lender) ! style "height: 200px")) ! style "width: 204px" ! align "top"
+                      , hSpace 20
+                      , vList [ h2 $ (toHtml $ showName lender)
+                              , hList [ presentProperties $
+                                          (if lenderIsUser lender mUser then getLenderPropsSelf else getLenderPropsEveryone) lender
+                                      , hSpace 20
+                                      , presentProperties $ getExtraProps lender
+                                      ]
                               ]
                       ]
-              , h2 << (toHtml $ "Spullen van "++lenderFirstName lender)
+              , vSpace 10
+              , h2 $ (toHtml $ "Spullen van "++lenderFirstName lender)
               , vList $ map present itemWebViews
               ]
-  present (LenderView Inline lender itemWebViews) =
+  present (LenderView Inline mUser lender itemWebViews) =
     linkedLender lender $
       hList [ (div_ (boxedEx 1 $ image ("leners/" ++ lenderImage lender) ! style "height: 30px")) ! style "width: 34px" ! align "top"
             , nbsp
@@ -420,7 +428,30 @@ instance Presentable LenderView where
                     ]
             ]
 
+getLenderPropsEveryone lender = [ prop | Left prop <- getLenderPropsAll lender ]
+getLenderPropsSelf lender  = [ either id id eProp  | eProp <- getLenderPropsAll lender ]
 
+-- Left is both self and others, Right is only self.
+getLenderPropsAll lender = [ Right ("LeenClub ID", toHtml $ lenderLogin lender)
+                           , Left  ("M/V", toHtml . show $ lenderGender lender)
+                           , Left  ("E-mail", toHtml $ lenderMail lender)
+                           , Right ("Adres", toHtml $ lenderStreet lender ++ " " ++ lenderStreetNr lender)
+                           , Left  ("Postcode", toHtml $ lenderZipCode lender)
+                           , Right ("Woonplaats", toHtml $ lenderCity lender)
+                           ]
+
+getExtraProps lender = [ ("Rating:", span_ (presentRating 5 $ lenderRating lender) ! style "font-size: 20px")
+                       , ("Aantal spullen:", toHtml . show $ length (lenderItems lender))
+                       ]
+
+{-
+ Lender { lenderId :: LenderId, lenderFirstName :: String, lenderLastName :: String, lenderGender :: Gender 
+         , lenderMail :: String
+         , lenderStreet :: String, lenderStreetNr :: String, lenderCity :: String, lenderZipCode :: String
+         , lenderCoords :: (Double, Double) -- http://maps.google.com/maps/geo?q=adres&output=xml for lat/long
+         , lenderImage :: String
+         , lenderRating :: Int, lenderItems :: [ItemId]
+-}
 data ItemsRootView = 
   ItemsRootView (WebView Database) (WebView Database) (Widget (Button Database))
     deriving (Eq, Show, Typeable, Data)
