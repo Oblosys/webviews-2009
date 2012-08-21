@@ -237,7 +237,7 @@ instance Presentable ItemView where
                                     presentProperties $ ("Eigenaar: ", linkedLenderFullName owner):
                                                         (map (\(p,v)->(p, toHtml v)) $ getFullCategoryProps $ itemCategory item)
                                 ] 
-                                ++ maybe [] (\borrower -> [ with [style "color: red; font-size: 12px"] $ 
+                                ++ maybe [] (\borrower -> [ vSpace 10, with [style "color: red"] $ 
                                                            "Uitgeleend aan " +++ linkedLenderFullName borrower]) mBorrower
                                 ++ [ vSpace 10
                                 , present button ]
