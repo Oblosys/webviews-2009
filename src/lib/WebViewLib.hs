@@ -304,7 +304,7 @@ TODO:
 newtype Wrapped = Wrapped ([Html] -> Html)
 
 instance Eq Wrapped where
-  (==) = error "no == for Wrapped"
+  (==) = error "no == for Wrapped" -- todo: maybe just false?
 
 instance Show Wrapped where
   show _ = "Wrapped" -- TODO: why do we need show? For seq'ing?
