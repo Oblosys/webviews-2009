@@ -25,7 +25,6 @@ import TemplateHaskell
 import Database
 import LeenclubUtils
 
-
 {-
 Doc
 
@@ -174,6 +173,7 @@ data Inline = Inline | Full deriving (Eq, Show, Typeable, Data)
 isInline Inline = True
 isInline Full   = False
 
+deriveInitial ''Inline
 
 
 -- TODO: maybe distance
@@ -375,47 +375,125 @@ mkItemRootView = mkMaybeView "Onbekend item" $
               }
          Nothing -> return Nothing
       }
+      
+      
+-- An encapsulated database update that can be part of a webview. 
+data DBUpdate = DBUpdate (String -> Database -> Database) deriving (Typeable, Data)
+
+
+instance Initial DBUpdate where
+  initial = DBUpdate $ const id
+  
+-- never equal, so no incrementality
+instance Eq DBUpdate where
+  _ == _ = False
+  
+instance Show DBUpdate where
+  show _ = "DBUpdate"
+
+--instance Typeable DBUpdate
+{-
+instance Data DBUpdate where
+  gfoldl k z (DBUpdate f) = z DBUpdate `k` f
+     
+  gunfold k z c = error "gunfold not defined for DBUpdate"
+     
+  toConstr (DBUpdate _) = con_DBUpdate 
+  dataTypeOf _ = ty_DBUpdate
+-}
+ty_DBUpdate = mkDataType "Main.DBUpdate" [con_DBUpdate]
+con_DBUpdate = mkConstr ty_WebView "DBUpdate" [] Prefix
+--
+
+data Property = Property String DBUpdate (Either String (Widget (TextView Database)))
+                  deriving (Eq, Show, Typeable, Data)
+
+
+deriveInitial ''Property
+
+
+{- The update is a database update, but it would be better to be able to specify a view update, since we don't 
+want to commit all textfields immediately to the database. Maybe save could be part of the edit monad? (but then do we need
+to save again after performing the viewEdit in save?) or we could add an edit action to text fields (not the commit action, but
+a blur action) -}
+mkPropertyView :: Bool -> String -> String -> (String -> Database -> Database) ->  WebViewM Database (WebView Database)
+mkPropertyView False name val update = mkWebView $
+  \vid _ ->
+   do { return $ Property name (DBUpdate update) (Left val)
+      }
+mkPropertyView True name val update = mkWebView $
+  \vid propV ->
+   do { valV <- mkTextField val 
+        {- rec { valV <- mkTextFieldAct val $ Edit $ do { (sessionId, user, db, rootView, pendingEdit, hashArgs) <- get
+                                                     ; str <- getTextViewContents valV
+                                                     ; liftIO $ putStrLn $ "RootView\n" ++ show rootView
+                                                     ; liftIO $ putStrLn $ "Str is "++str
+                                                     ; update str
+                                                     } 
+            } -} 
+      ; return $ Property name (DBUpdate update)  (Right valV)
+      }
+      
+instance Presentable Property where
+  present (Property name _ (Left val))   = toHtml name +++ toHtml val
+  present (Property name _ (Right valV)) = toHtml name +++ present valV
+
+instance Storeable Database Property where
+  save (Property _ _ (Left _))       db = db
+  save (Property name (DBUpdate upd) (Right valV)) db = upd (getStrVal valV) db 
+      
 
 data LenderView = 
-  LenderView Inline Bool User Lender [WebView Database] (Widget (Button Database))
+  LenderView Inline Bool User Lender  [WebView Database]
+             --(Maybe (Widget (TextView Database, TextView Database)))
+             [WebView Database] (Widget (Button Database))
     deriving (Eq, Show, Typeable, Data)
 
+                   
 
-deriveInitial ''Inline
 
 deriveInitial ''LenderView
 
 
-instance Storeable Database LenderView
-
-
-{-
-modifyViewedPig f (LenderView vid name) =
-  LenderView vid zipCode date (f viewedPig) b1 b2 b3 pigs pignames mSubview
+instance Storeable Database LenderView  {- where
+  save (LenderView _ _ _ Lender{lenderId=lId} _ _)  = updateLender lId $ \lender ->
+    lender{lenderFirstName = getStrVal fName, lenderLastName = getStrVal lName }
+  save _ = id
 -}
---mkLenderView :: Int -> WebViewM Database (WebView Database)
+
 mkLenderView inline lender = mkWebView $
-  \vid oldLenderView@(LenderView _ editing _ _ _ _) ->
+  \vid oldLenderView@(LenderView _ editing _ _ _ _ _) ->
     do { mUser <- getUser
        ; let itemIds = lenderItems lender
        ; items <- withDb $ \db -> getOwnedItems (lenderId lender) db
+
+       ; fName <- mkTextField (lenderFirstName lender)
+       ; lName <- mkTextField (lenderLastName lender)
+       
+       ; prop1 <- mkPropertyView editing "E-mail" (lenderMail lender) $ \str -> trace ("updating lendermail "++str) $ 
+                                                                                updateLender (lenderId lender) (\l -> l{lenderMail = str})
+       ; let props = [prop1]
+       
        ; itemWebViews <- if isInline inline then return [] else mapM (mkItemView Inline) items
-       ; editButton <- mkButton (if editing then "Gereed" else "Aanpassen") True         $ 
-           Edit $ viewEdit vid $ (\(LenderView a b c d e f) -> LenderView a (not b) c d e f)
-       ; return $ LenderView inline editing mUser lender itemWebViews editButton
+       ; editButton <- mkButton (if editing then "Gereed" else "Aanpassen") (lenderIsUser lender mUser) $ 
+           Edit $ viewEdit vid $ (\(LenderView a b c d e f g) -> LenderView a (not b) c d e f g)
+       ; return $ LenderView inline editing mUser lender props itemWebViews editButton
        }
        
 lenderIsUser lender Nothing          = False
 lenderIsUser lender (Just (login,_)) = lenderLogin lender == login
  
 instance Presentable LenderView where
-  present (LenderView Full editing mUser lender itemWebViews editButton)   =
+  present (LenderView Full editing mUser lender props itemWebViews editButton)   =
         vList [ vSpace 20
               , hList [ (div_ (boxedEx 1 $ image ("leners/" ++ lenderImage lender) ! style "height: 200px")) ! style "width: 204px" ! align "top"
                       , hSpace 20
-                      , vList [ h2 $ (toHtml $ showName lender)
+                      , vList [ h2 $ {- if editing 
+                                     then hList [ present fName, nbsp, present lName ] 
+                                     else -} (toHtml $ showName lender) -- +++ (with [style "display: none"] $ concatHtml $ map present [fName,lName]) -- todo: not nice!
                               , hList [ vList [ presentProperties $
                                                  (if lenderIsUser lender mUser then getLenderPropsSelf else getLenderPropsEveryone) lender
+                                              , vList $ map present props
                                               , vSpace 20
                                               , present editButton
                                               ]
@@ -428,15 +506,16 @@ instance Presentable LenderView where
               , h2 $ (toHtml $ "Spullen van "++lenderFirstName lender)
               , vList $ map present itemWebViews
               ]
-  present (LenderView Inline editing mUser lender itemWebViews editButton) =
+  present (LenderView Inline editing mUser lender props itemWebViews editButton) =
     linkedLender lender $
       hList [ (div_ (boxedEx 1 $ image ("leners/" ++ lenderImage lender) ! style "height: 30px")) ! style "width: 34px" ! align "top"
             , nbsp
             , nbsp
             , vList [ toHtml (showName lender)
+                    , vList $ map present props
                     , span_ (presentRating 5 $ lenderRating lender) ! style "font-size: 20px"
                     ]
-            , with [style "display: none"] $ present editButton -- todo: not nice! 
+         --   , with [style "display: none"] $ concatHtml $ map present [fName,lName] ++ [present editButton] -- todo: not nice! 
             ]
 
 getLenderPropsEveryone lender = [ prop | Left prop <- getLenderPropsAll lender ]
@@ -620,8 +699,9 @@ mkHomeView = mkHtmlTemplateView "LeenclubWelcome.html" []
 
 --- Testing
 
+
 data TestView = 
-  TestView Int (Widget RadioView) (Widget (TextView Database)) (WebView Database) (WebView Database) (WebView Database) 
+  TestView Int (Widget RadioView) (Widget (Button Database)) (Widget (TextView Database)) (WebView Database) (WebView Database)
     deriving (Eq, Show, Typeable, Data)
 
 deriveInitial ''TestView
@@ -631,7 +711,9 @@ mkTestView = mkWebView $
   \vid oldTestView@(TestView _ radioOld _ _ _ _) ->
     do { radio <-  mkRadioView ["Naam", "Punten", "Drie"] (getSelection radioOld) True
        ; let radioSel = getSelection radioOld
+       ; b <- mkButton "Test button" True $ Edit $ viewEdit vid $ \(TestView a b c d e f) -> TestView 2 b c d e f
        ; tf <- mkTextField "bla"
+       ; liftIO $ putStr $ show oldTestView
        ; (wv1, wv2) <- if True -- radioSel == 0
                        then do { wv1 <- mkHtmlView $ "een"
                                ; wv2 <- mkHtmlTemplateView "test.html" []
@@ -642,9 +724,8 @@ mkTestView = mkWebView $
                                ; return (wv1,wv2)
                                }
        ; liftIO $ putStrLn $ "radio value " ++ show radioSel
-       ; presViewTest <- mkTestView2 $ "Radio value is " ++ show radioSel
        ; let (wv1',wv2') = if radioSel == 0 then (wv1,wv2) else (wv2,wv1)
-       ; let wv = TestView radioSel radio tf wv1' wv2' presViewTest
+       ; let wv = TestView radioSel radio b tf wv1' wv2'
        
        --; liftIO $ putStrLn $ "All top-level webnodes "++(show (everythingTopLevel webNodeQ wv :: [WebNode Database])) 
        
@@ -652,13 +733,49 @@ mkTestView = mkWebView $
        }
 
 instance Presentable TestView where
-  present (TestView radioSel radio tf wv1 wv2 wv3) =
-      vList [present radio, present tf, toHtml $ show radioSel, present wv1, present wv2, present wv3]
+  present (TestView radioSel radio button tf wv1 wv2) =
+      vList [present radio, present button, present tf, toHtml $ show radioSel, present wv1, present wv2
+            ]
+
 
 instance Storeable Database TestView
 
 
-mkTestView2 msg = mkPresentView (\hs -> hList $ toHtml (msg :: String) : hs) $
+
+data TestView2 = 
+  TestView2 (Widget RadioView)  [WebView Database]
+           String String 
+    deriving (Eq, Show, Typeable, Data)
+
+deriveInitial ''TestView2
+
+mkTestView2 :: WebViewM Database (WebView Database)
+mkTestView2 = mkWebView $
+  \vid oldTestView@(TestView2 radioOld _ str1 str2) ->
+    do { radio <-  mkRadioView ["Edit", "View"] (getSelection radioOld) True
+       ; let radioSel = getSelection radioOld
+       ; liftIO $ putStr $ show oldTestView
+       ; liftIO $ putStrLn $ "radio value " ++ show radioSel
+       ; propV1 <- mkPropertyView (radioSel == 0) "Naam" str1 $ \str -> trace ("updating"++str) id
+     --  ; propV2 <- mkPropertyView (radioSel == 0) "Straat" str2 $ \str -> viewEdit vid $ \(TestView2 a b c d) -> TestView2 a b  c str
+       ; let wv = TestView2 radio [propV1] str1 str2
+       
+       --; liftIO $ putStrLn $ "All top-level webnodes "++(show (everythingTopLevel webNodeQ wv :: [WebNode Database])) 
+       
+       ; return $ wv 
+       }
+
+instance Presentable TestView2 where
+  present (TestView2 radio props p1str p2str) =
+      vList [ present radio
+            , table $ concatHtml (map present props) 
+            , toHtml $ "Property strings: " ++ show p1str ++ " and " ++ show p2str
+            ]
+
+instance Storeable Database TestView2
+
+
+mkTestView3 msg = mkPresentView (\hs -> hList $ toHtml (msg :: String) : hs) $
     do { wv1 <- mkHtmlView $ "een"
        ; wv2 <- mkHtmlTemplateView "test.html" []
        ; return $ [wv1,wv2] 
@@ -674,7 +791,7 @@ main :: IO ()
 main = server rootViews "LeenclubDB.txt" mkInitialDatabase lenders
 
 rootViews :: RootViews Database
-rootViews = [ ("",       mkLeenclubPageView "Home"   mkHomeView), ("test", mkTestView), ("test2", mkTestView2 "msg")
+rootViews = [ ("",       mkLeenclubPageView "Home"   mkHomeView), ("test", mkTestView), ("test2", mkTestView2), ("test3", mkTestView3 "msg")
             , ("leners", mkLeenclubPageView "Leners" mkLendersRootView), ("lener", mkLeenclubPageView "Lener" mkLenderRootView)
             , ("items",  mkLeenclubPageView "Spullen" mkItemsRootView),   ("item",  mkLeenclubPageView "Item"  mkItemRootView) 
             , ("geleend", mkLeenclubPageView "Geleend" mkBorrowedRootView)
