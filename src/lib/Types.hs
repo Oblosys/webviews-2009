@@ -350,7 +350,7 @@ instance (Data db, Typeable db) => Data (WebView db) where
   toConstr (WebView _ _ _ _ _) = con_WebView 
   dataTypeOf _ = ty_WebView
 
-ty_WebView = mkDataType "Views.WebView" [con_WebView]
+ty_WebView = mkDataType "Types.WebView" [con_WebView] 
 con_WebView = mkConstr ty_WebView "WebView" [] Prefix
 
 instance (Data state, Typeable state, Typeable x) =>Data (StateT state IO x) where
