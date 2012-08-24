@@ -515,6 +515,12 @@ callServerEditAction ea args = "queueCommand('PerformEditActionC ("++show (getAc
 
 -- Hacky stuff
 
+getTextViewContents :: forall db . Data db => Widget (TextView db) -> EditM db String
+getTextViewContents text =
+ do { (sessionId, user, db, rootView, pendingEdit, hashArgs) <- get
+    ; return $ getTextByViewIdRef (undefined :: db{-dummy arg-}) (widgetGetViewRef text) rootView
+    } 
+
 -- probably to be deleted, labels do not need to be accessed    
 getLabelContents :: forall db . Data db => Widget LabelView -> EditM db String
 getLabelContents text =
