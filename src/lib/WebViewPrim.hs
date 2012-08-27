@@ -99,6 +99,11 @@ mkTextFieldAct str act = mkTextFieldEx str $ Just act
 
 mkTextFieldEx str mEditAction = assignViewId $ \vid -> textField vid str mEditAction
 
+infixl 0 `withTextViewSubmit`
+-- adds the submit action to the textview (use with mkTextView .. `withTextViewSubmit` .. )
+-- todo: make more generic mechanism (mkTextView `withProps` [ on submit := .. ])
+withTextViewSubmit (Widget sid wid tv)  act = Widget sid wid tv{getSubmitAction=act}
+ 
 mkPasswordField str = mkPasswordFieldEx str Nothing
 
 mkPasswordFieldAct str act = mkPasswordFieldEx str $ Just act
