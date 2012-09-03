@@ -93,22 +93,34 @@ mkEditActionEx fec = assignViewId $ \vid -> EditAction vid fec
 
 mkLabelView str = assignViewId $ \vid -> labelView vid str
 
-mkTextField str = mkTextFieldEx str Nothing
+mkTextField str = mkTextFieldEx str Nothing Nothing
 
-mkTextFieldAct str act = mkTextFieldEx str $ Just act
+mkTextFieldAct str act = mkTextFieldEx str Nothing $ Just act
 
-mkTextFieldEx str mEditAction = assignViewId $ \vid -> textField vid str mEditAction
+mkTextFieldEx :: String -> Maybe (String -> EditCommand db) -> Maybe (EditCommand db) -> WebViewM db (Widget (TextView db))
+mkTextFieldEx str mChangeAction mEditAction = assignViewId $ \vid -> textField vid str mChangeAction mEditAction
 
 infixl 0 `withTextViewSubmit`
+
 -- adds the submit action to the textview (use with mkTextView .. `withTextViewSubmit` .. )
 -- todo: make more generic mechanism (mkTextView `withProps` [ on submit := .. ])
-withTextViewSubmit (Widget sid wid tv)  act = Widget sid wid tv{getSubmitAction=act}
- 
-mkPasswordField str = mkPasswordFieldEx str Nothing
+withTextViewSubmit :: WebViewM db (Widget (TextView db)) -> EditCommand db -> WebViewM db (Widget (TextView db))
+withTextViewSubmit wm act = do { (Widget sid wid tv) <- wm
+                               ; return $ Widget sid wid tv{getSubmitAction=Just act}
+                               }
 
-mkPasswordFieldAct str act = mkPasswordFieldEx str $ Just act
+infixl 0 `withTextViewChange`
 
-mkPasswordFieldEx str mEditAction = assignViewId $ \vid -> passwordField vid str mEditAction
+withTextViewChange :: WebViewM db (Widget (TextView db)) -> (String -> EditCommand db) -> WebViewM db (Widget (TextView db))
+withTextViewChange wm fAct = do { (Widget sid wid tv) <- wm
+                                ; return $ Widget sid wid tv{getChangeAction=Just fAct}
+                                }
+
+mkPasswordField str = mkPasswordFieldEx str Nothing Nothing
+
+mkPasswordFieldAct str act = mkPasswordFieldEx str Nothing $ Just act
+
+mkPasswordFieldEx str mChangeAction mEditAction = assignViewId $ \vid -> passwordField vid str mChangeAction mEditAction
 
 mkTextArea str = assignViewId $ \vid -> textArea vid str
 
@@ -302,7 +314,7 @@ presentLabelView (LabelView viewId str) = div_ ! id_ (mkHtmlViewIdVal viewId) $ 
 -- (or Done) on the iPhone.
 
 presentTextField :: TextView db -> Html
-presentTextField (TextView viewId TextArea str _) =
+presentTextField (TextView viewId TextArea str _ _) =
    form !* [ thestyle "display: inline; width: 100%;"
          , strAttr "onSubmit" $ "return false"] $  -- return false, since we don't actually submit the form
      textarea !* [ id_ (mkHtmlViewIdVal viewId)
@@ -312,7 +324,7 @@ presentTextField (TextView viewId TextArea str _) =
                 , strAttr "onKeyUp" $ "script"++viewIdSuffix viewId++".onKeyUp()"
                     ] << toHtml str >>
   (mkScript $ declareWVTextViewScript viewId)      
-presentTextField (TextView viewId textType str mEditAction) = 
+presentTextField (TextView viewId textType str _ mEditAction) = 
   let inputField = case textType of TextField -> textfield ""
                                     PasswordField -> password ""
                                     

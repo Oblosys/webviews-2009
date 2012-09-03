@@ -4,6 +4,7 @@ module Generics where
 import Types
 
 import Data.Generics
+import Data.Maybe
 import Data.Map (Map)
 import qualified Data.Map as Map 
 import Data.IntSet (IntSet)
@@ -221,7 +222,7 @@ assignId = mkAccT $ \ids (Id id) -> if (id == -1)
 type Updates = Map ViewId String  -- maps id's to the string representation of the new value
 
 -- update the datastructure at the id's in Updates 
--- TODO is dummy db arg necessary?
+-- TODO is dummy db arg necessary? with ScopedTypeVariables we can prevent it, but maybe that leads to big type sigs
 replace :: forall db d . (Typeable db, Data d) => db -> Updates -> d -> d
 replace _ updates v = (everywhere $  mkT    (replaceText updates :: TextView db -> TextView db)
                                      `extT` replaceRadioView updates
@@ -235,9 +236,9 @@ replaceJSVar updates x@(JSVar i nm _) =
     Nothing -> x
 
 replaceText :: Updates -> TextView db -> TextView db
-replaceText updates x@(TextView i h _ ea) =
+replaceText updates x@(TextView i h _ ba ea) =
   case Map.lookup i updates of
-    Just str -> (TextView i h str ea)
+    Just str -> (TextView i h str ba ea)
     Nothing -> x
 
 replaceRadioView :: Updates -> RadioView -> RadioView
@@ -279,12 +280,16 @@ getLabelViewByViewId i view =
     []  -> error $ "internal error: no label with id "++show i
     _   -> error $ "internal error: multiple LabelViews with id "++show i
 
-getTextByViewId :: (Typeable db, Data d) => ViewId -> d -> TextView db
-getTextByViewId i view = 
-  case listify (\(TextView i' _ _ _) -> i==i') view of
-    [b] -> b
-    []  -> error $ "internal error: no text with id "++show i
+getMTextByViewId :: (Typeable db, Data d) => ViewId -> d -> Maybe (TextView db)
+getMTextByViewId i view = 
+  case listify (\(TextView i' _ _ _ _) -> i==i') view of
+    [b] -> Just b
+    []  -> Nothing
     _   -> error $ "internal error: multiple texts with id "++show i
+
+
+getTextByViewId :: (Typeable db, Data d) => ViewId -> d -> TextView db
+getTextByViewId i view = fromMaybe (error $ "internal error: no text with id "++show i) $ getMTextByViewId i view  
 
 getJSVarByViewId :: Data d => ViewId -> d -> JSVar
 getJSVarByViewId i view = 
@@ -332,7 +337,7 @@ getWebViewById i view =
     
 getTextByViewIdRef :: forall db v . (Typeable db, Data v) => db -> ViewIdRef -> v -> String
 getTextByViewIdRef _ (ViewIdRef i) view =
-  let (TextView _ _ str _) :: TextView db = getTextByViewId (ViewId i) view
+  let (TextView _ _ str _ _) :: TextView db = getTextByViewId (ViewId i) view
   in  str
 
 

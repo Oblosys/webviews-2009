@@ -125,20 +125,21 @@ labelView viewId txt = Widget noId noId $ LabelView viewId txt
 data TextType = TextField | PasswordField | TextArea deriving (Eq, Show, Typeable, Data)
 
 data TextView db = TextView { getTextViewId :: ViewId, getTextType :: TextType, getStrVal' :: String 
-                    , getSubmitAction :: Maybe (EditCommand db) } deriving (Show, Typeable, Data)
+                    , getChangeAction :: Maybe (String -> EditCommand db), getSubmitAction :: Maybe (EditCommand db) } deriving (Show, Typeable, Data)
 
 instance Eq (TextView db) where
-  TextView _ t1 str1 _ == TextView _ t2 str2 _ = t1 == t2 && str1 == str2
+  TextView _ t1 str1 _ _ == TextView _ t2 str2 _ _ = t1 == t2 && str1 == str2
+  -- note that we don't need to look at the edit actions, since these live only in the Haskell world and have no effect on the html representation.
   
-getStrVal (Widget _ _ (TextView vi h v _)) = v
+getStrVal (Widget _ _ (TextView vi h v _ _)) = v
 
-textField viewId str mSubmitAction = Widget noId noId $ TextView viewId TextField str mSubmitAction
+textField viewId str mChangeAction mSubmitAction = Widget noId noId $ TextView viewId TextField str mChangeAction mSubmitAction
 
-passwordField viewId str mSubmitAction = Widget noId noId $ TextView viewId PasswordField str mSubmitAction
+passwordField viewId str mChangeAction mSubmitAction = Widget noId noId $ TextView viewId PasswordField str mChangeAction mSubmitAction
 
-textArea viewId str = Widget noId noId $ TextView viewId TextArea str Nothing
+textArea viewId str = Widget noId noId $ TextView viewId TextArea str Nothing Nothing
 
-strRef (Widget _ _ (TextView (ViewId i) h _ _)) = ViewIdRef i
+strRef (Widget _ _ (TextView (ViewId i) h _ _ _)) = ViewIdRef i
 
 
 -- RadioView and SelectView
@@ -297,7 +298,7 @@ class Presentable v => Viewable v where
 
 class Storeable db v where
   save :: v -> db -> db
-  save _ = id
+  save _ = id -- the derived instance for webview takes care of recursively saving all webview children
 
 -- needed for initial of WebView, which has () as its view
 instance Storeable db () where
@@ -432,7 +433,7 @@ instance Initial LabelView where
   initial = LabelView noViewId ""
 
 instance Initial (TextView db) where
-  initial = TextView noViewId TextField "" Nothing
+  initial = TextView noViewId TextField "" Nothing Nothing
 
 instance Initial RadioView where
   initial = RadioView noViewId [] 0 False

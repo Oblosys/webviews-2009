@@ -1,3 +1,4 @@
+{-# LANGUAGE ScopedTypeVariables #-}
 module Server where
 
 import Happstack.Server
@@ -396,7 +397,7 @@ mkRootView rootViews rootViewName args user db sessionId viewMap =
                       Nothing -> error $ "Unknown view: "++rootViewName
                       Just mkV -> mkV
 
-handleCommand :: Data db => RootViews db -> Map String (String, String) -> SessionStateRef db -> Command -> IO ServerResponse
+handleCommand :: forall db . Data db => RootViews db -> Map String (String, String) -> SessionStateRef db -> Command -> IO ServerResponse
 handleCommand rootViews _ sessionStateRef (Init rootViewName hashArgs) =
  do { putStrLn $ "Init " ++ show rootViewName ++ " " ++ show hashArgs
     ; setSessionHashArgs sessionStateRef hashArgs
@@ -424,19 +425,24 @@ handleCommand _ _ sessionStateRef Test =
  do { (_, user, db, rootView, _, _) <- readIORef sessionStateRef
     ; return ViewUpdate
     }
-handleCommand _ _ sessionStateRef (SetC viewId value) =
+handleCommand _ users sessionStateRef (SetC viewId value) =
  do { (sessionId, user, db, rootView, pendingEdit, hashArgs) <- readIORef sessionStateRef      
     ; putStrLn $ "Performing: "++show (SetC viewId value)
 
     --; putStrLn $ "RootView:\n" ++ show rootView ++"\n\n\n\n\n"
     ; let rootView' = replace db{- dummy arg -} (Map.fromList [(viewId, value)]) (assignIds rootView)
-    --; putStrLn $ "Updated rootView:\n" ++ show rootView'
     ; let db' = save rootView' db
-      -- TODO: check if mkViewMap has correct arg
-    -- TODO: instead of updating all, just update the one that was changed
     ; writeIORef sessionStateRef (sessionId, user, db', rootView', pendingEdit, hashArgs)
     ; reloadRootView sessionStateRef
-    ; return ViewUpdate
+
+    --; putStrLn $ "Updated rootView:\n" ++ show rootView'
+    ; response <- case getMTextByViewId viewId rootView' :: Maybe (TextView db) of  -- TODO: probably also want change actions for radio etc.
+        Nothing                                     -> return ViewUpdate -- Not a text field
+        Just (TextView _ _ _ Nothing _)             -> return ViewUpdate -- No edit action 
+        Just (TextView _ _ _ (Just fChangeAction) _) -> performEditCommand users sessionStateRef (fChangeAction value) 
+      -- TODO: check if mkViewMap has correct arg
+    -- TODO: instead of updating all, just update the one that was changed
+    ; return response
     }
 handleCommand _  users sessionStateRef (ButtonC viewId) =
  do { (_, user, db, rootView, pendingEdit, hashArgs) <- readIORef sessionStateRef
@@ -455,7 +461,7 @@ handleCommand _  users sessionStateRef (ButtonC viewId) =
     }
 handleCommand _ users sessionStateRef (SubmitC viewId) =
  do { (_, user, db, rootView, pendingEdit, hashArgs) <- readIORef sessionStateRef
-    ; let TextView _ _ txt mAct = getTextByViewId viewId rootView
+    ; let TextView _ _ txt _ mAct = getTextByViewId viewId rootView
     ; putStrLn $ "TextView #" ++ show viewId ++ ":" ++ txt ++ " was submitted"
 
     ; response <- case mAct of 
