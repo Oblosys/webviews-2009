@@ -97,6 +97,8 @@ mkTextField str = mkTextFieldEx str Nothing Nothing
 
 mkTextFieldAct str act = mkTextFieldEx str Nothing $ Just act
 
+mkTextFieldWithChange str act = mkTextFieldEx str (Just act) Nothing
+
 mkTextFieldEx :: String -> Maybe (String -> EditCommand db) -> Maybe (EditCommand db) -> WebViewM db (Widget (TextView db))
 mkTextFieldEx str mChangeAction mEditAction = assignViewId $ \vid -> textField vid str mChangeAction mEditAction
 
