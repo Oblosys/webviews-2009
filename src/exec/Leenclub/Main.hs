@@ -138,7 +138,7 @@ mkSearchView label argName resultsf = mkWebView $
        ; let searchTerm = case lookup argName args of 
                             Nothing    -> ""
                             Just term -> term 
-       ; searchField <- mkTextField searchTerm `withTextViewSubmit` Edit $ return () 
+       ; searchField <- mkTextField searchTerm `withTextViewSubmit` (Edit $ return ()) 
        ; searchButton <- mkButtonWithClick "Zoek" True $ const ""
        ; results <- resultsf searchTerm
        ; return $ SearchView label searchField searchButton results $
@@ -378,70 +378,57 @@ mkItemRootView = mkMaybeView "Onbekend item" $
       
       
 -- An encapsulated database update that can be part of a webview. 
-data DBUpdate = DBUpdate (String -> Database -> Database) deriving (Typeable, Data)
+data Function a b = Function (a -> b) deriving (Typeable, Data)
 
 
-instance Initial DBUpdate where
-  initial = DBUpdate $ const id
+instance Initial (Function a b) where
+  initial = Function $ error "Initial Function"
   
 -- never equal, so no incrementality
-instance Eq DBUpdate where
+instance Eq (Function a b) where
   _ == _ = False
   
-instance Show DBUpdate where
-  show _ = "DBUpdate"
+instance Show (Function a b) where
+  show _ = "Function"
 
---instance Typeable DBUpdate
-{-
-instance Data DBUpdate where
-  gfoldl k z (DBUpdate f) = z DBUpdate `k` f
-     
-  gunfold k z c = error "gunfold not defined for DBUpdate"
-     
-  toConstr (DBUpdate _) = con_DBUpdate 
-  dataTypeOf _ = ty_DBUpdate
--}
-ty_DBUpdate = mkDataType "Main.DBUpdate" [con_DBUpdate]
-con_DBUpdate = mkConstr ty_WebView "DBUpdate" [] Prefix
---
 
 -- non-optimal way to show editable properties. The problem is that the update specified is not a view update but a database update.
-data Property = Property String DBUpdate (Either String (Widget (TextView Database)))
+data Property a = Property (Function a String) (Function String (a -> Maybe a)) (Either String (Widget (TextView Database)))
                   deriving (Eq, Show, Typeable, Data)
 
 
-deriveInitial ''Property
-
+instance Initial (Property a) where
+  initial = Property initial initial initial
 
 {- The update is a database update, but it would be better to be able to specify a view update, since we don't 
 want to commit all textfields immediately to the database. Maybe save could be part of the edit monad? (but then do we need
 to save again after performing the viewEdit in save?) or we could add an edit action to text fields (not the commit action, but
 a blur action) -}
-mkPropertyView :: Bool -> String -> String -> (String -> Database -> Database) ->  WebViewM Database (WebView Database)
-mkPropertyView False name val update = mkWebView $
-  \vid _ ->
-   do { return $ Property name (DBUpdate update) (Left val)
-      }
-mkPropertyView True name val update = mkWebView $
-  \vid propV ->
-   do { valV <- mkTextField val 
-        {- rec { valV <- mkTextFieldAct val $ Edit $ do { (sessionId, user, db, rootView, pendingEdit, hashArgs) <- get
-                                                     ; str <- getTextViewContents valV
-                                                     ; liftIO $ putStrLn $ "RootView\n" ++ show rootView
-                                                     ; liftIO $ putStrLn $ "Str is "++str
-                                                     ; update str
-                                                     } 
-            } -} 
-      ; return $ Property name (DBUpdate update)  (Right valV)
-      }
-      
-instance Presentable Property where
-  present (Property name _ (Left val))   = toHtml name +++ toHtml val
-  present (Property name _ (Right valV)) = toHtml name +++ present valV
+-- not a web view, but it is an instance of Presentable
+mkProperty :: (Data a) => ViewId -> Bool -> String -> (String -> a-> Maybe a) -> WebViewM Database (Property a)
+mkProperty vid editing value parse =
+ do { eValue <- if editing
+                then fmap Right $ mkTextFieldWithChange value $ \str -> Edit $ viewEdit vid $ \v ->
+                       case parse str v of
+                         Nothing -> v
+                         Just v' -> v'
+                else return $ Left value 
+    ; return $ Property (Function undefined) (Function parse) eValue
+    }
 
-instance Storeable Database Property where
-  save (Property _ _ (Left _))       db = db
-  save (Property name (DBUpdate upd) (Right valV)) db = upd (getStrVal valV) db 
+instance Presentable (Property a) where
+  present (Property _ _ (Left str)) = toHtml str
+  present (Property _ _ (Right textField)) = present textField
+
+instance Storeable Database (Property a)
+
+commitProperty :: Property a -> a -> a
+commitProperty (Property _ parse (Left _)) val = val -- todo: not val
+commitProperty (Property _ (Function parse) (Right textField)) val = 
+   case parse (getStrVal textField) val of
+     Just val' -> trace ("Just val for "++ getStrVal textField) val'
+     Nothing  -> val
+                                                                        
 
 -- use view updates so we can apply a list of properties to the view
 newtype ParseFunction a = ParseFunction (String -> Maybe a) deriving (Typeable, Data)
@@ -475,7 +462,7 @@ getPropertyValue (Property2 value _ (Left _)) = Just value
 getPropertyValue (Property2 value (ParseFunction parse) (Right textField)) = parse $ getStrVal textField
 
 data LenderView = 
-  LenderView Inline Bool User Lender  [WebView Database] [Property2 String]
+  LenderView Inline User Lender (Maybe Lender) [Property LenderView]
              --(Maybe (Widget (TextView Database, TextView Database)))
              [WebView Database] (Widget (Button Database))
     deriving (Eq, Show, Typeable, Data)
@@ -485,13 +472,17 @@ data LenderView =
 
 deriveInitial ''LenderView
 
+getMEditedLender (LenderView _ _ _ mEditedLender _ _ _) = mEditedLender
 
-instance Storeable Database LenderView where
-  save (LenderView _ _ _ modifiedLender@Lender{lenderId=lId} _ _  _ _)  = updateLender lId $ \lender -> modifiedLender
+instance Storeable Database LenderView -- where
+--  save (LenderView _ _ _ modifiedLender@Lender{lenderId=lId} _ _  _ _)  = updateLender lId $ \lender -> modifiedLender
 
-
+withDb' :: (db -> db) -> EditM db ()
+withDb' updDb = do { (a,b,db,d,e,f) <- get
+                   ; put (a,b,updDb db,d,e,f)
+                   }
 mkLenderView inline lender = mkWebView $
-  \vid oldLenderView@(LenderView _ editing _ _ _ oldProps' _ _) ->
+  \vid oldLenderView@(LenderView _ _ _ mEdited _ _ _) ->
     do { mUser <- getUser
        ; let itemIds = lenderItems lender
        ; items <- withDb $ \db -> getOwnedItems (lenderId lender) db
@@ -499,34 +490,34 @@ mkLenderView inline lender = mkWebView $
        ; fName <- mkTextField (lenderFirstName lender)
        ; lName <- mkTextField (lenderLastName lender)
        
-       ; prop1 <- mkPropertyView editing "E-mail" (lenderMail lender) $ \str -> trace ("updating lendermail "++str) $ 
-                                                                                updateLender (lenderId lender) (\l -> l{lenderMail = str})
-       ; let props = [prop1]
-
-       ; liftIO $ putStrLn "initializing prop1'"
        
-       -- this is horrible
-       ; prop1' <- mkProperty2 editing id Just $ case oldProps' of [oldProp'] | Just v <- getPropertyValue oldProp' -> v
-                                                                   _ -> lenderZipCode lender
-       ; let props' = [prop1']
+       ; prop1 <- mkProperty vid (isJust mEdited) 
+                            (lenderFirstName lender)
+                            (\str (LenderView a b c (Just lender) e f g) -> Just $ LenderView a b c (Just lender{lenderFirstName=str}) e f g)
+       ; prop2 <- mkProperty vid (isJust mEdited) 
+                            (lenderZipCode lender)
+                            (\str (LenderView a b c (Just lender) e f g) -> Just $ LenderView a b c (Just lender{lenderZipCode=str}) e f g)
+       ; let props = [prop1, prop2]
        
        ; itemWebViews <- if isInline inline then return [] else mapM (mkItemView Inline) items
-       ; editButton <- mkButton (if editing then "Gereed" else "Aanpassen") (lenderIsUser lender mUser) $ 
-           Edit $ viewEdit vid $ (\lv@(LenderView a editing b lender d [prop'] f g) ->
-                                   if editing 
-                                   then let updatedLender = case getPropertyValue prop' of
-                                                              Just str -> trace (show prop') lender{lenderZipCode=str}
-                                                              Nothing  -> lender
-                                        in  trace ("updated lender zip"++lenderZipCode updatedLender) $ LenderView a False b updatedLender d [prop'] f g
-                                   else LenderView a True b lender d [prop'] f g)
-       ; return $ LenderView inline editing mUser lender props props' itemWebViews editButton
+       ; editButton <- mkButton (maybe "Aanpassen" (const "Gereed") mEdited) (lenderIsUser lender mUser) $ 
+           Edit $ case mEdited of 
+                    Nothing -> viewEdit vid $ \(LenderView a b lender _ e f g) -> LenderView a b lender (Just lender) e  f g
+                    Just updatedLender@Lender{lenderId=lId} ->  
+                     do { withDb' $ updateLender lId $ \lender -> updatedLender
+                        ; viewEdit vid $ \(LenderView a b lender _ e f g) -> LenderView a b lender Nothing e f g
+                        ; liftIO $ putStrLn $ "updating lender\n" ++ show updatedLender
+                        } 
+                    --trace ("updated lender zip:"++lenderZipCode updatedLender) $ LenderView a Nothing b updatedLender d [prop'] f g
+
+       ; return $ LenderView inline mUser lender mEdited props itemWebViews editButton
        }
        
 lenderIsUser lender Nothing          = False
 lenderIsUser lender (Just (login,_)) = lenderLogin lender == login
  
 instance Presentable LenderView where
-  present (LenderView Full editing mUser lender props props' itemWebViews editButton)   =
+  present (LenderView Full mUser lender _ props itemWebViews editButton)   =
         vList [ vSpace 20
               , hList [ (div_ (boxedEx 1 $ image ("leners/" ++ lenderImage lender) ! style "height: 200px")) ! style "width: 204px" ! align "top"
                       , hSpace 20
@@ -536,7 +527,6 @@ instance Presentable LenderView where
                               , hList [ vList [ presentProperties $
                                                  (if lenderIsUser lender mUser then getLenderPropsSelf else getLenderPropsEveryone) lender
                                               , vList $ map present props
-                                              , vList $ map present props'
                                               , vSpace 20
                                               , present editButton
                                               ]
@@ -549,14 +539,13 @@ instance Presentable LenderView where
               , h2 $ (toHtml $ "Spullen van "++lenderFirstName lender)
               , vList $ map present itemWebViews
               ]
-  present (LenderView Inline editing mUser lender props props' itemWebViews editButton) =
+  present (LenderView Inline mUser lender mEdited props itemWebViews editButton) =
     linkedLender lender $
       hList [ (div_ (boxedEx 1 $ image ("leners/" ++ lenderImage lender) ! style "height: 30px")) ! style "width: 34px" ! align "top"
             , nbsp
             , nbsp
             , vList [ toHtml (showName lender)
                     , vList $ map present props
-                    , vList $ map present props'
                     , span_ (presentRating 5 $ lenderRating lender) ! style "font-size: 20px"
                     ]
          --   , with [style "display: none"] $ concatHtml $ map present [fName,lName] ++ [present editButton] -- todo: not nice! 
@@ -787,7 +776,7 @@ instance Storeable Database TestView
 
 
 data TestView2 = 
-  TestView2 (Widget RadioView)  [WebView Database]
+  TestView2 (Widget RadioView) (Widget (TextView Database))
            String String 
     deriving (Eq, Show, Typeable, Data)
 
@@ -795,14 +784,14 @@ deriveInitial ''TestView2
 
 mkTestView2 :: WebViewM Database (WebView Database)
 mkTestView2 = mkWebView $
-  \vid oldTestView@(TestView2 radioOld _ str1 str2) ->
+  \vid oldTestView@(TestView2 radioOld text str1 str2) ->
     do { radio <-  mkRadioView ["Edit", "View"] (getSelection radioOld) True
        ; let radioSel = getSelection radioOld
+       ; text <- mkTextField "Test" `withTextViewChange` (\str -> Edit $ viewEdit vid $ \(TestView2 a b c d) -> TestView2 a b c str)
        ; liftIO $ putStr $ show oldTestView
        ; liftIO $ putStrLn $ "radio value " ++ show radioSel
-       ; propV1 <- mkPropertyView (radioSel == 0) "Naam" str1 $ \str -> trace ("updating"++str) id
      --  ; propV2 <- mkPropertyView (radioSel == 0) "Straat" str2 $ \str -> viewEdit vid $ \(TestView2 a b c d) -> TestView2 a b  c str
-       ; let wv = TestView2 radio [propV1] str1 str2
+       ; let wv = TestView2 radio text str1 str2
        
        --; liftIO $ putStrLn $ "All top-level webnodes "++(show (everythingTopLevel webNodeQ wv :: [WebNode Database])) 
        
@@ -810,9 +799,9 @@ mkTestView2 = mkWebView $
        }
 
 instance Presentable TestView2 where
-  present (TestView2 radio props p1str p2str) =
+  present (TestView2 radio text p1str p2str) =
       vList [ present radio
-            , table $ concatHtml (map present props) 
+            , present text
             , toHtml $ "Property strings: " ++ show p1str ++ " and " ++ show p2str
             ]
 
