@@ -1,9 +1,12 @@
-{-# LANGUAGE DeriveDataTypeable #-}
+{-# LANGUAGE TemplateHaskell, TypeOperators, DeriveDataTypeable #-}
 module DatabaseTypes where
 
 import Data.Generics
 import Data.Map (Map)
 import qualified Data.Map as Map
+import Control.Category hiding (Category) -- fclabels
+import Data.Label                         -- fclabels
+import Prelude hiding ((.), id)           -- fclabels
 
 newtype LenderId = LenderId { lenderIdLogin :: String } deriving (Show, Read, Eq, Ord, Typeable, Data)
 
@@ -18,13 +21,14 @@ data Database = Database { allLenders :: Map LenderId Lender, allItems :: Map It
 data Gender = M | F deriving (Eq, Show, Read, Typeable,Data)
 
 data Lender = 
-  Lender { lenderId :: LenderId, lenderFirstName :: String, lenderLastName :: String, lenderGender :: Gender 
+  Lender { lenderId :: LenderId, _lenderFirstName :: String, lenderLastName :: String, lenderGender :: Gender 
          , lenderMail :: String
-         , lenderStreet :: String, lenderStreetNr :: String, lenderCity :: String, lenderZipCode :: String
+         , lenderStreet :: String, lenderStreetNr :: String, lenderCity :: String, _lenderZipCode :: String
          , lenderCoords :: (Double, Double) -- http://maps.google.com/maps/geo?q=adres&output=xml for lat/long
          , lenderImage :: String
          , lenderRating :: Int, lenderNrOfPoints :: Int, lenderItems :: [ItemId]
          } deriving (Eq, Show, Read, Typeable, Data)
+
 
 data MovieOrSeries = Movie | Series deriving (Eq, Show, Read, Typeable,Data)
 
@@ -45,3 +49,5 @@ data Item =
        } deriving (Eq, Show, Read, Typeable,Data)
 
 -- put id in element? It is also in the map.
+
+mkLabels [ ''Lender ]

@@ -7,6 +7,9 @@ import Data.Map (Map)
 import qualified Data.Map as Map
 import DatabaseTypes
 import qualified Imported
+import Control.Category hiding (Category) -- fclabels
+import Data.Label                         -- fclabels
+import Prelude hiding ((.), id)           -- fclabels
 
 lenders :: Map String (String, String)
 lenders = Map.fromList [ ("martijn", ("p", "Martijn"))
@@ -21,7 +24,7 @@ lenderLogin Lender{lenderId = LenderId login} = login
 
 searchLenders :: String -> Database -> [Lender]
 searchLenders term db = [ lender | lender <- Map.elems $ allLenders db
-                        , any (isInfixOf term) [lenderFirstName lender, lenderLastName lender, lenderZipCode lender, lenderLogin lender]
+                        , any (isInfixOf term) [get lenderFirstName lender, lenderLastName lender, get lenderZipCode lender, lenderLogin lender]
                         ]
 
 updateLender :: LenderId -> (Lender -> Lender) -> Database -> Database

@@ -120,13 +120,26 @@ Executable leenclub
                   old-time >=1.1 && <1.2,
                   html >=1.0 && <1.1,
                   template-haskell >=2.7 && <2.8,
-                  download-curl >=0.1 && <0.2
+                  download-curl >=0.1 && <0.2,
+                  fclabels >=1.1
 --                  gps >= 1.0 && <1.1
 
   GHC-Options: 
-  Extensions: ExistentialQuantification RankNTypes DeriveDataTypeable ScopedTypeVariables OverloadedStrings TemplateHaskell, PatternGuards
+  Extensions: 
+              DeriveDataTypeable, 
+              ExistentialQuantification, 
+              OverloadedStrings, 
+              PatternGuards, 
+              RankNTypes, 
+              ScopedTypeVariables, 
+              TemplateHaskell
   HS-Source-Dirs:  src/exec/Leenclub
-  Other-Modules:DatabaseTypes
+  Other-Modules:
+                Database,
+                DatabaseTypes,
+                Imported,
+                Importer,
+                LeenclubUtils
   if flag(leenclub)
     buildable:  True
   else
