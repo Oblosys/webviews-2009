@@ -121,12 +121,12 @@ buildBook fields@[afb,eigenaar,titel,auteur,taal,jaartal,genre,aantalPag,isbn,st
               , _itemState = staat
               , _itemImage = afb 
               , _itemBorrowed = Nothing
-              , _itemCategory = Book { _bookAuthor = auteur
-                                     , _bookYear = fromMaybe 0 $ readMaybe jaartal
-                                     , _bookLanguage = taal
-                                     , _bookGenre = genre
-                                     , _bookPages = fromMaybe 0 $ readMaybe aantalPag
-                                     , _bookISBN = isbn
+              , _itemCategory = Book { bookAuthor = auteur
+                                     , bookYear = fromMaybe 0 $ readMaybe jaartal
+                                     , bookLanguage = taal
+                                     , bookGenre = genre
+                                     , bookPages = fromMaybe 0 $ readMaybe aantalPag
+                                     , bookISBN = isbn
                                      }
               }
 buildBook fields = trace ("buildBook: " ++ show (length fields)++"\n"++show fields) Nothing
@@ -143,15 +143,15 @@ buildDVD fields@[afb,eigenaar,filmSerie,titel,regisseur,taal,jaartal,genre,speel
               , _itemState = staat
               , _itemImage = afb 
               , _itemBorrowed = Nothing
-              , _itemCategory = DVD { _dvdMovieOrSeries =  if (map toUpper filmSerie) == "film" then Movie else Series
-                                    , _dvdDirector = regisseur
-                                    , _dvdLanguage = taal
-                                    , _dvdYear = fromMaybe 0 $ readMaybe jaartal
-                                    , _dvdGenre = genre
-                                    , _dvdRunningTime = fromMaybe 0 $ readMaybe speelduur
-                                    , _dvdIMDb = imdb
-                                    , _dvdSeason = fromMaybe 0 $ readMaybe seizoen
-                                    , _dvdNrOfEpisodes = fromMaybe 0 $ readMaybe aantalAfl
+              , _itemCategory = DVD { dvdMovieOrSeries =  if (map toUpper filmSerie) == "film" then Movie else Series
+                                    , dvdDirector = regisseur
+                                    , dvdLanguage = taal
+                                    , dvdYear = fromMaybe 0 $ readMaybe jaartal
+                                    , dvdGenre = genre
+                                    , dvdRunningTime = fromMaybe 0 $ readMaybe speelduur
+                                    , dvdIMDb = imdb
+                                    , dvdSeason = fromMaybe 0 $ readMaybe seizoen
+                                    , dvdNrOfEpisodes = fromMaybe 0 $ readMaybe aantalAfl
                                     }
                      
               }
@@ -168,10 +168,10 @@ buildGame fields@[afb,eigenaar,titel,platform,jaartal,genre,developer,staat, pun
               , _itemState = staat
               , _itemImage = afb 
               , _itemBorrowed = Nothing
-              , _itemCategory = Game { _gamePlatform = platform
-                                     , _gameYear = fromMaybe 0 $ readMaybe jaartal
-                                     , _gameDeveloper = developer
-                                     , _gameGenre = genre
+              , _itemCategory = Game { gamePlatform = platform
+                                     , gameYear = fromMaybe 0 $ readMaybe jaartal
+                                     , gameDeveloper = developer
+                                     , gameGenre = genre
                                      }
                      
               }
@@ -188,9 +188,9 @@ buildTool fields@[afb,eigenaar,soort,merk,typenr,bouwjaar,staat, punten,beschrij
               , _itemState = staat
               , _itemImage = afb 
               , _itemBorrowed = Nothing
-              , _itemCategory =  Tool { _toolBrand = merk
-                                       , _toolType = typenr
-                                       , _toolYear = fromMaybe 0 $ readMaybe bouwjaar
+              , _itemCategory =  Tool { toolBrand = merk
+                                       , toolType = typenr
+                                       , toolYear = fromMaybe 0 $ readMaybe bouwjaar
                                        }
                      
               }

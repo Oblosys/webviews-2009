@@ -384,7 +384,7 @@ mkItemRootView = mkMaybeView "Onbekend item" $
       
       
 -- An encapsulated database update that can be part of a webview. 
-data Function a b = Function (a -> b) deriving (Typeable, Data)
+data Function a b = Function (a -> b) deriving (Data, Typeable)
 
 
 instance Initial (Function a b) where
@@ -397,89 +397,87 @@ instance Eq (Function a b) where
 instance Show (Function a b) where
   show _ = "Function"
 
+{-
+-- Does this explicit instance prevent the need for (Data a, Data b)?
+instance Data (Function a b) where
+  gfoldl k z (Function f) = z Function `k` f
+     
+  gunfold k z c = error "gunfold not defined for Function"
+     
+  toConstr (Function _) = con_Function 
+  dataTypeOf _ = ty_Function
 
+ty_Function = mkDataType "Main.Function" [con_Function] -- todo: change according to module
+con_Function = mkConstr ty_WebView "Function" [] Prefix
+-}
 -- non-optimal way to show editable properties. The problem is that the update specified is not a view update but a database update.
-data Property a = Property (Function a String) (Either String (Widget (TextView Database)))
-                  deriving (Eq, Show, Typeable, Data)
+data Property a = EditableProperty (Either Html (Widget (TextView Database)))
+                | StaticProperty Html deriving (Eq, Show, Typeable, Data)
 
+instance Data Html
+-- TODO: make sure that Data is not actually needed, or implement it.
+
+instance Initial Html where
+  initial = noHtml
 
 instance Initial (Property a) where
-  initial = Property initial initial
+  initial = StaticProperty initial
 
 {- The update is a database update, but it would be better to be able to specify a view update, since we don't 
 want to commit all textfields immediately to the database. Maybe save could be part of the edit monad? (but then do we need
 to save again after performing the viewEdit in save?) or we could add an edit action to text fields (not the commit action, but
 a blur action) -}
 -- not a web view, but it is an instance of Presentable
-mkProperty :: (Show v, Data v, Data a) => ViewId -> Bool -> (v :-> Maybe a) -> (a :-> String) -> a -> WebViewM Database (Property a)
-mkProperty vid editing objectLens valueLens orgObj =
+mkEditableProperty :: (Show v, Data v, Data a) => ViewId -> Bool -> (v :-> Maybe a) -> (a :-> p) -> (p -> String) -> (String -> Maybe p) -> (p -> Html) -> a -> WebViewM Database (Property a)
+mkEditableProperty vid editing objectLens valueLens presStr parseStr pres orgObj =
  do { eValue <- if editing
-                then fmap Right $ mkTextFieldWithChange (get valueLens orgObj) $ \str -> Edit $ viewEdit vid $ \v ->
+                then fmap Right $ mkTextFieldWithChange (presStr $ get valueLens orgObj) $ \str -> Edit $ viewEdit vid $ \v ->
                        case get objectLens v of
                          Nothing -> v
-                         Just o  -> let v' = set objectLens (Just $ set valueLens str o) v
-                                    in  trace ("Setting "++show vid++" to " ++ show v') $ v'
-                else return $ Left $ get valueLens orgObj 
-    ; return $ Property (Function undefined) eValue
+                         Just o  -> case parseStr str of
+                                      Nothing -> trace ("Parse error for " ++ show str) v
+                                      Just p' -> let v' = set objectLens (Just $ set valueLens p' o) v
+                                                 in  trace ("Setting "++show vid++" to " ++ show v') $ v'
+                else return $ Left $ pres $ get valueLens orgObj 
+    ; return $ EditableProperty eValue
     }
 
+mkStaticProperty :: (a :-> p) -> (p -> Html) -> a -> WebViewM Database (Property a) -- monadic only to have behave similar to
+mkStaticProperty lens pres obj = return $ StaticProperty $ pres $ get lens obj  -- mkEditbleProperty (maybe not necessary)
+
 instance Presentable (Property a) where
-  present (Property _ (Left str)) = toHtml str
-  present (Property _ (Right textField)) = present textField
+  present (StaticProperty htmlStr)             = toHtml htmlStr
+  present (EditableProperty (Left htmlStr))    = toHtml htmlStr
+  present (EditableProperty (Right textField)) = present textField
 
 instance Storeable Database (Property a)
 
--- use view updates so we can apply a list of properties to the view
-newtype ParseFunction a = ParseFunction (String -> Maybe a) deriving (Typeable, Data)
-
-instance Show (ParseFunction a) where
-  show _ = "<ParseFunction>"
-
-instance Eq (ParseFunction a) where
-  _ ==  _ = False
-
--- Second non-optimal way to show editable properties. Properties can get a view update (which is not implemented yet),
--- but it is awkward to handle initial property values (see comment horrible in mkLenderView)
-data Property2 a = Property2 a (ParseFunction a) (Either String (Widget (TextView Database)))
-                  deriving (Eq, Show, Typeable, Data)
-
--- not a web view, but it is an instance of Presentable
-mkProperty2 :: Bool -> (a -> String) -> (String -> Maybe a) -> a -> WebViewM Database (Property2 a)
-mkProperty2 editing present parse value =
- do { eValue <- if editing
-                then fmap Right $ mkTextField (present value)
-                else return $ Left (present value) 
-    ; return $ Property2 value (ParseFunction parse) eValue
-    }
-
-instance Presentable (Property2 a) where
-  present (Property2 _ _ (Left str)) = toHtml str
-  present (Property2 _ _ (Right textField)) = present textField
-  
-getPropertyValue :: Property2 a -> Maybe a
-getPropertyValue (Property2 value _ (Left _)) = Just value
-getPropertyValue (Property2 value (ParseFunction parse) (Right textField)) = parse $ getStrVal textField
+presentProperties' :: [(String, Property a)] -> Html            
+presentProperties' namedProps =
+  table $ sequence_ [ tr $ sequence_ [ td $ with [style "font-weight: bold"] $ toHtml propName, td $ nbsp +++ ":" +++ nbsp
+                                     , td $ present prop] 
+                    | (propName, prop) <- namedProps
+                    ]
 
 data LenderView = 
-  LenderView Inline User Lender (Maybe Lender) [Property Lender]
+  LenderView Inline User Lender (Maybe Lender) [Property Lender] [(String,Property Lender)]
              --(Maybe (Widget (TextView Database, TextView Database)))
              [WebView Database] (Widget (Button Database))
     deriving (Eq, Show, Typeable, Data)
 
-                   
-
+ -- todo: edit button in Inline/Full datatype?                  
 
 deriveInitial ''LenderView
 
 mEditedLender :: LenderView :-> Maybe Lender
-mEditedLender = lens (\(LenderView _ _ _ mEditedLender _ _ _) -> mEditedLender)
-                     (\mLender (LenderView a b c d e f g) -> (LenderView a b c mLender e f g))
+mEditedLender = lens (\(LenderView _ _ _ mEditedLender _ _ _ _) -> mEditedLender)
+                     (\mLender (LenderView a b c d e f g h) -> (LenderView a b c mLender e f g h))
 
 instance Storeable Database LenderView -- where
 --  save (LenderView _ _ _ modifiedLender@Lender{lenderId=lId} _ _  _ _)  = updateLender lId $ \lender -> modifiedLender
 
 mkLenderView inline lender = mkWebView $
-  \vid oldLenderView@(LenderView _ _ _ mEdited _ _ _) ->
+  \vid oldLenderView@(LenderView _ _ _ mEdited _ _ _ _) ->
     do { mUser <- getUser
        ; let itemIds = get lenderItems lender
        ; items <- withDb $ \db -> getOwnedItems (get lenderId lender) db
@@ -488,29 +486,29 @@ mkLenderView inline lender = mkWebView $
        ; lName <- mkTextField (get lenderLastName lender)
        
        
-       ; prop1 <- mkProperty vid (isJust mEdited) mEditedLender lenderFirstName lender
-       ; prop2 <- mkProperty vid (isJust mEdited) mEditedLender lenderZipCode lender
-       ; let props = [prop1, prop2]
-       
+       ; prop0 <- mkStaticProperty (lenderIdLogin . lenderId) toHtml lender
+       ; prop1 <- mkEditableProperty vid (isJust mEdited) mEditedLender lenderFirstName id Just toHtml lender
+       ; let testProps = [prop0, prop1]
+       ; props <- (if lenderIsUser lender mUser then getLenderPropsSelf' else getLenderPropsEveryone') vid (isJust mEdited) lender
        ; itemWebViews <- if isInline inline then return [] else mapM (mkItemView Inline) items
        ; editButton <- mkButton (maybe "Aanpassen" (const "Gereed") mEdited) (lenderIsUser lender mUser) $ 
            Edit $ case mEdited of 
-                    Nothing -> viewEdit vid $ \(LenderView a b lender _ e f g) -> LenderView a b lender (Just lender) e  f g
+                    Nothing -> viewEdit vid $ set mEditedLender (Just lender)
                     Just updatedLender ->  
                      do { docEdit $ updateLender (get lenderId updatedLender) $ \lender -> updatedLender
-                        ; viewEdit vid $ \(LenderView a b lender _ e f g) -> LenderView a b lender Nothing e f g
+                        ; viewEdit vid $ set mEditedLender Nothing
                         ; liftIO $ putStrLn $ "updating lender\n" ++ show updatedLender
                         } 
                     --trace ("updated lender zip:"++lenderZipCode updatedLender) $ LenderView a Nothing b updatedLender d [prop'] f g
 
-       ; return $ LenderView inline mUser lender mEdited props itemWebViews editButton
+       ; return $ LenderView inline mUser lender mEdited testProps props itemWebViews editButton
        }
        
 lenderIsUser lender Nothing          = False
 lenderIsUser lender (Just (login,_)) = get (lenderIdLogin . lenderId) lender == login
  
 instance Presentable LenderView where
-  present (LenderView Full mUser lender _ props itemWebViews editButton)   =
+  present (LenderView Full mUser lender _ testProps props itemWebViews editButton)   =
         vList [ vSpace 20
               , hList [ (div_ (boxedEx 1 $ image ("leners/" ++ get lenderImage lender) ! style "height: 200px")) ! style "width: 204px" ! align "top"
                       , hSpace 20
@@ -519,7 +517,8 @@ instance Presentable LenderView where
                                      else -} (toHtml $ showName lender) -- +++ (with [style "display: none"] $ concatHtml $ map present [fName,lName]) -- todo: not nice!
                               , hList [ vList [ presentProperties $
                                                  (if lenderIsUser lender mUser then getLenderPropsSelf else getLenderPropsEveryone) lender
-                                              , vList $ map present props
+                                              , vList $ map present testProps
+                                              , presentProperties' props
                                               , vSpace 20
                                               , present editButton
                                               ]
@@ -532,13 +531,13 @@ instance Presentable LenderView where
               , h2 $ (toHtml $ "Spullen van "++get lenderFirstName lender)
               , vList $ map present itemWebViews
               ]
-  present (LenderView Inline mUser lender mEdited props itemWebViews editButton) =
+  present (LenderView Inline mUser lender mEdited testProps props itemWebViews editButton) =
     linkedLender lender $
       hList [ (div_ (boxedEx 1 $ image ("leners/" ++ get lenderImage lender) ! style "height: 30px")) ! style "width: 34px" ! align "top"
             , nbsp
             , nbsp
             , vList [ toHtml (showName lender)
-                    , vList $ map present props
+                    , vList $ map present testProps
                     , span_ (presentRating 5 $ get lenderRating lender) ! style "font-size: 20px"
                     ]
          --   , with [style "display: none"] $ concatHtml $ map present [fName,lName] ++ [present editButton] -- todo: not nice! 
@@ -555,6 +554,24 @@ getLenderPropsAll lender = [ Right ("LeenClub ID", toHtml $ get (lenderIdLogin .
                            , Left  ("Postcode", toHtml $ get lenderZipCode lender)
                            , Right ("Woonplaats", toHtml $ get lenderCity lender)
                            ]
+                           
+getLenderPropsEveryone' vid isEdited lender = do { props <- getLenderPropsAll' vid isEdited lender
+                                                ; return [ prop | Left prop <- props ]
+                                                }
+getLenderPropsSelf' vid isEdited lender = do { props <- getLenderPropsAll' vid isEdited lender
+                                            ; return [ either id id eProp  | eProp <- props ]
+                                            }
+   -- todo: composed properties? address is street + nr
+   --       non-string properties?                        
+getLenderPropsAll' vid isEdited lender = sequence
+  [ fmap (\p -> Right ("LeenClub ID", p)) $ mkStaticProperty (lenderIdLogin . lenderId) toHtml lender
+  , fmap (\p -> Left ("M/V", p)) $ mkEditableProperty vid isEdited mEditedLender lenderGender show readMaybe (toHtml . show) lender
+  , fmap (\p -> Left ("E-mail", p)) $ mkEditableProperty vid isEdited mEditedLender lenderMail id Just toHtml lender
+  , fmap (\p -> Right ("Adres", p)) $ mkEditableProperty vid isEdited mEditedLender lenderStreet id Just toHtml lender
+  , fmap (\p -> Left ("Postcode", p)) $ mkEditableProperty vid isEdited mEditedLender lenderZipCode id Just toHtml lender 
+  , fmap (\p -> Right ("Woonplaats", p)) $ mkEditableProperty vid isEdited mEditedLender lenderCity id Just toHtml lender 
+  , fmap (\p -> Right ("Rating", p)) $ mkEditableProperty vid isEdited mEditedLender lenderRating show (readMaybe) (presentRating 5) lender 
+  ]
 
 getExtraProps lender = [ ("Rating", with [style "font-size: 20px; position: relative; top: -5px; height: 17px" ] (presentRating 5 $ get lenderRating lender)) 
                        , ("Puntenbalans", toHtml . show $ get lenderNrOfPoints lender)
