@@ -1,11 +1,12 @@
-{-# LANGUAGE DeriveDataTypeable, PatternGuards, MultiParamTypeClasses, OverloadedStrings, TemplateHaskell, TupleSections, FlexibleInstances, ScopedTypeVariables #-}
+{-# LANGUAGE DeriveDataTypeable, PatternGuards, MultiParamTypeClasses, OverloadedStrings, TemplateHaskell #-}
+{-# LANGUAGE TypeOperators, TupleSections, FlexibleInstances, ScopedTypeVariables #-}
 module Main where
 
 import Data.List
 import BlazeHtml
 import Data.Generics
 import Data.Char hiding (Space)
-import Data.Function
+import Data.Function hiding ((.),id)
 import Data.Maybe
 import Data.Map (Map)
 import qualified Data.Map as Map 
@@ -18,9 +19,13 @@ import Generics
 import WebViewPrim
 import WebViewLib
 import HtmlLib
-import Control.Monad.State
+import Control.Monad.State hiding (get)
+import qualified Control.Monad.State
 import Server
 import TemplateHaskell
+import Control.Category hiding (Category) -- fclabels
+import Data.Label                         -- fclabels
+import Prelude hiding ((.), id)           -- fclabels
 
 import Database
 import LeenclubUtils
@@ -159,7 +164,7 @@ instance Presentable (SearchView db) where
 
 -- Leenclub utils
 
-showName lender = lenderFirstName lender ++ " " ++ lenderLastName lender
+showName lender = get lenderFirstName lender ++ " " ++ lenderLastName lender
 
 
 
@@ -334,7 +339,7 @@ linkedItem item@Item{itemId = ItemId login} html =
 
 linkedLenderName lender@Lender{lenderId = LenderId login} = linkedLender lender $ toHtml login
 
-linkedLenderFullName lender = linkedLender lender $ toHtml (lenderFirstName lender ++ " " ++ lenderLastName lender)
+linkedLenderFullName lender = linkedLender lender $ toHtml (get lenderFirstName lender ++ " " ++ lenderLastName lender)
   
 linkedLender lender@Lender{lenderId = LenderId login} html = 
   a! (href $ (toValue $ "/#lener&lener=" ++ login)) << html
@@ -393,42 +398,35 @@ instance Show (Function a b) where
 
 
 -- non-optimal way to show editable properties. The problem is that the update specified is not a view update but a database update.
-data Property a = Property (Function a String) (Function String (a -> Maybe a)) (Either String (Widget (TextView Database)))
+data Property a = Property (Function a String) (Either String (Widget (TextView Database)))
                   deriving (Eq, Show, Typeable, Data)
 
 
 instance Initial (Property a) where
-  initial = Property initial initial initial
+  initial = Property initial initial
 
 {- The update is a database update, but it would be better to be able to specify a view update, since we don't 
 want to commit all textfields immediately to the database. Maybe save could be part of the edit monad? (but then do we need
 to save again after performing the viewEdit in save?) or we could add an edit action to text fields (not the commit action, but
 a blur action) -}
 -- not a web view, but it is an instance of Presentable
-mkProperty :: (Data a) => ViewId -> Bool -> String -> (String -> a-> Maybe a) -> WebViewM Database (Property a)
-mkProperty vid editing value parse =
+mkProperty :: (Show v, Data v, Data a) => ViewId -> Bool -> (v :-> Maybe a) -> (a :-> String) -> a -> WebViewM Database (Property a)
+mkProperty vid editing objectLens valueLens orgObj =
  do { eValue <- if editing
-                then fmap Right $ mkTextFieldWithChange value $ \str -> Edit $ viewEdit vid $ \v ->
-                       case parse str v of
+                then fmap Right $ mkTextFieldWithChange (get valueLens orgObj) $ \str -> Edit $ viewEdit vid $ \v ->
+                       case get objectLens v of
                          Nothing -> v
-                         Just v' -> v'
-                else return $ Left value 
-    ; return $ Property (Function undefined) (Function parse) eValue
+                         Just o  -> let v' = set objectLens (Just $ set valueLens str o) v
+                                    in  trace ("Setting "++show vid++" to " ++ show v') $ v'
+                else return $ Left $ get valueLens orgObj 
+    ; return $ Property (Function undefined) eValue
     }
 
 instance Presentable (Property a) where
-  present (Property _ _ (Left str)) = toHtml str
-  present (Property _ _ (Right textField)) = present textField
+  present (Property _ (Left str)) = toHtml str
+  present (Property _ (Right textField)) = present textField
 
 instance Storeable Database (Property a)
-
-commitProperty :: Property a -> a -> a
-commitProperty (Property _ parse (Left _)) val = val -- todo: not val
-commitProperty (Property _ (Function parse) (Right textField)) val = 
-   case parse (getStrVal textField) val of
-     Just val' -> trace ("Just val for "++ getStrVal textField) val'
-     Nothing  -> val
-                                                                        
 
 -- use view updates so we can apply a list of properties to the view
 newtype ParseFunction a = ParseFunction (String -> Maybe a) deriving (Typeable, Data)
@@ -462,7 +460,7 @@ getPropertyValue (Property2 value _ (Left _)) = Just value
 getPropertyValue (Property2 value (ParseFunction parse) (Right textField)) = parse $ getStrVal textField
 
 data LenderView = 
-  LenderView Inline User Lender (Maybe Lender) [Property LenderView]
+  LenderView Inline User Lender (Maybe Lender) [Property Lender]
              --(Maybe (Widget (TextView Database, TextView Database)))
              [WebView Database] (Widget (Button Database))
     deriving (Eq, Show, Typeable, Data)
@@ -472,31 +470,31 @@ data LenderView =
 
 deriveInitial ''LenderView
 
-getMEditedLender (LenderView _ _ _ mEditedLender _ _ _) = mEditedLender
+mEditedLender :: LenderView :-> Maybe Lender
+mEditedLender = lens (\(LenderView _ _ _ mEditedLender _ _ _) -> mEditedLender)
+                     (\mLender (LenderView a b c d e f g) -> (LenderView a b c mLender e f g))
+
+withDb' :: (db -> db) -> EditM db ()
+withDb' updDb = do { (a,b,db,d,e,f) <- Control.Monad.State.get
+                   ; put (a,b,updDb db,d,e,f)
+                   }
+                     
 
 instance Storeable Database LenderView -- where
 --  save (LenderView _ _ _ modifiedLender@Lender{lenderId=lId} _ _  _ _)  = updateLender lId $ \lender -> modifiedLender
 
-withDb' :: (db -> db) -> EditM db ()
-withDb' updDb = do { (a,b,db,d,e,f) <- get
-                   ; put (a,b,updDb db,d,e,f)
-                   }
 mkLenderView inline lender = mkWebView $
   \vid oldLenderView@(LenderView _ _ _ mEdited _ _ _) ->
     do { mUser <- getUser
        ; let itemIds = lenderItems lender
        ; items <- withDb $ \db -> getOwnedItems (lenderId lender) db
 
-       ; fName <- mkTextField (lenderFirstName lender)
+       ; fName <- mkTextField (get lenderFirstName lender)
        ; lName <- mkTextField (lenderLastName lender)
        
        
-       ; prop1 <- mkProperty vid (isJust mEdited) 
-                            (lenderFirstName lender)
-                            (\str (LenderView a b c (Just lender) e f g) -> Just $ LenderView a b c (Just lender{lenderFirstName=str}) e f g)
-       ; prop2 <- mkProperty vid (isJust mEdited) 
-                            (lenderZipCode lender)
-                            (\str (LenderView a b c (Just lender) e f g) -> Just $ LenderView a b c (Just lender{lenderZipCode=str}) e f g)
+       ; prop1 <- mkProperty vid (isJust mEdited) mEditedLender lenderFirstName lender
+       ; prop2 <- mkProperty vid (isJust mEdited) mEditedLender lenderZipCode lender
        ; let props = [prop1, prop2]
        
        ; itemWebViews <- if isInline inline then return [] else mapM (mkItemView Inline) items
@@ -536,7 +534,7 @@ instance Presentable LenderView where
                               ]
                       ]
               , vSpace 20
-              , h2 $ (toHtml $ "Spullen van "++lenderFirstName lender)
+              , h2 $ (toHtml $ "Spullen van "++get lenderFirstName lender)
               , vList $ map present itemWebViews
               ]
   present (LenderView Inline mUser lender mEdited props itemWebViews editButton) =
@@ -559,7 +557,7 @@ getLenderPropsAll lender = [ Right ("LeenClub ID", toHtml $ lenderLogin lender)
                            , Left  ("M/V", toHtml . show $ lenderGender lender)
                            , Left  ("E-mail", toHtml $ lenderMail lender)
                            , Right ("Adres", toHtml $ lenderStreet lender ++ " " ++ lenderStreetNr lender)
-                           , Left  ("Postcode", toHtml $ lenderZipCode lender)
+                           , Left  ("Postcode", toHtml $ get lenderZipCode lender)
                            , Right ("Woonplaats", toHtml $ lenderCity lender)
                            ]
 
@@ -619,7 +617,7 @@ instance Storeable Database LendersRootView
 mkLendersRootView :: WebViewM Database (WebView Database)
 mkLendersRootView = mkWebView $
   \vid oldLenderView@(LendersRootView _) ->
-    do { let namedSortFunctions = [ ("Voornaam",   compare `on` lenderFirstName) 
+    do { let namedSortFunctions = [ ("Voornaam",   compare `on` get lenderFirstName) 
                                   , ("Achternaam", compare `on` lenderLastName) 
                                   , ("Rating",     compare `on` lenderRating)
                                   ]
