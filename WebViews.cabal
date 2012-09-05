@@ -159,7 +159,8 @@ Executable importer
                   curl,
                   bytestring,
                   aeson,
-                  attoparsec
+                  attoparsec,
+                  fclabels >=1.1
                   
   GHC-Options: 
   Extensions: 
