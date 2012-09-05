@@ -19,12 +19,10 @@ lenders = Map.fromList [ ("martijn", ("p", "Martijn"))
 -- TODO: maybe this can be (a special) part of db?
 
 
-lenderLogin Lender{lenderId = LenderId login} = login
-
 
 searchLenders :: String -> Database -> [Lender]
 searchLenders term db = [ lender | lender <- Map.elems $ allLenders db
-                        , any (isInfixOf term) [get lenderFirstName lender, lenderLastName lender, get lenderZipCode lender, lenderLogin lender]
+                        , any (isInfixOf term) [get lenderFirstName lender, get lenderLastName lender, get lenderZipCode lender, get (lenderIdLogin . lenderId) lender]
                         ]
 
 updateLender :: LenderId -> (Lender -> Lender) -> Database -> Database
@@ -46,25 +44,25 @@ newLender db =
   in  ( newLender, db { allLenders = Map.insert newId newLender (allLenders db) } )
   -}
 
-itemIdNr Item{itemId = ItemId i} = i
+getItemIdNr item = get (itemIdNr . itemId) item
 
 noItemId :: ItemId
 noItemId = ItemId (-1)
 
 assignUniqueItemIds :: [Item] -> [Item]
-assignUniqueItemIds items = [ item{ itemId = ItemId i } | (i,item) <- zip [0..] items ] 
+assignUniqueItemIds items = [ set itemId (ItemId i) item | (i,item) <- zip [0..] items ] 
 
 -- assign 
 assignItems :: [Item] -> [Lender] -> [Lender]
-assignItems allItems allLenders = [ lender{ lenderItems = myItems } 
+assignItems allItems allLenders = [ set lenderItems myItems lender 
                                   | lender <- allLenders 
-                                  , let myItems = map itemId $ filter ((==lenderId lender) .itemOwner) allItems
+                                  , let myItems = map (get itemId) $ filter ((==get lenderId lender) .get itemOwner) allItems
                                   ] 
  
 searchItems :: String -> Database -> [Item]
 searchItems term db = [ item | item <- Map.elems $ allItems db
-                      , any (isInfixOf term) $ [lenderIdLogin $ itemOwner item, show $ itemPrice item, itemName item, itemDescr item ] ++
-                                               (categorySearchFields $ itemCategory item)
+                      , any (isInfixOf term) $ [get (lenderIdLogin . itemOwner) item, show $ get itemPrice item, get itemName item, get itemDescr item ] ++
+                                               (categorySearchFields $ get itemCategory item)
                       ]
  where categorySearchFields Book{ bookAuthor=f1, bookGenre=f2} = [f1, f2]
        categorySearchFields Game{ gamePlatform=f1, gameDeveloper=f2, gameGenre=f3} = [f1,f2,f3]
@@ -76,13 +74,13 @@ searchItems term db = [ item | item <- Map.elems $ allItems db
 
 -- this is more efficient than looking up the lender and looking up all of its owned itemId's
 getOwnedItems :: LenderId -> Database -> [Item]
-getOwnedItems ownerId db = filter ((ownerId ==) . (itemOwner)) $ Map.elems (allItems db) 
+getOwnedItems ownerId db = filter ((ownerId ==) . (get itemOwner)) $ Map.elems (allItems db) 
 
 getLendedItems :: LenderId -> Database -> [Item]
-getLendedItems ownerId db =  filter (isJust . itemBorrowed) $ getOwnedItems ownerId db 
+getLendedItems ownerId db =  filter (isJust . get itemBorrowed) $ getOwnedItems ownerId db 
 
 getBorrowedItems :: LenderId -> Database -> [Item]
-getBorrowedItems lenderId db = filter (maybe False (\borrower -> borrower == lenderId) . itemBorrowed) $ Map.elems (allItems db)
+getBorrowedItems lenderId db = filter (maybe False (\borrower -> borrower == lenderId) . get itemBorrowed) $ Map.elems (allItems db)
 
 updateItem :: ItemId -> (Item -> Item) -> Database -> Database
 updateItem i f db = 
@@ -107,8 +105,8 @@ mkInitialDatabase = return initialDatabase
  
 initialDatabase :: Database
 initialDatabase = Database 
-                   (Map.fromList $ map (\l -> (lenderId l, l)) $ assignItems spullen Imported.lenders)
-                   (Map.fromList [  (id,item) | item@Item{itemId = id} <- spullen ])
+                   (Map.fromList $ map (\l -> (get lenderId l, l)) $ assignItems spullen Imported.lenders)
+                   (Map.fromList [  (get itemId item,item) | item <- spullen ])
 
 spullen = assignUniqueItemIds $
           [ Item noItemId (LenderId "martijn") 3 "Grand Theft Auto 4"

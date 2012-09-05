@@ -164,7 +164,7 @@ instance Presentable (SearchView db) where
 
 -- Leenclub utils
 
-showName lender = get lenderFirstName lender ++ " " ++ lenderLastName lender
+showName lender = get lenderFirstName lender ++ " " ++ get lenderLastName lender
 
 
 
@@ -207,22 +207,22 @@ deriveInitial ''ItemView
  
 mkItemView inline item = mkWebView $
   \vid oldItemView@ItemView{} -> 
-    do { owner <- unsafeLookupM "itemView" allLenders (itemOwner item)
+    do { owner <- unsafeLookupM "itemView" allLenders (get itemOwner item)
        
        ; user <- getUser
-       ; button <- case (itemBorrowed item, user) of
+       ; button <- case (get itemBorrowed item, user) of
            (Nothing, Nothing)         -> mkButton "Leen" False $ Edit $ return () 
-           (Nothing, Just (userId,_)) | itemOwner item == LenderId userId -> mkButton "Lenen" False $ Edit $ return ()
+           (Nothing, Just (userId,_)) | get itemOwner item == LenderId userId -> mkButton "Lenen" False $ Edit $ return ()
                                       | otherwise                         -> 
              mkButton "Lenen" True  $ Edit $ docEdit $ \db -> 
-               let items' = Map.update (\i -> Just $ item{itemBorrowed = Just $ LenderId userId}) (itemId item) (allItems db) 
+               let items' = Map.update (\i -> Just $ set itemBorrowed (Just $ LenderId userId) item) (get itemId item) (allItems db) 
                in  db{allItems = items'}
            (Just borrowerId,_) -> 
              mkButton "Terug ontvangen" True  $ Edit $ docEdit $ \db -> 
-               let items' = Map.update (\i -> Just $ item{itemBorrowed = Nothing}) (itemId item) (allItems db) 
+               let items' = Map.update (\i -> Just $ set itemBorrowed Nothing item) (get itemId item) (allItems db) 
                in  db{allItems = items'}
            
-       ; mBorrower <- maybe (return Nothing) (\borrowerId -> fmap Just $ unsafeLookupM "itemView2" allLenders borrowerId) $ itemBorrowed item
+       ; mBorrower <- maybe (return Nothing) (\borrowerId -> fmap Just $ unsafeLookupM "itemView2" allLenders borrowerId) $ get itemBorrowed item
 
        ; distance <- case user of
            Just (userId,_) -> do { userLender <- unsafeLookupM "itemView3" allLenders (LenderId userId)
@@ -234,13 +234,13 @@ mkItemView inline item = mkWebView $
        
 instance Presentable ItemView where
   present (ItemView Full dist item owner button mBorrower) =
-        vList [ h2 $ toHtml (getItemCategoryName item ++ ": " ++ itemName item)
-              , hList [ (div_ (boxedEx 1 $ image ("items/" ++ itemImage item) ! style "height: 200px")) ! style "width: 204px" ! align "top"
+        vList [ h2 $ toHtml (getItemCategoryName item ++ ": " ++ get itemName item)
+              , hList [ (div_ (boxedEx 1 $ image ("items/" ++ get itemImage item) ! style "height: 200px")) ! style "width: 204px" ! align "top"
                       , nbsp
                       , nbsp
                       , vList $ [ with [style "color: #333; font-size: 16px"] $
                                     presentProperties $ ("Eigenaar: ", linkedLenderFullName owner):
-                                                        (map (\(p,v)->(p, toHtml v)) $ getFullCategoryProps $ itemCategory item)
+                                                        (map (\(p,v)->(p, toHtml v)) $ getFullCategoryProps $ get itemCategory item)
                                 ] 
                                 ++ maybe [] (\borrower -> [ vSpace 10, with [style "color: red"] $ 
                                                            "Uitgeleend aan " +++ linkedLenderFullName borrower]) mBorrower
@@ -249,32 +249,32 @@ instance Presentable ItemView where
                       ]
               , vSpace 10
               , with [ style "font-weight: bold"] $ "Beschrijving:" 
-              , multiLineStringToHtml $ itemDescr item
+              , multiLineStringToHtml $ get itemDescr item
               ]
   present (ItemView Inline dist item owner button mBorrower) =
     -- todo present imdb link, present movieOrSeries
       hStretchList
-            [ E $ linkedItem item $ (div_ (boxedEx 1 $ image ("items/" ++ itemImage item) ! style "height: 120px")) ! style "width: 124px" ! align "top"
+            [ E $ linkedItem item $ (div_ (boxedEx 1 $ image ("items/" ++ get itemImage item) ! style "height: 120px")) ! style "width: 124px" ! align "top"
             , E $  nbsp +++ nbsp
             
             -- TODO: this stretch doesn't work. Until we have good compositional layout combinators, just set the width.
             , Stretch $ linkedItem item $
                  div_ ! style "height: 120px; width: 428px; font-size: 12px" $ sequence_ 
-                           [ with [style "font-weight: bold; font-size: 15px"] $ toHtml (getItemCategoryName item ++ ": " ++ itemName item) 
+                           [ with [style "font-weight: bold; font-size: 15px"] $ toHtml (getItemCategoryName item ++ ": " ++ get itemName item) 
                            , vSpace 2
                            , with [style "color: #333"] $
-                               presentProperties $ (getInlineCategoryProps $ itemCategory item) ++
-                                                   [("Punten", toHtml . show $ itemPrice item)]
+                               presentProperties $ (getInlineCategoryProps $ get itemCategory item) ++
+                                                   [("Punten", toHtml . show $ get itemPrice item)]
                            , vSpace 3
                            , with [style "font-weight: bold"] $ "Beschrijving:" 
                            , with [class_ "ellipsis multiline", style "height: 30px;"] $
                                                                   {- 30 : 2 * 14 + 2 -}
-                               multiLineStringToHtml $ itemDescr item
+                               multiLineStringToHtml $ get itemDescr item
                            ] ! width "100%"
             , E $ nbsp +++ nbsp
             , E $  vDivList   
                ([ presentProperties $ [ ("Eigenaar", linkedLenderFullName owner)
-                                      , ("Rating", with [style "font-size: 17px; position: relative; top: -6px; height: 12px" ] $ presentRating 5 $ lenderRating owner)
+                                      , ("Rating", with [style "font-size: 17px; position: relative; top: -6px; height: 12px" ] $ presentRating 5 $ get lenderRating owner)
                                       ] ++
                                   (if dist > 0 then [ ("Afstand", toHtml $ showDistance dist) ] else [])
                   --, div_ $ presentPrice (itemPrice item)
@@ -296,13 +296,14 @@ presentProperties props =
 
 
 getItemCategoryName :: Item -> String
-getItemCategoryName Item{itemCategory=Book{}}        = "Boek"
-getItemCategoryName Item{itemCategory=Game{}}        = "Game"
-getItemCategoryName Item{itemCategory=CD{}}          = "CD"
-getItemCategoryName Item{itemCategory=DVD{}}         = "DVD"
-getItemCategoryName Item{itemCategory=Tool{}}        = "Gereedschap"
-getItemCategoryName Item{itemCategory=Electronics{}} = "Gadget"
-getItemCategoryName Item{itemCategory=Misc{}}        = "Misc"
+getItemCategoryName item = case get itemCategory item of 
+                             Book{}        -> "Boek"
+                             Game{}        -> "Game"
+                             CD{}          -> "CD"
+                             DVD{}         -> "DVD"
+                             Tool{}        -> "Gereedschap"
+                             Electronics{} -> "Gadget"
+                             Misc{}        -> "Misc"
 
 getInlineCategoryProps c = [ inlineProp | Left inlineProp <- getAllCategoryProps c ] 
 getFullCategoryProps c = [ either id id eProp  | eProp <- getAllCategoryProps c ] 
@@ -332,17 +333,17 @@ presentPrice price =
 
 instance Storeable Database ItemView
 
-linkedItemName item@Item{itemId = ItemId i} = linkedItem item $ toHtml (itemName item)
+linkedItemName item = linkedItem item $ toHtml (get itemName item)
 
-linkedItem item@Item{itemId = ItemId login} html = 
-  a ! (href $ (toValue $ "/#item&item=" ++ (show login))) << html
+linkedItem item html = 
+  a ! (href $ (toValue $ "/#item&item=" ++ (show $ get (itemIdNr . itemId) item))) << html
 
-linkedLenderName lender@Lender{lenderId = LenderId login} = linkedLender lender $ toHtml login
+linkedLenderName lender = linkedLender lender $ toHtml $ get (lenderIdLogin . lenderId) lender
 
-linkedLenderFullName lender = linkedLender lender $ toHtml (get lenderFirstName lender ++ " " ++ lenderLastName lender)
+linkedLenderFullName lender = linkedLender lender $ toHtml (get lenderFirstName lender ++ " " ++ get lenderLastName lender)
   
-linkedLender lender@Lender{lenderId = LenderId login} html = 
-  a! (href $ (toValue $ "/#lener&lener=" ++ login)) << html
+linkedLender lender html = 
+  a! (href $ (toValue $ "/#lener&lener=" ++ get (lenderIdLogin . lenderId) lender)) << html
 
 rootViewLink :: String -> Html -> Html 
 rootViewLink rootViewName html = a ! (href $ (toValue $ "/#" ++ rootViewName)) << html
@@ -474,23 +475,17 @@ mEditedLender :: LenderView :-> Maybe Lender
 mEditedLender = lens (\(LenderView _ _ _ mEditedLender _ _ _) -> mEditedLender)
                      (\mLender (LenderView a b c d e f g) -> (LenderView a b c mLender e f g))
 
-withDb' :: (db -> db) -> EditM db ()
-withDb' updDb = do { (a,b,db,d,e,f) <- Control.Monad.State.get
-                   ; put (a,b,updDb db,d,e,f)
-                   }
-                     
-
 instance Storeable Database LenderView -- where
 --  save (LenderView _ _ _ modifiedLender@Lender{lenderId=lId} _ _  _ _)  = updateLender lId $ \lender -> modifiedLender
 
 mkLenderView inline lender = mkWebView $
   \vid oldLenderView@(LenderView _ _ _ mEdited _ _ _) ->
     do { mUser <- getUser
-       ; let itemIds = lenderItems lender
-       ; items <- withDb $ \db -> getOwnedItems (lenderId lender) db
+       ; let itemIds = get lenderItems lender
+       ; items <- withDb $ \db -> getOwnedItems (get lenderId lender) db
 
        ; fName <- mkTextField (get lenderFirstName lender)
-       ; lName <- mkTextField (lenderLastName lender)
+       ; lName <- mkTextField (get lenderLastName lender)
        
        
        ; prop1 <- mkProperty vid (isJust mEdited) mEditedLender lenderFirstName lender
@@ -501,8 +496,8 @@ mkLenderView inline lender = mkWebView $
        ; editButton <- mkButton (maybe "Aanpassen" (const "Gereed") mEdited) (lenderIsUser lender mUser) $ 
            Edit $ case mEdited of 
                     Nothing -> viewEdit vid $ \(LenderView a b lender _ e f g) -> LenderView a b lender (Just lender) e  f g
-                    Just updatedLender@Lender{lenderId=lId} ->  
-                     do { withDb' $ updateLender lId $ \lender -> updatedLender
+                    Just updatedLender ->  
+                     do { docEdit $ updateLender (get lenderId updatedLender) $ \lender -> updatedLender
                         ; viewEdit vid $ \(LenderView a b lender _ e f g) -> LenderView a b lender Nothing e f g
                         ; liftIO $ putStrLn $ "updating lender\n" ++ show updatedLender
                         } 
@@ -512,12 +507,12 @@ mkLenderView inline lender = mkWebView $
        }
        
 lenderIsUser lender Nothing          = False
-lenderIsUser lender (Just (login,_)) = lenderLogin lender == login
+lenderIsUser lender (Just (login,_)) = get (lenderIdLogin . lenderId) lender == login
  
 instance Presentable LenderView where
   present (LenderView Full mUser lender _ props itemWebViews editButton)   =
         vList [ vSpace 20
-              , hList [ (div_ (boxedEx 1 $ image ("leners/" ++ lenderImage lender) ! style "height: 200px")) ! style "width: 204px" ! align "top"
+              , hList [ (div_ (boxedEx 1 $ image ("leners/" ++ get lenderImage lender) ! style "height: 200px")) ! style "width: 204px" ! align "top"
                       , hSpace 20
                       , vList [ h2 $ {- if editing 
                                      then hList [ present fName, nbsp, present lName ] 
@@ -539,12 +534,12 @@ instance Presentable LenderView where
               ]
   present (LenderView Inline mUser lender mEdited props itemWebViews editButton) =
     linkedLender lender $
-      hList [ (div_ (boxedEx 1 $ image ("leners/" ++ lenderImage lender) ! style "height: 30px")) ! style "width: 34px" ! align "top"
+      hList [ (div_ (boxedEx 1 $ image ("leners/" ++ get lenderImage lender) ! style "height: 30px")) ! style "width: 34px" ! align "top"
             , nbsp
             , nbsp
             , vList [ toHtml (showName lender)
                     , vList $ map present props
-                    , span_ (presentRating 5 $ lenderRating lender) ! style "font-size: 20px"
+                    , span_ (presentRating 5 $ get lenderRating lender) ! style "font-size: 20px"
                     ]
          --   , with [style "display: none"] $ concatHtml $ map present [fName,lName] ++ [present editButton] -- todo: not nice! 
             ]
@@ -553,17 +548,17 @@ getLenderPropsEveryone lender = [ prop | Left prop <- getLenderPropsAll lender ]
 getLenderPropsSelf lender  = [ either id id eProp  | eProp <- getLenderPropsAll lender ]
 
 -- Left is both self and others, Right is only self.
-getLenderPropsAll lender = [ Right ("LeenClub ID", toHtml $ lenderLogin lender)
-                           , Left  ("M/V", toHtml . show $ lenderGender lender)
-                           , Left  ("E-mail", toHtml $ lenderMail lender)
-                           , Right ("Adres", toHtml $ lenderStreet lender ++ " " ++ lenderStreetNr lender)
+getLenderPropsAll lender = [ Right ("LeenClub ID", toHtml $ get (lenderIdLogin . lenderId) lender)
+                           , Left  ("M/V", toHtml . show $ get lenderGender lender)
+                           , Left  ("E-mail", toHtml $ get lenderMail lender)
+                           , Right ("Adres", toHtml $ get lenderStreet lender ++ " " ++ get lenderStreetNr lender)
                            , Left  ("Postcode", toHtml $ get lenderZipCode lender)
-                           , Right ("Woonplaats", toHtml $ lenderCity lender)
+                           , Right ("Woonplaats", toHtml $ get lenderCity lender)
                            ]
 
-getExtraProps lender = [ ("Rating", with [style "font-size: 20px; position: relative; top: -5px; height: 17px" ] (presentRating 5 $ lenderRating lender)) 
-                       , ("Puntenbalans", toHtml . show $ lenderNrOfPoints lender)
-                       , ("Aantal spullen", toHtml . show $ length (lenderItems lender))
+getExtraProps lender = [ ("Rating", with [style "font-size: 20px; position: relative; top: -5px; height: 17px" ] (presentRating 5 $ get lenderRating lender)) 
+                       , ("Puntenbalans", toHtml . show $ get lenderNrOfPoints lender)
+                       , ("Aantal spullen", toHtml . show $ length (get lenderItems lender))
                        ]
 
 {-
@@ -585,9 +580,9 @@ instance Storeable Database ItemsRootView
 mkItemsRootView ::WebViewM Database (WebView Database)
 mkItemsRootView = mkWebView $
   \vid oldLenderView@(ItemsRootView _ _ _) ->
-    do { let namedSortFunctions = [ ("Naam",     compare `on` itemName) 
-                                  , ("Prijs",    compare `on` itemPrice)
-                                  , ("Eigenaar", compare `on` itemDescr)
+    do { let namedSortFunctions = [ ("Naam",     compare `on` get itemName) 
+                                  , ("Prijs",    compare `on` get itemPrice)
+                                  , ("Eigenaar", compare `on` get itemDescr)
                                   ]
     
        ; searchView <- mkSearchView "Zoek in spullen:" "q" $ \searchTerm ->
@@ -618,8 +613,8 @@ mkLendersRootView :: WebViewM Database (WebView Database)
 mkLendersRootView = mkWebView $
   \vid oldLenderView@(LendersRootView _) ->
     do { let namedSortFunctions = [ ("Voornaam",   compare `on` get lenderFirstName) 
-                                  , ("Achternaam", compare `on` lenderLastName) 
-                                  , ("Rating",     compare `on` lenderRating)
+                                  , ("Achternaam", compare `on` get lenderLastName) 
+                                  , ("Rating",     compare `on` get lenderRating)
                                   ]
     
        ; searchView <- mkSearchView "Zoek in leners: " "q" $ \searchTerm ->
