@@ -47,8 +47,26 @@ Library
                   split >=0.1 && <0.2,
                   template-haskell >=2.7 && <2.8
   ghc-options: 
-  extensions: ExistentialQuantification RankNTypes DeriveDataTypeable ScopedTypeVariables OverloadedStrings TemplateHaskell, PatternGuards
-  exposed-modules: WebViewPrim, WebViewLib, Generics, HtmlLib, Incrementality, Server, Types, BlazeHtml, TemplateHaskell, Utils
+  extensions: 
+              DeriveDataTypeable, 
+              ExistentialQuantification, 
+              OverloadedStrings, 
+              PatternGuards, 
+              RankNTypes, 
+              ScopedTypeVariables, 
+              TemplateHaskell
+  exposed-modules: 
+                   BlazeHtml,
+                   Generics,
+                   HtmlLib,
+                   Incrementality,
+                   ObloUtils,
+                   Server,
+                   TemplateHaskell,
+                   Types,
+                   Utils,
+                   WebViewLib,
+                   WebViewPrim
 
 Executable piglet
   Main-is:    Main.hs 

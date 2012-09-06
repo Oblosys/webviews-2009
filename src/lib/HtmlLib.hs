@@ -196,16 +196,5 @@ listCommaAnd :: [String] -> String
 listCommaAnd [] = ""
 listCommaAnd [s]  = s
 listCommaAnd ss@(_:_) = (concat . intersperse ", " $ init ss) ++ " and " ++ last ss 
-
-
-
-singleton :: a -> [a]
-singleton x = [x]
-
-
-readMaybe :: Read a => String -> Maybe a
-readMaybe str = case reads str of 
-                  [(x,"")] -> Just x
-                  _        -> Nothing
              
 

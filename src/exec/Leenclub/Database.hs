@@ -5,6 +5,7 @@ import Data.List
 import Data.Maybe
 import Data.Map (Map)
 import qualified Data.Map as Map
+import ObloUtils
 import DatabaseTypes
 import qualified Imported
 import Control.Category hiding (Category) -- fclabels
@@ -148,9 +149,6 @@ spullen = assignUniqueItemIds $
           
           ] ++ Imported.items
 
-unsafeLookup tag map key = 
-  Map.findWithDefault
-    (error $ "Unsafe lookup tagged \""++tag++"\" element "++ show key ++ " not found in " ++ show map) key map
 -- do we want extra params such as pig nrs in sub views?
 -- error handling database access
 -- Unclear: we need both pig ids and subview ids?

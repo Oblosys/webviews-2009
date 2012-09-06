@@ -15,6 +15,7 @@ import qualified Data.IntMap as IntMap
 import Debug.Trace
 import System.Time
 import Types
+import ObloUtils
 import Generics
 import WebViewPrim
 import WebViewLib
