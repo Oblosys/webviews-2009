@@ -14,6 +14,7 @@ import qualified Text.Blaze.Html4.Transitional as H4
 import qualified Text.Blaze.Html4.Transitional.Attributes as A4
 
 import Text.Blaze.Html.Renderer.String
+import qualified Text.Blaze.Html.Renderer.Utf8 as BlazeUtf8
 import Text.Blaze.Internal
 
 
@@ -43,6 +44,10 @@ strAttr attr val = customAttribute (fromString attr) (toValue val)
 
 instance Show Html where
   show html = renderHtml html
+
+-- Expensive!! Only use sparingly
+instance Eq Html where
+  h1 == h2 = BlazeUtf8.renderHtml h1  == BlazeUtf8.renderHtml h2
 
 -- todo: why are these not closed? (also not in Text.Html)
 textfield str = input ! type_ "text" ! name (fromString str)
