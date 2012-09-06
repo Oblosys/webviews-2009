@@ -90,17 +90,30 @@ mkEditAction ec = mkEditActionEx $ const ec
 mkEditActionEx :: ([String] -> EditCommand db) -> WebViewM db (EditAction db) 
 mkEditActionEx fec = assignViewId $ \vid -> EditAction vid fec
 
+mkLabelView :: String -> WebViewM db (Widget LabelView)
+mkLabelView str = assignViewId $ \vid -> labelView vid str ""
 
-mkLabelView str = assignViewId $ \vid -> labelView vid str
+mkLabelViewWithStyle :: String -> String -> WebViewM db (Widget LabelView)
+mkLabelViewWithStyle str style = assignViewId $ \vid -> labelView vid str style
 
-mkTextField str = mkTextFieldEx str Nothing Nothing
+mkTextField :: String -> WebViewM db (Widget (TextView db))
+mkTextField str = mkTextFieldEx str "" Nothing Nothing
 
-mkTextFieldAct str act = mkTextFieldEx str Nothing $ Just act
+-- NOTE: don't use width in style: the text field gets width 100%, so an enclosing element can determine its width.
+mkTextFieldWithStyle :: String -> String -> WebViewM db (Widget (TextView db))
+mkTextFieldWithStyle str style = mkTextFieldEx str style Nothing Nothing
 
-mkTextFieldWithChange str act = mkTextFieldEx str (Just act) Nothing
+mkTextFieldAct :: String -> EditCommand db -> WebViewM db (Widget (TextView db))
+mkTextFieldAct str submitAct = mkTextFieldEx str "" Nothing $ Just submitAct
 
-mkTextFieldEx :: String -> Maybe (String -> EditCommand db) -> Maybe (EditCommand db) -> WebViewM db (Widget (TextView db))
-mkTextFieldEx str mChangeAction mEditAction = assignViewId $ \vid -> textField vid str mChangeAction mEditAction
+mkTextFieldWithChange :: String -> (String -> EditCommand db) -> WebViewM db (Widget (TextView db))
+mkTextFieldWithChange str changeAct = mkTextFieldEx str "" (Just changeAct) Nothing
+
+mkTextFieldWithStyleChange :: String -> String -> (String -> EditCommand db) -> WebViewM db (Widget (TextView db))
+mkTextFieldWithStyleChange str style changeAct = mkTextFieldEx str style (Just changeAct) Nothing
+
+mkTextFieldEx :: String -> String -> Maybe (String -> EditCommand db) -> Maybe (EditCommand db) -> WebViewM db (Widget (TextView db))
+mkTextFieldEx str style mChangeAction mEditAction = assignViewId $ \vid -> textField vid str style mChangeAction mEditAction
 
 infixl 0 `withTextViewSubmit`
 
@@ -119,45 +132,62 @@ withTextViewChange wm fAct = do { (Widget sid wid tv) <- wm
                                 }
 
 mkPasswordField :: String -> WebViewM db (Widget (TextView db))
-mkPasswordField str = mkPasswordFieldEx str Nothing Nothing
+mkPasswordField str = mkPasswordFieldEx str "" Nothing Nothing
 
 mkPasswordFieldAct :: String -> EditCommand db -> WebViewM db (Widget (TextView db))
-mkPasswordFieldAct str act = mkPasswordFieldEx str Nothing $ Just act
+mkPasswordFieldAct str act = mkPasswordFieldEx str "" Nothing $ Just act
 
-mkPasswordFieldEx :: String -> Maybe (String -> EditCommand db) -> Maybe (EditCommand db) -> WebViewM db (Widget (TextView db))
-mkPasswordFieldEx str mChangeAction mEditAction = assignViewId $ \vid -> passwordField vid str mChangeAction mEditAction
+mkPasswordFieldEx :: String -> String -> Maybe (String -> EditCommand db) -> Maybe (EditCommand db) -> WebViewM db (Widget (TextView db))
+mkPasswordFieldEx str style mChangeAction mEditAction = assignViewId $ \vid -> passwordField vid str style mChangeAction mEditAction
 
 mkTextArea :: String -> WebViewM db (Widget (TextView db))
-mkTextArea str = assignViewId $ \vid -> textArea vid str
+mkTextArea str = assignViewId $ \vid -> textArea vid str "" Nothing
+
+mkTextAreaWithStyle :: String -> String -> WebViewM db (Widget (TextView db))
+mkTextAreaWithStyle str stl = assignViewId $ \vid -> textArea vid str stl Nothing
+
+mkTextAreaWithStyleChange :: String -> String -> (String -> EditCommand db) -> WebViewM db (Widget (TextView db))
+mkTextAreaWithStyleChange str stl changeAct = assignViewId $ \vid -> textArea vid str stl $ Just changeAct
 
 mkRadioView :: [String] -> Int -> Bool -> WebViewM db (Widget (RadioView db))
-mkRadioView is s en = assignViewId $ \vid -> radioView vid is s en Nothing
+mkRadioView items s enabled = assignViewId $ \vid -> radioView vid items s enabled "" Nothing
 
-mkRadioViewAct :: [String] -> Int -> Bool -> (Int -> EditCommand db) -> WebViewM db (Widget (RadioView db))
-mkRadioViewAct is s en act = assignViewId $ \vid -> radioView vid is s en $ Just act
+-- TODO: radio button style is not implemented correctly yet, first need to find out what we want exactly.
+mkRadioViewWithStyle :: [String] -> Int -> Bool -> String -> WebViewM db (Widget (RadioView db))
+mkRadioViewWithStyle items s enabled style = assignViewId $ \vid -> radioView vid items s enabled style Nothing
+
+mkRadioViewWithChange :: [String] -> Int -> Bool -> (Int -> EditCommand db) -> WebViewM db (Widget (RadioView db))
+mkRadioViewWithChange is s enabled act = assignViewId $ \vid -> radioView vid is s enabled "" $ Just act
 
 mkSelectView :: [String] -> Int -> Bool -> WebViewM db (Widget (SelectView db))
-mkSelectView is s en = assignViewId $ \vid -> selectView vid is s en $ Nothing
+mkSelectView is s enabled = assignViewId $ \vid -> selectView vid is s enabled "" $ Nothing
 
-mkSelectViewAct :: [String] -> Int -> Bool -> (Int -> EditCommand db) -> WebViewM db (Widget (SelectView db))
-mkSelectViewAct is s en act = assignViewId $ \vid -> selectView vid is s en $ Just act
+-- NOTE: changing the background-color breaks rounded select box presentation in Firefox.
+mkSelectViewWithStyle :: [String] -> Int -> Bool -> String -> WebViewM db (Widget (SelectView db))
+mkSelectViewWithStyle items s enabled style = assignViewId $ \vid -> selectView vid items s enabled style Nothing
+
+mkSelectViewWithStyleChange :: [String] -> Int -> Bool -> String -> (Int -> EditCommand db) -> WebViewM db (Widget (SelectView db))
+mkSelectViewWithStyleChange items s enabled style changeAct = assignViewId $ \vid -> selectView vid items s enabled style $ Just changeAct
+
+mkSelectViewWithChange :: [String] -> Int -> Bool -> (Int -> EditCommand db) -> WebViewM db (Widget (SelectView db))
+mkSelectViewWithChange is s enabled act = assignViewId $ \vid -> selectView vid is s enabled "" $ Just act
 
 mkButton :: String -> Bool -> EditCommand db -> WebViewM db (Widget (Button db))
-mkButton str en ac = mkButtonEx str en "" (const "") ac
+mkButton str enabled ac = mkButtonEx str enabled "" (const "") ac
 
 mkButtonWithStyle :: String -> Bool -> String -> EditCommand db -> WebViewM db (Widget (Button db))
-mkButtonWithStyle str en st ac = mkButtonEx str en st (const "") ac
+mkButtonWithStyle str enabled st ac = mkButtonEx str enabled st (const "") ac
 
 -- button with javascript click handler
 mkButtonWithClick :: String -> Bool -> (ViewId -> String) -> WebViewM db (Widget (Button db))
-mkButtonWithClick str en foc = mkButtonEx str en "" foc $ Edit $ return () -- because onclick currently disables server edit command
+mkButtonWithClick str enabled foc = mkButtonEx str enabled "" foc $ Edit $ return () -- because onclick currently disables server edit command
 
 -- button with javascript click handler
 mkButtonWithStyleClick :: String -> Bool -> String -> (ViewId -> String) -> WebViewM db (Widget (Button db))
-mkButtonWithStyleClick str en st foc = mkButtonEx str en st foc $ Edit $ return () -- because onclick currently disables server edit command
+mkButtonWithStyleClick str enabled st foc = mkButtonEx str enabled st foc $ Edit $ return () -- because onclick currently disables server edit command
 
 mkButtonEx :: String -> Bool -> String -> (ViewId -> String) -> EditCommand db -> WebViewM db (Widget (Button db))
-mkButtonEx str en st foc ac = assignViewId $ \vid -> button vid str en st (foc vid) ac
+mkButtonEx str enabled st foc ac = assignViewId $ \vid -> button vid str enabled st (foc vid) ac
 
 mkJSVar name value = assignViewId $ \vid -> jsVar_ vid name value
 
@@ -328,32 +358,32 @@ the update
 -}
 
 presentLabelView :: LabelView -> Html
-presentLabelView (LabelView viewId str) = div_ ! id_ (mkHtmlViewIdVal viewId) $ toHtml str
+presentLabelView (LabelView viewId str stl) = div_ ! id_ (mkHtmlViewIdVal viewId) ! style (toValue stl) $ toHtml str
 
 -- textfields are in forms, that causes registering text field updates on pressing enter
 -- (or Done) on the iPhone.
 
 presentTextField :: TextView db -> Html
-presentTextField (TextView viewId TextArea str _ _) =
+presentTextField (TextView viewId TextArea str stl _ _) =
    form !* [ thestyle "display: inline; width: 100%;"
          , strAttr "onSubmit" $ "return false"] $  -- return false, since we don't actually submit the form
      textarea !* [ id_ (mkHtmlViewIdVal viewId)
-                , thestyle "width: 100%; height: 100%;"
+                , thestyle $ "width: 100%; height: 100%;" ++ stl
                 , strAttr "onFocus" $ "script"++viewIdSuffix viewId++".onFocus()"
                 , strAttr "onBlur" $ "script"++viewIdSuffix viewId++".onBlur()"
                 , strAttr "onKeyUp" $ "script"++viewIdSuffix viewId++".onKeyUp()"
                     ] << toHtml str >>
   (mkScript $ declareWVTextViewScript viewId)      
-presentTextField (TextView viewId textType str _ mEditAction) = 
+presentTextField (TextView viewId textType str stl _ mEditAction) = 
   let inputField = case textType of TextField -> textfield ""
                                     PasswordField -> password ""
                                     
-  in form !* [ thestyle "display: inline; width: 100%"
+  in form !* [ thestyle "display: inline; width: 100%;"
             , strAttr "onSubmit" $ (case mEditAction of
                                     Nothing -> "return false"
                                     Just _  -> "script"++viewIdSuffix viewId++".onSubmit();"++
                                                "return false")] $ -- return false, since we don't actually submit the form
-       inputField !* [ id_ $ mkHtmlViewIdVal viewId, strAttr "value" str, style "width: 100%"
+       inputField !* [ id_ $ mkHtmlViewIdVal viewId, strAttr "value" str, thestyle $ "width: 100%;" ++ stl
                     , strAttr "onFocus" $ "script"++viewIdSuffix viewId++".onFocus()"
                     , strAttr "onBlur" $ "script"++viewIdSuffix viewId++".onBlur()"
                     , strAttr "onKeyUp" $ "script"++viewIdSuffix viewId++".onKeyUp()" ]  >>
@@ -388,25 +418,27 @@ withEditAction (EditAction viewId _) elt =
 withEditActionAttr (EditAction viewId _) =  
   strAttr "onClick" $ "queueCommand('PerformEditActionC ("++show viewId++") []')"
 
-presentRadioView (RadioView viewId items selectedIx enabled _) = thespan << sequence_
+presentRadioView (RadioView viewId items selectedIx enabled stl _) = thespan << sequence_
   [ radio (show viewId) (show i) !* ( [ id_ (toValue eltId) -- all buttons have viewId as name, so they belong to the same radio button set 
                           , strAttr "onChange" ("queueCommand('SetC "++show viewId++" %22"++show i++"%22')") 
                           , strAttr "onFocus" ("elementGotFocus('"++eltId++"')")
                           ]
                           ++ (if enabled && i == selectedIx then [strAttr "checked" ""] else []) 
-                          ++ (if not enabled then [strAttr "disabled" ""] else [])) 
+                          ++ (if not enabled then [strAttr "disabled" ""] else [])
+                          ++ (if stl /= "" then [thestyle stl] else [])) 
                           >> toHtml item >> br 
   | (i, item) <- zip [0..] items 
   , let eltId = "radio"++show viewId++"button"++show i ] -- these must be unique for setting focus
 
 presentSelectView :: (SelectView db) -> Html
-presentSelectView (SelectView viewId items selectedIx enabled _) = 
+presentSelectView (SelectView viewId items selectedIx enabled stl _) = 
   do { select !* ([ id_ $ mkHtmlViewIdVal viewId
                   , strAttr "onChange" ("script"++viewIdSuffix viewId++".onChange()")
                   , strAttr "onFocus" ("script"++viewIdSuffix viewId++".onFocus()")
                   --, style "width: 100%" -- this causes problems in a stretchlist: if there is a space, the selectview gets minimized 
-                  ] ++
-                  if not enabled then [strAttr "disabled" ""] else []) $ 
+                  ]
+                  ++ (if not enabled then [strAttr "disabled" ""] else [])
+                  ++ (if stl /= "" then [thestyle stl] else [])) $ 
               
          sequence_
            [ option (toHtml item) !* (if i == selectedIx then [strAttr "selected" ""] else [])
@@ -567,7 +599,7 @@ getLabelContents text =
     
 getLabelContentsByViewIdRef :: forall db v . (Typeable db, Data v) => db -> ViewIdRef -> v -> String
 getLabelContentsByViewIdRef _ (ViewIdRef i) view =
-  let (LabelView _ str) :: LabelView = getLabelViewByViewId (ViewId i) view
+  let (LabelView _ str _) :: LabelView = getLabelViewByViewId (ViewId i) view
   in  str
 
 -- not sure if we'll need these, passing vars as arguments works for submit actions.

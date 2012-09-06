@@ -237,21 +237,21 @@ replaceJSVar updates x@(JSVar i nm _) =
     Nothing -> x
 
 replaceText :: Updates -> TextView db -> TextView db
-replaceText updates x@(TextView i h _ ba ea) =
+replaceText updates x@(TextView i h _ st ba ea) =
   case Map.lookup i updates of
-    Just str -> (TextView i h str ba ea)
+    Just str -> (TextView i h str st ba ea)
     Nothing -> x
 
 replaceRadioView :: Updates -> (RadioView db) -> (RadioView db)
-replaceRadioView updates x@(RadioView i is _ en ch) =
+replaceRadioView updates x@(RadioView i is _ en st ch) =
   case Map.lookup i updates of
-    Just str -> (RadioView i is (unsafeRead ("Generics.replaceRadioView on "++show i) str) en ch)
+    Just str -> (RadioView i is (unsafeRead ("Generics.replaceRadioView on "++show i) str) en st ch)
     Nothing -> x
 
 replaceSelectView :: Updates -> (SelectView db) -> (SelectView db)
-replaceSelectView updates x@(SelectView i is _ en ch) =
+replaceSelectView updates x@(SelectView i is _ en st ch) =
   case Map.lookup i updates of
-    Just str -> (SelectView i is (unsafeRead ("Generics.replaceSelectView on "++show i) str) en ch)
+    Just str -> (SelectView i is (unsafeRead ("Generics.replaceSelectView on "++show i) str) en st ch)
     Nothing -> x
 
 substituteIds :: Data x => [(Id, Id)] -> x -> x 
@@ -276,14 +276,14 @@ getButtonByViewId i view =
 
 getLabelViewByViewId :: Data d => ViewId -> d -> LabelView
 getLabelViewByViewId i view = 
-  case listify (\(LabelView i' _) -> i==i') view of
+  case listify (\(LabelView i' _ _) -> i==i') view of
     [b] -> b
     []  -> error $ "internal error: no label with id "++show i
     _   -> error $ "internal error: multiple LabelViews with id "++show i
 
 getMTextByViewId :: (Typeable db, Data d) => ViewId -> d -> Maybe (TextView db)
 getMTextByViewId i view = 
-  case listify (\(TextView i' _ _ _ _) -> i==i') view of
+  case listify (\(TextView i' _ _ _ _ _) -> i==i') view of
     [b] -> Just b
     []  -> Nothing
     _   -> error $ "internal error: multiple texts with id "++show i
@@ -353,7 +353,7 @@ getAnyWidgetById i x =
   
 getTextByViewIdRef :: forall db v . (Typeable db, Data v) => db -> ViewIdRef -> v -> String
 getTextByViewIdRef _ (ViewIdRef i) view =
-  let (TextView _ _ str _ _) :: TextView db = getTextByViewId (ViewId i) view
+  let (TextView _ _ str _ _ _) :: TextView db = getTextByViewId (ViewId i) view
   in  str
 
 

@@ -461,7 +461,7 @@ mkEditableSelectProperty vid editing objectLens valueLens presStr pres propVals 
                                          Just i  -> i
                                          Nothing -> 0 -- if the property is not in the list, we select the first one 
                                                       -- (this can happen if the list does not contain all values)
-                     in  fmap (Right . PropertySelectView) $ mkSelectViewAct propValStrs selectionIx True $ \sel -> 
+                     in  fmap (Right . PropertySelectView) $ mkSelectViewWithStyleChange propValStrs selectionIx True "background-color: red" $ \sel -> 
                            Edit $ viewEdit vid $ \v ->
                              case get objectLens v of
                                Nothing -> v
@@ -777,16 +777,17 @@ mkHomeView = mkHtmlTemplateView "LeenclubWelcome.html" []
 
 data TestView = 
   TestView Int (Widget (RadioView Database)) (Widget (Button Database)) (Widget (TextView Database)) (WebView Database) (WebView Database)
+           (Widget LabelView) (Widget (TextView Database))
     deriving (Eq, Show, Typeable, Data)
 
 deriveInitial ''TestView
 
 mkTestView :: WebViewM Database (WebView Database)
 mkTestView = mkWebView $
-  \vid oldTestView@(TestView _ radioOld _ _ _ _) ->
-    do { radio <-  mkRadioViewAct ["Naam", "Punten", "Drie"] (getSelection radioOld) True $ \sel -> Edit $ viewEdit vid $ \v -> trace ("selected"++show sel) v :: TestView
+  \vid oldTestView@(TestView _ radioOld _ _ _ _ _ oldTxtArea) ->
+    do { radio <-  mkRadioViewWithChange ["Naam", "Punten", "Drie"] (getSelection radioOld) True $ \sel -> Edit $ viewEdit vid $ \v -> trace ("selected"++show sel) v :: TestView
        ; let radioSel = getSelection radioOld
-       ; b <- mkButton "Test button" True $ Edit $ viewEdit vid $ \(TestView a b c d e f) -> TestView 2 b c d e f
+       ; b <- mkButton "Test button" True $ Edit $ viewEdit vid $ \(TestView a b c d e f g h) -> TestView 2 b c d e f g h
        ; tf <- mkTextField "bla"
        ; liftIO $ putStr $ show oldTestView
        ; (wv1, wv2) <- if True -- radioSel == 0
@@ -800,7 +801,11 @@ mkTestView = mkWebView $
                                }
        ; liftIO $ putStrLn $ "radio value " ++ show radioSel
        ; let (wv1',wv2') = if radioSel == 0 then (wv1,wv2) else (wv2,wv1)
-       ; let wv = TestView radioSel radio b tf wv1' wv2'
+       
+       ; lbl <- mkLabelViewWithStyle "label" "color: blue"
+       ; txtArea <- mkTextAreaWithStyleChange (getStrVal oldTxtArea) ("background-color: "++if getStrVal oldTxtArea /= "" then "green" else "red") $ \str -> Edit $ viewEdit vid $ \v -> trace ("edited "++show str) v :: TestView
+       ; let wv = TestView radioSel radio b tf wv1' wv2' lbl txtArea
+       
        
        --; liftIO $ putStrLn $ "All top-level webnodes "++(show (everythingTopLevel webNodeQ wv :: [WebNode Database])) 
        
@@ -808,8 +813,9 @@ mkTestView = mkWebView $
        }
 
 instance Presentable TestView where
-  present (TestView radioSel radio button tf wv1 wv2) =
+  present (TestView radioSel radio button tf wv1 wv2 lbl txtArea) =
       vList [present radio, present button, present tf, toHtml $ show radioSel, present wv1, present wv2
+            , present lbl,present txtArea
             ]
 
 
@@ -827,9 +833,9 @@ deriveInitial ''TestView2
 mkTestView2 :: WebViewM Database (WebView Database)
 mkTestView2 = mkWebView $
   \vid oldTestView@(TestView2 radioOld text str1 str2) ->
-    do { radio <-  mkRadioView ["Edit", "View"] (getSelection radioOld) True
+    do { radio <-  mkRadioViewWithStyle ["Edit", "View"] (getSelection radioOld) True "background-color: red"
        ; let radioSel = getSelection radioOld
-       ; text <- mkTextField "Test" `withTextViewChange` (\str -> Edit $ viewEdit vid $ \(TestView2 a b c d) -> TestView2 a b c str)
+       ; text <- mkTextFieldWithStyle "Test" "background-color: red" `withTextViewChange` (\str -> Edit $ viewEdit vid $ \(TestView2 a b c d) -> TestView2 a b c str)
        ; liftIO $ putStr $ show oldTestView
        ; liftIO $ putStrLn $ "radio value " ++ show radioSel
      --  ; propV2 <- mkPropertyView (radioSel == 0) "Straat" str2 $ \str -> viewEdit vid $ \(TestView2 a b c d) -> TestView2 a b  c str

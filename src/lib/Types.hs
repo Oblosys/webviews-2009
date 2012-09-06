@@ -112,12 +112,13 @@ data AnyWidget db = LabelWidget !LabelView
 -- Label
 
 -- does not have a html counterpart. It is just a div with a view id that contains a string element
-data LabelView = LabelView { getLabelViewId :: ViewId, getLabelText :: String } deriving (Show, Typeable, Data)
+data LabelView = LabelView { getLabelViewId :: ViewId, getLabelText :: String, getLabelStyle :: String } deriving (Show, Typeable, Data)
 
 instance Eq LabelView where
-  LabelView _ t1 == LabelView _ t2 = t1 == t2
-  
-labelView viewId txt = Widget noId noId $ LabelView viewId txt
+  LabelView _ text1 style1 == LabelView _ text2 style2 = text1 == text2 && style1 == style2
+
+labelView :: ViewId -> String -> String -> Widget LabelView  
+labelView viewId txt style = Widget noId noId $ LabelView viewId txt style
 
 -- Text
 
@@ -126,21 +127,24 @@ labelView viewId txt = Widget noId noId $ LabelView viewId txt
 data TextType = TextField | PasswordField | TextArea deriving (Eq, Show, Typeable, Data)
 
 data TextView db = TextView { getTextViewId :: ViewId, getTextType :: TextType, getStrVal' :: String
-                            , getTextChange :: Maybe (String -> EditCommand db), getTextSubmit :: Maybe (EditCommand db) } deriving ( Show, Typeable, Data)
+                            , getTextStyle :: String, getTextChange :: Maybe (String -> EditCommand db), getTextSubmit :: Maybe (EditCommand db) } deriving ( Show, Typeable, Data)
 
 instance Eq (TextView db) where
-  TextView _ t1 str1 _ _ == TextView _ t2 str2 _ _ = t1 == t2 && str1 == str2
+  TextView _ t1 str1 style1 _ _ == TextView _ t2 str2 style2 _ _ = t1 == t2 && str1 == str2 && style1 == style2
   -- note that we don't need to look at the edit actions, since these live only in the Haskell world and have no effect on the html representation.
   
-getStrVal (Widget _ _ (TextView vi h v _ _)) = v
+getStrVal (Widget _ _ (TextView vi h v _ _ _)) = v
 
-textField viewId str mChangeAction mSubmitAction = Widget noId noId $ TextView viewId TextField str mChangeAction mSubmitAction
+textField :: ViewId -> String -> String -> Maybe (String -> EditCommand db) -> Maybe (EditCommand db) -> Widget (TextView db)
+textField viewId str style mChangeAction mSubmitAction = Widget noId noId $ TextView viewId TextField str style mChangeAction mSubmitAction
 
-passwordField viewId str mChangeAction mSubmitAction = Widget noId noId $ TextView viewId PasswordField str mChangeAction mSubmitAction
+passwordField :: ViewId -> String -> String -> Maybe (String -> EditCommand db) -> Maybe (EditCommand db) -> Widget (TextView db)
+passwordField viewId str style mChangeAction mSubmitAction = Widget noId noId $ TextView viewId PasswordField str style mChangeAction mSubmitAction
 
-textArea viewId str = Widget noId noId $ TextView viewId TextArea str Nothing Nothing
+textArea :: ViewId -> String -> String -> Maybe (String -> EditCommand db) -> Widget (TextView db)
+textArea viewId str style mChangeAction = Widget noId noId $ TextView viewId TextArea str style mChangeAction Nothing
 
-strRef (Widget _ _ (TextView (ViewId i) h _ _ _)) = ViewIdRef i
+strRef (Widget _ _ (TextView (ViewId i) h _ _ _ _)) = ViewIdRef i
 
 
 -- RadioView and SelectView
@@ -160,45 +164,52 @@ instance HasSelection v => HasSelection (Widget v) where
 -- RadioView
 
 data RadioView db = RadioView { getRadioViewId :: ViewId, getItems :: [String], getRadioSelection' :: Int 
-                              , getRadioEnabled :: Bool, getRadioChange :: Maybe (Int -> EditCommand db)
+                              , getRadioEnabled :: Bool, getRadioStyle :: String, getRadioChange :: Maybe (Int -> EditCommand db)
                               } deriving (Show, Typeable, Data)
    
 instance Eq (RadioView db) where
-  RadioView _ items1 int1 enabled1 _ == RadioView _ items2 int2 enabled2 _ = items1 == items2 && int1 == int2 && enabled1 == enabled2
-  -- note that we don't need to look at the edit actions, since these live only in the Haskell world and have no effect on the html representation.
+  RadioView _ items1 int1 enabled1 style1 _ == RadioView _ items2 int2 enabled2 style2 _ =
+    items1 == items2 && int1 == int2 && enabled1 == enabled2 && style1 == style2
+    -- note that we don't need to look at the edit actions, since these live only in the Haskell world and have no effect on the html representation.
 
 instance HasSelection (RadioView db) where
-  getSelection (RadioView i is sel _ _) = sel
-  setSelection s (RadioView vi its _ en ch) = RadioView vi its s en ch
+  getSelection (RadioView i is sel _ _ _) = sel
+  setSelection s (RadioView vi its _ en st ch) = RadioView vi its s en st ch
 
-radioView viewId its i enabled mChangeAction = Widget noId noId $ RadioView viewId its i enabled mChangeAction
+radioView :: ViewId -> [String] -> Int -> Bool -> String -> Maybe (Int -> EditCommand db) -> Widget (RadioView db)
+radioView viewId its i enabled style mChangeAction = Widget noId noId $ RadioView viewId its i enabled style mChangeAction
 
 -- SelectView
 
 data SelectView db = SelectView { getSelectViewId :: ViewId, getSelectItems :: [String], getSelection' :: Int 
-                             , getSelectEnabled :: Bool, getSelectChange :: Maybe (Int -> EditCommand db)
-                             } deriving (Show, Typeable, Data)
+                                , getSelectEnabled :: Bool, getSelectStyle :: String, getSelectChange :: Maybe (Int -> EditCommand db)
+                                } deriving (Show, Typeable, Data)
 
 instance Eq (SelectView db) where
-  SelectView _ items1 int1 enabled1 _ == SelectView _ items2 int2 enabled2 _ = items1 == items2 && int1 == int2 && enabled1 == enabled2
-  -- note that we don't need to look at the edit actions, since these live only in the Haskell world and have no effect on the html representation.
+  SelectView _ items1 int1 enabled1 style1 _ == SelectView _ items2 int2 enabled2 style2 _ =
+    items1 == items2 && int1 == int2 && enabled1 == enabled2 && style1 == style2
+    -- note that we don't need to look at the edit actions, since these live only in the Haskell world and have no effect on the html representation.
 
 instance HasSelection (SelectView db) where
-  getSelection (SelectView i is sel _ _) = sel
-  setSelection s (SelectView vi its _ en ch) = SelectView vi its s en ch
+  getSelection (SelectView i is sel _ _ _) = sel
+  setSelection s (SelectView vi its _ en st ch) = SelectView vi its s en st ch
 
-selectView viewId its i enabled mChangeAction = Widget noId noId $ SelectView viewId its i enabled mChangeAction
+selectView :: ViewId -> [String] -> Int -> Bool -> String -> Maybe (Int -> EditCommand db) -> Widget (SelectView db)
+selectView viewId its i enabled style mChangeAction = Widget noId noId $ SelectView viewId its i enabled style mChangeAction
   
 -- Button
 
 data Button db = Button { getButtonViewId :: ViewId, buttonText :: String
-                        , getButtonEnabled :: Bool, getStyle :: String, getOnClick :: String 
+                        , getButtonEnabled :: Bool, getButtonStyle :: String, getOnClick :: String 
                         , getCommand' :: EditCommand db 
                         } deriving (Show, Typeable, Data)
 
 instance Eq (Button db) where
-  Button _ txt1 enabled1 style1 onclick1 _ == Button _ txt2 enabled2 style2 onclick2 _ = txt1 == txt2 && enabled1 == enabled2 && style1 == style2 && onclick1 == onclick2
+  Button _ txt1 enabled1 style1 onclick1 _ == Button _ txt2 enabled2 style2 onclick2 _ =
+    txt1 == txt2 && enabled1 == enabled2 && style1 == style2 && onclick1 == onclick2
+    -- note that we don't need to look at the edit actions, since these live only in the Haskell world and have no effect on the html representation.
 
+button :: ViewId -> String -> Bool -> String -> String -> EditCommand db -> Widget (Button db)
 button viewId txt enabled style onclick cmd = Widget noId noId $ Button viewId txt enabled style onclick cmd
 
 -- JSVar
@@ -209,9 +220,13 @@ instance Eq JSVar where
   JSVar _ n1 v1 == JSVar _ n2 v2 = n1 == n2 && v1 == v2
 
 -- renamed, so we can use jsVar for declaring a javascript variable. This constructor will probably be removed anyway
+jsVar_ :: ViewId -> String -> String -> Widget JSVar
 jsVar_ viewId name value = Widget noId noId $ JSVar viewId name value
 
 getJSVarValue (Widget _ _ jsv) = getJSVarValue_ jsv
+
+
+
 
 
 --- Editing
@@ -223,6 +238,7 @@ data EditAction db = EditAction { getActionViewId :: ViewId, getCommand :: [Stri
 
 instance Eq (EditAction db) where
   EditAction _ _ == EditAction _ _ = True
+  -- note that we don't need to look at the edit actions, since these live only in the Haskell world and have no effect on the html representation.
   
 
 --- EditCommand
@@ -236,7 +252,8 @@ data EditCommand db = Edit (EditM db ())
                  
 instance Eq (EditCommand db) where -- only changing the edit command does not
   c1 == c2 = True
-
+  -- note that we don't need to look at the edit actions, since these live only in the Haskell world and have no effect on the html representation.
+  
 class HasViewId v where
   getViewId :: v -> ViewId
 
@@ -431,16 +448,16 @@ instance Initial w => Initial (Widget w) where
   initial = Widget noId noId initial
   
 instance Initial LabelView where
-  initial = LabelView noViewId ""
+  initial = LabelView noViewId "" ""
 
 instance Initial (TextView db) where
-  initial = TextView noViewId TextField "" Nothing Nothing
+  initial = TextView noViewId TextField "" "" Nothing Nothing
 
 instance Initial (RadioView db) where
-  initial = RadioView noViewId [] 0 False Nothing
+  initial = RadioView noViewId [] 0 False "" Nothing
 
 instance Initial (SelectView db) where
-  initial = SelectView noViewId [] 0 False Nothing
+  initial = SelectView noViewId [] 0 False "" Nothing
 
 instance Initial (Button db) where
   initial = Button noViewId "" False "" "" (Edit $ return ())
