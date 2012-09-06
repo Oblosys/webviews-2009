@@ -50,8 +50,8 @@ drawWebNodes webnode = drawTree $ treeFromView webnode
               map treeFromView $ getTopLevelWebNodesWebNode w
         where showAnyWidget (LabelWidget (LabelView id t)) = "Label "++ show id ++" "++ show t
               showAnyWidget (TextWidget (TextView id t s _ _)) = "TextView "++ show id ++" "++ show t ++ " " ++ show s
-              showAnyWidget (RadioViewWidget (RadioView id is i e)) = "RadioView " ++ show id ++" " ++ show i ++(if e then "enabled" else "disabled") ++ ": "++ show is
-              showAnyWidget (SelectViewWidget (SelectView id is i e)) = "SelectView " ++ show id ++" " ++ show i ++(if e then "enabled" else "disabled") ++ ": "++ show is
+              showAnyWidget (RadioViewWidget (RadioView id is i e _)) = "RadioView " ++ show id ++" " ++ show i ++(if e then "enabled" else "disabled") ++ ": "++ show is
+              showAnyWidget (SelectViewWidget (SelectView id is i e _)) = "SelectView " ++ show id ++" " ++ show i ++(if e then "enabled" else "disabled") ++ ": "++ show is
               showAnyWidget (ButtonWidget (Button id t _ _ _ _)) = "Button " ++ show id ++ show t
               showAnyWidget (JSVarWidget (JSVar id n v)) = "JSVar "++ show id ++" "++ show n ++ " " ++ show v
 

@@ -102,8 +102,8 @@ instance Eq (Widget w) where
 
 data AnyWidget db = LabelWidget !LabelView
                   | TextWidget !(TextView db)
-                  | RadioViewWidget !RadioView 
-                  | SelectViewWidget !SelectView 
+                  | RadioViewWidget !(RadioView db) 
+                  | SelectViewWidget !(SelectView db) 
                   | ButtonWidget !(Button db)
                   | JSVarWidget !JSVar -- TODO: not really a widget, but until we know what it is, or what we should call widget, it is here 
                     deriving (Eq, Show, Typeable, Data)
@@ -124,8 +124,8 @@ labelView viewId txt = Widget noId noId $ LabelView viewId txt
 
 data TextType = TextField | PasswordField | TextArea deriving (Eq, Show, Typeable, Data)
 
-data TextView db = TextView { getTextViewId :: ViewId, getTextType :: TextType, getStrVal' :: String 
-                    , getChangeAction :: Maybe (String -> EditCommand db), getSubmitAction :: Maybe (EditCommand db) } deriving (Show, Typeable, Data)
+data TextView db = TextView { getTextViewId :: ViewId, getTextType :: TextType, getStrVal' :: String
+                            , getTextChange :: Maybe (String -> EditCommand db), getTextSubmit :: Maybe (EditCommand db) } deriving ( Show, Typeable, Data)
 
 instance Eq (TextView db) where
   TextView _ t1 str1 _ _ == TextView _ t2 str2 _ _ = t1 == t2 && str1 == str2
@@ -158,35 +158,35 @@ instance HasSelection v => HasSelection (Widget v) where
  
 -- RadioView
 
-data RadioView = RadioView { getRadioViewId :: ViewId, getItems :: [String], getRadioSelection' :: Int 
-                           , getRadioEnabled :: Bool 
-                           } deriving (Show, Typeable, Data)
+data RadioView db = RadioView { getRadioViewId :: ViewId, getItems :: [String], getRadioSelection' :: Int 
+                              , getRadioEnabled :: Bool, getRadioChange :: Maybe (Int -> EditCommand db)
+                              } deriving (Show, Typeable, Data)
    
-instance Eq RadioView where
-  RadioView _ items1 int1 enabled1 == RadioView _ items2 int2 enabled2 = 
-    items1 == items2 && int1 == int2 && enabled1 == enabled2
+instance Eq (RadioView db) where
+  RadioView _ items1 int1 enabled1 _ == RadioView _ items2 int2 enabled2 _ = items1 == items2 && int1 == int2 && enabled1 == enabled2
+  -- note that we don't need to look at the edit actions, since these live only in the Haskell world and have no effect on the html representation.
 
-instance HasSelection RadioView where
-  getSelection (RadioView i is sel _) = sel
-  setSelection s (RadioView vi its _ en) = RadioView vi its s en
+instance HasSelection (RadioView db) where
+  getSelection (RadioView i is sel _ _) = sel
+  setSelection s (RadioView vi its _ en ch) = RadioView vi its s en ch
 
-radioView viewId its i enabled = Widget noId noId $ RadioView viewId its i enabled
+radioView viewId its i enabled mChangeAction = Widget noId noId $ RadioView viewId its i enabled mChangeAction
 
 -- SelectView
 
-data SelectView = SelectView { getSelectViewId :: ViewId, getSelectItems :: [String], getSelection' :: Int 
-                             , getSelectEnabled :: Bool 
+data SelectView db = SelectView { getSelectViewId :: ViewId, getSelectItems :: [String], getSelection' :: Int 
+                             , getSelectEnabled :: Bool, getSelectChange :: Maybe (Int -> EditCommand db)
                              } deriving (Show, Typeable, Data)
 
-instance Eq SelectView where
-  SelectView _ items1 int1 enabled1 == SelectView _ items2 int2 enabled2 = 
-    items1 == items2 && int1 == int2 && enabled1 == enabled2
+instance Eq (SelectView db) where
+  SelectView _ items1 int1 enabled1 _ == SelectView _ items2 int2 enabled2 _ = items1 == items2 && int1 == int2 && enabled1 == enabled2
+  -- note that we don't need to look at the edit actions, since these live only in the Haskell world and have no effect on the html representation.
 
-instance HasSelection SelectView where
-  getSelection (SelectView i is sel _) = sel
-  setSelection s (SelectView vi its _ en) = SelectView vi its s en
+instance HasSelection (SelectView db) where
+  getSelection (SelectView i is sel _ _) = sel
+  setSelection s (SelectView vi its _ en ch) = SelectView vi its s en ch
 
-selectView viewId its i enabled = Widget noId noId $ SelectView viewId its i enabled
+selectView viewId its i enabled mChangeAction = Widget noId noId $ SelectView viewId its i enabled mChangeAction
   
 -- Button
 
@@ -251,10 +251,10 @@ instance HasViewId LabelView where
 instance HasViewId (TextView db) where
   getViewId = getTextViewId
 
-instance HasViewId RadioView where
+instance HasViewId (RadioView db) where
   getViewId = getRadioViewId
 
-instance HasViewId SelectView where
+instance HasViewId (SelectView db) where
   getViewId = getSelectViewId
 
 instance HasViewId (Button db) where
@@ -435,11 +435,11 @@ instance Initial LabelView where
 instance Initial (TextView db) where
   initial = TextView noViewId TextField "" Nothing Nothing
 
-instance Initial RadioView where
-  initial = RadioView noViewId [] 0 False
+instance Initial (RadioView db) where
+  initial = RadioView noViewId [] 0 False Nothing
 
-instance Initial SelectView where
-  initial = SelectView noViewId [] 0 False
+instance Initial (SelectView db) where
+  initial = SelectView noViewId [] 0 False Nothing
 
 instance Initial (Button db) where
   initial = Button noViewId "" False "" "" (Edit $ return ())

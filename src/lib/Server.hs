@@ -437,7 +437,9 @@ handleCommand _ users sessionStateRef (SetC viewId value) =
 
     --; putStrLn $ "Updated rootView:\n" ++ show rootView'
     ; response <- case  getAnyWidgetById viewId rootView' :: AnyWidget db of
-        TextWidget (TextView _ _ _ (Just fChangeAction) _) -> performEditCommand users sessionStateRef (fChangeAction value) 
+        TextWidget (TextView _ _ _ (Just fChangeAction) _)         -> performEditCommand users sessionStateRef (fChangeAction value) 
+        RadioViewWidget (RadioView _ _ _ _ (Just fChangeAction))   -> performEditCommand users sessionStateRef (fChangeAction $ read value) 
+        SelectViewWidget (SelectView _ _ _ _ (Just fChangeAction)) -> performEditCommand users sessionStateRef (fChangeAction $ read value) 
         _                                                  -> return ViewUpdate -- Not a widget with an change action
       -- TODO: check if mkViewMap has correct arg
     -- TODO: instead of updating all, just update the one that was changed

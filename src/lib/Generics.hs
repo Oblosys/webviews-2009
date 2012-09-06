@@ -162,9 +162,9 @@ webViewGetInternalIds (WebView _ _ _ _ v) =
       isWidget1 _ = True
       isWidget2 :: Widget (TextView db) -> Bool
       isWidget2 _ = True
-      isWidget3 :: Widget RadioView -> Bool
+      isWidget3 :: Widget (RadioView db) -> Bool
       isWidget3 _ = True
-      isWidget4 :: Widget SelectView -> Bool
+      isWidget4 :: Widget (SelectView db) -> Bool
       isWidget4 _ = True
       isWidget5 :: Widget (Button db) -> Bool
       isWidget5 _ = True
@@ -225,8 +225,8 @@ type Updates = Map ViewId String  -- maps id's to the string representation of t
 -- TODO is dummy db arg necessary? with ScopedTypeVariables we can prevent it, but maybe that leads to big type sigs
 replace :: forall db d . (Typeable db, Data d) => db -> Updates -> d -> d
 replace _ updates v = (everywhere $  mkT    (replaceText updates :: TextView db -> TextView db)
-                                     `extT` replaceRadioView updates
-                                     `extT` replaceSelectView updates
+                                     `extT` (replaceRadioView updates :: RadioView db -> RadioView db)
+                                     `extT` (replaceSelectView updates :: SelectView db -> SelectView db)
                                      `extT` replaceJSVar updates) v
 
 replaceJSVar :: Updates -> JSVar -> JSVar
@@ -241,16 +241,16 @@ replaceText updates x@(TextView i h _ ba ea) =
     Just str -> (TextView i h str ba ea)
     Nothing -> x
 
-replaceRadioView :: Updates -> RadioView -> RadioView
-replaceRadioView updates x@(RadioView i is _ en) =
+replaceRadioView :: Updates -> (RadioView db) -> (RadioView db)
+replaceRadioView updates x@(RadioView i is _ en ch) =
   case Map.lookup i updates of
-    Just str -> (RadioView i is (read str) en)
+    Just str -> (RadioView i is (read str) en ch)
     Nothing -> x
 
-replaceSelectView :: Updates -> SelectView -> SelectView
-replaceSelectView updates x@(SelectView i is _ en) =
+replaceSelectView :: Updates -> (SelectView db) -> (SelectView db)
+replaceSelectView updates x@(SelectView i is _ en ch) =
   case Map.lookup i updates of
-    Just str -> (SelectView i is (read str) en)
+    Just str -> (SelectView i is (read str) en ch)
     Nothing -> x
 
 substituteIds :: Data x => [(Id, Id)] -> x -> x 

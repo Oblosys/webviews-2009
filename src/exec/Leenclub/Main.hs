@@ -89,7 +89,7 @@ Home FAQ Profiel spullen geschiedenis Berichten aanmelden inloggen
 unsafeLookupM tag dbf key = withDb $ \db -> unsafeLookup tag (dbf db) key
 
 data SortView db = 
-  SortView (Widget SelectView) (Widget SelectView) [WebView db]  
+  SortView (Widget (SelectView db)) (Widget (SelectView db)) [WebView db]  
     deriving (Eq, Show, Typeable, Data)
 
 instance Data db => Initial (SortView db) where
@@ -417,7 +417,7 @@ data Property a = EditableProperty (Either Html PropertyWidget)
 -- We want to put properties in a list, so an extra parameter for the widget is not an option.
 -- We could use an existential, but then deriving instances won't work anymore, so for now we use an explicit sum type.
 data PropertyWidget = PropertyTextView (Widget (TextView Database))
-                    | PropertySelectView (Widget SelectView) deriving (Eq, Show, Typeable, Data)
+                    | PropertySelectView (Widget (SelectView Database)) deriving (Eq, Show, Typeable, Data)
                     
 instance Data Html
 -- TODO: make sure that Data is not actually needed, or implement it.
@@ -766,7 +766,7 @@ mkHomeView = mkHtmlTemplateView "LeenclubWelcome.html" []
 
 
 data TestView = 
-  TestView Int (Widget RadioView) (Widget (Button Database)) (Widget (TextView Database)) (WebView Database) (WebView Database)
+  TestView Int (Widget (RadioView Database)) (Widget (Button Database)) (Widget (TextView Database)) (WebView Database) (WebView Database)
     deriving (Eq, Show, Typeable, Data)
 
 deriveInitial ''TestView
@@ -774,7 +774,7 @@ deriveInitial ''TestView
 mkTestView :: WebViewM Database (WebView Database)
 mkTestView = mkWebView $
   \vid oldTestView@(TestView _ radioOld _ _ _ _) ->
-    do { radio <-  mkRadioView ["Naam", "Punten", "Drie"] (getSelection radioOld) True
+    do { radio <-  mkRadioViewAct ["Naam", "Punten", "Drie"] (getSelection radioOld) True $ \sel -> Edit $ viewEdit vid $ \v -> trace ("selected"++show sel) v :: TestView
        ; let radioSel = getSelection radioOld
        ; b <- mkButton "Test button" True $ Edit $ viewEdit vid $ \(TestView a b c d e f) -> TestView 2 b c d e f
        ; tf <- mkTextField "bla"
@@ -808,7 +808,7 @@ instance Storeable Database TestView
 
 
 data TestView2 = 
-  TestView2 (Widget RadioView) (Widget (TextView Database))
+  TestView2 (Widget (RadioView Database)) (Widget (TextView Database))
            String String 
     deriving (Eq, Show, Typeable, Data)
 

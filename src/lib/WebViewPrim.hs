@@ -108,37 +108,55 @@ infixl 0 `withTextViewSubmit`
 -- todo: make more generic mechanism (mkTextView `withProps` [ on submit := .. ])
 withTextViewSubmit :: WebViewM db (Widget (TextView db)) -> EditCommand db -> WebViewM db (Widget (TextView db))
 withTextViewSubmit wm act = do { (Widget sid wid tv) <- wm
-                               ; return $ Widget sid wid tv{getSubmitAction=Just act}
+                               ; return $ Widget sid wid tv{getTextSubmit=Just act}
                                }
 
 infixl 0 `withTextViewChange`
 
 withTextViewChange :: WebViewM db (Widget (TextView db)) -> (String -> EditCommand db) -> WebViewM db (Widget (TextView db))
 withTextViewChange wm fAct = do { (Widget sid wid tv) <- wm
-                                ; return $ Widget sid wid tv{getChangeAction=Just fAct}
+                                ; return $ Widget sid wid tv{getTextChange=Just fAct}
                                 }
 
+mkPasswordField :: String -> WebViewM db (Widget (TextView db))
 mkPasswordField str = mkPasswordFieldEx str Nothing Nothing
 
+mkPasswordFieldAct :: String -> EditCommand db -> WebViewM db (Widget (TextView db))
 mkPasswordFieldAct str act = mkPasswordFieldEx str Nothing $ Just act
 
+mkPasswordFieldEx :: String -> Maybe (String -> EditCommand db) -> Maybe (EditCommand db) -> WebViewM db (Widget (TextView db))
 mkPasswordFieldEx str mChangeAction mEditAction = assignViewId $ \vid -> passwordField vid str mChangeAction mEditAction
 
+mkTextArea :: String -> WebViewM db (Widget (TextView db))
 mkTextArea str = assignViewId $ \vid -> textArea vid str
 
-mkRadioView is s en = assignViewId $ \vid -> radioView vid is s en
+mkRadioView :: [String] -> Int -> Bool -> WebViewM db (Widget (RadioView db))
+mkRadioView is s en = assignViewId $ \vid -> radioView vid is s en Nothing
 
-mkSelectView is s en = assignViewId $ \vid -> selectView vid is s en
+mkRadioViewAct :: [String] -> Int -> Bool -> (Int -> EditCommand db) -> WebViewM db (Widget (RadioView db))
+mkRadioViewAct is s en act = assignViewId $ \vid -> radioView vid is s en $ Just act
 
+mkSelectView :: [String] -> Int -> Bool -> WebViewM db (Widget (SelectView db))
+mkSelectView is s en = assignViewId $ \vid -> selectView vid is s en $ Nothing
+
+mkSelectViewAct :: [String] -> Int -> Bool -> (Int -> EditCommand db) -> WebViewM db (Widget (SelectView db))
+mkSelectViewAct is s en act = assignViewId $ \vid -> selectView vid is s en $ Just act
+
+mkButton :: String -> Bool -> EditCommand db -> WebViewM db (Widget (Button db))
 mkButton str en ac = mkButtonEx str en "" (const "") ac
 
+mkButtonWithStyle :: String -> Bool -> String -> EditCommand db -> WebViewM db (Widget (Button db))
 mkButtonWithStyle str en st ac = mkButtonEx str en st (const "") ac
 
+-- button with javascript click handler
+mkButtonWithClick :: String -> Bool -> (ViewId -> String) -> WebViewM db (Widget (Button db))
 mkButtonWithClick str en foc = mkButtonEx str en "" foc $ Edit $ return () -- because onclick currently disables server edit command
 
+-- button with javascript click handler
+mkButtonWithStyleClick :: String -> Bool -> String -> (ViewId -> String) -> WebViewM db (Widget (Button db))
 mkButtonWithStyleClick str en st foc = mkButtonEx str en st foc $ Edit $ return () -- because onclick currently disables server edit command
 
-mkButtonEx :: String -> Bool -> String -> (ViewId -> String) -> EditCommand db -> WebViewM db (Widget (Button db)) -- signature nec. against ambiguity
+mkButtonEx :: String -> Bool -> String -> (ViewId -> String) -> EditCommand db -> WebViewM db (Widget (Button db))
 mkButtonEx str en st foc ac = assignViewId $ \vid -> button vid str en st (foc vid) ac
 
 mkJSVar name value = assignViewId $ \vid -> jsVar_ vid name value
@@ -370,7 +388,7 @@ withEditAction (EditAction viewId _) elt =
 withEditActionAttr (EditAction viewId _) =  
   strAttr "onClick" $ "queueCommand('PerformEditActionC ("++show viewId++") []')"
 
-presentRadioView (RadioView viewId items selectedIx enabled) = thespan << sequence_
+presentRadioView (RadioView viewId items selectedIx enabled _) = thespan << sequence_
   [ radio (show viewId) (show i) !* ( [ id_ (toValue eltId) -- all buttons have viewId as name, so they belong to the same radio button set 
                           , strAttr "onChange" ("queueCommand('SetC "++show viewId++" %22"++show i++"%22')") 
                           , strAttr "onFocus" ("elementGotFocus('"++eltId++"')")
@@ -381,8 +399,8 @@ presentRadioView (RadioView viewId items selectedIx enabled) = thespan << sequen
   | (i, item) <- zip [0..] items 
   , let eltId = "radio"++show viewId++"button"++show i ] -- these must be unique for setting focus
 
-presentSelectView :: SelectView -> Html
-presentSelectView (SelectView viewId items selectedIx enabled) = 
+presentSelectView :: (SelectView db) -> Html
+presentSelectView (SelectView viewId items selectedIx enabled _) = 
   do { select !* ([ id_ $ mkHtmlViewIdVal viewId
                   , strAttr "onChange" ("script"++viewIdSuffix viewId++".onChange()")
                   , strAttr "onFocus" ("script"++viewIdSuffix viewId++".onFocus()")
