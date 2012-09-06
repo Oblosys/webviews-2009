@@ -428,18 +428,17 @@ handleCommand _ _ sessionStateRef Test =
 handleCommand _ users sessionStateRef (SetC viewId value) =
  do { (sessionId, user, db, rootView, pendingEdit, hashArgs) <- readIORef sessionStateRef      
     ; putStrLn $ "Performing: "++show (SetC viewId value)
-
     --; putStrLn $ "RootView:\n" ++ show rootView ++"\n\n\n\n\n"
     ; let rootView' = replace db{- dummy arg -} (Map.fromList [(viewId, value)]) (assignIds rootView)
     ; let db' = save rootView' db
     ; writeIORef sessionStateRef (sessionId, user, db', rootView', pendingEdit, hashArgs)
     ; reloadRootView sessionStateRef
 
+
     --; putStrLn $ "Updated rootView:\n" ++ show rootView'
-    ; response <- case getMTextByViewId viewId rootView' :: Maybe (TextView db) of  -- TODO: probably also want change actions for radio etc.
-        Nothing                                     -> return ViewUpdate -- Not a text field
-        Just (TextView _ _ _ Nothing _)             -> return ViewUpdate -- No edit action 
-        Just (TextView _ _ _ (Just fChangeAction) _) -> performEditCommand users sessionStateRef (fChangeAction value) 
+    ; response <- case  getAnyWidgetById viewId rootView' :: AnyWidget db of
+        TextWidget (TextView _ _ _ (Just fChangeAction) _) -> performEditCommand users sessionStateRef (fChangeAction value) 
+        _                                                  -> return ViewUpdate -- Not a widget with an change action
       -- TODO: check if mkViewMap has correct arg
     -- TODO: instead of updating all, just update the one that was changed
     ; return response
