@@ -411,9 +411,14 @@ ty_Function = mkDataType "Main.Function" [con_Function] -- todo: change accordin
 con_Function = mkConstr ty_WebView "Function" [] Prefix
 -}
 -- non-optimal way to show editable properties. The problem is that the update specified is not a view update but a database update.
-data Property a = EditableProperty (Either Html (Widget (TextView Database)))
+data Property a = EditableProperty (Either Html PropertyWidget)
                 | StaticProperty Html deriving (Eq, Show, Typeable, Data)
 
+-- We want to put properties in a list, so an extra parameter for the widget is not an option.
+-- We could use an existential, but then deriving instances won't work anymore, so for now we use an explicit sum type.
+data PropertyWidget = PropertyTextView (Widget (TextView Database))
+                    | PropertySelectView (Widget SelectView) deriving (Eq, Show, Typeable, Data)
+                    
 instance Data Html
 -- TODO: make sure that Data is not actually needed, or implement it.
 
@@ -431,7 +436,7 @@ a blur action) -}
 mkEditableProperty :: (Show v, Data v, Data a) => ViewId -> Bool -> (v :-> Maybe a) -> (a :-> p) -> (p -> String) -> (String -> Maybe p) -> (p -> Html) -> a -> WebViewM Database (Property a)
 mkEditableProperty vid editing objectLens valueLens presStr parseStr pres orgObj =
  do { eValue <- if editing
-                then fmap Right $ mkTextFieldWithChange (presStr $ get valueLens orgObj) $ \str -> Edit $ viewEdit vid $ \v ->
+                then fmap (Right . PropertyTextView) $ mkTextFieldWithChange (presStr $ get valueLens orgObj) $ \str -> Edit $ viewEdit vid $ \v ->
                        case get objectLens v of
                          Nothing -> v
                          Just o  -> case parseStr str of
@@ -442,13 +447,30 @@ mkEditableProperty vid editing objectLens valueLens presStr parseStr pres orgObj
     ; return $ EditableProperty eValue
     }
 
+mkEditableSelectProperty :: (Show v, Data v, Data a) => ViewId -> Bool -> (v :-> Maybe a) -> (a :-> p) ->
+                            (p -> String) -> (p -> Html) -> [p] -> a ->
+                            WebViewM Database (Property a)
+mkEditableSelectProperty vid editing objectLens valueLens presStr pres propVals orgObj =
+ do { eValue <- if editing
+                then let propValStrs = map presStr propVals
+                         selection = get valueLens orgObj 
+                         -- select index based on string representation, so we don't need Eq on p. (if p's have same string repr. the user won't be able to distinguish anyway)
+                         selectionIx = case elemIndex (presStr selection) propValStrs of
+                                         Just i -> i
+                                         Nothing -> 0 -- if the property is not in the list, we select the first one 
+                     in  fmap (Right . PropertySelectView) $ mkSelectView propValStrs selectionIx True
+                else return $ Left $ pres $ get valueLens orgObj 
+    ; return $ EditableProperty eValue
+    }
+
 mkStaticProperty :: (a :-> p) -> (p -> Html) -> a -> WebViewM Database (Property a) -- monadic only to have behave similar to
 mkStaticProperty lens pres obj = return $ StaticProperty $ pres $ get lens obj  -- mkEditbleProperty (maybe not necessary)
 
 instance Presentable (Property a) where
   present (StaticProperty htmlStr)             = toHtml htmlStr
   present (EditableProperty (Left htmlStr))    = toHtml htmlStr
-  present (EditableProperty (Right textField)) = present textField
+  present (EditableProperty (Right (PropertyTextView textField)))     = present textField
+  present (EditableProperty (Right (PropertySelectView selectField))) = present selectField
 
 instance Storeable Database (Property a)
 
@@ -565,12 +587,12 @@ getLenderPropsSelf' vid isEdited lender = do { props <- getLenderPropsAll' vid i
    --       non-string properties?                        
 getLenderPropsAll' vid isEdited lender = sequence
   [ fmap (\p -> Right ("LeenClub ID", p)) $ mkStaticProperty (lenderIdLogin . lenderId) toHtml lender
-  , fmap (\p -> Left ("M/V", p)) $ mkEditableProperty vid isEdited mEditedLender lenderGender show readMaybe (toHtml . show) lender
+  , fmap (\p -> Left ("M/V", p)) $ mkEditableSelectProperty vid isEdited mEditedLender lenderGender show (toHtml . show) [M,F] lender
   , fmap (\p -> Left ("E-mail", p)) $ mkEditableProperty vid isEdited mEditedLender lenderMail id Just toHtml lender
   , fmap (\p -> Right ("Adres", p)) $ mkEditableProperty vid isEdited mEditedLender lenderStreet id Just toHtml lender
   , fmap (\p -> Left ("Postcode", p)) $ mkEditableProperty vid isEdited mEditedLender lenderZipCode id Just toHtml lender 
   , fmap (\p -> Right ("Woonplaats", p)) $ mkEditableProperty vid isEdited mEditedLender lenderCity id Just toHtml lender 
-  , fmap (\p -> Right ("Rating", p)) $ mkEditableProperty vid isEdited mEditedLender lenderRating show (readMaybe) (presentRating 5) lender 
+  , fmap (\p -> Right ("Rating", p)) $ mkEditableSelectProperty vid isEdited mEditedLender lenderRating show (presentRating 5) [0..5] lender 
   ]
 
 getExtraProps lender = [ ("Rating", with [style "font-size: 20px; position: relative; top: -5px; height: 17px" ] (presentRating 5 $ get lenderRating lender)) 
