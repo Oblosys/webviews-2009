@@ -437,13 +437,14 @@ a blur action) -}
 mkEditableProperty :: (Show v, Data v, Data a) => ViewId -> Bool -> (v :-> Maybe a) -> (a :-> p) -> (p -> String) -> (String -> Maybe p) -> (p -> Html) -> a -> WebViewM Database (Property a)
 mkEditableProperty vid editing objectLens valueLens presStr parseStr pres orgObj =
  do { eValue <- if editing
-                then fmap (Right . PropertyTextView) $ mkTextFieldWithChange (presStr $ get valueLens orgObj) $ \str -> Edit $ viewEdit vid $ \v ->
-                       case get objectLens v of
-                         Nothing -> v
-                         Just o  -> case parseStr str of
-                                      Nothing -> trace ("Parse error for " ++ show str) v
-                                      Just p' -> let v' = set objectLens (Just $ set valueLens p' o) v
-                                                 in  trace ("Setting "++show vid++" to " ++ show v') $ v'
+                then fmap (Right . PropertyTextView) $ mkTextFieldWithChange (presStr $ get valueLens orgObj) $ \str ->
+                       Edit $ viewEdit vid $ \v ->
+                         case get objectLens v of
+                           Nothing -> v
+                           Just o  -> case parseStr str of
+                                        Nothing -> trace ("Parse error for " ++ show str) v
+                                        Just p' -> let v' = set objectLens (Just $ set valueLens p' o) v
+                                                   in  trace ("Setting "++show vid++" to " ++ show v') $ v'
                 else return $ Left $ pres $ get valueLens orgObj 
     ; return $ EditableProperty eValue
     }
@@ -457,9 +458,17 @@ mkEditableSelectProperty vid editing objectLens valueLens presStr pres propVals 
                          selection = get valueLens orgObj 
                          -- select index based on string representation, so we don't need Eq on p. (if p's have same string repr. the user won't be able to distinguish anyway)
                          selectionIx = case elemIndex (presStr selection) propValStrs of
-                                         Just i -> i
+                                         Just i  -> i
                                          Nothing -> 0 -- if the property is not in the list, we select the first one 
-                     in  fmap (Right . PropertySelectView) $ mkSelectView propValStrs selectionIx True
+                                                      -- (this can happen if the list does not contain all values)
+                     in  fmap (Right . PropertySelectView) $ mkSelectViewAct propValStrs selectionIx True $ \sel -> 
+                           Edit $ viewEdit vid $ \v ->
+                             case get objectLens v of
+                               Nothing -> v
+                               Just o  -> if (sel >= 0 && sel < length propVals) 
+                                          then set objectLens (Just $ set valueLens (propVals!!sel) o) v
+                                          else error $ "Internal error: mkEditableSelectProperty: index " ++ show sel ++
+                                                       " out of bounds for: " ++ show (map presStr propVals)
                 else return $ Left $ pres $ get valueLens orgObj 
     ; return $ EditableProperty eValue
     }
