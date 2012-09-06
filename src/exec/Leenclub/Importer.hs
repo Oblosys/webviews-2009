@@ -16,6 +16,7 @@ import Data.Attoparsec.Number (Number(..))
 import Control.Category hiding (Category) -- fclabels
 import Data.Label                         -- fclabels
 import Prelude hiding ((.), id,readFile)  -- fclabels
+import ObloUtils
 
 {-
 TODO: price in excel, excel in separate files
@@ -271,15 +272,3 @@ parseCSVFromFile csvFile = --parseFromFile doesn't handle UTF8 well
  do { contents <- readFile csvFile
     ; return $ parseCSV "cd" contents
     }
-
-
-
-
-
-
-
-readMaybe :: Read a => String -> Maybe a
-readMaybe str = case reads str of 
-                  [(x,"")] -> Just x
-                  _        -> Nothing
-             
