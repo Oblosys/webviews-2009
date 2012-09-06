@@ -270,7 +270,7 @@ getButtonByViewId :: (Typeable db, Data d) => ViewId -> d -> Maybe (Button db)
 getButtonByViewId i view = 
   case listify (\(Button i' _ _ _ _ _) -> i==i') view of
     [b] -> Just b
-    []  -> Nothing
+    []  -> error $ "internal error: no button with id "++show i
     _   -> error $ "internal error: multiple buttons with id "++show i
 
 getLabelViewByViewId :: Data d => ViewId -> d -> LabelView
@@ -331,10 +331,25 @@ mkAccT f = case cast f  of -- can we do this without requiring Typeable acc?
 getWebViewById i view = 
   case listify (\(WebView i' _ _ _ _) -> i==i') view of
     [b] -> b
-    []  -> error $ "internal error: no button with id "
-    _   -> error $ "internal error: multiple buttons with id "
--- TODO: this error does not correspond to function name
-    
+    []  -> error $ "internal error: getWebViewById: no webview with id " ++ show i
+    _   -> error $ "internal error: getWebViewById: multiple webviews with id " ++ show i
+
+getAnyWidgetById :: (Typeable db, Data d) => ViewId -> d -> AnyWidget db
+getAnyWidgetById i x = 
+  case everything (++) 
+         ([] `mkQ`  (\(Widget sid id w) -> if i == getViewId w then [LabelWidget w] else [])
+             `extQ` (\(Widget sid id w) -> if i == getViewId w then [TextWidget w] else [])
+             `extQ` (\(Widget sid id w) -> if i == getViewId w then [RadioViewWidget w] else [])
+             `extQ` (\(Widget sid id w) -> if i == getViewId w then [SelectViewWidget w] else [])
+             `extQ` (\(Widget sid id w) -> if i == getViewId w then [ButtonWidget w] else [])
+             `extQ` (\(Widget sid id w) -> if i == getViewId w then [JSVarWidget w] else [])
+         ) x of
+    [w] -> w
+    []  -> error $ "internal error: getAnyWidgetById: no widget with id "
+    _   -> error $ "internal error: getAnyWidgetById: multiple webviews with id "
+     
+     
+  
 getTextByViewIdRef :: forall db v . (Typeable db, Data v) => db -> ViewIdRef -> v -> String
 getTextByViewIdRef _ (ViewIdRef i) view =
   let (TextView _ _ str _ _) :: TextView db = getTextByViewId (ViewId i) view
