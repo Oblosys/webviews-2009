@@ -31,6 +31,7 @@ import Generics
 import WebViewPrim
 import Incrementality
 import HtmlLib
+import ObloUtils
 import Utils
 
 webViewsPort = 8090
@@ -107,7 +108,7 @@ server rootViews dbFilename mkInitialDatabase users =
           ; dbStr <- hGetContents fh
           ; seq (length dbStr) $ return ()
           ; hClose fh
-          ; return $ safeRead dbStr
+          ; return $ readMaybe dbStr
           } `Control.Exception.catch` \exc ->
        do { putStrLn $ "Problem opening "++dbFilename++":\n"
           ; putStrLn $ "Exception "++ show (exc :: SomeException)
@@ -145,14 +146,14 @@ logWebViewAccess clientIP b _ c d e f g =
 instance FromData Commands where
   fromData = liftM readCommand (look "commands")
 
-readCommand s = case safeRead s of
+readCommand s = case readMaybe s of
                   Just cmds -> cmds
                   Nothing   -> SyntaxError s
 
 instance FromData Int where
   fromData = liftM readInt (look "requestId")
 
-readInt s = fromMaybe (-1) (safeRead s)
+readInt s = fromMaybe (-1) (readMaybe s)
 
 handlers :: (Data db, Show db, Eq db) => RootViews db -> String -> db -> Map String (String, String) -> ServerInstanceId -> GlobalStateRef db -> [ServerPart Response]
 handlers rootViews dbFilename theDatabase users serverSessionId globalStateRef = 
@@ -229,7 +230,7 @@ parseCookieSessionId serverInstanceId =
     ; let cookieMap = rqCookies rq
     ; let mCookieSessionId = case lookup "webviews" cookieMap of
                       Nothing -> Nothing -- * no webviews cookie on the client
-                      Just c  -> case safeRead (cookieValue c) :: Maybe (EpochTime, Int) of
+                      Just c  -> case readMaybe (cookieValue c) :: Maybe (EpochTime, Int) of
                                    Nothing               -> Nothing -- * ill formed cookie on client
                                    Just (serverTime, key) -> 
                                      if serverTime /= serverInstanceId
@@ -438,8 +439,8 @@ handleCommand _ users sessionStateRef (SetC viewId value) =
     --; putStrLn $ "Updated rootView:\n" ++ show rootView'
     ; response <- case  getAnyWidgetById viewId rootView' :: AnyWidget db of
         TextWidget (TextView _ _ _ (Just fChangeAction) _)         -> performEditCommand users sessionStateRef (fChangeAction value) 
-        RadioViewWidget (RadioView _ _ _ _ (Just fChangeAction))   -> performEditCommand users sessionStateRef (fChangeAction $ read value) 
-        SelectViewWidget (SelectView _ _ _ _ (Just fChangeAction)) -> performEditCommand users sessionStateRef (fChangeAction $ read value) 
+        RadioViewWidget (RadioView _ _ _ _ (Just fChangeAction))   -> performEditCommand users sessionStateRef (fChangeAction $ unsafeRead "Server.handle: radio selection" value) 
+        SelectViewWidget (SelectView _ _ _ _ (Just fChangeAction)) -> performEditCommand users sessionStateRef (fChangeAction $ unsafeRead "Server.handle: select selection" value) 
         _                                                  -> return ViewUpdate -- Not a widget with an change action
       -- TODO: check if mkViewMap has correct arg
     -- TODO: instead of updating all, just update the one that was changed
@@ -556,9 +557,4 @@ lputStr = liftIO . putStr
 
 lputStrLn :: MonadIO m => String -> m ()
 lputStrLn = liftIO . putStrLn
-
-safeRead s = case reads s of
-               [(x, "")] -> Just x
-               _         -> Nothing
-
 

@@ -2,6 +2,7 @@
 module Generics where
 
 import Types
+import ObloUtils
 
 import Data.Generics
 import Data.Maybe
@@ -244,13 +245,13 @@ replaceText updates x@(TextView i h _ ba ea) =
 replaceRadioView :: Updates -> (RadioView db) -> (RadioView db)
 replaceRadioView updates x@(RadioView i is _ en ch) =
   case Map.lookup i updates of
-    Just str -> (RadioView i is (read str) en ch)
+    Just str -> (RadioView i is (unsafeRead ("Generics.replaceRadioView on "++show i) str) en ch)
     Nothing -> x
 
 replaceSelectView :: Updates -> (SelectView db) -> (SelectView db)
 replaceSelectView updates x@(SelectView i is _ en ch) =
   case Map.lookup i updates of
-    Just str -> (SelectView i is (read str) en ch)
+    Just str -> (SelectView i is (unsafeRead ("Generics.replaceSelectView on "++show i) str) en ch)
     Nothing -> x
 
 substituteIds :: Data x => [(Id, Id)] -> x -> x 

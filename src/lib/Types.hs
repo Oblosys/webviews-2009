@@ -1,6 +1,7 @@
 {-# LANGUAGE ExistentialQuantification, FlexibleContexts, TypeSynonymInstances, FlexibleInstances, DeriveDataTypeable, MultiParamTypeClasses #-}
 module Types where
 
+import ObloUtils
 import Data.IORef
 import Data.Generics
 import Data.List.Split
@@ -67,7 +68,7 @@ instance Read ViewId where
          takePathElts ""   = Just []
          takePathElts str = case span isDigit str of
                               (digits@(_:_), ('_': rest')) -> do { path <- takePathElts rest'
-                                                                 ; return $ read digits : path
+                                                                 ; return $ unsafeRead ("Types.instance Read ViewId: takePathElts "++show str) digits : path
                                                                  }      
                               _                      -> Nothing                               
 
