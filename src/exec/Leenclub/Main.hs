@@ -494,7 +494,7 @@ presentProperties' namedProps =
 data LenderView = 
   LenderView Inline User Lender (Maybe Lender) [Property Lender] [(String,Property Lender)]
              --(Maybe (Widget (TextView Database, TextView Database)))
-             [WebView Database] (Widget (Button Database))
+             [WebView Database] [Widget (Button Database)]
     deriving (Eq, Show, Typeable, Data)
 
  -- todo: edit button in Inline/Full datatype?                  
@@ -516,31 +516,34 @@ mkLenderView inline lender = mkWebView $
 
        ; fName <- mkTextField (get lenderFirstName lender)
        ; lName <- mkTextField (get lenderLastName lender)
-       
-       
+
+
        ; prop0 <- mkStaticProperty (lenderIdLogin . lenderId) toHtml lender
        ; prop1 <- mkEditableProperty vid (isJust mEdited) mEditedLender lenderFirstName id Just toHtml lender
-       ; let testProps = [prop0, prop1]
+       ; let testProps = [ prop0, prop1 ]
        ; props <- (if lenderIsUser lender mUser then getLenderPropsSelf' else getLenderPropsEveryone') vid (isJust mEdited) lender
-       ; itemWebViews <- if isInline inline then return [] else mapM (mkItemView Inline) items
-       ; editButton <- mkButton (maybe "Aanpassen" (const "Gereed") mEdited) (lenderIsUser lender mUser) $ 
-           Edit $ case mEdited of 
-                    Nothing -> viewEdit vid $ set mEditedLender (Just lender)
-                    Just updatedLender ->  
-                     do { docEdit $ updateLender (get lenderId updatedLender) $ \lender -> updatedLender
-                        ; viewEdit vid $ set mEditedLender Nothing
-                        ; liftIO $ putStrLn $ "updating lender\n" ++ show updatedLender
-                        } 
+       ; (itemWebViews, buttons) <- if isInline inline then return ([],[]) else
+          do { itemWebViews <-  mapM (mkItemView Inline) items
+             ; editButton <- mkButton (maybe "Aanpassen" (const "Gereed") mEdited) (lenderIsUser lender mUser) $
+                 Edit $ case mEdited of
+                          Nothing            -> viewEdit vid $ set mEditedLender (Just lender)
+                          Just updatedLender -> do { docEdit $ updateLender (get lenderId updatedLender) $ \lender -> updatedLender
+                                                   ; viewEdit vid $ set mEditedLender Nothing
+                                                   ; liftIO $ putStrLn $ "updating lender\n" ++ show updatedLender
+                                                   }
                     --trace ("updated lender zip:"++lenderZipCode updatedLender) $ LenderView a Nothing b updatedLender d [prop'] f g
-
-       ; return $ LenderView inline mUser lender mEdited testProps props itemWebViews editButton
+             ; buttons <- if not $ isJust mEdited then return [] else
+                    fmap singleton $ mkButton "Annuleren" True $ Edit $ viewEdit vid $ set mEditedLender Nothing
+             ; return (itemWebViews, [ editButton ] ++ buttons)
+             }
+       ; return $ LenderView inline mUser lender mEdited testProps props itemWebViews buttons 
        }
        
 lenderIsUser lender Nothing          = False
 lenderIsUser lender (Just (login,_)) = get (lenderIdLogin . lenderId) lender == login
  
 instance Presentable LenderView where
-  present (LenderView Full mUser lender _ testProps props itemWebViews editButton)   =
+  present (LenderView Full mUser lender _ testProps props itemWebViews buttons)   =
         vList [ vSpace 20
               , hList [ (div_ (boxedEx 1 $ image ("leners/" ++ get lenderImage lender) ! style "height: 200px")) ! style "width: 204px" ! align "top"
                       , hSpace 20
@@ -552,7 +555,7 @@ instance Presentable LenderView where
                                               , vList $ map present testProps
                                               , presentProperties' props
                                               , vSpace 20
-                                              , present editButton
+                                              , hList $ map present buttons
                                               ]
                                       , hSpace 20
                                       , presentProperties $ getExtraProps lender
@@ -563,7 +566,7 @@ instance Presentable LenderView where
               , h2 $ (toHtml $ "Spullen van "++get lenderFirstName lender)
               , vList $ map present itemWebViews
               ]
-  present (LenderView Inline mUser lender mEdited testProps props itemWebViews editButton) =
+  present (LenderView Inline mUser lender mEdited testProps props itemWebViews buttons) =
     linkedLender lender $
       hList [ (div_ (boxedEx 1 $ image ("leners/" ++ get lenderImage lender) ! style "height: 30px")) ! style "width: 34px" ! align "top"
             , nbsp
@@ -571,6 +574,8 @@ instance Presentable LenderView where
             , vList [ toHtml (showName lender)
                     , vList $ map present testProps
                     , span_ (presentRating 5 $ get lenderRating lender) ! style "font-size: 20px"
+                    , hList $ map present buttons
+                                              
                     ]
          --   , with [style "display: none"] $ concatHtml $ map present [fName,lName] ++ [present editButton] -- todo: not nice! 
             ]
