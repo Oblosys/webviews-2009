@@ -32,12 +32,12 @@ data Lender =
 
 data MovieOrSeries = Movie | Series deriving (Eq, Show, Read, Typeable,Data)
 
-data Category = Book { bookAuthor :: String, bookYear :: Int, bookLanguage :: String, bookGenre :: String, bookPages :: Int, bookISBN :: String }
-              | Game { gamePlatform :: String, gameYear :: Int, gameDeveloper :: String, gameGenre :: String }
-              | CD   { cdArtist :: String, cdYear :: Int, cdGenre :: String }
-              | DVD  { dvdMovieOrSeries :: MovieOrSeries, dvdDirector :: String, dvdLanguage :: String, dvdYear :: Int, dvdGenre :: String
-                     , dvdRunningTime :: Int, dvdIMDb :: String, dvdSeason :: Int, dvdNrOfEpisodes :: Int }
-              | Tool { toolBrand :: String, toolType :: String, toolYear :: Int }
+data Category = Book { _bookAuthor :: String, _bookYear :: Int, _bookLanguage :: String, _bookGenre :: String, _bookPages :: Int, _bookISBN :: String }
+              | Game { _gamePlatform :: String, _gameYear :: Int, _gameDeveloper :: String, _gameGenre :: String }
+              | CD   { _cdArtist :: String, _cdYear :: Int, _cdGenre :: String }
+              | DVD  { _dvdMovieOrSeries :: MovieOrSeries, _dvdDirector :: String, _dvdLanguage :: String, _dvdYear :: Int, _dvdGenre :: String
+                     , _dvdRunningTime :: Int, _dvdIMDb :: String, _dvdSeason :: Int, _dvdNrOfEpisodes :: Int }
+              | Tool { _toolBrand :: String, _toolType :: String, _toolYear :: Int }
               | Electronics {}
               | Misc {} deriving (Eq, Show, Read, Typeable,Data)
 
@@ -50,4 +50,4 @@ data Item =
 
 -- put id in element? It is also in the map.
 
-mkLabels [ ''LenderId, ''Lender, ''ItemId, ''Item ]
+mkLabels [ ''LenderId, ''Lender, ''ItemId, ''Item, ''Category ]

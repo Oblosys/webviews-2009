@@ -423,29 +423,29 @@ getFullCategoryProps c = [ either id id eProp  | eProp <- getAllCategoryProps c 
 
 -- Left is only Full, Right is Full and Inline
 getAllCategoryProps :: Category -> [Either (String,Html) (String,Html)]
-getAllCategoryProps c@Book{}        = [ Left ("Auteur", toHtml $ bookAuthor c)
-                                      , Right ("Jaar", toHtml . show $ bookYear c)
-                                      , Left ("Taal", toHtml $ bookLanguage c)
-                                      , Left ("Genre", toHtml $ bookGenre c)
-                                      , Right ("Aantal bladz.", toHtml . show $ bookPages c) ]
-getAllCategoryProps c@Game{}        = [ Left ("Platform", toHtml $ gamePlatform c)
-                                      , Left ("Jaar", toHtml . show $ gameYear c)
-                                      , Right ("Developer", toHtml $ gameDeveloper c)
-                                      , Right ("Genre", toHtml $ gameGenre c) ]
-getAllCategoryProps c@CD{}          = [ Left ("Artiest", toHtml $ cdArtist c)
-                                      , Left ("Jaar", toHtml . show $ cdYear c)
-                                      , Left ("Genre", toHtml $ cdGenre c) ]
-getAllCategoryProps c@DVD{}         = [ Right ("Seizoen", toHtml . show $ dvdSeason c)
-                                      , Right ("Taal", toHtml $ dvdLanguage c)
-                                      , Right ("Jaar", toHtml . show $ dvdYear c)
-                                      , Left ("Genre", toHtml $ dvdGenre c)
-                                      , Left ("Regisseur", toHtml $ dvdDirector c)
-                                      , Right ("Aantal afl.", toHtml . show $ dvdNrOfEpisodes c)
-                                      , Right ("Speelduur", toHtml . show $ dvdRunningTime c)
-                                      , Left ("IMdb", if null $ dvdIMDb c then "" else a (toHtml $ dvdIMDb c) ! href (toValue $ dvdIMDb c) ! target "_blank" ! style "color: blue")
+getAllCategoryProps c@Book{}        = [ Left ("Auteur", toHtml $ _bookAuthor c)
+                                      , Right ("Jaar", toHtml . show $ _bookYear c)
+                                      , Left ("Taal", toHtml $ _bookLanguage c)
+                                      , Left ("Genre", toHtml $ _bookGenre c)
+                                      , Right ("Aantal bladz.", toHtml . show $ _bookPages c) ]
+getAllCategoryProps c@Game{}        = [ Left ("Platform", toHtml $ _gamePlatform c)
+                                      , Left ("Jaar", toHtml . show $ _gameYear c)
+                                      , Right ("Developer", toHtml $ _gameDeveloper c)
+                                      , Right ("Genre", toHtml $ _gameGenre c) ]
+getAllCategoryProps c@CD{}          = [ Left ("Artiest", toHtml $ _cdArtist c)
+                                      , Left ("Jaar", toHtml . show $ _cdYear c)
+                                      , Left ("Genre", toHtml $ _cdGenre c) ]
+getAllCategoryProps c@DVD{}         = [ Right ("Seizoen", toHtml . show $ _dvdSeason c)
+                                      , Right ("Taal", toHtml $ _dvdLanguage c)
+                                      , Right ("Jaar", toHtml . show $ _dvdYear c)
+                                      , Left ("Genre", toHtml $ _dvdGenre c)
+                                      , Left ("Regisseur", toHtml $ _dvdDirector c)
+                                      , Right ("Aantal afl.", toHtml . show $ _dvdNrOfEpisodes c)
+                                      , Right ("Speelduur", toHtml . show $ _dvdRunningTime c)
+                                      , Left ("IMdb", if null $ _dvdIMDb c then "" else a (toHtml $ _dvdIMDb c) ! href (toValue $ _dvdIMDb c) ! target "_blank" ! style "color: blue")
                                       ]
-getAllCategoryProps c@Tool{}        = [ Left ("Merk", toHtml $ toolBrand c)
-                                      , Left ("Type", toHtml $ toolType c) ]
+getAllCategoryProps c@Tool{}        = [ Left ("Merk", toHtml $ _toolBrand c)
+                                      , Left ("Type", toHtml $ _toolType c) ]
 getAllCategoryProps c@Electronics{} = []
 getAllCategoryProps c@Misc{}        = [] 
 

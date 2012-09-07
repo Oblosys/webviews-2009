@@ -12,6 +12,8 @@ import Control.Category hiding (Category) -- fclabels
 import Data.Label                         -- fclabels
 import Prelude hiding ((.), id)           -- fclabels
 
+
+
 lenders :: Map String (String, String)
 lenders = Map.fromList [ ("martijn", ("p", "Martijn"))
                        , ("Henny", ("h", "Henny Verweij")) 
@@ -65,10 +67,10 @@ searchItems term db = [ item | item <- Map.elems $ allItems db
                       , any (isInfixOf term) $ [get (lenderIdLogin . itemOwner) item, show $ get itemPrice item, get itemName item, get itemDescr item ] ++
                                                (categorySearchFields $ get itemCategory item)
                       ]
- where categorySearchFields Book{ bookAuthor=f1, bookGenre=f2} = [f1, f2]
-       categorySearchFields Game{ gamePlatform=f1, gameDeveloper=f2, gameGenre=f3} = [f1,f2,f3]
-       categorySearchFields DVD{ dvdMovieOrSeries=f1, dvdDirector=f2, dvdGenre=f3 } = [if f1 == Movie then "film" else "serie",f2,f3]
-       categorySearchFields CD{ cdArtist=f1, cdGenre=f2 } = [f1,f2]
+ where categorySearchFields Book{ _bookAuthor=f1, _bookGenre=f2} = [f1, f2]
+       categorySearchFields Game{ _gamePlatform=f1, _gameDeveloper=f2, _gameGenre=f3} = [f1,f2,f3]
+       categorySearchFields DVD{ _dvdMovieOrSeries=f1, _dvdDirector=f2, _dvdGenre=f3 } = [if f1 == Movie then "film" else "serie",f2,f3]
+       categorySearchFields CD{ _cdArtist=f1, _cdGenre=f2 } = [f1,f2]
        categorySearchFields Tool{} = []
        categorySearchFields Electronics = []
        categorySearchFields Misc = []
