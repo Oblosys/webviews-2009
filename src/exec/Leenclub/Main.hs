@@ -296,7 +296,7 @@ deriveInitial ''Inline
 
 -- TODO: maybe distance
 data ItemView = 
-  ItemView Inline Double Item Lender (Widget (Button Database)) (Maybe Lender)
+  ItemView Inline Double Item (Maybe Item) Lender (Widget (Button Database)) (Maybe Lender) [(String,Property Item)] [Widget (Button Database)]
     deriving (Eq, Show, Typeable, Data)
 
 instance Initial LenderId where
@@ -316,10 +316,14 @@ deriveInitial ''Item
 
 deriveInitial ''ItemView
 
+-- todo: use partial lense here?
+mEditedItem :: ItemView :-> Maybe Item
+mEditedItem = lens (\(ItemView _ _ _ mEditedItem _ _ _ _ _) -> mEditedItem)
+                   (\mEditedItem (ItemView a b c d e f g h i) -> (ItemView a b c mEditedItem e f g h i))
 --updateById id update db = let object = unsafeLookup 
  
 mkItemView inline item = mkWebView $
-  \vid oldItemView@ItemView{} -> 
+  \vid oldItemView@(ItemView _ _ _ mEdited _ _ _ _ _) -> 
     do { owner <- unsafeLookupM "itemView" allLenders (get itemOwner item)
        
        ; user <- getUser
@@ -342,18 +346,35 @@ mkItemView inline item = mkWebView $
                                  ; return $ lenderDistance userLender owner
                                  }   
            _               -> return $ -1
-       ; return $ ItemView inline distance item owner button mBorrower
+           
+       ; props <- (if inline == Inline then getInlineCategoryProps else getFullCategoryProps) vid (isJust mEdited) item $ get itemCategory item
+       
+       ; buttons <- if False {- isInline inline -} then return [] else
+          do { editButton <- mkButton (maybe "Aanpassen" (const "Gereed") mEdited) True $
+                 Edit $ case mEdited of
+                          Nothing            -> viewEdit vid $ set mEditedItem (Just item)
+                          Just updatedItem -> do { docEdit $ updateItem (get itemId updatedItem) $ \item -> updatedItem
+                                                 ; viewEdit vid $ set mEditedItem Nothing
+                                                 ; liftIO $ putStrLn $ "updating item \n" ++ show updatedItem
+                                                 }
+             ; buttons <- if not $ isJust mEdited then return [] else
+                    fmap singleton $ mkButton "Annuleren" True $ Edit $ viewEdit vid $ set mEditedItem Nothing
+             ; return $ [ editButton ] ++ buttons
+             }
+       
+       
+       ; return $ ItemView inline distance item mEdited owner button mBorrower props buttons
        }
        
 instance Presentable ItemView where
-  present (ItemView Full dist item owner button mBorrower) =
+  present (ItemView Full dist item _ owner button mBorrower props buttons) =
         vList [ h2 $ toHtml (getItemCategoryName item ++ ": " ++ get itemName item)
               , hList [ (div_ (boxedEx 1 $ image ("items/" ++ get itemImage item) ! style "height: 200px")) ! style "width: 204px" ! align "top"
                       , nbsp
                       , nbsp
                       , vList $ [ with [style "color: #333; font-size: 16px"] $
-                                    presentProperties $ ("Eigenaar: ", linkedLenderFullName owner):
-                                                        (map (\(p,v)->(p, toHtml v)) $ getFullCategoryProps $ get itemCategory item)
+                                    presentEditableProperties -- ("Eigenaar: ", StaticProperty linkedLenderFullName owner):
+                                                              props
                                 ] 
                                 ++ maybe [] (\borrower -> [ vSpace 10, with [style "color: red"] $ 
                                                            "Uitgeleend aan " +++ linkedLenderFullName borrower]) mBorrower
@@ -363,8 +384,9 @@ instance Presentable ItemView where
               , vSpace 10
               , with [ style "font-weight: bold"] $ "Beschrijving:" 
               , multiLineStringToHtml $ get itemDescr item
+              , hList $ map present buttons
               ]
-  present (ItemView Inline dist item owner button mBorrower) =
+  present (ItemView Inline dist item mEdited owner button mBorrower props buttons) =
     -- todo present imdb link, present movieOrSeries
       hStretchList
             [ E $ linkedItem item $ (div_ (boxedEx 1 $ image ("items/" ++ get itemImage item) ! style "height: 120px")) ! style "width: 124px" ! align "top"
@@ -376,8 +398,8 @@ instance Presentable ItemView where
                            [ with [style "font-weight: bold; font-size: 15px"] $ toHtml (getItemCategoryName item ++ ": " ++ get itemName item) 
                            , vSpace 2
                            , with [style "color: #333"] $
-                               presentProperties $ (getInlineCategoryProps $ get itemCategory item) ++
-                                                   [("Punten", toHtml . show $ get itemPrice item)]
+                               presentEditableProperties props -- ++
+                                                   -- [("Punten", toHtml . show $ get itemPrice item)]
                            , vSpace 3
                            , with [style "font-weight: bold"] $ "Beschrijving:" 
                            , with [class_ "ellipsis multiline", style "height: 30px;"] $
@@ -394,7 +416,10 @@ instance Presentable ItemView where
                 ] ++
                   maybe [] (\borrower -> [with [style "color: red; font-size: 12px"] $ "Uitgeleend aan " +++ linkedLenderFullName borrower]) mBorrower
                   ++ [ vSpace 5
-                , present button ]
+                , present button 
+                , vSpace 10
+                , hList $ map present buttons
+              ]
                 ) ! style "width: 200px; height: 120px; padding: 5; font-size: 12px"
             ]
 vDivList elts = div_ $ mapM_ div_ elts 
@@ -418,38 +443,55 @@ getItemCategoryName item = case get itemCategory item of
                              Electronics{} -> "Gadget"
                              Misc{}        -> "Misc"
 
-getInlineCategoryProps c = [ inlineProp | Left inlineProp <- getAllCategoryProps c ] 
-getFullCategoryProps c = [ either id id eProp  | eProp <- getAllCategoryProps c ] 
+
+getInlineCategoryProps vid isEdited item c = do { props <- getAllCategoryProps vid isEdited item c
+                                                ; return [ inlineProp | Left inlineProp <- props ]
+                                                } 
+                              
+getFullCategoryProps vid isEdited item c = fmap (map $ either id id) $ getAllCategoryProps vid isEdited item c 
 
 -- Left is only Full, Right is Full and Inline
-getAllCategoryProps :: Category -> [Either (String,Html) (String,Html)]
-getAllCategoryProps c@Book{}        = [ Left ("Auteur", toHtml $ _bookAuthor c)
-                                      , Right ("Jaar", toHtml . show $ _bookYear c)
-                                      , Left ("Taal", toHtml $ _bookLanguage c)
-                                      , Left ("Genre", toHtml $ _bookGenre c)
-                                      , Right ("Aantal bladz.", toHtml . show $ _bookPages c) ]
-getAllCategoryProps c@Game{}        = [ Left ("Platform", toHtml $ _gamePlatform c)
-                                      , Left ("Jaar", toHtml . show $ _gameYear c)
-                                      , Right ("Developer", toHtml $ _gameDeveloper c)
-                                      , Right ("Genre", toHtml $ _gameGenre c) ]
-getAllCategoryProps c@CD{}          = [ Left ("Artiest", toHtml $ _cdArtist c)
-                                      , Left ("Jaar", toHtml . show $ _cdYear c)
-                                      , Left ("Genre", toHtml $ _cdGenre c) ]
-getAllCategoryProps c@DVD{}         = [ Right ("Seizoen", toHtml . show $ _dvdSeason c)
-                                      , Right ("Taal", toHtml $ _dvdLanguage c)
-                                      , Right ("Jaar", toHtml . show $ _dvdYear c)
-                                      , Left ("Genre", toHtml $ _dvdGenre c)
-                                      , Left ("Regisseur", toHtml $ _dvdDirector c)
-                                      , Right ("Aantal afl.", toHtml . show $ _dvdNrOfEpisodes c)
-                                      , Right ("Speelduur", toHtml . show $ _dvdRunningTime c)
-                                      , Left ("IMdb", if null $ _dvdIMDb c then "" else a (toHtml $ _dvdIMDb c) ! href (toValue $ _dvdIMDb c) ! target "_blank" ! style "color: blue")
-                                      ]
-getAllCategoryProps c@Tool{}        = [ Left ("Merk", toHtml $ _toolBrand c)
-                                      , Left ("Type", toHtml $ _toolType c) ]
-getAllCategoryProps c@Electronics{} = []
-getAllCategoryProps c@Misc{}        = [] 
+getAllCategoryProps :: ViewId -> Bool -> Item -> Category -> WebViewM Database [Either (String,Property Item) (String, Property Item)]
+getAllCategoryProps vid isEdited item c = 
+  let mkStringProp leftOrRight name catField = fmap (\p -> leftOrRight (name, p)) $ mkEditableProperty vid isEdited mEditedItem (pLens "getAllCategoryProps" $ catField . itemCategory) id Just toHtml item 
+      mkIntProp leftOrRight name catField = fmap (\p -> leftOrRight (name, p)) $ mkEditableProperty vid isEdited mEditedItem (pLens "getAllCategoryProps" $ catField . itemCategory) show readMaybe toHtml item
+  in  sequence $ case c of
+      Book{} -> 
+        [ mkStringProp Left  "Auteur"        bookAuthor
+        , mkIntProp    Right "Jaar"          bookYear
+        , mkStringProp Left  "Taal"          bookLanguage
+        , mkStringProp Left  "Genre"         bookGenre
+        , mkIntProp    Right "Aantal bladz." bookPages
+        ]
+      Game{} ->
+        [ mkStringProp Left  "Platform"  gamePlatform
+        , mkIntProp    Left  "Jaar"      gameYear
+        , mkStringProp Right "Developer" gameDeveloper
+        , mkStringProp Left  "Genre"     gameGenre
+        ]
+      CD{} ->
+        [ mkStringProp Left "Artiest" cdArtist
+        , mkIntProp    Left "Jaar"    cdYear
+        , mkStringProp Left "Genre"   cdGenre
+        ]
+      DVD{} ->
+        [ mkIntProp    Right "Seizoen"     dvdSeason
+        , mkStringProp Right "Taal"        dvdLanguage
+        , mkIntProp    Right "Jaar"        dvdYear
+        , mkStringProp Left "Genre"        dvdGenre
+        , mkStringProp Left "Regisseur"    dvdDirector
+        , mkIntProp    Right "Aantal afl." dvdNrOfEpisodes
+        , mkIntProp    Right "Speelduur"   dvdRunningTime
+        , fmap (\p -> Left ("IMDb", p)) $ mkEditableProperty vid isEdited mEditedItem (pLens "getAllCategoryProps" $ dvdIMDb . itemCategory) id Just 
+               (\str -> if null str then "" else a (toHtml str) ! href (toValue str) ! target "_blank" ! style "color: blue") 
+               item -- this one is special because of the html presentation as a link
+        ]
+      Tool{} ->
+        [ mkStringProp Left "Merk" toolBrand
+        , mkStringProp Left "Type" toolType
+        ]
+      _ -> []
 
-                    
 presentPrice price =
   with [style "width:30px; height:28px; padding: 2 0 0 0; color: white; background-color: black; font-family: arial; font-size:24px; text-align: center"] $
     toHtml $ show price 
@@ -548,7 +590,6 @@ mkLenderView inline lender = mkWebView $
                                                    ; viewEdit vid $ set mEditedLender Nothing
                                                    ; liftIO $ putStrLn $ "updating lender\n" ++ show updatedLender
                                                    }
-                    --trace ("updated lender zip:"++lenderZipCode updatedLender) $ LenderView a Nothing b updatedLender d [prop'] f g
              ; buttons <- if not $ isJust mEdited then return [] else
                     fmap singleton $ mkButton "Annuleren" True $ Edit $ viewEdit vid $ set mEditedLender Nothing
              ; return (itemWebViews, [ editButton ] ++ buttons)
