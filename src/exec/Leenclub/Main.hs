@@ -461,7 +461,7 @@ mkEditableSelectProperty vid editing objectLens valueLens presStr pres propVals 
                                          Just i  -> i
                                          Nothing -> 0 -- if the property is not in the list, we select the first one 
                                                       -- (this can happen if the list does not contain all values)
-                     in  fmap (Right . PropertySelectView) $ mkSelectViewWithStyleChange propValStrs selectionIx True "background-color: red" $ \sel -> 
+                     in  fmap (Right . PropertySelectView) $ mkSelectViewWithChange propValStrs selectionIx True $ \sel -> 
                            Edit $ viewEdit vid $ \v ->
                              case get objectLens v of
                                Nothing -> v
@@ -484,15 +484,15 @@ instance Presentable (Property a) where
 
 instance Storeable Database (Property a)
 
-presentProperties' :: [(String, Property a)] -> Html            
-presentProperties' namedProps =
+presentEditableProperties :: [(String, Property a)] -> Html            
+presentEditableProperties namedProps =
   table $ sequence_ [ tr $ sequence_ [ td $ with [style "font-weight: bold"] $ toHtml propName, td $ nbsp +++ ":" +++ nbsp
                                      , td $ present prop] 
                     | (propName, prop) <- namedProps
                     ]
 
 data LenderView = 
-  LenderView Inline User Lender (Maybe Lender) [Property Lender] [(String,Property Lender)]
+  LenderView Inline User Lender (Maybe Lender) {- [Property Lender] -} [(String,Property Lender)]  [(String,Property Lender)]
              --(Maybe (Widget (TextView Database, TextView Database)))
              [WebView Database] [Widget (Button Database)]
     deriving (Eq, Show, Typeable, Data)
@@ -517,11 +517,13 @@ mkLenderView inline lender = mkWebView $
        ; fName <- mkTextField (get lenderFirstName lender)
        ; lName <- mkTextField (get lenderLastName lender)
 
-
+{-
        ; prop0 <- mkStaticProperty (lenderIdLogin . lenderId) toHtml lender
        ; prop1 <- mkEditableProperty vid (isJust mEdited) mEditedLender lenderFirstName id Just toHtml lender
        ; let testProps = [ prop0, prop1 ]
-       ; props <- (if lenderIsUser lender mUser then getLenderPropsSelf' else getLenderPropsEveryone') vid (isJust mEdited) lender
+-}
+       ; props <- (if lenderIsUser lender mUser then getLenderPropsSelf else getLenderPropsEveryone) vid (isJust mEdited) lender
+       ; extraProps <- if lenderIsUser lender mUser then getExtraProps vid (isJust mEdited) lender else return [] 
        ; (itemWebViews, buttons) <- if isInline inline then return ([],[]) else
           do { itemWebViews <-  mapM (mkItemView Inline) items
              ; editButton <- mkButton (maybe "Aanpassen" (const "Gereed") mEdited) (lenderIsUser lender mUser) $
@@ -536,29 +538,27 @@ mkLenderView inline lender = mkWebView $
                     fmap singleton $ mkButton "Annuleren" True $ Edit $ viewEdit vid $ set mEditedLender Nothing
              ; return (itemWebViews, [ editButton ] ++ buttons)
              }
-       ; return $ LenderView inline mUser lender mEdited testProps props itemWebViews buttons 
+       ; return $ LenderView inline mUser lender mEdited {- testProps -} props extraProps itemWebViews buttons 
        }
        
 lenderIsUser lender Nothing          = False
 lenderIsUser lender (Just (login,_)) = get (lenderIdLogin . lenderId) lender == login
  
 instance Presentable LenderView where
-  present (LenderView Full mUser lender _ testProps props itemWebViews buttons)   =
+  present (LenderView Full mUser lender _ {- testProps -} props extraProps itemWebViews buttons)   =
         vList [ vSpace 20
               , hList [ (div_ (boxedEx 1 $ image ("leners/" ++ get lenderImage lender) ! style "height: 200px")) ! style "width: 204px" ! align "top"
                       , hSpace 20
                       , vList [ h2 $ {- if editing 
                                      then hList [ present fName, nbsp, present lName ] 
                                      else -} (toHtml $ showName lender) -- +++ (with [style "display: none"] $ concatHtml $ map present [fName,lName]) -- todo: not nice!
-                              , hList [ vList [ presentProperties $
-                                                 (if lenderIsUser lender mUser then getLenderPropsSelf else getLenderPropsEveryone) lender
-                                              , vList $ map present testProps
-                                              , presentProperties' props
+                              , hList [ vList [ presentEditableProperties props
+                                              --, vList $ map present testProps
                                               , vSpace 20
                                               , hList $ map present buttons
                                               ]
                                       , hSpace 20
-                                      , presentProperties $ getExtraProps lender
+                                      , presentEditableProperties extraProps
                                       ]
                               ]
                       ]
@@ -566,13 +566,13 @@ instance Presentable LenderView where
               , h2 $ (toHtml $ "Spullen van "++get lenderFirstName lender)
               , vList $ map present itemWebViews
               ]
-  present (LenderView Inline mUser lender mEdited testProps props itemWebViews buttons) =
+  present (LenderView Inline mUser lender mEdited {- testProps -} props extraProps itemWebViews buttons) =
     linkedLender lender $
       hList [ (div_ (boxedEx 1 $ image ("leners/" ++ get lenderImage lender) ! style "height: 30px")) ! style "width: 34px" ! align "top"
             , nbsp
             , nbsp
             , vList [ toHtml (showName lender)
-                    , vList $ map present testProps
+                    --, vList $ map present testProps
                     , span_ (presentRating 5 $ get lenderRating lender) ! style "font-size: 20px"
                     , hList $ map present buttons
                                               
@@ -580,40 +580,33 @@ instance Presentable LenderView where
          --   , with [style "display: none"] $ concatHtml $ map present [fName,lName] ++ [present editButton] -- todo: not nice! 
             ]
 
-getLenderPropsEveryone lender = [ prop | Left prop <- getLenderPropsAll lender ]
-getLenderPropsSelf lender  = [ either id id eProp  | eProp <- getLenderPropsAll lender ]
-
--- Left is both self and others, Right is only self.
-getLenderPropsAll lender = [ Right ("LeenClub ID", toHtml $ get (lenderIdLogin . lenderId) lender)
-                           , Left  ("M/V", toHtml . show $ get lenderGender lender)
-                           , Left  ("E-mail", toHtml $ get lenderMail lender)
-                           , Right ("Adres", toHtml $ get lenderStreet lender ++ " " ++ get lenderStreetNr lender)
-                           , Left  ("Postcode", toHtml $ get lenderZipCode lender)
-                           , Right ("Woonplaats", toHtml $ get lenderCity lender)
-                           ]
                            
-getLenderPropsEveryone' vid isEdited lender = do { props <- getLenderPropsAll' vid isEdited lender
+getLenderPropsEveryone vid isEdited lender = do { props <- getLenderPropsAll vid isEdited lender
                                                 ; return [ prop | Left prop <- props ]
                                                 }
-getLenderPropsSelf' vid isEdited lender = do { props <- getLenderPropsAll' vid isEdited lender
+getLenderPropsSelf vid isEdited lender = do { props <- getLenderPropsAll vid isEdited lender
                                             ; return [ either id id eProp  | eProp <- props ]
                                             }
    -- todo: composed properties? address is street + nr
    --       non-string properties?                        
-getLenderPropsAll' vid isEdited lender = sequence
+getLenderPropsAll vid isEdited lender = sequence
   [ fmap (\p -> Right ("LeenClub ID", p)) $ mkStaticProperty (lenderIdLogin . lenderId) toHtml lender
   , fmap (\p -> Left ("M/V", p)) $ mkEditableSelectProperty vid isEdited mEditedLender lenderGender show (toHtml . show) [M,F] lender
   , fmap (\p -> Left ("E-mail", p)) $ mkEditableProperty vid isEdited mEditedLender lenderMail id Just toHtml lender
   , fmap (\p -> Right ("Adres", p)) $ mkEditableProperty vid isEdited mEditedLender lenderStreet id Just toHtml lender
   , fmap (\p -> Left ("Postcode", p)) $ mkEditableProperty vid isEdited mEditedLender lenderZipCode id Just toHtml lender 
   , fmap (\p -> Right ("Woonplaats", p)) $ mkEditableProperty vid isEdited mEditedLender lenderCity id Just toHtml lender 
-  , fmap (\p -> Right ("Rating", p)) $ mkEditableSelectProperty vid isEdited mEditedLender lenderRating show (presentRating 5) [0..5] lender 
   ]
 
-getExtraProps lender = [ ("Rating", with [style "font-size: 20px; position: relative; top: -5px; height: 17px" ] (presentRating 5 $ get lenderRating lender)) 
+getExtraProps' lender = [ ("Rating", with [style "font-size: 20px; position: relative; top: -5px; height: 17px" ] (presentRating 5 $ get lenderRating lender)) 
                        , ("Puntenbalans", toHtml . show $ get lenderNrOfPoints lender)
                        , ("Aantal spullen", toHtml . show $ length (get lenderItems lender))
                        ]
+getExtraProps vid isEdited lender = sequence 
+  [ fmap ("Rating",) $ mkEditableSelectProperty vid isEdited mEditedLender lenderRating show (presentRating 5) [0..5] lender 
+  , fmap ("Puntenbalans",) $ mkStaticProperty lenderNrOfPoints (toHtml . show) lender
+  , fmap ("Aantal spullen",) $ mkStaticProperty lenderItems (toHtml . show  . length ) lender
+  ]
 
 {-
  Lender { lenderId :: LenderId, lenderFirstName :: String, lenderLastName :: String, lenderGender :: Gender 
