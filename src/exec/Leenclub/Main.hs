@@ -96,6 +96,9 @@ data SortView db =
 instance Data db => Initial (SortView db) where
   initial = SortView initial initial initial
 
+instance Data db =>  MapWebView db (SortView db) where
+   mapWebView fwv fwd (SortView a b c) = SortView <$> mapWebView fwv fwd a  <*> mapWebView fwv fwd b <*> mapWebView fwv fwd c
+
 instance Data db => Storeable db (SortView db)
 
 -- [("sorteer oplopend", id), ("sorteer aflopend", reverse)]
@@ -134,6 +137,9 @@ data SearchView db =
 
 instance Data db => Initial (SearchView db) where
   initial = SearchView initial initial initial initial initial
+
+instance Data db =>  MapWebView db (SearchView db) where
+  mapWebView fwv fwd (SearchView a b c d e) = pure SearchView <*> pure a <*> mapWebView fwv fwd b <*> mapWebView fwv fwd c <*> mapWebView fwv fwd d <*> pure e
 
 instance Data db => Storeable db (SearchView db)
 
@@ -218,6 +224,23 @@ instance Initial Html where
 
 instance Initial (Property a) where
   initial = StaticProperty initial
+
+instance MapWebView Database (Property a) where
+  mapWebView fwv fwd (EditableProperty a) = pure EditableProperty <*> mapWebView fwv fwd a 
+  mapWebView fwv fwd (StaticProperty a) = pure StaticProperty <*> pure a 
+  
+instance MapWebView Database PropertyWidget where
+  mapWebView fwv fwd (PropertyTextView a) = pure PropertyTextView <*> mapWebView fwv fwd a 
+  mapWebView fwv fwd (PropertySelectView a) = pure PropertySelectView <*> mapWebView fwv fwd a 
+
+
+instance MapWebView db b => MapWebView db (String, b) where
+  mapWebView fwv fwd (a,b) = pure (,) <*> pure a <*> mapWebView fwv fwd b
+
+-- todo: these are tricky, similar to tuples. Create all 4 possibilities and use overlapping instances?
+instance MapWebView db b => MapWebView db (Either a b) where
+  mapWebView fwv fwd (Left a) = pure Left <*> pure a
+  mapWebView fwv fwd (Right a) = pure Right <*> mapWebView fwv fwd a
 
 {- The update is a database update, but it would be better to be able to specify a view update, since we don't 
 want to commit all textfields immediately to the database. Maybe save could be part of the edit monad? (but then do we need
@@ -315,6 +338,10 @@ deriveInitial ''Category
 deriveInitial ''Item
 
 deriveInitial ''ItemView
+
+instance MapWebView Database ItemView where
+  mapWebView fwv fwd (ItemView a b c d e f g h i) = pure ItemView <*> pure a <*> pure b <*> pure c <*> pure d <*> pure e <*>
+                                                           mapWebView fwv fwd f <*> pure g <*> mapWebView fwv fwd h <*> mapWebView fwv fwd i 
 
 -- todo: use partial lense here?
 mEditedItem :: ItemView :-> Maybe Item
@@ -519,6 +546,9 @@ data LeenclubLoginOutView = LeenclubLoginOutView (WebView Database) deriving (Eq
 
 deriveInitial ''LeenclubLoginOutView
 
+instance MapWebView Database LeenclubLoginOutView where
+  mapWebView fwv fwd (LeenclubLoginOutView a) = pure LeenclubLoginOutView <*> mapWebView fwv fwd a
+
 instance Storeable Database LeenclubLoginOutView
 
 mkLeenClubLoginOutView = mkWebView $
@@ -557,6 +587,10 @@ data LenderView =
  -- todo: edit button in Inline/Full datatype?                  
 
 deriveInitial ''LenderView
+
+instance MapWebView Database LenderView where
+  mapWebView fwv fwd (LenderView a b c d e f g h) = pure LenderView <*> pure a <*> pure b <*> pure c <*> pure d <*> mapWebView fwv fwd e <*>
+                                                           mapWebView fwv fwd f <*> mapWebView fwv fwd g <*> mapWebView fwv fwd h 
 
 mEditedLender :: LenderView :-> Maybe Lender
 mEditedLender = lens (\(LenderView _ _ _ mEditedLender _ _ _ _) -> mEditedLender)
@@ -678,6 +712,9 @@ data ItemsRootView =
 
 deriveInitial ''ItemsRootView
 
+instance MapWebView Database ItemsRootView where
+  mapWebView fwv fwd (ItemsRootView a b c) = pure ItemsRootView <*> mapWebView fwv fwd  a <*> mapWebView fwv fwd b <*> mapWebView fwv fwd c
+
 instance Storeable Database ItemsRootView
 
 mkItemsRootView ::WebViewM Database (WebView Database)
@@ -709,6 +746,9 @@ data LendersRootView = LendersRootView (WebView Database)
     deriving (Eq, Show, Typeable, Data)
 
 deriveInitial ''LendersRootView
+
+instance MapWebView Database LendersRootView where
+  mapWebView fwv fwd (LendersRootView a) = pure LendersRootView <*> mapWebView fwv fwd  a
 
 instance Storeable Database LendersRootView
 
@@ -774,6 +814,9 @@ data LeenclubPageView = LeenclubPageView User String (EditAction Database) (WebV
 
 deriveInitial ''LeenclubPageView
 
+instance MapWebView Database LeenclubPageView where
+  mapWebView fwv fwd (LeenclubPageView a b c d) = pure LeenclubPageView <*> pure a <*> pure b <*> pure c <*> mapWebView fwv fwd d
+
 instance Storeable Database LeenclubPageView
 
 --updateById id update db = let object = unsafeLookup 
@@ -831,10 +874,14 @@ mkHomeView = mkHtmlTemplateView "LeenclubWelcome.html" []
 
 data TestView = 
   TestView Int (Widget (RadioView Database)) (Widget (Button Database)) (Widget (TextView Database)) (WebView Database) (WebView Database)
-           (Widget LabelView) (Widget (TextView Database))
+           (Widget (LabelView Database)) (Widget (TextView Database))
     deriving (Eq, Show, Typeable, Data)
 
 deriveInitial ''TestView
+
+instance MapWebView Database TestView where
+  mapWebView fwv fwd (TestView a b c d e f g h) = pure TestView <*> pure a <*> mapWebView fwv fwd b <*> mapWebView fwv fwd c <*> mapWebView fwv fwd d <*> mapWebView fwv fwd e <*>
+                                                           mapWebView fwv fwd f <*> mapWebView fwv fwd g <*> mapWebView fwv fwd h
 
 mkTestView :: WebViewM Database (WebView Database)
 mkTestView = mkWebView $
@@ -869,7 +916,8 @@ mkTestView = mkWebView $
 instance Presentable TestView where
   present (TestView radioSel radio button tf wv1 wv2 lbl txtArea) =
       vList [present radio, present button, present tf, toHtml $ show radioSel, present wv1, present wv2
-            , present lbl,present txtArea
+            , present lbl
+            , present txtArea
             ]
 
 
@@ -883,6 +931,9 @@ data TestView2 =
     deriving (Eq, Show, Typeable, Data)
 
 deriveInitial ''TestView2
+
+instance MapWebView Database TestView2 where
+  mapWebView fwv fwd (TestView2 a b c d) = pure TestView2 <*> mapWebView fwv fwd a <*> mapWebView fwv fwd b <*> pure c <*> pure d
 
 mkTestView2 :: WebViewM Database (WebView Database)
 mkTestView2 = mkWebView $
@@ -917,8 +968,34 @@ mkTestView3 msg = mkPresentView (\hs -> hList $ toHtml (msg :: String) : hs) $
        }
 
 
+-- some webviews for testing with ghci
 
+data AView db = AView (WebView db) (Widget (TextView db)) String (Widget (TextView db))
 
+instance Data db => MapWebView db (AView db) where
+  mapWebView fwv fwd (AView wv1 wd1 str wd2) = 
+    pure AView <*> mapWebView fwv fwd wv1 <*> mapWebView fwv fwd wd1 <*> pure str <*> mapWebView fwv fwd wd2 
+
+data BView db = BView String (AView db)
+
+instance Data db =>  MapWebView db (BView db) where
+  mapWebView fwv fwd (BView str a) = pure BView <*> pure str <*> mapWebView fwv fwd a
+
+--testmkwv :: x -> WebView Database
+testmkwv x = WebView (ViewId []) noId noId undefined $ x 
+
+testwv i = testmkwv $ HtmlTemplateView (show i)
+ 
+testwv0 :: WebView Database
+testwv0 =  WebView (ViewId []) (Id 1) (Id 2) undefined $ ItemsRootView (testwv 1) (testwv 1) $
+                   button (ViewId []) "click me" True "" "" LogoutEdit
+
+testwd :: String -> Widget (Button Database)
+testwd str = button (ViewId []) str True "" "" LogoutEdit
+testproplist :: [(String, Property Item)]
+testproplist =  [("LeenClub ID",StaticProperty "martijn"),("M/V",EditableProperty (Right (PropertySelectView (Widget {getWidgetStubId = Id {unId = -1}, getWidgetId = Id {unId = -1}, getWidgetWidget = SelectView {getSelectViewId = ViewId [], getSelectItems = ["M","F"], getSelection' = 0, getSelectEnabled = True, getSelectStyle = "", getSelectChange = Just undefined}}))))]
+instance MapWebView Database BorrowedRootView where
+  mapWebView fwv fwd (BorrowedRootView a b) = pure BorrowedRootView <*> mapWebView fwv fwd a <*> mapWebView fwv fwd b
 
 
 
