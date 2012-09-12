@@ -139,7 +139,7 @@ instance Data db => Initial (SearchView db) where
   initial = SearchView initial initial initial initial initial
 
 instance Data db =>  MapWebView db (SearchView db) where
-  mapWebView fns (SearchView a b c d e) = SearchView <$> pure a <*> mapWebView fns b <*> mapWebView fns c <*> mapWebView fns d <*> pure e
+  mapWebView fns (SearchView a b c d e) = SearchView <$> mapWebView fns a <*> mapWebView fns b <*> mapWebView fns c <*> mapWebView fns d <*> mapWebView fns e
 
 instance Data db => Storeable db (SearchView db)
 
@@ -222,12 +222,14 @@ instance Data Html
 instance Initial Html where
   initial = noHtml
 
+instance MapWebView db Html
+  
 instance Initial (Property a) where
   initial = StaticProperty initial
 
 instance MapWebView Database (Property a) where
   mapWebView fns (EditableProperty a) = EditableProperty <$> mapWebView fns a 
-  mapWebView fns (StaticProperty a) = StaticProperty <$> pure a 
+  mapWebView fns (StaticProperty a) = StaticProperty <$> mapWebView fns a 
   
 instance MapWebView Database PropertyWidget where
   mapWebView fns (PropertyTextView a) = PropertyTextView <$> mapWebView fns a 
@@ -235,12 +237,7 @@ instance MapWebView Database PropertyWidget where
 
 
 instance MapWebView db b => MapWebView db (String, b) where
-  mapWebView fns (a,b) = (,) <$> pure a <*> mapWebView fns b
-
--- todo: these are tricky, similar to tuples. Create all 4 possibilities and use overlapping instances?
-instance MapWebView db b => MapWebView db (Either a b) where
-  mapWebView fns (Left a) = Left <$> pure a
-  mapWebView fns (Right a) = Right <$> mapWebView fns a
+  mapWebView fns (a,b) = (,) <$> mapWebView fns a <*> mapWebView fns b
 
 {- The update is a database update, but it would be better to be able to specify a view update, since we don't 
 want to commit all textfields immediately to the database. Maybe save could be part of the edit monad? (but then do we need
@@ -317,6 +314,8 @@ isInline Full   = False
 
 deriveInitial ''Inline
 
+instance MapWebView db Inline
+
 -- TODO: maybe distance
 data ItemView = 
   ItemView Inline Double Item (Maybe Item) Lender (Widget (Button Database)) (Maybe Lender) [(String,Property Item)] [Widget (Button Database)]
@@ -330,6 +329,8 @@ deriveInitial ''Gender
 
 deriveInitial ''Lender
 
+instance MapWebView db Lender
+
 instance Initial ItemId where
   initial = ItemId (-1)
       
@@ -337,11 +338,13 @@ deriveInitial ''Category
 
 deriveInitial ''Item
 
+instance MapWebView db Item
+
 deriveInitial ''ItemView
 
 instance MapWebView Database ItemView where
-  mapWebView fns (ItemView a b c d e f g h i) = ItemView <$> pure a <*> pure b <*> pure c <*> pure d <*> pure e <*>
-                                                             mapWebView fns f <*> pure g <*> mapWebView fns h <*> mapWebView fns i 
+  mapWebView fns (ItemView a b c d e f g h i) = ItemView <$> mapWebView fns a <*> mapWebView fns b <*> mapWebView fns c <*> mapWebView fns d <*> mapWebView fns e <*>
+                                                             mapWebView fns f <*> mapWebView fns g <*> mapWebView fns h <*> mapWebView fns i 
 
 -- todo: use partial lense here?
 mEditedItem :: ItemView :-> Maybe Item
@@ -589,7 +592,7 @@ data LenderView =
 deriveInitial ''LenderView
 
 instance MapWebView Database LenderView where
-  mapWebView fns (LenderView a b c d e f g h) = LenderView <$> pure a <*> pure b <*> pure c <*> pure d <*> mapWebView fns e <*>
+  mapWebView fns (LenderView a b c d e f g h) = LenderView <$> mapWebView fns a <*> mapWebView fns b <*> mapWebView fns c <*> mapWebView fns d <*> mapWebView fns e <*>
                                                                mapWebView fns f <*> mapWebView fns g <*> mapWebView fns h 
 
 mEditedLender :: LenderView :-> Maybe Lender
@@ -815,7 +818,7 @@ data LeenclubPageView = LeenclubPageView User String (EditAction Database) (WebV
 deriveInitial ''LeenclubPageView
 
 instance MapWebView Database LeenclubPageView where
-  mapWebView fns (LeenclubPageView a b c d) = LeenclubPageView <$> pure a <*> pure b <*> pure c <*> mapWebView fns d
+  mapWebView fns (LeenclubPageView a b c d) = LeenclubPageView <$> mapWebView fns a <*> mapWebView fns b <*> mapWebView fns c <*> mapWebView fns d
 
 instance Storeable Database LeenclubPageView
 
@@ -880,7 +883,7 @@ data TestView =
 deriveInitial ''TestView
 
 instance MapWebView Database TestView where
-  mapWebView fns (TestView a b c d e f g h) = TestView <$> pure a <*> mapWebView fns b <*> mapWebView fns c <*> mapWebView fns d <*> mapWebView fns e <*>
+  mapWebView fns (TestView a b c d e f g h) = TestView <$> mapWebView fns a <*> mapWebView fns b <*> mapWebView fns c <*> mapWebView fns d <*> mapWebView fns e <*>
                                                            mapWebView fns f <*> mapWebView fns g <*> mapWebView fns h
 
 mkTestView :: WebViewM Database (WebView Database)
@@ -933,7 +936,7 @@ data TestView2 =
 deriveInitial ''TestView2
 
 instance MapWebView Database TestView2 where
-  mapWebView fns (TestView2 a b c d) = TestView2 <$> mapWebView fns a <*> mapWebView fns b <*> pure c <*> pure d
+  mapWebView fns (TestView2 a b c d) = TestView2 <$> mapWebView fns a <*> mapWebView fns b <*> mapWebView fns c <*> mapWebView fns d
 
 mkTestView2 :: WebViewM Database (WebView Database)
 mkTestView2 = mkWebView $
@@ -974,12 +977,12 @@ data AView db = AView (WebView db) (Widget (TextView db)) String (Widget (TextVi
 
 instance Data db => MapWebView db (AView db) where
   mapWebView fns (AView wv1 wd1 str wd2) = 
-    pure AView <*> mapWebView fns wv1 <*> mapWebView fns wd1 <*> pure str <*> mapWebView fns wd2 
+    AView <$> mapWebView fns wv1 <*> mapWebView fns wd1 <*> mapWebView fns str <*> mapWebView fns wd2 
 
 data BView db = BView String (AView db)
 
 instance Data db =>  MapWebView db (BView db) where
-  mapWebView fns (BView str a) = BView <$> pure str <*> mapWebView fns a
+  mapWebView fns (BView str a) = BView <$> mapWebView fns str <*> mapWebView fns a
 
 --testmkwv :: x -> WebView Database
 testmkwv x = WebView (ViewId []) noId noId undefined $ x 

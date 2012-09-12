@@ -1,4 +1,5 @@
-{-# LANGUAGE ExistentialQuantification, FlexibleContexts, TypeSynonymInstances, FlexibleInstances, DeriveDataTypeable, MultiParamTypeClasses, RankNTypes, ImpredicativeTypes #-}
+{-# LANGUAGE ExistentialQuantification, FlexibleContexts, TypeSynonymInstances, FlexibleInstances, DeriveDataTypeable #-}
+{-# LANGUAGE MultiParamTypeClasses, RankNTypes, ImpredicativeTypes, OverlappingInstances #-}
 module Types where
 
 import ObloUtils
@@ -482,6 +483,7 @@ class MapWebView db v where
                             , Bool -- specifies whether map will recurse in WebView children
                             )
                 ) -> v -> s -> (v, s)
+  mapWebView fns x = pure x
 
 instance MapWebView db (WebView db) where
   mapWebView fns@(fwv,_,recursive) wv state =
@@ -493,20 +495,33 @@ instance MapWebView db (WebView db) where
 instance Data (w db) => MapWebView db (Widget (w db)) where
   mapWebView (_,fwd,_) wd state = fwd state wd
 
+instance MapWebView db a => MapWebView db (Maybe a) where
+  mapWebView fns Nothing = pure Nothing
+  mapWebView fns (Just a) = Just <$> mapWebView fns a
+
 instance MapWebView db a => MapWebView db [a] where
   mapWebView fns []     = pure []
   mapWebView fns (a:as) = (:) <$> mapWebView fns a <*> mapWebView fns as 
 
--- used in Server (to take old and new rootviews together for computing unique id's)
-instance MapWebView db (WebView db, WebView db) where
-  mapWebView fns (a,b) = (,) <$> mapWebView fns a <*> mapWebView fns b 
+instance (MapWebView db a, MapWebView db b) => MapWebView db (Either a b) where
+  mapWebView fns (Left a)  = Left <$> mapWebView fns a
+  mapWebView fns (Right a) = Right <$> mapWebView fns a
 
-instance MapWebView db () where
-  mapWebView fns () = pure ()
+instance (MapWebView db a, MapWebView db b) => MapWebView db (a,b) where
+  mapWebView fns (a,b) = (,) <$> mapWebView fns a <*> mapWebView fns b
 
-instance MapWebView db a => MapWebView db (Maybe a) where
-  mapWebView fns Nothing = pure Nothing
-  mapWebView fns (Just a) = Just <$> mapWebView fns a
+instance MapWebView db ()
+
+instance MapWebView db Bool
+
+instance MapWebView db String
+
+instance MapWebView db Int
+
+instance MapWebView db Double
+
+instance MapWebView db (EditAction db)
+
 
 -- We could make this an instance of Applicative, but there don't seem to be many advantages (yet).
 type F s a = s -> (a,s)
