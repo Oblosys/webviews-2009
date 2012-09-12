@@ -61,7 +61,7 @@ testLstQ = (Nothing `mkQ`  (\xs -> Just $ [ Left x | x <- xs ])
                     `extQ` (\xs -> Just $ [ Right (Right x) | x <- xs ])
         )
 
-mkWebNodeMap :: (Typeable db, Data d) => d -> WebNodeMap db
+mkWebNodeMap :: (Typeable db) => WebView db -> WebNodeMap db
 mkWebNodeMap x = mkWebNodeMapAlt x {- Map.fromList $ everything (++) 
   ([] `mkQ`  (\w@(WebView vid sid id _ _) -> [(vid, WebViewNode w)]) 
       `extQ` (\(Widget sid id w) -> let vid = getViewId w in [(vid, WidgetNode vid sid id $ LabelWidget w)])
