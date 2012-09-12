@@ -62,7 +62,7 @@ testLstQ = (Nothing `mkQ`  (\xs -> Just $ [ Left x | x <- xs ])
         )
 
 mkWebNodeMap :: (Typeable db, Data d) => d -> WebNodeMap db
-mkWebNodeMap x = Map.fromList $ everything (++) 
+mkWebNodeMap x = mkWebNodeMapAlt x {- Map.fromList $ everything (++) 
   ([] `mkQ`  (\w@(WebView vid sid id _ _) -> [(vid, WebViewNode w)]) 
       `extQ` (\(Widget sid id w) -> let vid = getViewId w in [(vid, WidgetNode vid sid id $ LabelWidget w)])
       `extQ` (\(Widget sid id w) -> let vid = getViewId w in [(vid, WidgetNode vid sid id $ TextWidget w)])
@@ -71,6 +71,7 @@ mkWebNodeMap x = Map.fromList $ everything (++)
       `extQ` (\(Widget sid id w) -> let vid = getViewId w in [(vid, WidgetNode vid sid id $ ButtonWidget w)])
       `extQ` (\(Widget sid id w) -> let vid = getViewId w in [(vid, WidgetNode vid sid id $ JSVarWidget w)])
   ) x    
+-}
 
 -- TODO: maybe call these getChildWebNodes..?
 getTopLevelWebNodesWebView :: Data db => WebView db -> [WebNode db]
@@ -380,18 +381,18 @@ getTextByViewIdRef _ (ViewIdRef i) view =
  
 assignIdzAlt :: forall db . (Data db) => [Id] -> WebView db -> WebView db
 assignIdzAlt allIds rootView =
-  let assigned = fst $ mapWebView (assignIdsWebView, assignIdsWidget, True)
+  let assigned = fst $ mapWebView (assignIdsWV, assignIdsW, True)
                rootView freeIds
   in {- trace (if [] /= filter (==Id (-1))(getAll assigned :: [Id]) then show assigned else "ok") $ -} assigned
  where usedIds = IntSet.fromList $ map unId $ filter (/= noId) $ allIds 
        freeIds = (IntSet.fromList $ [0 .. length allIds - 1]) `IntSet.difference` usedIds
 
-       assignIdsWebView :: IntSet -> WebView db -> (WebView db, IntSet)
-       assignIdsWebView state (WebView vi sid id mkF v) = (WebView vi sid' id' mkF v, state'')
+       assignIdsWV :: IntSet -> WebView db -> (WebView db, IntSet)
+       assignIdsWV state (WebView vi sid id mkF v) = (WebView vi sid' id' mkF v, state'')
         where (sid',state') = mkId state sid
               (id',state'') = mkId state' id
        
-       assignIdsWidget state (Widget sid id w) = (Widget sid' id' w, state'')
+       assignIdsW state (Widget sid id w) = (Widget sid' id' w, state'')
         where (sid',state') = mkId state sid
               (id',state'') = mkId state' id
 
@@ -402,22 +403,28 @@ mkId ids (Id i) = if (i == -1)
                                               in  (Id newId, ids') 
                                     else (Id i, ids)       
 
+getTopLevelWebNodesWebViewAlt :: forall db v . (Typeable db, MapWebView db v) => v -> [WebNode db]
+getTopLevelWebNodesWebViewAlt v = map snd $ getWebNodesAndViewIds False v
+
+mkWebNodeMapAlt :: (Typeable db) => WebView db -> WebNodeMap db
+mkWebNodeMapAlt wv = Map.fromList $ getWebNodesAndViewIds True wv
+
+
+getWebNodesAndViewIds :: forall db v . (Typeable db, MapWebView db v) => Bool -> v -> [(ViewId, WebNode db)]
+getWebNodesAndViewIds recursive v = snd $ mapWebView (getWebNodesAndViewIdsWV, getWebNodesAndViewIdsWd, recursive) v []
+ where getWebNodesAndViewIdsWV :: [(ViewId, WebNode db)] -> WebView db -> (WebView db, [(ViewId, WebNode db)])
+       getWebNodesAndViewIdsWV state wv@(WebView vi _ _ _ _) = (wv, (vi, WebViewNode wv):state)
+
+       getWebNodesAndViewIdsWd :: Data (w db) => [(ViewId, WebNode db)] -> Widget (w db) -> (Widget (w db), [(ViewId, WebNode db)])
+       getWebNodesAndViewIdsWd state wd = (wd, widgetNode wd ++ state) 
+         where widgetNode :: (Typeable (w db), Typeable db) => Widget (w db) -> [(ViewId, WebNode db)]
+               widgetNode = 
+                 [] `mkQ`  (\(Widget sid id w) -> let vid = getViewId w in [(vid, WidgetNode vid sid id $ LabelWidget w)])
+                    `extQ` (\(Widget sid id w) -> let vid = getViewId w in [(vid, WidgetNode vid sid id $ TextWidget w)])
+                    `extQ` (\(Widget sid id w) -> let vid = getViewId w in [(vid, WidgetNode vid sid id $ RadioViewWidget w)])
+                    `extQ` (\(Widget sid id w) -> let vid = getViewId w in [(vid, WidgetNode vid sid id $ SelectViewWidget w)])
+                    `extQ` (\(Widget sid id w) -> let vid = getViewId w in [(vid, WidgetNode vid sid id $ ButtonWidget w)])
+                    `extQ` (\(Widget sid id w) -> let vid = getViewId w in [(vid, WidgetNode vid sid id $ JSVarWidget w)])
 -- todo: when we do this directly (without generics), get rid of the Data and Typeable contexts that were introduced
 -- with this getTopLevelWebNodesWebViewAlt
-getTopLevelWebNodesWebViewAlt :: forall db v . (Typeable db, MapWebView db v) => v -> [WebNode db]
-getTopLevelWebNodesWebViewAlt v = snd $ mapWebView (getTopLevelWebNodesWebView_, getTopLevelWebNodesWidget, False) v []
- where getTopLevelWebNodesWebView_ :: [WebNode db] -> WebView db -> (WebView db, [WebNode db])
-       getTopLevelWebNodesWebView_ state wv = (wv, WebViewNode wv:state)
-
-       getTopLevelWebNodesWidget :: Data (w db) => [WebNode db] -> Widget (w db) -> (Widget (w db), [WebNode db])
-       getTopLevelWebNodesWidget state wd = (wd, wdnode wd ++ state) 
-         where wdnode = 
-                  [] `mkQ`  (\(Widget sid id w) -> let vid = getViewId w in [WidgetNode vid sid id $ LabelWidget w])
-                     `extQ` (\(Widget sid id w) -> let vid = getViewId w in [WidgetNode vid sid id $ TextWidget w])
-                     `extQ` (\(Widget sid id w) -> let vid = getViewId w in [WidgetNode vid sid id $ RadioViewWidget w])
-                     `extQ` (\(Widget sid id w) -> let vid = getViewId w in [WidgetNode vid sid id $ SelectViewWidget w])
-                     `extQ` (\(Widget sid id w) -> let vid = getViewId w in [WidgetNode vid sid id $ ButtonWidget w])
-                     `extQ` (\(Widget sid id w) -> let vid = getViewId w in [WidgetNode vid sid id $ JSVarWidget w])
       
-
-       
