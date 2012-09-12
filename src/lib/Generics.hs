@@ -1,4 +1,4 @@
-{-# LANGUAGE ExistentialQuantification, RankNTypes, DeriveDataTypeable, ScopedTypeVariables #-}
+{-# LANGUAGE ExistentialQuantification, RankNTypes, DeriveDataTypeable, ScopedTypeVariables, FlexibleContexts #-}
 module Generics where
 
 import Types
@@ -10,6 +10,7 @@ import Data.Map (Map)
 import qualified Data.Map as Map 
 import Data.IntSet (IntSet)
 import qualified Data.IntSet as IntSet 
+import Debug.Trace
 
 -- Generics
 
@@ -73,14 +74,18 @@ mkWebNodeMap x = Map.fromList $ everything (++)
 
 -- TODO: maybe call these getChildWebNodes..?
 getTopLevelWebNodesWebView :: Data db => WebView db -> [WebNode db]
-getTopLevelWebNodesWebView (WebView _ _ _ _ v) =
+getTopLevelWebNodesWebView wv@(WebView _ _ _ _ v) =
+  --getTopLevelWebNodesWebViewAlt v
   everythingTopLevel webNodeQ v
+
+
 
 -- make sure this one is not called on a WebView, but on its child view
 -- TODO: rename this one, it is not called on a WebNode
-getTopLevelWebNodesWebNode :: (Data db, Data x) => x -> [WebNode db]
-getTopLevelWebNodesWebNode x = everythingTopLevel 
-                     webNodeQ x
+getTopLevelWebNodesWebNode :: (Data db, Data x, MapWebView db x) => x -> [WebNode db]
+getTopLevelWebNodesWebNode x = 
+  --getTopLevelWebNodesWebViewAlt x
+  everythingTopLevel webNodeQ x
                      
 -- lookup the view id and if the associated view is of the desired type, return it. Otherwise return Nothing
 lookupOldView :: (Initial v, Typeable v) => ViewId -> ViewMap db -> Maybe v
@@ -159,7 +164,7 @@ webViewGetInternalIds (WebView _ _ _ _ v) =
       stop = False `mkQ` isWebView `extQ` isWidget1 `extQ` isWidget2 `extQ` isWidget3 `extQ` isWidget4 `extQ` isWidget5 `extQ` isWidget6
       isWebView :: WebView  db -> Bool -- TODO: aargh! just one is tricky with the type var in widget
       isWebView _ = True
-      isWidget1 :: Widget LabelView -> Bool
+      isWidget1 :: Widget (LabelView db) -> Bool
       isWidget1 _ = True
       isWidget2 :: Widget (TextView db) -> Bool
       isWidget2 _ = True
@@ -169,7 +174,7 @@ webViewGetInternalIds (WebView _ _ _ _ v) =
       isWidget4 _ = True
       isWidget5 :: Widget (Button db) -> Bool
       isWidget5 _ = True
-      isWidget6 :: Widget JSVar -> Bool
+      isWidget6 :: Widget (JSVar db) -> Bool
       isWidget6 _ = True
   in  listifyBut isId stop v 
 
@@ -203,11 +208,27 @@ everythingBut q f x = {- if q x then [x] else -} concat $ gmapQ (everythingBut q
 --assignIds :: Data d => d -> d
 
 clearIds x = everywhere (mkT $ \(Id _) -> noId) x
-assignIds x = assignIdz x
-                  
-assignIdz x = (snd $ everywhereAccum assignId freeIds x)
- where allIds = getAll x :: [Id]
-       usedIds = IntSet.fromList $ map unId $ filter (/= noId) $ allIds 
+
+-- clear all ids in webView and assign unique ones with respect to oldWebView
+assignAllUniqueIds :: (Data db, MapWebView db (WebView db)) => WebView db -> WebView db -> WebView db
+assignAllUniqueIds oldWebView webView =
+  let clearedWebView = clearIds webView
+      allIds = getAll (oldWebView,clearedWebView) :: [Id] -- clearedWebView is necessary because assignIdz uses
+      assigned = assignIdzAlt allIds clearedWebView          -- nr of ids to compute list of free ids
+  in trace (show $ filter (==Id (-1)) (getAll assigned :: [Id])) $
+     assigned
+  
+-- assign unique ids to all noIds in x
+assignIds :: (Data db, MapWebView db (WebView db)) => WebView db -> WebView db
+assignIds x = let allIds = getAll x :: [Id]
+                  assigned = assignIdzAlt allIds x
+              in trace (show $ filter (==Id (-1)) (getAll assigned :: [Id])) $
+                 assigned
+
+                 
+assignIdz :: (Data db, MapWebView db (WebView db)) => [Id] -> WebView db -> WebView db  
+assignIdz allIds x = (snd $ everywhereAccum assignId freeIds x)
+ where usedIds = IntSet.fromList $ map unId $ filter (/= noId) $ allIds 
        freeIds = (IntSet.fromList $ [0 .. length allIds - 1]) `IntSet.difference` usedIds
        
        
@@ -228,9 +249,9 @@ replace :: forall db d . (Typeable db, Data d) => db -> Updates -> d -> d
 replace _ updates v = (everywhere $  mkT    (replaceText updates :: TextView db -> TextView db)
                                      `extT` (replaceRadioView updates :: RadioView db -> RadioView db)
                                      `extT` (replaceSelectView updates :: SelectView db -> SelectView db)
-                                     `extT` replaceJSVar updates) v
+                                     `extT` (replaceJSVar updates :: JSVar db -> JSVar db)) v
 
-replaceJSVar :: Updates -> JSVar -> JSVar
+replaceJSVar :: Updates -> JSVar db -> JSVar db
 replaceJSVar updates x@(JSVar i nm _) =
   case Map.lookup i updates of
     Just str -> (JSVar i nm str)
@@ -274,7 +295,7 @@ getButtonByViewId i view =
     []  -> error $ "internal error: no button with id "++show i
     _   -> error $ "internal error: multiple buttons with id "++show i
 
-getLabelViewByViewId :: Data d => ViewId -> d -> LabelView
+getLabelViewByViewId :: Typeable db => Data d => ViewId -> d -> LabelView db
 getLabelViewByViewId i view = 
   case listify (\(LabelView i' _ _) -> i==i') view of
     [b] -> b
@@ -292,7 +313,7 @@ getMTextByViewId i view =
 getTextByViewId :: (Typeable db, Data d) => ViewId -> d -> TextView db
 getTextByViewId i view = fromMaybe (error $ "internal error: no text with id "++show i) $ getMTextByViewId i view  
 
-getJSVarByViewId :: Data d => ViewId -> d -> JSVar
+getJSVarByViewId :: (Typeable db, Data d) => ViewId -> d -> JSVar db
 getJSVarByViewId i view = 
   case listify (\(JSVar i' _ _) -> i==i') view of
     [b] -> b
@@ -335,7 +356,7 @@ getWebViewById i view =
     []  -> error $ "internal error: getWebViewById: no webview with id " ++ show i
     _   -> error $ "internal error: getWebViewById: multiple webviews with id " ++ show i
 
-getAnyWidgetById :: (Typeable db, Data d) => ViewId -> d -> AnyWidget db
+getAnyWidgetById :: forall db d . (Typeable db, Data d) => ViewId -> d -> AnyWidget db
 getAnyWidgetById i x = 
   case everything (++) 
          ([] `mkQ`  (\(Widget sid id w) -> if i == getViewId w then [LabelWidget w] else [])
@@ -356,5 +377,46 @@ getTextByViewIdRef _ (ViewIdRef i) view =
   let (TextView _ _ str _ _ _) :: TextView db = getTextByViewId (ViewId i) view
   in  str
 
+ 
+assignIdzAlt :: forall db . (Data db) => [Id] -> WebView db -> WebView db
+assignIdzAlt allIds rootView = let assigned = fst $ mapWebView (assignIdsWebView :: IntSet -> WebView db -> (WebView db, IntSet)) assignIdsWidget rootView freeIds
+              in {- trace (if [] /= filter (==Id (-1))(getAll assigned :: [Id]) then show assigned else "ok") $ -} assigned
+ where usedIds = IntSet.fromList $ map unId $ filter (/= noId) $ allIds 
+       freeIds = (IntSet.fromList $ [0 .. length allIds - 1]) `IntSet.difference` usedIds
 
+assignIdsWebView :: IntSet -> WebView db -> (WebView db, IntSet)
+assignIdsWebView state (WebView vi sid id mkF v) = (WebView vi sid' id' mkF v, state'')
+ where (sid',state') = mkId state sid
+       (id',state'') = mkId state' id
+       
+assignIdsWidget state (Widget sid id w) = (Widget sid' id' w, state'')
+ where (sid',state') = mkId state sid
+       (id',state'') = mkId state' id
 
+mkId ids (Id i) = if (i == -1) 
+                         then if IntSet.null ids 
+                                         then error "Internal error: assign Id, empty id list"
+                                         else let (newId, ids') = IntSet.deleteFindMin ids 
+                                              in  (Id newId, ids') 
+                                    else (Id i, ids)       
+
+-- incorrect!! this gives all webview nodes, not just the top-level ones
+-- todo: when we do this directly (without generics), get rid of the Data and Typeable contexts that were introduced
+-- with this getTopLevelWebNodesWebViewAlt
+getTopLevelWebNodesWebViewAlt :: forall db v . (Typeable db, MapWebView db v) => v -> [WebNode db]
+getTopLevelWebNodesWebViewAlt v = snd $ mapWebView getTopLevelWebNodesWebView_ getTopLevelWebNodesWidget v []
+ where getTopLevelWebNodesWebView_ :: [WebNode db] -> WebView db -> (WebView db, [WebNode db])
+       getTopLevelWebNodesWebView_ state wv = (wv, WebViewNode wv:state)
+
+       getTopLevelWebNodesWidget :: Data (w db) => [WebNode db] -> Widget (w db) -> (Widget (w db), [WebNode db])
+       getTopLevelWebNodesWidget state wd = (wd, wdnode wd ++ state) 
+         where wdnode = 
+                  [] `mkQ`  (\(Widget sid id w) -> let vid = getViewId w in [WidgetNode vid sid id $ LabelWidget w])
+                     `extQ` (\(Widget sid id w) -> let vid = getViewId w in [WidgetNode vid sid id $ TextWidget w])
+                     `extQ` (\(Widget sid id w) -> let vid = getViewId w in [WidgetNode vid sid id $ RadioViewWidget w])
+                     `extQ` (\(Widget sid id w) -> let vid = getViewId w in [WidgetNode vid sid id $ SelectViewWidget w])
+                     `extQ` (\(Widget sid id w) -> let vid = getViewId w in [WidgetNode vid sid id $ ButtonWidget w])
+                     `extQ` (\(Widget sid id w) -> let vid = getViewId w in [WidgetNode vid sid id $ JSVarWidget w])
+      
+
+       
