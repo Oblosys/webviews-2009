@@ -479,17 +479,19 @@ instance Data db => Initial (WebView db) where
 class MapWebView db v where
   mapWebView :: (forall w . ( s -> WebView db -> (WebView db,s) 
                             , Data (w db) => s -> Widget (w db) -> (Widget (w db),s) -- This Data context requires ImpredicativeTypes :-(
+                            , Bool -- isRecursive: specifies whether map will recurse in WebView children
                             )
                 ) -> v -> s -> (v, s)
 
 instance MapWebView db (WebView db) where
-  mapWebView fns@(fwv,_) wv state =
+  mapWebView fns@(fwv,_,isRecursive) wv state =
    case fwv state wv of
-     (WebView a b c d v, state') -> let (v', state'') = mapWebView fns v state'
-                                    in  (WebView a b c d v', state'')
+     (WebView a b c d v, state') ->  let (v', state'') | isRecursive = mapWebView fns v state'
+                                                       | otherwise   = (v, state')
+                                     in  (WebView a b c d v', state'')
 
 instance Data (w db) => MapWebView db (Widget (w db)) where
-  mapWebView (_, fwd) wd state = fwd state wd
+  mapWebView (_,fwd,_) wd state = fwd state wd
 
 instance MapWebView db a => MapWebView db [a] where
   mapWebView fns []     = pure []
