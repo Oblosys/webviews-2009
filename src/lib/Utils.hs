@@ -56,6 +56,7 @@ drawWebNodes webnode = drawTree $ treeFromView webnode
               showAnyWidget (JSVarWidget (JSVar id n v)) = "JSVar "++ show id ++" "++ show n ++ " " ++ show v
 
 
+getTopLevelWebNodesForWebNode :: (Data db) => WebNode db -> [WebNode db]
 getTopLevelWebNodesForWebNode (WidgetNode _ _ _ wn) = []
 getTopLevelWebNodesForWebNode (WebViewNode (WebView _ _ _ _ v)) = getTopLevelWebNodesWebNode v
 
