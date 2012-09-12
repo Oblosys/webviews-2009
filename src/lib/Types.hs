@@ -505,6 +505,7 @@ instance MapWebView db a => MapWebView db (Maybe a) where
   mapWebView fwv fwd Nothing = pure Nothing
   mapWebView fwv fwd (Just a) = pure Just <*> mapWebView fwv fwd a
 
+-- We could make this an instance of Applicative, but there don't seem to be many advantages (yet).
 type F s a = s -> (a,s)
 
 pure :: f -> F s f 
@@ -515,6 +516,8 @@ f <*> x = \state -> let (f', state') = f state
                         (x', state'') = x state'
                     in  (f' x', state'')
 
+(<$>) :: (a->b) -> F s a -> F s b
+f <$> x = pure f <*> x
 
 -- WebViewState
 
