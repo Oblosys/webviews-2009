@@ -1,5 +1,24 @@
 {-# LANGUAGE ExistentialQuantification, RankNTypes, DeriveDataTypeable, ScopedTypeVariables, FlexibleContexts #-}
-module Generics where
+module Generics ( assignIds
+                , assignAllUniqueIds
+                , substituteIds
+                , getTopLevelWebViews
+                , getTopLevelWebNodesWebNode
+                , getTopLevelWebNodesWebView
+                , mkWebNodeMap
+                , mkViewMap
+                , getAnyWidgetById
+                , getButtonByViewId
+                , getWebViewById
+                , replaceWebViewById
+                , getTextByViewIdRef
+                , getTextByViewId
+                , getLabelViewByViewId
+                , getJSVarByViewId
+                , getEditActionByViewId
+                , lookupOldView
+                , replace
+                ) where
 
 import Types
 import ObloUtils
