@@ -379,19 +379,21 @@ getTextByViewIdRef _ (ViewIdRef i) view =
 
  
 assignIdzAlt :: forall db . (Data db) => [Id] -> WebView db -> WebView db
-assignIdzAlt allIds rootView = let assigned = fst $ mapWebView (assignIdsWebView :: IntSet -> WebView db -> (WebView db, IntSet)) assignIdsWidget rootView freeIds
-              in {- trace (if [] /= filter (==Id (-1))(getAll assigned :: [Id]) then show assigned else "ok") $ -} assigned
+assignIdzAlt allIds rootView =
+  let assigned = fst $ mapWebView (assignIdsWebView, assignIdsWidget)
+               rootView freeIds
+  in {- trace (if [] /= filter (==Id (-1))(getAll assigned :: [Id]) then show assigned else "ok") $ -} assigned
  where usedIds = IntSet.fromList $ map unId $ filter (/= noId) $ allIds 
        freeIds = (IntSet.fromList $ [0 .. length allIds - 1]) `IntSet.difference` usedIds
 
-assignIdsWebView :: IntSet -> WebView db -> (WebView db, IntSet)
-assignIdsWebView state (WebView vi sid id mkF v) = (WebView vi sid' id' mkF v, state'')
- where (sid',state') = mkId state sid
-       (id',state'') = mkId state' id
+       assignIdsWebView :: IntSet -> WebView db -> (WebView db, IntSet)
+       assignIdsWebView state (WebView vi sid id mkF v) = (WebView vi sid' id' mkF v, state'')
+        where (sid',state') = mkId state sid
+              (id',state'') = mkId state' id
        
-assignIdsWidget state (Widget sid id w) = (Widget sid' id' w, state'')
- where (sid',state') = mkId state sid
-       (id',state'') = mkId state' id
+       assignIdsWidget state (Widget sid id w) = (Widget sid' id' w, state'')
+        where (sid',state') = mkId state sid
+              (id',state'') = mkId state' id
 
 mkId ids (Id i) = if (i == -1) 
                          then if IntSet.null ids 
@@ -404,7 +406,7 @@ mkId ids (Id i) = if (i == -1)
 -- todo: when we do this directly (without generics), get rid of the Data and Typeable contexts that were introduced
 -- with this getTopLevelWebNodesWebViewAlt
 getTopLevelWebNodesWebViewAlt :: forall db v . (Typeable db, MapWebView db v) => v -> [WebNode db]
-getTopLevelWebNodesWebViewAlt v = snd $ mapWebView getTopLevelWebNodesWebView_ getTopLevelWebNodesWidget v []
+getTopLevelWebNodesWebViewAlt v = snd $ mapWebView (getTopLevelWebNodesWebView_, getTopLevelWebNodesWidget) v []
  where getTopLevelWebNodesWebView_ :: [WebNode db] -> WebView db -> (WebView db, [WebNode db])
        getTopLevelWebNodesWebView_ state wv = (wv, WebViewNode wv:state)
 

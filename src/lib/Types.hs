@@ -1,4 +1,4 @@
-{-# LANGUAGE ExistentialQuantification, FlexibleContexts, TypeSynonymInstances, FlexibleInstances, DeriveDataTypeable, MultiParamTypeClasses, RankNTypes #-}
+{-# LANGUAGE ExistentialQuantification, FlexibleContexts, TypeSynonymInstances, FlexibleInstances, DeriveDataTypeable, MultiParamTypeClasses, RankNTypes, ImpredicativeTypes #-}
 module Types where
 
 import ObloUtils
@@ -477,33 +477,34 @@ instance Data db => Initial (WebView db) where
 
 -- recursive map on v arg in WebView is maybe handled a bit dodgy still.
 class MapWebView db v where
-  mapWebView :: (s -> WebView db -> (WebView db,s)) ->
-              (forall w . Data (w db) => s -> Widget (w db) -> (Widget (w db),s)) ->
-              v -> s -> (v, s)
+  mapWebView :: (forall w . ( s -> WebView db -> (WebView db,s) 
+                            , Data (w db) => s -> Widget (w db) -> (Widget (w db),s) -- This Data context requires ImpredicativeTypes :-(
+                            )
+                ) -> v -> s -> (v, s)
 
 instance MapWebView db (WebView db) where
-  mapWebView fwv fwd wv state =
+  mapWebView fns@(fwv,_) wv state =
    case fwv state wv of
-     (WebView a b c d v, state') -> let (v', state'') = mapWebView fwv fwd v state'
+     (WebView a b c d v, state') -> let (v', state'') = mapWebView fns v state'
                                     in  (WebView a b c d v', state'')
 
 instance Data (w db) => MapWebView db (Widget (w db)) where
-  mapWebView fwv fwd wd state     = fwd state wd
+  mapWebView (_, fwd) wd state = fwd state wd
 
 instance MapWebView db a => MapWebView db [a] where
-  mapWebView fwv fwd []     = pure []
-  mapWebView fwv fwd (a:as) = pure (:) <*> mapWebView fwv fwd a <*> mapWebView fwv fwd as 
+  mapWebView fns []     = pure []
+  mapWebView fns (a:as) = (:) <$> mapWebView fns a <*> mapWebView fns as 
 
 -- used in Server (to take old and new rootviews together for computing unique id's)
 instance MapWebView db (WebView db, WebView db) where
-  mapWebView fwv fwd (a,b) = pure (,) <*> mapWebView fwv fwd a <*> mapWebView fwv fwd b 
+  mapWebView fns (a,b) = (,) <$> mapWebView fns a <*> mapWebView fns b 
 
 instance MapWebView db () where
-  mapWebView fwv fwd () = pure ()
+  mapWebView fns () = pure ()
 
 instance MapWebView db a => MapWebView db (Maybe a) where
-  mapWebView fwv fwd Nothing = pure Nothing
-  mapWebView fwv fwd (Just a) = pure Just <*> mapWebView fwv fwd a
+  mapWebView fns Nothing = pure Nothing
+  mapWebView fns (Just a) = Just <$> mapWebView fns a
 
 -- We could make this an instance of Applicative, but there don't seem to be many advantages (yet).
 type F s a = s -> (a,s)

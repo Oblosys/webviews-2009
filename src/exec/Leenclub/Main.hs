@@ -97,7 +97,7 @@ instance Data db => Initial (SortView db) where
   initial = SortView initial initial initial
 
 instance Data db =>  MapWebView db (SortView db) where
-   mapWebView fwv fwd (SortView a b c) = SortView <$> mapWebView fwv fwd a  <*> mapWebView fwv fwd b <*> mapWebView fwv fwd c
+   mapWebView fns (SortView a b c) = SortView <$> mapWebView fns a  <*> mapWebView fns b <*> mapWebView fns c
 
 instance Data db => Storeable db (SortView db)
 
@@ -139,7 +139,7 @@ instance Data db => Initial (SearchView db) where
   initial = SearchView initial initial initial initial initial
 
 instance Data db =>  MapWebView db (SearchView db) where
-  mapWebView fwv fwd (SearchView a b c d e) = pure SearchView <*> pure a <*> mapWebView fwv fwd b <*> mapWebView fwv fwd c <*> mapWebView fwv fwd d <*> pure e
+  mapWebView fns (SearchView a b c d e) = SearchView <$> pure a <*> mapWebView fns b <*> mapWebView fns c <*> mapWebView fns d <*> pure e
 
 instance Data db => Storeable db (SearchView db)
 
@@ -226,21 +226,21 @@ instance Initial (Property a) where
   initial = StaticProperty initial
 
 instance MapWebView Database (Property a) where
-  mapWebView fwv fwd (EditableProperty a) = pure EditableProperty <*> mapWebView fwv fwd a 
-  mapWebView fwv fwd (StaticProperty a) = pure StaticProperty <*> pure a 
+  mapWebView fns (EditableProperty a) = EditableProperty <$> mapWebView fns a 
+  mapWebView fns (StaticProperty a) = StaticProperty <$> pure a 
   
 instance MapWebView Database PropertyWidget where
-  mapWebView fwv fwd (PropertyTextView a) = pure PropertyTextView <*> mapWebView fwv fwd a 
-  mapWebView fwv fwd (PropertySelectView a) = pure PropertySelectView <*> mapWebView fwv fwd a 
+  mapWebView fns (PropertyTextView a) = PropertyTextView <$> mapWebView fns a 
+  mapWebView fns (PropertySelectView a) = PropertySelectView <$> mapWebView fns a 
 
 
 instance MapWebView db b => MapWebView db (String, b) where
-  mapWebView fwv fwd (a,b) = pure (,) <*> pure a <*> mapWebView fwv fwd b
+  mapWebView fns (a,b) = (,) <$> pure a <*> mapWebView fns b
 
 -- todo: these are tricky, similar to tuples. Create all 4 possibilities and use overlapping instances?
 instance MapWebView db b => MapWebView db (Either a b) where
-  mapWebView fwv fwd (Left a) = pure Left <*> pure a
-  mapWebView fwv fwd (Right a) = pure Right <*> mapWebView fwv fwd a
+  mapWebView fns (Left a) = Left <$> pure a
+  mapWebView fns (Right a) = Right <$> mapWebView fns a
 
 {- The update is a database update, but it would be better to be able to specify a view update, since we don't 
 want to commit all textfields immediately to the database. Maybe save could be part of the edit monad? (but then do we need
@@ -340,8 +340,8 @@ deriveInitial ''Item
 deriveInitial ''ItemView
 
 instance MapWebView Database ItemView where
-  mapWebView fwv fwd (ItemView a b c d e f g h i) = pure ItemView <*> pure a <*> pure b <*> pure c <*> pure d <*> pure e <*>
-                                                           mapWebView fwv fwd f <*> pure g <*> mapWebView fwv fwd h <*> mapWebView fwv fwd i 
+  mapWebView fns (ItemView a b c d e f g h i) = ItemView <$> pure a <*> pure b <*> pure c <*> pure d <*> pure e <*>
+                                                             mapWebView fns f <*> pure g <*> mapWebView fns h <*> mapWebView fns i 
 
 -- todo: use partial lense here?
 mEditedItem :: ItemView :-> Maybe Item
@@ -547,7 +547,7 @@ data LeenclubLoginOutView = LeenclubLoginOutView (WebView Database) deriving (Eq
 deriveInitial ''LeenclubLoginOutView
 
 instance MapWebView Database LeenclubLoginOutView where
-  mapWebView fwv fwd (LeenclubLoginOutView a) = pure LeenclubLoginOutView <*> mapWebView fwv fwd a
+  mapWebView fns (LeenclubLoginOutView a) = LeenclubLoginOutView <$> mapWebView fns a
 
 instance Storeable Database LeenclubLoginOutView
 
@@ -589,8 +589,8 @@ data LenderView =
 deriveInitial ''LenderView
 
 instance MapWebView Database LenderView where
-  mapWebView fwv fwd (LenderView a b c d e f g h) = pure LenderView <*> pure a <*> pure b <*> pure c <*> pure d <*> mapWebView fwv fwd e <*>
-                                                           mapWebView fwv fwd f <*> mapWebView fwv fwd g <*> mapWebView fwv fwd h 
+  mapWebView fns (LenderView a b c d e f g h) = LenderView <$> pure a <*> pure b <*> pure c <*> pure d <*> mapWebView fns e <*>
+                                                               mapWebView fns f <*> mapWebView fns g <*> mapWebView fns h 
 
 mEditedLender :: LenderView :-> Maybe Lender
 mEditedLender = lens (\(LenderView _ _ _ mEditedLender _ _ _ _) -> mEditedLender)
@@ -713,7 +713,7 @@ data ItemsRootView =
 deriveInitial ''ItemsRootView
 
 instance MapWebView Database ItemsRootView where
-  mapWebView fwv fwd (ItemsRootView a b c) = pure ItemsRootView <*> mapWebView fwv fwd  a <*> mapWebView fwv fwd b <*> mapWebView fwv fwd c
+  mapWebView fns (ItemsRootView a b c) = ItemsRootView <$> mapWebView fns  a <*> mapWebView fns b <*> mapWebView fns c
 
 instance Storeable Database ItemsRootView
 
@@ -748,7 +748,7 @@ data LendersRootView = LendersRootView (WebView Database)
 deriveInitial ''LendersRootView
 
 instance MapWebView Database LendersRootView where
-  mapWebView fwv fwd (LendersRootView a) = pure LendersRootView <*> mapWebView fwv fwd  a
+  mapWebView fns (LendersRootView a) = LendersRootView <$> mapWebView fns  a
 
 instance Storeable Database LendersRootView
 
@@ -815,7 +815,7 @@ data LeenclubPageView = LeenclubPageView User String (EditAction Database) (WebV
 deriveInitial ''LeenclubPageView
 
 instance MapWebView Database LeenclubPageView where
-  mapWebView fwv fwd (LeenclubPageView a b c d) = pure LeenclubPageView <*> pure a <*> pure b <*> pure c <*> mapWebView fwv fwd d
+  mapWebView fns (LeenclubPageView a b c d) = LeenclubPageView <$> pure a <*> pure b <*> pure c <*> mapWebView fns d
 
 instance Storeable Database LeenclubPageView
 
@@ -880,8 +880,8 @@ data TestView =
 deriveInitial ''TestView
 
 instance MapWebView Database TestView where
-  mapWebView fwv fwd (TestView a b c d e f g h) = pure TestView <*> pure a <*> mapWebView fwv fwd b <*> mapWebView fwv fwd c <*> mapWebView fwv fwd d <*> mapWebView fwv fwd e <*>
-                                                           mapWebView fwv fwd f <*> mapWebView fwv fwd g <*> mapWebView fwv fwd h
+  mapWebView fns (TestView a b c d e f g h) = TestView <$> pure a <*> mapWebView fns b <*> mapWebView fns c <*> mapWebView fns d <*> mapWebView fns e <*>
+                                                           mapWebView fns f <*> mapWebView fns g <*> mapWebView fns h
 
 mkTestView :: WebViewM Database (WebView Database)
 mkTestView = mkWebView $
@@ -933,7 +933,7 @@ data TestView2 =
 deriveInitial ''TestView2
 
 instance MapWebView Database TestView2 where
-  mapWebView fwv fwd (TestView2 a b c d) = pure TestView2 <*> mapWebView fwv fwd a <*> mapWebView fwv fwd b <*> pure c <*> pure d
+  mapWebView fns (TestView2 a b c d) = TestView2 <$> mapWebView fns a <*> mapWebView fns b <*> pure c <*> pure d
 
 mkTestView2 :: WebViewM Database (WebView Database)
 mkTestView2 = mkWebView $
@@ -973,13 +973,13 @@ mkTestView3 msg = mkPresentView (\hs -> hList $ toHtml (msg :: String) : hs) $
 data AView db = AView (WebView db) (Widget (TextView db)) String (Widget (TextView db))
 
 instance Data db => MapWebView db (AView db) where
-  mapWebView fwv fwd (AView wv1 wd1 str wd2) = 
-    pure AView <*> mapWebView fwv fwd wv1 <*> mapWebView fwv fwd wd1 <*> pure str <*> mapWebView fwv fwd wd2 
+  mapWebView fns (AView wv1 wd1 str wd2) = 
+    pure AView <*> mapWebView fns wv1 <*> mapWebView fns wd1 <*> pure str <*> mapWebView fns wd2 
 
 data BView db = BView String (AView db)
 
 instance Data db =>  MapWebView db (BView db) where
-  mapWebView fwv fwd (BView str a) = pure BView <*> pure str <*> mapWebView fwv fwd a
+  mapWebView fns (BView str a) = BView <$> pure str <*> mapWebView fns a
 
 --testmkwv :: x -> WebView Database
 testmkwv x = WebView (ViewId []) noId noId undefined $ x 
@@ -995,7 +995,7 @@ testwd str = button (ViewId []) str True "" "" LogoutEdit
 testproplist :: [(String, Property Item)]
 testproplist =  [("LeenClub ID",StaticProperty "martijn"),("M/V",EditableProperty (Right (PropertySelectView (Widget {getWidgetStubId = Id {unId = -1}, getWidgetId = Id {unId = -1}, getWidgetWidget = SelectView {getSelectViewId = ViewId [], getSelectItems = ["M","F"], getSelection' = 0, getSelectEnabled = True, getSelectStyle = "", getSelectChange = Just undefined}}))))]
 instance MapWebView Database BorrowedRootView where
-  mapWebView fwv fwd (BorrowedRootView a b) = pure BorrowedRootView <*> mapWebView fwv fwd a <*> mapWebView fwv fwd b
+  mapWebView fns (BorrowedRootView a b) = BorrowedRootView <$> mapWebView fns a <*> mapWebView fns b
 
 
 
