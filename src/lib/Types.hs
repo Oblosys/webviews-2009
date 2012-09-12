@@ -1,4 +1,4 @@
-{-# LANGUAGE ExistentialQuantification, FlexibleContexts, TypeSynonymInstances, FlexibleInstances, DeriveDataTypeable, MultiParamTypeClasses #-}
+{-# LANGUAGE ExistentialQuantification, FlexibleContexts, TypeSynonymInstances, FlexibleInstances, DeriveDataTypeable, MultiParamTypeClasses, RankNTypes #-}
 module Types where
 
 import ObloUtils
@@ -101,23 +101,24 @@ data Widget w = Widget { getWidgetStubId :: Id, getWidgetId :: Id, getWidgetWidg
 instance Eq (Widget w) where
   w1 == w2 = True
 
-data AnyWidget db = LabelWidget !LabelView
+data AnyWidget db = LabelWidget !(LabelView db)
                   | TextWidget !(TextView db)
                   | RadioViewWidget !(RadioView db) 
                   | SelectViewWidget !(SelectView db) 
                   | ButtonWidget !(Button db)
-                  | JSVarWidget !JSVar -- TODO: not really a widget, but until we know what it is, or what we should call widget, it is here 
+                  | JSVarWidget !(JSVar db) -- TODO: not really a widget, but until we know what it is, or what we should call widget, it is here 
                     deriving (Eq, Show, Typeable, Data)
 
 -- Label
 
 -- does not have a html counterpart. It is just a div with a view id that contains a string element
-data LabelView = LabelView { getLabelViewId :: ViewId, getLabelText :: String, getLabelStyle :: String } deriving (Show, Typeable, Data)
+data LabelView db = LabelView { getLabelViewId :: ViewId, getLabelText :: String, getLabelStyle :: String } deriving (Show, Typeable, Data)
+-- the db is only so we can declare instances (w db) for all widget types
 
-instance Eq LabelView where
+instance Eq (LabelView db) where
   LabelView _ text1 style1 == LabelView _ text2 style2 = text1 == text2 && style1 == style2
 
-labelView :: ViewId -> String -> String -> Widget LabelView  
+labelView :: ViewId -> String -> String -> Widget (LabelView db)  
 labelView viewId txt style = Widget noId noId $ LabelView viewId txt style
 
 -- Text
@@ -214,13 +215,14 @@ button viewId txt enabled style onclick cmd = Widget noId noId $ Button viewId t
 
 -- JSVar
 
-data JSVar = JSVar { getJSVarViewId :: ViewId, getJSVarName :: String, getJSVarValue_ :: String } deriving (Show, Typeable, Data)
+data JSVar db = JSVar { getJSVarViewId :: ViewId, getJSVarName :: String, getJSVarValue_ :: String } deriving (Show, Typeable, Data)
+-- the db is only so we can declare instances (w db) for all widget types
 
-instance Eq JSVar where
+instance Eq (JSVar db) where
   JSVar _ n1 v1 == JSVar _ n2 v2 = n1 == n2 && v1 == v2
 
 -- renamed, so we can use jsVar for declaring a javascript variable. This constructor will probably be removed anyway
-jsVar_ :: ViewId -> String -> String -> Widget JSVar
+jsVar_ :: ViewId -> String -> String -> Widget (JSVar db)
 jsVar_ viewId name value = Widget noId noId $ JSVar viewId name value
 
 getJSVarValue (Widget _ _ jsv) = getJSVarValue_ jsv
@@ -263,7 +265,7 @@ instance HasViewId (WebView db) where
 instance HasViewId w => HasViewId (Widget w) where
   getViewId (Widget _ _ w) = getViewId w 
 
-instance HasViewId LabelView where
+instance HasViewId (LabelView db) where
   getViewId = getLabelViewId
 
 instance HasViewId (TextView db) where
@@ -281,7 +283,7 @@ instance HasViewId (Button db) where
 instance HasViewId (EditAction db) where
   getViewId = getActionViewId
 
-instance HasViewId JSVar where
+instance HasViewId (JSVar db) where
   getViewId = getJSVarViewId
 
 --instance Show (a->a) where
@@ -347,7 +349,7 @@ type ViewMap db = Map.Map ViewId (WebView db)
 -- no class viewable, because mkView has parameters
 data WebView db = forall view . ( Data (StateT (WebViewState db) IO view) 
                                 , Initial view, Presentable view, Storeable db view
-                                , Show view, Eq view, Data view) => 
+                                , Show view, Eq view, Data view, MapWebView db view) => 
                                 WebView !ViewId !Id !Id (ViewId -> view -> WebViewM db view) !view
                              
                deriving Typeable
@@ -447,7 +449,7 @@ instance Initial Double where
 instance Initial w => Initial (Widget w) where
   initial = Widget noId noId initial
   
-instance Initial LabelView where
+instance Initial (LabelView db) where
   initial = LabelView noViewId "" ""
 
 instance Initial (TextView db) where
@@ -462,7 +464,7 @@ instance Initial (SelectView db) where
 instance Initial (Button db) where
   initial = Button noViewId "" False "" "" (Edit $ return ())
 
-instance Initial JSVar where
+instance Initial (JSVar db) where
   initial = JSVar noViewId "" ""
 
 instance Initial (EditAction db) where
@@ -471,6 +473,50 @@ instance Initial (EditAction db) where
 instance Data db => Initial (WebView db) where
   initial = WebView (ViewId []) noId noId (\_ _ -> return ()) ()
 
+-- Alternative Generics method
+
+-- recursive map on v arg in WebView is maybe handled a bit dodgy still.
+class MapWebView db v where
+  mapWebView :: (s -> WebView db -> (WebView db,s)) ->
+              (forall w . Data (w db) => s -> Widget (w db) -> (Widget (w db),s)) ->
+              v -> s -> (v, s)
+
+instance MapWebView db (WebView db) where
+  mapWebView fwv fwd wv state =
+   case fwv state wv of
+     (WebView a b c d v, state') -> let (v', state'') = mapWebView fwv fwd v state'
+                                    in  (WebView a b c d v', state'')
+
+instance Data (w db) => MapWebView db (Widget (w db)) where
+  mapWebView fwv fwd wd state     = fwd state wd
+
+instance MapWebView db a => MapWebView db [a] where
+  mapWebView fwv fwd []     = pure []
+  mapWebView fwv fwd (a:as) = pure (:) <*> mapWebView fwv fwd a <*> mapWebView fwv fwd as 
+
+-- used in Server (to take old and new rootviews together for computing unique id's)
+instance MapWebView db (WebView db, WebView db) where
+  mapWebView fwv fwd (a,b) = pure (,) <*> mapWebView fwv fwd a <*> mapWebView fwv fwd b 
+
+instance MapWebView db () where
+  mapWebView fwv fwd () = pure ()
+
+instance MapWebView db a => MapWebView db (Maybe a) where
+  mapWebView fwv fwd Nothing = pure Nothing
+  mapWebView fwv fwd (Just a) = pure Just <*> mapWebView fwv fwd a
+
+type F s a = s -> (a,s)
+
+pure :: f -> F s f 
+pure f state = (f, state) 
+
+(<*>) :: F s (a->b) -> F s a -> F s b
+f <*> x = \state -> let (f', state') = f state
+                        (x', state'') = x state'
+                    in  (f' x', state'')
+
+
+-- WebViewState
 
 data WebViewState db = 
   WebViewState { getStateUser :: User, getStateDb :: db, getStateViewMap :: (ViewMap db) 

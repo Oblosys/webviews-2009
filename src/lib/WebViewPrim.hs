@@ -90,10 +90,10 @@ mkEditAction ec = mkEditActionEx $ const ec
 mkEditActionEx :: ([String] -> EditCommand db) -> WebViewM db (EditAction db) 
 mkEditActionEx fec = assignViewId $ \vid -> EditAction vid fec
 
-mkLabelView :: String -> WebViewM db (Widget LabelView)
+mkLabelView :: String -> WebViewM db (Widget (LabelView db))
 mkLabelView str = assignViewId $ \vid -> labelView vid str ""
 
-mkLabelViewWithStyle :: String -> String -> WebViewM db (Widget LabelView)
+mkLabelViewWithStyle :: String -> String -> WebViewM db (Widget (LabelView db))
 mkLabelViewWithStyle str style = assignViewId $ \vid -> labelView vid str style
 
 mkTextField :: String -> WebViewM db (Widget (TextView db))
@@ -289,7 +289,7 @@ loadView (WebView _ si i mkView oldView') =
     ; return $ WebView newViewId si i mkView view    
     }
         
-mkWebView :: Data db => (Presentable v, Storeable db v, Initial v, Show v, Eq v, Data v) =>
+mkWebView :: Data db => (Presentable v, Storeable db v, Initial v, Show v, Eq v, Data v, MapWebView db v) =>
              (ViewId -> v -> WebViewM db v) ->
              WebViewM db (WebView db)
 mkWebView mkView =
@@ -357,7 +357,7 @@ They do seem to lose focus though, but since we know what was edited, we can eas
 the update
 -}
 
-presentLabelView :: LabelView -> Html
+presentLabelView :: LabelView db -> Html
 presentLabelView (LabelView viewId str stl) = div_ ! id_ (mkHtmlViewIdVal viewId) ! style (toValue stl) $ toHtml str
 
 -- textfields are in forms, that causes registering text field updates on pressing enter
@@ -448,7 +448,7 @@ presentSelectView (SelectView viewId items selectedIx enabled stl _) =
 
 declareWVSelectScript viewId = jsDeclareVar (ViewIdT viewId) "script" $ "new SelectScript(\""++show viewId++"\");"
 
-presentJSVar :: JSVar -> Html
+presentJSVar :: JSVar db -> Html
 presentJSVar (JSVar viewId name value) = thediv ! (id_ $ mkHtmlViewIdVal viewId) << 
   (mkScript $ let jsVar = name++viewIdSuffix viewId
               in  "if (typeof "++jsVar++" ==\"undefined\") {"++jsVar++" = "++value++"};")
@@ -495,7 +495,7 @@ getViewIdT (WebViewT wv) = ViewIdT $ getViewId wv
 getViewIdT_ :: HasViewId v => v -> ViewId
 getViewIdT_ = getViewId
 
-mkWebViewT :: Data db => (Presentable v, Storeable db v, Initial v, Show v, Eq v, Data v) =>
+mkWebViewT :: Data db => (Presentable v, Storeable db v, Initial v, Show v, Eq v, Data v, MapWebView db v) =>
              (ViewIdT v -> v -> WebViewM db v) ->
              WebViewM db (WebViewT v db)
              
@@ -591,7 +591,7 @@ getTextViewContents text =
     } 
 
 -- probably to be deleted, labels do not need to be accessed    
-getLabelContents :: forall db . Data db => Widget LabelView -> EditM db String
+getLabelContents :: forall db . Data db => Widget (LabelView db) -> EditM db String
 getLabelContents text =
  do { (sessionId, user, db, rootView, pendingEdit, hashArgs) <- get
     ; return $ getLabelContentsByViewIdRef (undefined :: db{-dummy arg-}) (widgetGetViewRef text) rootView
@@ -599,11 +599,11 @@ getLabelContents text =
     
 getLabelContentsByViewIdRef :: forall db v . (Typeable db, Data v) => db -> ViewIdRef -> v -> String
 getLabelContentsByViewIdRef _ (ViewIdRef i) view =
-  let (LabelView _ str _) :: LabelView = getLabelViewByViewId (ViewId i) view
+  let (LabelView _ str _) :: LabelView db = getLabelViewByViewId (ViewId i) view
   in  str
 
 -- not sure if we'll need these, passing vars as arguments works for submit actions.
-getJSVarContents :: forall db . Data db => Widget JSVar -> EditM db String
+getJSVarContents :: forall db . Data db => Widget (JSVar db) -> EditM db String
 getJSVarContents text =
  do { (sessionId, user, db, rootView, pendingEdit, hashArgs) <- get
     ; return $ getJSVarContentsByViewIdRef (undefined :: db{-dummy arg-}) (widgetGetViewRef text) rootView
@@ -611,7 +611,7 @@ getJSVarContents text =
     
 getJSVarContentsByViewIdRef :: forall db v . (Typeable db, Data v) => db -> ViewIdRef -> v -> String
 getJSVarContentsByViewIdRef _ (ViewIdRef i) view =
-  let (JSVar _ _ value) :: JSVar = getJSVarByViewId (ViewId i) view
+  let (JSVar _ _ value) :: JSVar db = getJSVarByViewId (ViewId i) view
   in  value
 
                             
