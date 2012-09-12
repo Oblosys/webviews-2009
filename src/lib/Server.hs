@@ -319,8 +319,7 @@ sessionHandler rootViews dbFilename theDatabase users sessionStateRef requestId 
                   }
                else return ()
             
-            ; let (rootView, _) = assignIds (clearIds rootViewWithoutIds, oldRootView) 
-            -- this way, all new id's are unique, also with respect to old view                                    
+            ; let rootView = assignAllUniqueIds oldRootView rootViewWithoutIds 
             
             --; putStrLn "seq'ing rootView"
             ; seq (length (show rootView)) $ return ()
