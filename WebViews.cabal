@@ -58,6 +58,8 @@ Library
   exposed-modules: 
                    BlazeHtml,
                    Generics,
+                   GenericsMap,
+                   GenericsSYB,
                    HtmlLib,
                    Incrementality,
                    ObloUtils,
