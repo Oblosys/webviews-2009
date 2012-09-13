@@ -238,12 +238,11 @@ assignId = mkAccT $ \ids (Id id) -> if (id == -1)
 type Updates = Map ViewId String  -- maps id's to the string representation of the new value
 
 -- update the datastructure at the id's in Updates 
--- TODO is dummy db arg necessary? with ScopedTypeVariables we can prevent it, but maybe that leads to big type sigs
-replace :: forall db d . (Typeable db, Data d) => db -> Updates -> d -> d
-replace _ updates v = (everywhere $  mkT    (replaceText updates :: TextView db -> TextView db)
-                                     `extT` (replaceRadioView updates :: RadioView db -> RadioView db)
-                                     `extT` (replaceSelectView updates :: SelectView db -> SelectView db)
-                                     `extT` (replaceJSVar updates :: JSVar db -> JSVar db)) v
+replace :: forall db d . Data db => Updates -> WebView db -> WebView db
+replace updates v = (everywhere $  mkT    (replaceText updates :: TextView db -> TextView db)
+                                  `extT` (replaceRadioView updates :: RadioView db -> RadioView db)
+                                  `extT` (replaceSelectView updates :: SelectView db -> SelectView db)
+                                  `extT` (replaceJSVar updates :: JSVar db -> JSVar db)) v
 
 replaceJSVar :: Updates -> JSVar db -> JSVar db
 replaceJSVar updates x@(JSVar i nm _) =
