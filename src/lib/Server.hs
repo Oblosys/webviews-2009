@@ -447,22 +447,16 @@ handleCommand _ users sessionStateRef (SetC viewId value) =
     }
 handleCommand _  users sessionStateRef (ButtonC viewId) =
  do { (_, user, db, rootView, pendingEdit, hashArgs) <- readIORef sessionStateRef
-    ; case getButtonByViewId viewId rootView of
-        Just (Button _ txt _ _ _ act) ->    
-         do { putStrLn $ "Button #" ++ show viewId ++ ":" ++ txt ++ " was clicked"
+    ; let (Button _ txt _ _ _ act) = getButtonByViewId viewId rootView
+    ; putStrLn $ "Button #" ++ show viewId ++ ":" ++ txt ++ " was clicked"
 
-            ; response <- performEditCommand users  sessionStateRef act
+    ; response <- performEditCommand users  sessionStateRef act
           
-            ; return response
-            }
-        Nothing ->
-         do { putStrLn $ "Button #"++show viewId++" not present in view"
-            ; return ViewUpdate
-            }
+    ; return response
     }
 handleCommand _ users sessionStateRef (SubmitC viewId) =
  do { (_, user, db, rootView, pendingEdit, hashArgs) <- readIORef sessionStateRef
-    ; let TextView _ _ txt _ _ mAct = getTextByViewId viewId rootView
+    ; let TextView _ _ txt _ _ mAct = getTextViewByViewId viewId rootView
     ; putStrLn $ "TextView #" ++ show viewId ++ ":" ++ txt ++ " was submitted"
 
     ; response <- case mAct of 
@@ -522,8 +516,8 @@ performEdit sessionStateRef edit  =
 
 authenticate users sessionStateRef userEStringViewId passwordEStringViewId =
  do { (sessionId, user, db, rootView, pendingEdit, hashArgs) <- readIORef sessionStateRef
-    ; let userName = getTextByViewIdRef db{-dummy arg-} userEStringViewId rootView
-          enteredPassword = getTextByViewIdRef db{-dummy arg-} passwordEStringViewId rootView
+    ; let userName = getTextViewStrByViewIdRef userEStringViewId rootView
+          enteredPassword = getTextViewStrByViewIdRef passwordEStringViewId rootView
     ; case Map.lookup userName users of
         Just (password, fullName) -> if password == enteredPassword  
                                      then 

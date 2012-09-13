@@ -11,8 +11,7 @@ module GenericsSYB ( getAllIds
                 , getButtonByViewId
                 , getWebViewById
                 , replaceWebViewById
-                , getTextByViewIdRef
-                , getTextByViewId
+                , getTextViewByViewId
                 , getLabelViewByViewId
                 , getJSVarByViewId
                 , getEditActionByViewId
@@ -283,10 +282,10 @@ replaceWebViewById i wv rootView =
  where replaceWebView wv'@(WebView i' _ _ _ _) = if i == i' then wv else wv' 
 --getWebViews x = listify (\(WebView i' :: WebView) -> True) x 
 
-getButtonByViewId :: (Typeable db, Data d) => ViewId -> d -> Maybe (Button db)
+getButtonByViewId :: (Typeable db, Data d) => ViewId -> d -> (Button db)
 getButtonByViewId i view = 
   case listify (\(Button i' _ _ _ _ _) -> i==i') view of
-    [b] -> Just b
+    [b] -> b
     []  -> error $ "internal error: no button with id "++show i
     _   -> error $ "internal error: multiple buttons with id "++show i
 
@@ -297,16 +296,13 @@ getLabelViewByViewId i view =
     []  -> error $ "internal error: no label with id "++show i
     _   -> error $ "internal error: multiple LabelViews with id "++show i
 
-getMTextByViewId :: (Typeable db, Data d) => ViewId -> d -> Maybe (TextView db)
-getMTextByViewId i view = 
+getTextViewByViewId :: (Typeable db, Data d) => ViewId -> d -> (TextView db)
+getTextViewByViewId i view = 
   case listify (\(TextView i' _ _ _ _ _) -> i==i') view of
-    [b] -> Just b
-    []  -> Nothing
+    [b] -> b
+    []  -> error $ "internal error: no textView with id "++show i
     _   -> error $ "internal error: multiple texts with id "++show i
 
-
-getTextByViewId :: (Typeable db, Data d) => ViewId -> d -> TextView db
-getTextByViewId i view = fromMaybe (error $ "internal error: no text with id "++show i) $ getMTextByViewId i view  
 
 getJSVarByViewId :: (Typeable db, Data d) => ViewId -> d -> JSVar db
 getJSVarByViewId i view = 
@@ -365,11 +361,5 @@ getAnyWidgetById i x =
     []  -> error $ "internal error: getAnyWidgetById: no widget with id "
     _   -> error $ "internal error: getAnyWidgetById: multiple webviews with id "
      
-     
-  
-getTextByViewIdRef :: forall db v . (Typeable db, Data v) => db -> ViewIdRef -> v -> String
-getTextByViewIdRef _ (ViewIdRef i) view =
-  let (TextView _ _ str _ _ _) :: TextView db = getTextByViewId (ViewId i) view
-  in  str
 
  

@@ -587,7 +587,7 @@ callServerEditAction ea args = "queueCommand('PerformEditActionC ("++show (getAc
 getTextViewContents :: forall db . Data db => Widget (TextView db) -> EditM db String
 getTextViewContents text =
  do { (sessionId, user, db, rootView, pendingEdit, hashArgs) <- get
-    ; return $ getTextByViewIdRef (undefined :: db{-dummy arg-}) (widgetGetViewRef text) rootView
+    ; return $ getTextViewStrByViewIdRef (widgetGetViewRef text) rootView
     } 
 
 -- probably to be deleted, labels do not need to be accessed    
@@ -597,7 +597,7 @@ getLabelContents text =
     ; return $ getLabelContentsByViewIdRef (undefined :: db{-dummy arg-}) (widgetGetViewRef text) rootView
     } 
     
-getLabelContentsByViewIdRef :: forall db v . (Typeable db, Data v) => db -> ViewIdRef -> v -> String
+getLabelContentsByViewIdRef :: forall db . Data db => db -> ViewIdRef -> WebView db -> String
 getLabelContentsByViewIdRef _ (ViewIdRef i) view =
   let (LabelView _ str _) :: LabelView db = getLabelViewByViewId (ViewId i) view
   in  str
@@ -609,7 +609,7 @@ getJSVarContents text =
     ; return $ getJSVarContentsByViewIdRef (undefined :: db{-dummy arg-}) (widgetGetViewRef text) rootView
     } 
     
-getJSVarContentsByViewIdRef :: forall db v . (Typeable db, Data v) => db -> ViewIdRef -> v -> String
+getJSVarContentsByViewIdRef :: forall db v . Data db => db -> ViewIdRef -> WebView db -> String
 getJSVarContentsByViewIdRef _ (ViewIdRef i) view =
   let (JSVar _ _ value) :: JSVar db = getJSVarByViewId (ViewId i) view
   in  value

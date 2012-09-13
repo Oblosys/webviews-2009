@@ -18,13 +18,13 @@ import GenericsSYB ( replace
 
 --                , getWebViewById
 --                , getAnyWidgetById
+                
                 , getButtonByViewId
-                , getTextByViewIdRef
-                , getTextByViewId
+                , getTextViewByViewId
                 , getLabelViewByViewId
                 , getJSVarByViewId
-                , getEditActionByViewId
 
+                , getEditActionByViewId
                 , lookupOldView
                 )
 import GenericsMap ( 
@@ -38,6 +38,15 @@ import GenericsMap (
   
                 , getWebViewById
                 , getAnyWidgetById  
+{-
+                , getLabelViewByViewId
+                , getTextViewByViewId
+                , getRadioViewByViewId
+                , getSelectViewByViewId
+                , getButtonByViewId
+                , getJSVarByViewId
+-}
+--                , getEditActionByViewId
                 )
 
 import Data.Generics
@@ -45,6 +54,8 @@ import Data.Generics
 import Types
 import ObloUtils
 import Debug.Trace
+
+-- TODO: the Data constraints can probably be relaxed to typeable when only Map is used.
 
 -- clear all ids in webView and assign unique ones with respect to oldWebView
 assignAllUniqueIds :: (Data db, MapWebView db (WebView db)) => WebView db -> WebView db -> WebView db
@@ -69,3 +80,6 @@ getBreadthFirstWebNodes rootView = -- todo: why not do getWebNodes with recursio
                                        [WebViewNode rootView]
  where getTopLevelWebNodesWebNode (WebViewNode wv) = getTopLevelWebNodes wv
        getTopLevelWebNodesWebNode _ = []
+
+getTextViewStrByViewIdRef :: forall db . Data db => ViewIdRef -> WebView db -> String
+getTextViewStrByViewIdRef (ViewIdRef i) wv = getStrVal' $ (getTextViewByViewId (ViewId i) wv :: TextView db)

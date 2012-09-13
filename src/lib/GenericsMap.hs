@@ -60,6 +60,43 @@ mkWebNodeMap wv = Map.fromList $ getWebNodesAndViewIds True wv
 mkViewMap :: Typeable db => WebView db -> ViewMap db
 mkViewMap wv = Map.fromList $ [ (vid, wv) | (vid, WebViewNode wv) <- getWebNodesAndViewIds True wv ]
 
+getLabelViewByViewId :: Typeable db => ViewId -> WebView db -> LabelView db
+getLabelViewByViewId i wv =
+  case getAnyWidgetById i wv of
+    LabelWidget x -> x
+    _             -> error $ "internal error: widget with id " ++ show i ++ " is not a LabelView" 
+
+getTextViewByViewId :: Typeable db => ViewId -> WebView db -> TextView db
+getTextViewByViewId i wv =
+  case getAnyWidgetById i wv of
+    TextWidget x -> x
+    _              -> error $ "internal error: widget with id " ++ show i ++ " is not a TextView" 
+
+getRadioViewByViewId :: Typeable db => ViewId -> WebView db -> RadioView db
+getRadioViewByViewId i wv =
+  case getAnyWidgetById i wv of
+    RadioViewWidget x -> x
+    _                 -> error $ "internal error: widget with id " ++ show i ++ " is not a RadioView" 
+
+getSelectViewByViewId :: Typeable db => ViewId -> WebView db -> SelectView db
+getSelectViewByViewId i wv =
+  case getAnyWidgetById i wv of
+    SelectViewWidget x -> x
+    _                  -> error $ "internal error: widget with id " ++ show i ++ " is not a SelectView" 
+
+
+getButtonByViewId :: Typeable db => ViewId -> WebView db -> Button db
+getButtonByViewId i wv =
+  case getAnyWidgetById i wv of
+    ButtonWidget x -> x
+    _              -> error $ "internal error: widget with id " ++ show i ++ " is not a Button" 
+
+getJSVarByViewId :: Typeable db => ViewId -> WebView db -> JSVar db
+getJSVarByViewId i wv =
+  case getAnyWidgetById i wv of
+    JSVarWidget x -> x
+    _             -> error $ "internal error: widget with id " ++ show i ++ " is not a JSVar" 
+
 getWebViewById :: Typeable db => ViewId -> WebView db -> WebView db
 getWebViewById i wv = 
   case getWebNodeById "getWebViewById" i wv of
