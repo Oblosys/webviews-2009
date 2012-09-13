@@ -57,6 +57,8 @@ getTopLevelWebNodes (WebView _ _ _ _ v) = map snd $ getWebNodesAndViewIds False 
 mkWebNodeMap :: (Typeable db) => WebView db -> WebNodeMap db
 mkWebNodeMap wv = Map.fromList $ getWebNodesAndViewIds True wv
 
+mkViewMap :: Typeable db => WebView db -> ViewMap db
+mkViewMap wv = Map.fromList $ [ (vid, wv) | (vid, WebViewNode wv) <- getWebNodesAndViewIds True wv ]
 
 getWebNodesAndViewIds :: forall db v . (Typeable db, MapWebView db v) => Bool -> v -> [(ViewId, WebNode db)]
 getWebNodesAndViewIds recursive v = snd $ mapWebView (getWebNodesAndViewIdsWV, getWebNodesAndViewIdsWd, recursive) v []
