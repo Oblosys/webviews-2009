@@ -133,4 +133,14 @@ getWebNodesAndViewIds recursive v = snd $ mapWebView (getWebNodesAndViewIdsWV, g
                     `extQ` (\(Widget sid id w) -> let vid = getViewId w in [(vid, WidgetNode vid sid id $ JSVarWidget w)])
 -- todo: when we do this directly (without generics), get rid of the Data and Typeable contexts that were introduced
 -- with this getTopLevelWebNodesWebViewAlt
-      
+
+
+replaceWebViewById :: forall db . ViewId -> WebView db -> WebView db -> WebView db
+replaceWebViewById vid newWV rootView = fst $ mapWebView (replaceWebViewByIdWV, replaceWebViewByIdWd, True) rootView ()
+ where replaceWebViewByIdWV :: () -> WebView db -> (WebView db, ())
+       replaceWebViewByIdWV state wv@(WebView vi sid id mkF v) = (if vid == vi then newWV else wv, state)
+
+       replaceWebViewByIdWd state wd = (wd, state)
+
+
+

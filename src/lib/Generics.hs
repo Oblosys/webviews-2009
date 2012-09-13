@@ -2,7 +2,6 @@
 module Generics (module Generics, module GenericsSYB, module GenericsMap) where
 
 import GenericsSYB ( replace
-                , replaceWebViewById
                 
 --                ,  getAllIds
 --                , clearIds
@@ -26,7 +25,7 @@ import GenericsSYB ( replace
                 , getJSVarByViewId
 -}
                 , getEditActionByViewId
-                , lookupOldView
+--                , replaceWebViewById
                 )
 import GenericsMap ( 
                   getAllIds
@@ -48,6 +47,7 @@ import GenericsMap (
                 , getJSVarByViewId
 
 --                , getEditActionByViewId
+                , replaceWebViewById
                 )
 
 import Data.Generics
@@ -55,6 +55,7 @@ import Data.Generics
 import Types
 import ObloUtils
 import Debug.Trace
+import qualified Data.Map as Map
 
 -- TODO: the Data constraints can probably be relaxed to typeable when only Map is used.
 
@@ -73,6 +74,13 @@ assignIds x = let allIds = getAllIds x
                   assigned = assignIdsFromList allIds x
               in --trace (show $ filter (==Id (-1)) (getAllIds assigned)) $
                  assigned
+
+lookupOldView :: (Initial v, Typeable v) => ViewId -> ViewMap db -> Maybe v
+lookupOldView vid viewMap = 
+  case Map.lookup vid viewMap of
+    Nothing              -> Nothing
+    Just (WebView _ _ _ _ aView) -> cast aView
+
 
 -- return al list of all WebNodes in rootView            
 getBreadthFirstWebNodes :: Data db => WebView db -> [WebNode db]
@@ -96,4 +104,4 @@ getJSVarValueByViewIdRef (ViewIdRef i) view =
   let (JSVar _ _ value) :: JSVar db = getJSVarByViewId (ViewId i) view
   in  value
 
-                            
+                        
