@@ -987,6 +987,7 @@ instance Data db =>  MapWebView db (BView db) where
 --testmkwv :: x -> WebView Database
 testmkwv x = WebView (ViewId []) noId noId undefined $ x 
 
+testwv :: Int -> WebView Database
 testwv i = testmkwv $ HtmlTemplateView (show i)
  
 testwv0 :: WebView Database
