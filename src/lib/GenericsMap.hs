@@ -11,10 +11,22 @@ import Data.IntSet (IntSet)
 import qualified Data.IntSet as IntSet 
 import Debug.Trace
 
+
+getAllIds :: forall db . WebView db -> [Id]
+getAllIds rootView = snd $ mapWebView (getAllIdsWV, getAllIdsWd, True) rootView [] 
+  where getAllIdsWV :: [Id] -> WebView db -> (WebView db, [Id])
+        getAllIdsWV ids wv@(WebView _ sid id _ _) = (wv, sid:id:ids)
+        getAllIdsWd ids wd@(Widget sid id _)          = (wd, sid:id:ids)
+
+clearIds :: forall db . WebView db -> WebView db
+clearIds rootView = fst $ mapWebView (clearIdsWV, clearIdsWd, True) rootView () 
+  where clearIdsWV :: () -> WebView db -> (WebView db, ())
+        clearIdsWV _ wv@(WebView vid _ _ mkF v) = (WebView vid noId noId mkF v, ())
+        clearIdsWd _ wd@(Widget _ _ w)          = (Widget noId noId w, ())
+
 assignIdsFromList :: forall db . (Data db) => [Id] -> WebView db -> WebView db
 assignIdsFromList allIds rootView =
-  let assigned = fst $ mapWebView (assignIdsWV, assignIdsW, True)
-               rootView freeIds
+  let assigned = fst $ mapWebView (assignIdsWV, assignIdsW, True) rootView freeIds
   in {- trace (if [] /= filter (==Id (-1))(getAll assigned :: [Id]) then show assigned else "ok") $ -} assigned
  where usedIds = IntSet.fromList $ map unId $ filter (/= noId) $ allIds 
        freeIds = (IntSet.fromList $ [0 .. length allIds - 1]) `IntSet.difference` usedIds
@@ -35,8 +47,13 @@ mkId ids (Id i) = if (i == -1)
                                               in  (Id newId, ids') 
                                     else (Id i, ids)       
 
-getTopLevelWebNodesWebView :: forall db v . (Typeable db, MapWebView db v) => v -> [WebNode db]
-getTopLevelWebNodesWebView v = map snd $ getWebNodesAndViewIds False v
+-- get top-level WebNodes (WebViews and widgets), not including the WebView itself
+getTopLevelWebNodesWebView :: (Typeable db) => WebView db -> [WebNode db]
+getTopLevelWebNodesWebView (WebView _ _ _ _ v) = map snd $ getWebNodesAndViewIds False v
+
+-- get top-level WebNodes (WebViews and widgets), not including value itself (if it is a WebView or widget)
+getTopLevelWebNodes :: (Typeable db, MapWebView db v) => v -> [WebNode db]
+getTopLevelWebNodes wv = map snd $ getWebNodesAndViewIds False wv
 
 mkWebNodeMap :: (Typeable db) => WebView db -> WebNodeMap db
 mkWebNodeMap wv = Map.fromList $ getWebNodesAndViewIds True wv
