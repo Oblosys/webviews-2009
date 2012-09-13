@@ -52,8 +52,8 @@ debugLn str = trace str $ return ()
 -- When loading from different point than root, make sure Id's are not messed up
 
 instance Data db => Storeable db (WebView db) where
-  save (WebView _ _ _ _ v) =
-    let topLevelWebViews :: [WebView db] = getTopLevelWebViews v
+  save wv@(WebView _ _ _ _ v) =
+    let topLevelWebViews :: [WebView db] = getTopLevelWebViews wv
     in  foldl (.) id $ save v : map save topLevelWebViews
 
 

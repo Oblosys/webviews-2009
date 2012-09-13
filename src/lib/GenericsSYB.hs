@@ -108,8 +108,8 @@ getAll = listify (const True)
 getAllIds :: Data a => a -> [Id]
 getAllIds = getAll
 
-getTopLevelWebViews :: (Data db, Data a) => a -> [WebView db]
-getTopLevelWebViews wv = everythingTopLevel (Nothing `mkQ` Just) wv
+getTopLevelWebViews :: (Data db) => WebView db -> [WebView db]
+getTopLevelWebViews (WebView _ _ _ _ v) = everythingTopLevel (Nothing `mkQ` Just) v
 -- the type sig specifies the term type
 
 
