@@ -60,6 +60,25 @@ mkWebNodeMap wv = Map.fromList $ getWebNodesAndViewIds True wv
 mkViewMap :: Typeable db => WebView db -> ViewMap db
 mkViewMap wv = Map.fromList $ [ (vid, wv) | (vid, WebViewNode wv) <- getWebNodesAndViewIds True wv ]
 
+getWebViewById :: Typeable db => ViewId -> WebView db -> WebView db
+getWebViewById i wv = 
+  case getWebNodeById "getWebViewById" i wv of
+    (WebViewNode wv) -> wv
+    _                -> error $ "internal error: webnode with id " ++ show i ++ " is not a WebViewNode"
+
+getAnyWidgetById :: Typeable db => ViewId -> WebView db -> AnyWidget db
+getAnyWidgetById i wv = 
+  case getWebNodeById "getWebViewById" i wv of
+    (WidgetNode _ _ _ wd) -> wd
+    _                -> error $ "internal error: webnode with id " ++ show i ++ " is not a WidgetNode"
+
+getWebNodeById :: Typeable db => String -> ViewId -> WebView db -> WebNode db
+getWebNodeById callerTag i wv = 
+  case [ wn | (vid, wn) <- getWebNodesAndViewIds True wv, vid == i ] of
+    [b] -> b
+    []  -> error $ "internal error: getWebNodeById (called by "++callerTag++"): no webnode with id " ++ show i
+    _   -> error $ "internal error: getWebNodeById (called by "++callerTag++"): multiple webnode with id " ++ show i
+
 getWebNodesAndViewIds :: forall db v . (Typeable db, MapWebView db v) => Bool -> v -> [(ViewId, WebNode db)]
 getWebNodesAndViewIds recursive v = snd $ mapWebView (getWebNodesAndViewIdsWV, getWebNodesAndViewIdsWd, recursive) v []
  where getWebNodesAndViewIdsWV :: [(ViewId, WebNode db)] -> WebView db -> (WebView db, [(ViewId, WebNode db)])

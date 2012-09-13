@@ -16,8 +16,8 @@ import GenericsSYB ( replace
 --                , mkViewMap
                 
 
-                , getWebViewById
-                , getAnyWidgetById
+--                , getWebViewById
+--                , getAnyWidgetById
                 , getButtonByViewId
                 , getTextByViewIdRef
                 , getTextByViewId
@@ -35,6 +35,9 @@ import GenericsMap (
                 , getTopLevelWebViews
                 , mkWebNodeMap
                 , mkViewMap
+  
+                , getWebViewById
+                , getAnyWidgetById  
                 )
 
 import Data.Generics
