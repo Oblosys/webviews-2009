@@ -584,34 +584,25 @@ callServerEditAction ea args = "queueCommand('PerformEditActionC ("++show (getAc
 
 -- Hacky stuff
 
-getTextViewContents :: forall db . Data db => Widget (TextView db) -> EditM db String
+getTextViewContents ::Data db => Widget (TextView db) -> EditM db String
 getTextViewContents text =
  do { (sessionId, user, db, rootView, pendingEdit, hashArgs) <- get
     ; return $ getTextViewStrByViewIdRef (widgetGetViewRef text) rootView
     } 
 
 -- probably to be deleted, labels do not need to be accessed    
-getLabelContents :: forall db . Data db => Widget (LabelView db) -> EditM db String
+getLabelContents :: Data db => Widget (LabelView db) -> EditM db String
 getLabelContents text =
  do { (sessionId, user, db, rootView, pendingEdit, hashArgs) <- get
-    ; return $ getLabelContentsByViewIdRef (undefined :: db{-dummy arg-}) (widgetGetViewRef text) rootView
+    ; return $ getLabelStrByViewIdRef (widgetGetViewRef text) rootView
     } 
     
-getLabelContentsByViewIdRef :: forall db . Data db => db -> ViewIdRef -> WebView db -> String
-getLabelContentsByViewIdRef _ (ViewIdRef i) view =
-  let (LabelView _ str _) :: LabelView db = getLabelViewByViewId (ViewId i) view
-  in  str
 
 -- not sure if we'll need these, passing vars as arguments works for submit actions.
-getJSVarContents :: forall db . Data db => Widget (JSVar db) -> EditM db String
-getJSVarContents text =
+getJSVarValue :: Data db => Widget (JSVar db) -> EditM db String
+getJSVarValue text =
  do { (sessionId, user, db, rootView, pendingEdit, hashArgs) <- get
-    ; return $ getJSVarContentsByViewIdRef (undefined :: db{-dummy arg-}) (widgetGetViewRef text) rootView
+    ; return $ getJSVarValueByViewIdRef (widgetGetViewRef text) rootView
     } 
-    
-getJSVarContentsByViewIdRef :: forall db v . Data db => db -> ViewIdRef -> WebView db -> String
-getJSVarContentsByViewIdRef _ (ViewIdRef i) view =
-  let (JSVar _ _ value) :: JSVar db = getJSVarByViewId (ViewId i) view
-  in  value
 
-                            
+

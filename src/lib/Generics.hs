@@ -18,12 +18,13 @@ import GenericsSYB ( replace
 
 --                , getWebViewById
 --                , getAnyWidgetById
-                
+
+{-                
                 , getButtonByViewId
                 , getTextViewByViewId
                 , getLabelViewByViewId
                 , getJSVarByViewId
-
+-}
                 , getEditActionByViewId
                 , lookupOldView
                 )
@@ -38,14 +39,14 @@ import GenericsMap (
   
                 , getWebViewById
                 , getAnyWidgetById  
-{-
+
                 , getLabelViewByViewId
                 , getTextViewByViewId
                 , getRadioViewByViewId
                 , getSelectViewByViewId
                 , getButtonByViewId
                 , getJSVarByViewId
--}
+
 --                , getEditActionByViewId
                 )
 
@@ -81,5 +82,18 @@ getBreadthFirstWebNodes rootView = -- todo: why not do getWebNodes with recursio
  where getTopLevelWebNodesWebNode (WebViewNode wv) = getTopLevelWebNodes wv
        getTopLevelWebNodesWebNode _ = []
 
+
 getTextViewStrByViewIdRef :: forall db . Data db => ViewIdRef -> WebView db -> String
 getTextViewStrByViewIdRef (ViewIdRef i) wv = getStrVal' $ (getTextViewByViewId (ViewId i) wv :: TextView db)
+
+getLabelStrByViewIdRef :: forall db . Data db => ViewIdRef -> WebView db -> String
+getLabelStrByViewIdRef (ViewIdRef i) view =
+  let (LabelView _ str _) :: LabelView db = getLabelViewByViewId (ViewId i) view
+  in  str
+    
+getJSVarValueByViewIdRef :: forall db v . Data db => ViewIdRef -> WebView db -> String
+getJSVarValueByViewIdRef (ViewIdRef i) view =
+  let (JSVar _ _ value) :: JSVar db = getJSVarByViewId (ViewId i) view
+  in  value
+
+                            
