@@ -6,7 +6,7 @@ import GenericsSYB ( replace
 --                ,  getAllIds
 --                , clearIds
 
-                , substituteIds
+--                , substituteIds
 
 --                , assignIdsFromList
 --                , getTopLevelWebNodes
@@ -48,6 +48,8 @@ import GenericsMap (
 
 --                , getEditActionByViewId
                 , replaceWebViewById
+  
+                , substituteIds
                 )
 
 import Data.Generics

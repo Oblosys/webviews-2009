@@ -9,6 +9,7 @@ import Data.Map (Map)
 import qualified Data.Map as Map 
 import Data.IntSet (IntSet)
 import qualified Data.IntSet as IntSet 
+import qualified Data.IntMap as IntMap 
 import Debug.Trace
 
 
@@ -26,7 +27,7 @@ clearIds rootView = fst $ mapWebView (clearIdsWV, clearIdsWd, True) rootView ()
 
 assignIdsFromList :: forall db . (Data db) => [Id] -> WebView db -> WebView db
 assignIdsFromList allIds rootView =
-  let assigned = fst $ mapWebView (assignIdsWV, assignIdsW, True) rootView freeIds
+  let assigned = fst $ mapWebView (assignIdsWV, assignIdsWd, True) rootView freeIds
   in {- trace (if [] /= filter (==Id (-1))(getAll assigned :: [Id]) then show assigned else "ok") $ -} assigned
  where usedIds = IntSet.fromList $ map unId $ filter (/= noId) $ allIds 
        freeIds = (IntSet.fromList $ [0 .. length allIds - 1]) `IntSet.difference` usedIds
@@ -36,7 +37,7 @@ assignIdsFromList allIds rootView =
         where (sid',state') = mkId state sid
               (id',state'') = mkId state' id
        
-       assignIdsW state (Widget sid id w) = (Widget sid' id' w, state'')
+       assignIdsWd state (Widget sid id w) = (Widget sid' id' w, state'')
         where (sid',state') = mkId state sid
               (id',state'') = mkId state' id
 
@@ -143,4 +144,15 @@ replaceWebViewById vid newWV rootView = fst $ mapWebView (replaceWebViewByIdWV, 
        replaceWebViewByIdWd state wd = (wd, state)
 
 
-
+substituteIds :: forall db . [(Id, Id)] -> WebView db -> WebView db
+substituteIds subs rootView = fst $ mapWebView (substituteIdsWV, substituteIdsWd, True) rootView ()
+ where substituteIdsWV :: () -> WebView db -> (WebView db, ())
+       substituteIdsWV state (WebView vi sid id mkF v) = (WebView vi (substituteId sid) (substituteId id) mkF v, state)
+       
+       substituteIdsWd state (Widget sid id w) = (Widget (substituteId sid) (substituteId id) w, state)
+       
+       subsMap = IntMap.fromList $ map (\(Id i1, Id i2) -> (i1,i2)) subs
+       
+       substituteId id@(Id i) = case IntMap.lookup i subsMap of
+                                  Nothing  -> id
+                                  Just i' -> Id i'
