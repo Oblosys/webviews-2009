@@ -1,12 +1,14 @@
 {-# LANGUAGE FlexibleContexts #-}
 module Generics (module Generics, module GenericsSYB, module GenericsMap) where
 
-import GenericsSYB ( 
-                  getAllIds
-                , clearIds
-                , assignIdsFromList
-                , getTopLevelWebNodesWebView
-                , mkWebNodeMap
+import GenericsSYB ( replace
+                
+               --   getAllIds
+               -- , clearIds
+
+               -- , assignIdsFromList
+--                , getTopLevelWebNodesWebView
+               -- , mkWebNodeMap
 
 
                 , substituteIds
@@ -23,15 +25,15 @@ import GenericsSYB (
                 , getJSVarByViewId
                 , getEditActionByViewId
                 , lookupOldView
-                , replace
                 )
 import GenericsMap ( 
---                  getAllIds
---                , clearIds
---                , assignIdsFromList
---               , getTopLevelWebNodesWebView
---                , mkWebNodeMap
+                  getAllIds
+                , clearIds
+                , assignIdsFromList
+                , getTopLevelWebNodesWebView
+                , mkWebNodeMap
                 )
+
 import Data.Generics
 
 import Types
@@ -53,4 +55,3 @@ assignIds x = let allIds = getAllIds x
                   assigned = assignIdsFromList allIds x
               in trace (show $ filter (==Id (-1)) (getAllIds assigned)) $
                  assigned
-
