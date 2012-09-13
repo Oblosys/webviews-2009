@@ -48,12 +48,8 @@ mkId ids (Id i) = if (i == -1)
                                     else (Id i, ids)       
 
 -- get top-level WebNodes (WebViews and widgets), not including the WebView itself
-getTopLevelWebNodesWebView :: (Typeable db) => WebView db -> [WebNode db]
-getTopLevelWebNodesWebView (WebView _ _ _ _ v) = map snd $ getWebNodesAndViewIds False v
-
--- get top-level WebNodes (WebViews and widgets), not including value itself (if it is a WebView or widget)
-getTopLevelWebNodes :: (Typeable db, MapWebView db v) => v -> [WebNode db]
-getTopLevelWebNodes wv = map snd $ getWebNodesAndViewIds False wv
+getTopLevelWebNodes :: (Typeable db) => WebView db -> [WebNode db]
+getTopLevelWebNodes (WebView _ _ _ _ v) = map snd $ getWebNodesAndViewIds False v
 
 mkWebNodeMap :: (Typeable db) => WebView db -> WebNodeMap db
 mkWebNodeMap wv = Map.fromList $ getWebNodesAndViewIds True wv

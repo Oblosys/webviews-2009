@@ -183,13 +183,6 @@ getWidgetInternalId  (SelectViewWidget (SelectView id _ _ _ _ _)) = id
 getWidgetInternalId  (ButtonWidget (Button id _ _ _ _ _)) = id
 getWidgetInternalId  (JSVarWidget (JSVar id _ _)) = id
 
--- return al list of all WebNodes in rootView            
-getBreadthFirstWebNodes :: Data db => WebView db -> [WebNode db]
-getBreadthFirstWebNodes rootView =
-  concat $ takeWhile (not . null) $ iterate (concatMap getTopLevelWebNodes) 
-                                       [WebViewNode rootView]
- where getTopLevelWebNodes (WebViewNode wv) = getTopLevelWebNodesWebView wv
-       getTopLevelWebNodes _ = []
                                        
 showViewMap viewMap = unlines $ "ViewMap:" : [ show k ++ shallowShowWebView wv | (k, wv) <- Map.toList viewMap ]
 

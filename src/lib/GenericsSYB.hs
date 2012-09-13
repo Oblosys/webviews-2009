@@ -4,8 +4,7 @@ module GenericsSYB ( getAllIds
                 , assignIdsFromList
                 , substituteIds
                 , getTopLevelWebViews
-                , getTopLevelWebNodesWebNode
-                , getTopLevelWebNodesWebView
+                , getTopLevelWebNodes
                 , mkWebNodeMap
                 , mkViewMap
                 , getAnyWidgetById
@@ -93,18 +92,8 @@ mkWebNodeMap x = Map.fromList $ everything (++)
   ) x    
 
 
--- TODO: maybe call these getChildWebNodes..?
-getTopLevelWebNodesWebView :: Data db => WebView db -> [WebNode db]
-getTopLevelWebNodesWebView wv@(WebView _ _ _ _ v) =
-  everythingTopLevel webNodeQ v
-
-
-
--- make sure this one is not called on a WebView, but on its child view
--- TODO: rename this one, it is not called on a WebNode
-getTopLevelWebNodesWebNode :: (Data db, Data x, MapWebView db x) => x -> [WebNode db]
-getTopLevelWebNodesWebNode x = 
-  everythingTopLevel webNodeQ x
+getTopLevelWebNodes :: Data db => WebView db -> [WebNode db]
+getTopLevelWebNodes (WebView _ _ _ _ v) = everythingTopLevel webNodeQ v
                      
 -- lookup the view id and if the associated view is of the desired type, return it. Otherwise return Nothing
 lookupOldView :: (Initial v, Typeable v) => ViewId -> ViewMap db -> Maybe v

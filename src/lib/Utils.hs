@@ -44,7 +44,7 @@ shallowShowWebView (WebView vid sid id _ v) =
 drawWebNodes webnode = drawTree $ treeFromView webnode
  where treeFromView (WebViewNode wv@(WebView vid sid id _ v)) =
          Node ("("++show vid ++ ", stub:" ++ show (unId sid) ++ ", id:" ++ show (unId id) ++ ") : " ++ show (typeOf v)) $
-              map treeFromView $ getTopLevelWebNodesWebView wv
+              map treeFromView $ getTopLevelWebNodes wv
        treeFromView (WidgetNode vid sid id w) =
          Node ("("++show vid++", stub:" ++ show (unId sid) ++ ", id:" ++ show (unId id) ++ ") : " ++ showAnyWidget w) $
               []
@@ -58,5 +58,5 @@ drawWebNodes webnode = drawTree $ treeFromView webnode
 
 getTopLevelWebNodesForWebNode :: (Data db) => WebNode db -> [WebNode db]
 getTopLevelWebNodesForWebNode (WidgetNode _ _ _ wn) = []
-getTopLevelWebNodesForWebNode (WebViewNode wv) = getTopLevelWebNodesWebView wv
+getTopLevelWebNodesForWebNode (WebViewNode wv) = getTopLevelWebNodes wv
 
