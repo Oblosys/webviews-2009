@@ -128,20 +128,25 @@ getWebNodesAndViewIds recursive v = snd $ mapWebView (getWebNodesAndViewIdsWV, g
  where getWebNodesAndViewIdsWV :: [(ViewId, WebNode db)] -> WebView db -> (WebView db, [(ViewId, WebNode db)])
        getWebNodesAndViewIdsWV state wv@(WebView vi _ _ _ _) = (wv, (vi, WebViewNode wv):state)
 
-       getWebNodesAndViewIdsWd :: Data (w db) => [(ViewId, WebNode db)] -> Widget (w db) -> (Widget (w db), [(ViewId, WebNode db)])
-       getWebNodesAndViewIdsWd state wd = (wd, widgetNode wd ++ state) 
-         where widgetNode :: (Typeable (w db), Typeable db) => Widget (w db) -> [(ViewId, WebNode db)]
-               widgetNode = 
-                 [] `mkQ`  (\(Widget sid id w) -> let vid = getViewId w in [(vid, WidgetNode vid sid id $ LabelWidget w)])
-                    `extQ` (\(Widget sid id w) -> let vid = getViewId w in [(vid, WidgetNode vid sid id $ TextWidget w)])
-                    `extQ` (\(Widget sid id w) -> let vid = getViewId w in [(vid, WidgetNode vid sid id $ RadioViewWidget w)])
-                    `extQ` (\(Widget sid id w) -> let vid = getViewId w in [(vid, WidgetNode vid sid id $ SelectViewWidget w)])
-                    `extQ` (\(Widget sid id w) -> let vid = getViewId w in [(vid, WidgetNode vid sid id $ ButtonWidget w)])
-                    `extQ` (\(Widget sid id w) -> let vid = getViewId w in [(vid, WidgetNode vid sid id $ JSVarWidget w)])
-                    `extQ` (\(Widget sid id w) -> let vid = getViewId w in [(vid, WidgetNode vid sid id $ EditActionWidget w)])
--- todo: when we do this directly (without generics), get rid of the Data and Typeable contexts that were introduced
--- with this getTopLevelWebNodesWebViewAlt
+       getWebNodesAndViewIdsWd :: MapWebView db (w db) => [(ViewId, WebNode db)] -> Widget (w db) -> (Widget (w db), [(ViewId, WebNode db)])
+       getWebNodesAndViewIdsWd state wd@(Widget sid id w) = (wd, widgetNode ++  state) 
+         where widgetNode :: [(ViewId, WebNode db)]
+               widgetNode = case widgetToAnyWidget w of
+                              Nothing       -> error "bla"
+                              Just (vid,a)  -> [(vid, WidgetNode vid sid id a)]
 
+widgetToAnyWidget :: (MapWebView db w) => w -> (Maybe (ViewId,AnyWidget db))
+widgetToAnyWidget w = snd $ mapWebView (inert,inert,widgetUpdates,False {- has no effect -}) w Nothing 
+ where widgetUpdates :: WidgetUpdates db (Maybe (ViewId, AnyWidget db))
+       widgetUpdates = WidgetUpdates labelViewUpd textViewUpd radioViewUpd selectViewUpd buttonUpd jsVarUpd editActionUpd
+                                     
+       labelViewUpd s w  = (w, Just (getViewId w, LabelWidget w))
+       textViewUpd s w   = (w, Just (getViewId w, TextWidget w))
+       radioViewUpd s w  = (w, Just (getViewId w, RadioViewWidget w))
+       selectViewUpd s w = (w, Just (getViewId w, SelectViewWidget w))
+       buttonUpd s w     = (w, Just (getViewId w, ButtonWidget w))
+       jsVarUpd s w      = (w, Just (getViewId w, JSVarWidget w))
+       editActionUpd s w = (w, Just (getViewId w, EditActionWidget w))
 
 replaceWebViewById :: forall db . ViewId -> WebView db -> WebView db -> WebView db
 replaceWebViewById vid newWV rootView = fst $ mapWebView (replaceWebViewByIdWV, replaceWebViewByIdWd, noWidgetUpdates, True) rootView ()
@@ -169,30 +174,31 @@ type Updates = Map ViewId String  -- maps id's to the string representation of t
 
 -- TODO: cleanup some names in Types (rename all smart constructors to ..Widget: editAction -> editActionWidget),
 --       and then remove some ' and _ names.
--- TODO: fix editAction
--- TODO: use map instead of generics in this module 
--- TODO: remove Data constraints where possible (maybe replace by Typeable)
+-- TODO: take widgets out of the map. doesn't really add anything as they won't appear without a wrapping Widget
+-- TODO: remove Data constraints where possible (maybe replace by Typeable) (introduced some new ones with getTopLevelWebNodesWebViewAlt)
+--           and maybe getEditActionByViewId
 -- TODO: fix s and v param order and maybe make MapWebView instances easier by removing arg
 --       and fix applyUpdates and getWebNodesAndViewIds since their params can probably be curried then
+-- TODO: profile
 -- TODO: make TH generation for MapWebView instances
+-- TODO: use anywidget type in widget? There doesn't seem to be a need for different types
 -- TODO: make lenses for WebViews
+
 -- update the datastructure at the id's in Updates 
 applyUpdates :: forall db d . Updates -> WebView db -> WebView db
 applyUpdates updates rootView = fst $ mapWebView (applyUpdatesWV, applyUpdatesWd, widgetUpdates, True) rootView ()
  where applyUpdatesWV :: () -> WebView db -> (WebView db, ())
        applyUpdatesWV state wd = (wd, state)
        applyUpdatesWd state wd = (wd, state)
-       widgetUpdates :: WidgetUpdates db ()
-       widgetUpdates = WidgetUpdates labelViewUpd textViewUpd undefined undefined undefined undefined undefined 
-       --WidgetUpdates labelViewUpd textViewUpd radioViewUpd selectViewUpd buttonUpd jsVarUpd editActionUpd
+       widgetUpdates = WidgetUpdates labelViewUpd textViewUpd radioViewUpd selectViewUpd buttonUpd jsVarUpd editActionUpd
                                      
-       labelViewUpd    = inert
+       labelViewUpd      = inert
        textViewUpd s w   = mkWidgetUpdate s w (\v -> w{getStrVal'=v})            id
        radioViewUpd s w  = mkWidgetUpdate s w (\v -> w{getRadioSelection'=v})  $ unsafeRead ("Generics.replace.radioViewUpd at "++(show $ getViewId w))
        selectViewUpd s w = mkWidgetUpdate s w (\v -> w{getSelectSelection'=v}) $ unsafeRead ("Generics.replace.selectViewUpd at "++(show $ getViewId w))
-       buttonUpd       = inert 
+       buttonUpd         = inert 
        jsVarUpd s w      = mkWidgetUpdate s w (\v -> w{getJSVarValue_=v})        id
-       editActionUpd   = inert 
+       editActionUpd     = inert 
 
        mkWidgetUpdate :: HasViewId w => s -> w -> (a -> w) -> (String -> a) -> (w,s) 
        mkWidgetUpdate w upd parse = undefined -- case Map.lookup (getViewId w) updates of
