@@ -13,20 +13,20 @@ import Debug.Trace
 
 
 getAllIds :: forall db . WebView db -> [Id]
-getAllIds rootView = snd $ mapWebView (getAllIdsWV, getAllIdsWd, noWidgetUpdates, True) rootView [] 
+getAllIds rootView = snd $ mapWebView rootView (getAllIdsWV, getAllIdsWd, noWidgetUpdates, True) [] 
   where getAllIdsWV :: [Id] -> WebView db -> (WebView db, [Id])
         getAllIdsWV ids wv@(WebView _ sid id _ _) = (wv, sid:id:ids)
         getAllIdsWd ids wd@(Widget sid id _)          = (wd, sid:id:ids)
 
 clearIds :: forall db . WebView db -> WebView db
-clearIds rootView = fst $ mapWebView (clearIdsWV, clearIdsWd, noWidgetUpdates, True) rootView () 
+clearIds rootView = fst $ mapWebView rootView (clearIdsWV, clearIdsWd, noWidgetUpdates, True) () 
   where clearIdsWV :: () -> WebView db -> (WebView db, ())
         clearIdsWV _ wv@(WebView vid _ _ mkF v) = (WebView vid noId noId mkF v, ())
         clearIdsWd _ wd@(Widget _ _ w)          = (Widget noId noId w, ())
 
 assignIdsFromList :: forall db . [Id] -> WebView db -> WebView db
 assignIdsFromList allIds rootView =
-  let assigned = fst $ mapWebView (assignIdsWV, assignIdsWd, noWidgetUpdates, True) rootView freeIds
+  let assigned = fst $ mapWebView rootView (assignIdsWV, assignIdsWd, noWidgetUpdates, True) freeIds
   in {- trace (if [] /= filter (==Id (-1))(getAll assigned :: [Id]) then show assigned else "ok") $ -} assigned
  where usedIds = IntSet.fromList $ map unId $ filter (/= noId) $ allIds 
        freeIds = (IntSet.fromList $ [0 .. length allIds - 1]) `IntSet.difference` usedIds
@@ -123,7 +123,7 @@ getWebNodeById callerTag i wv =
     _   -> error $ "internal error: getWebNodeById (called by "++callerTag++"): multiple webnode with id " ++ show i
 
 getWebNodesAndViewIds :: forall db v . MapWebView db v => Bool -> v -> [(ViewId, WebNode db)]
-getWebNodesAndViewIds recursive v = snd $ mapWebView (getWebNodesAndViewIdsWV, getWebNodesAndViewIdsWd, noWidgetUpdates, recursive) v []
+getWebNodesAndViewIds recursive v = snd $ mapWebView v (getWebNodesAndViewIdsWV, getWebNodesAndViewIdsWd, noWidgetUpdates, recursive) []
  where getWebNodesAndViewIdsWV :: [(ViewId, WebNode db)] -> WebView db -> (WebView db, [(ViewId, WebNode db)])
        getWebNodesAndViewIdsWV state wv@(WebView vi _ _ _ _) = (wv, (vi, WebViewNode wv):state)
 
@@ -135,7 +135,7 @@ getWebNodesAndViewIds recursive v = snd $ mapWebView (getWebNodesAndViewIdsWV, g
                               Just (vid,a)  -> [(vid, WidgetNode vid sid id a)]
 
 widgetToAnyWidget :: MapWebView db w => w -> (Maybe (ViewId,AnyWidget db))
-widgetToAnyWidget w = snd $ mapWebView (inert,inert,widgetUpdates,False {- has no effect -}) w Nothing 
+widgetToAnyWidget w = snd $ mapWebView w (inert,inert,widgetUpdates,False {- has no effect -}) Nothing 
  where widgetUpdates :: WidgetUpdates db (Maybe (ViewId, AnyWidget db))
        widgetUpdates = WidgetUpdates labelViewUpd textViewUpd radioViewUpd selectViewUpd buttonUpd jsVarUpd editActionUpd
                                      
@@ -148,7 +148,7 @@ widgetToAnyWidget w = snd $ mapWebView (inert,inert,widgetUpdates,False {- has n
        editActionUpd s w = (w, Just (getViewId w, EditActionWidget w))
 
 replaceWebViewById :: forall db . ViewId -> WebView db -> WebView db -> WebView db
-replaceWebViewById vid newWV rootView = fst $ mapWebView (replaceWebViewByIdWV, replaceWebViewByIdWd, noWidgetUpdates, True) rootView ()
+replaceWebViewById vid newWV rootView = fst $ mapWebView rootView (replaceWebViewByIdWV, replaceWebViewByIdWd, noWidgetUpdates, True) ()
  where replaceWebViewByIdWV :: () -> WebView db -> (WebView db, ())
        replaceWebViewByIdWV state wv@(WebView vi sid id mkF v) = (if vid == vi then newWV else wv, state)
 
@@ -156,7 +156,7 @@ replaceWebViewById vid newWV rootView = fst $ mapWebView (replaceWebViewByIdWV, 
 
 
 substituteIds :: forall db . [(Id, Id)] -> WebView db -> WebView db
-substituteIds subs rootView = fst $ mapWebView (substituteIdsWV, substituteIdsWd, noWidgetUpdates, True) rootView ()
+substituteIds subs rootView = fst $ mapWebView rootView (substituteIdsWV, substituteIdsWd, noWidgetUpdates, True) ()
  where substituteIdsWV :: () -> WebView db -> (WebView db, ())
        substituteIdsWV state (WebView vi sid id mkF v) = (WebView vi (substituteId sid) (substituteId id) mkF v, state)
        
@@ -186,7 +186,7 @@ type Updates = Map ViewId String  -- maps id's to the string representation of t
 
 -- update the datastructure at the id's in Updates 
 applyUpdates :: forall db d . Updates -> WebView db -> WebView db
-applyUpdates updates rootView = fst $ mapWebView (applyUpdatesWV, applyUpdatesWd, widgetUpdates, True) rootView ()
+applyUpdates updates rootView = fst $ mapWebView rootView (applyUpdatesWV, applyUpdatesWd, widgetUpdates, True) ()
  where applyUpdatesWV :: () -> WebView db -> (WebView db, ())
        applyUpdatesWV state wd = (wd, state)
        applyUpdatesWd state wd = (wd, state)

@@ -482,13 +482,19 @@ instance Data db => Initial (WebView db) where
 
 -- recursive map on v arg in WebView is maybe handled a bit dodgy still.
 class MapWebView db v where
-  mapWebView :: (forall w . ( s -> WebView db -> (WebView db,s) 
-                            , MapWebView db (w db) => s -> Widget (w db) -> (Widget (w db),s) -- This Data context requires ImpredicativeTypes :-(
+  mapWebView :: v -> 
+                (forall w . ( s -> WebView db -> (WebView db,s) 
+                            , MapWebView db (w db) => s -> Widget (w db) -> (Widget (w db),s) -- This MapWebView context requires ImpredicativeTypes :-(
                             , WidgetUpdates db s
                             , Bool -- specifies whether map will recurse in WebView children
                             )
-                ) -> v -> s -> (v, s)
-  mapWebView fns x = pure x
+                ) -> 
+                s -> (v, s)
+  mapWebView x = pure x
+{- By keeping the reader (ie. function tuple) and state arguments at the end, we can pass these around
+   automatically in functions pure and <*>, which allows for very elegant instance declarations:
+     mapWebView (Constr arg1 .. argn) = pure Constr <*> mapWebView arg1 <*> .. <*> mapWebView argn 
+-}
 
 data WidgetUpdates db s = WidgetUpdates { labelViewUpdate :: s -> LabelView db -> (LabelView db, s)
                                         , textViewUpdate :: s -> TextView db -> (TextView db, s)
@@ -505,53 +511,53 @@ noWidgetUpdates = WidgetUpdates inert inert inert inert inert inert inert
 inert s x = (x,s)
    
 instance MapWebView db (WebView db) where
-  mapWebView fns@(fwv,_,_,recursive) wv state =
+  mapWebView wv fns@(fwv,_,_,recursive) state =
    case fwv state wv of
-     (WebView a b c d v, state') ->  let (v', state'') | recursive = mapWebView fns v state'
+     (WebView a b c d v, state') ->  let (v', state'') | recursive = mapWebView v fns state'
                                                        | otherwise   = (v, state')
                                      in  (WebView a b c d v', state'')
 
 instance (Data (w db), MapWebView db (w db)) => MapWebView db (Widget (w db)) where
-  mapWebView fns@(_,fwd,_,_) wd state = 
+  mapWebView wd fns@(_,fwd,_,_) state = 
     case fwd state wd of -- case not necessary here, but consistent with WebView instance
-      (Widget sid id w, state') -> let (w', state'') = mapWebView fns w state' -- NOTE: recurse flag is only
+      (Widget sid id w, state') -> let (w', state'') = mapWebView w fns  state' -- NOTE: recurse flag is only
                                    in  (Widget sid id w', state'')             -- used for WebViews, not widgets
 
 instance MapWebView db (LabelView db) where
-  mapWebView (_,_,widgetUpdates,_) w s = labelViewUpdate widgetUpdates s w 
+  mapWebView w (_,_,widgetUpdates,_) s = labelViewUpdate widgetUpdates s w 
 
 instance MapWebView db (TextView db) where
-  mapWebView (_,_,widgetUpdates,_) w s = textViewUpdate widgetUpdates s w 
+  mapWebView w (_,_,widgetUpdates,_) s = textViewUpdate widgetUpdates s w 
 
 instance MapWebView db (RadioView db) where
-  mapWebView (_,_,widgetUpdates,_) w s = radioViewUpdate widgetUpdates s w 
+  mapWebView w (_,_,widgetUpdates,_) s = radioViewUpdate widgetUpdates s w 
 
 instance MapWebView db (SelectView db) where
-  mapWebView (_,_,widgetUpdates,_) w s = selectViewUpdate widgetUpdates s w 
+  mapWebView w (_,_,widgetUpdates,_) s = selectViewUpdate widgetUpdates s w 
 
 instance MapWebView db (Button db) where
-  mapWebView (_,_,widgetUpdates,_) w s = buttonUpdate widgetUpdates s w 
+  mapWebView w (_,_,widgetUpdates,_) s = buttonUpdate widgetUpdates s w 
 
 instance MapWebView db (JSVar db) where
-  mapWebView (_,_,widgetUpdates,_) w s = jsVarUpdate widgetUpdates s w 
+  mapWebView w (_,_,widgetUpdates,_) s = jsVarUpdate widgetUpdates s w 
 
 instance MapWebView db (EditAction db) where
-  mapWebView (_,_,widgetUpdates,_) w s = editActionUpdate widgetUpdates s w 
+  mapWebView w (_,_,widgetUpdates,_) s = editActionUpdate widgetUpdates s w 
 
 instance MapWebView db a => MapWebView db (Maybe a) where
-  mapWebView fns Nothing = pure Nothing
-  mapWebView fns (Just a) = Just <$> mapWebView fns a
+  mapWebView Nothing = pure Nothing
+  mapWebView (Just a) = Just <$> mapWebView a
 
 instance MapWebView db a => MapWebView db [a] where
-  mapWebView fns []     = pure []
-  mapWebView fns (a:as) = (:) <$> mapWebView fns a <*> mapWebView fns as 
+  mapWebView []     = pure []
+  mapWebView (a:as) = (:) <$> mapWebView a <*> mapWebView as 
 
 instance (MapWebView db a, MapWebView db b) => MapWebView db (Either a b) where
-  mapWebView fns (Left a)  = Left <$> mapWebView fns a
-  mapWebView fns (Right a) = Right <$> mapWebView fns a
+  mapWebView (Left a)  = Left <$> mapWebView a
+  mapWebView (Right a) = Right <$> mapWebView a
 
 instance (MapWebView db a, MapWebView db b) => MapWebView db (a,b) where
-  mapWebView fns (a,b) = (,) <$> mapWebView fns a <*> mapWebView fns b
+  mapWebView (a,b) = (,) <$> mapWebView a <*> mapWebView b
 
 instance MapWebView db ()
 
@@ -565,17 +571,17 @@ instance MapWebView db Double
 
 
 -- We could make this an instance of Applicative, but there don't seem to be many advantages (yet).
-type F s a = s -> (a,s)
+type F fns s a = fns -> s -> (a,s)
 
-pure :: f -> F s f 
-pure f state = (f, state) 
+pure :: f -> F fns s f 
+pure f = \fns state -> (f, state) 
 
-(<*>) :: F s (a->b) -> F s a -> F s b
-f <*> x = \state -> let (f', state') = f state
-                        (x', state'') = x state'
-                    in  (f' x', state'')
+(<*>) :: F fns s (a->b) -> F fns s a -> F fns s b
+f <*> x = \fns state -> let (f', state') = f fns state
+                            (x', state'') = x fns state'
+                        in  (f' x', state'')
 
-(<$>) :: (a->b) -> F s a -> F s b
+(<$>) :: (a->b) -> F fns s a -> F fns s b
 f <$> x = pure f <*> x
 
 -- WebViewState

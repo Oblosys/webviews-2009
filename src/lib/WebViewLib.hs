@@ -21,7 +21,7 @@ data LoginView db = LoginView (Widget (TextView db)) (Widget (TextView db)) (Wid
 instance Initial (LoginView db) where initial = LoginView initial initial initial
 
 instance Data db => MapWebView db (LoginView db) where
-  mapWebView fns (LoginView a b c) = LoginView <$> mapWebView fns a <*> mapWebView fns b <*> mapWebView fns c
+  mapWebView (LoginView a b c) = LoginView <$> mapWebView a <*> mapWebView b <*> mapWebView c
 
 mkLoginView :: Data db => WebViewM db (WebView db)
 mkLoginView = mkWebView $
@@ -59,7 +59,7 @@ data LogoutView db = LogoutView (Widget (Button db)) deriving (Eq, Show, Typeabl
 instance Initial (LogoutView db) where initial = LogoutView initial
 
 instance Data db => MapWebView db (LogoutView db) where
-  mapWebView fns (LogoutView a) = LogoutView <$> mapWebView fns a
+  mapWebView (LogoutView a) = LogoutView <$> mapWebView a
 
 mkLogoutView :: Data db => WebViewM db (WebView db)
 mkLogoutView = mkWebView $
@@ -85,7 +85,7 @@ data LinkView db = LinkView String (Widget (EditAction db)) deriving (Eq, Show, 
 instance Initial (LinkView db) where initial = LinkView initial initial
 
 instance Data db => MapWebView db (LinkView db) where
-  mapWebView fns (LinkView a b) = LinkView <$> mapWebView fns a <*> mapWebView fns b
+  mapWebView (LinkView a b) = LinkView <$> mapWebView a <*> mapWebView b
 
 mkLinkView linkText action = mkWebView $
   \vid _ ->
@@ -108,7 +108,7 @@ instance Initial (TabbedView db) where
   initial = TabbedView 0 initial initial
 
 instance MapWebView db (TabbedView db) where
-  mapWebView fns (TabbedView a b c) = TabbedView <$> mapWebView fns a <*> mapWebView fns b <*> mapWebView fns c
+  mapWebView (TabbedView a b c) = TabbedView <$> mapWebView a <*> mapWebView b <*> mapWebView c
 
 mkTabbedView :: forall db . Data db => [(String, Maybe (EditM db ()), WebView db)] -> WebViewM db (WebView db)
 mkTabbedView labelsEditActionsTabViews = mkWebView $
@@ -167,7 +167,7 @@ instance Initial HtmlView where
   initial = HtmlView "HtmlTemplateView not initialized"
 
 instance MapWebView db HtmlView where
-  mapWebView fns (HtmlView a) = HtmlView <$> mapWebView fns a
+  mapWebView (HtmlView a) = HtmlView <$> mapWebView a
 
 mkHtmlView ::  Data db => String -> WebViewM db (WebView db)
 mkHtmlView html = mkWebView $
@@ -193,7 +193,7 @@ instance Initial HtmlTemplateView where
   initial = HtmlTemplateView "HtmlTemplateView not initialized"
   
 instance MapWebView db HtmlTemplateView where
-  mapWebView fns (HtmlTemplateView a) = HtmlTemplateView <$> mapWebView fns a
+  mapWebView (HtmlTemplateView a) = HtmlTemplateView <$> mapWebView a
 
 mkHtmlTemplateView ::  Data db => String -> [(String,String)] -> WebViewM db (WebView db)
 mkHtmlTemplateView path subs = mkWebView $
@@ -233,7 +233,7 @@ instance Initial (MaybeView db) where
   initial = MaybeView "MaybeView not initialized" Nothing
 
 instance MapWebView db (MaybeView db) where
-  mapWebView fns (MaybeView a b) = MaybeView <$> mapWebView fns a <*> mapWebView fns b
+  mapWebView (MaybeView a b) = MaybeView <$> mapWebView a <*> mapWebView b
  
 -- TODO: do we want to offer the vid also to mWebViewM? (which will then have type ViewId -> WebViewM db (Maybe (WebView db)))
 mkMaybeView :: Data db => String -> WebViewM db (Maybe (WebView db)) -> WebViewM db (WebView db)
@@ -267,7 +267,7 @@ instance Data db => Initial (DialogView db) where
   initial = DialogView False initial initial
 
 instance Data db => MapWebView db (DialogView db) where
-  mapWebView fns (DialogView a b c) = DialogView <$> mapWebView fns a <*> mapWebView fns b <*> mapWebView fns c
+  mapWebView (DialogView a b c) = DialogView <$> mapWebView a <*> mapWebView b <*> mapWebView c
 
 instance Data db => Storeable db (DialogView db)
 
@@ -366,7 +366,7 @@ instance  Initial (PresentView db) where
   initial = PresentView initial initial
 
 instance MapWebView db (PresentView db) where
-  mapWebView fns (PresentView a b) = PresentView <$> mapWebView fns a <*> mapWebView fns b
+  mapWebView (PresentView a b) = PresentView <$> mapWebView a <*> mapWebView b
 
 mkPresentView :: Data db => ([Html] -> Html) -> WebViewM db [WebView db] -> WebViewM db (WebView db)
 mkPresentView presentList mkSubWebViews = mkWebView $
