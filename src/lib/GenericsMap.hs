@@ -193,9 +193,9 @@ applyUpdates updates rootView = fst $ mapWebView (applyUpdatesWV, applyUpdatesWd
        widgetUpdates = WidgetUpdates labelViewUpd textViewUpd radioViewUpd selectViewUpd buttonUpd jsVarUpd editActionUpd
                                      
        labelViewUpd      = inert
-       textViewUpd s w   = mkWidgetUpdate s w (\v -> w{getStrVal'=v})            id
-       radioViewUpd s w  = mkWidgetUpdate s w (\v -> w{getRadioSelection'=v})  $ unsafeRead ("Generics.replace.radioViewUpd at "++(show $ getViewId w))
-       selectViewUpd s w = mkWidgetUpdate s w (\v -> w{getSelectSelection'=v}) $ unsafeRead ("Generics.replace.selectViewUpd at "++(show $ getViewId w))
+       textViewUpd s w   = mkWidgetUpdate s w (\v -> w{getTextStrVal=v})            id
+       radioViewUpd s w  = mkWidgetUpdate s w (\v -> w{getRadioSelection=v})  $ unsafeRead ("Generics.replace.radioViewUpd at "++(show $ getViewId w))
+       selectViewUpd s w = mkWidgetUpdate s w (\v -> w{getSelectSelection=v}) $ unsafeRead ("Generics.replace.selectViewUpd at "++(show $ getViewId w))
        buttonUpd         = inert 
        jsVarUpd s w      = mkWidgetUpdate s w (\v -> w{getJSVarValue_=v})        id
        editActionUpd     = inert 

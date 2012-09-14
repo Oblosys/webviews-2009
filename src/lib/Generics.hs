@@ -94,7 +94,7 @@ getBreadthFirstWebNodes rootView = -- todo: why not do getWebNodes with recursio
 
 
 getTextViewStrByViewIdRef :: forall db . Data db => ViewIdRef -> WebView db -> String
-getTextViewStrByViewIdRef (ViewIdRef i) wv = getStrVal' $ (getTextViewByViewId (ViewId i) wv :: TextView db)
+getTextViewStrByViewIdRef (ViewIdRef i) wv = getTextStrVal $ (getTextViewByViewId (ViewId i) wv :: TextView db)
 
 getLabelStrByViewIdRef :: forall db . Data db => ViewIdRef -> WebView db -> String
 getLabelStrByViewIdRef (ViewIdRef i) view =

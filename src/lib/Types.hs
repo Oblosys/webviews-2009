@@ -130,7 +130,7 @@ labelViewWidget viewId txt style = Widget noId noId $ LabelView viewId txt style
 
 data TextType = TextField | PasswordField | TextArea deriving (Eq, Show, Typeable, Data)
 
-data TextView db = TextView { getTextViewId :: ViewId, getTextType :: TextType, getStrVal' :: String
+data TextView db = TextView { getTextViewId :: ViewId, getTextType :: TextType, getTextStrVal :: String
                             , getTextStyle :: String, getTextChange :: Maybe (String -> EditCommand db), getTextSubmit :: Maybe (EditCommand db) } deriving ( Show, Typeable, Data)
 
 instance Eq (TextView db) where
@@ -167,7 +167,7 @@ instance HasSelection v => HasSelection (Widget v) where
  
 -- RadioView
 
-data RadioView db = RadioView { getRadioViewId :: ViewId, getItems :: [String], getRadioSelection' :: Int 
+data RadioView db = RadioView { getRadioViewId :: ViewId, getItems :: [String], getRadioSelection :: Int 
                               , getRadioEnabled :: Bool, getRadioStyle :: String, getRadioChange :: Maybe (Int -> EditCommand db)
                               } deriving (Show, Typeable, Data)
    
@@ -185,7 +185,7 @@ radioViewWidget viewId its i enabled style mChangeAction = Widget noId noId $ Ra
 
 -- SelectView
 
-data SelectView db = SelectView { getSelectViewId :: ViewId, getSelectItems :: [String], getSelectSelection' :: Int 
+data SelectView db = SelectView { getSelectViewId :: ViewId, getSelectItems :: [String], getSelectSelection :: Int 
                                 , getSelectEnabled :: Bool, getSelectStyle :: String, getSelectChange :: Maybe (Int -> EditCommand db)
                                 } deriving (Show, Typeable, Data)
 
@@ -204,8 +204,8 @@ selectViewWidget viewId its i enabled style mChangeAction = Widget noId noId $ S
 -- Button
 
 data Button db = Button { getButtonViewId :: ViewId, buttonText :: String
-                        , getButtonEnabled :: Bool, getButtonStyle :: String, getOnClick :: String 
-                        , getCommand' :: EditCommand db 
+                        , getButtonEnabled :: Bool, getButtonStyle :: String, getButtonOnClick :: String 
+                        , getButtonCommand :: EditCommand db 
                         } deriving (Show, Typeable, Data)
 
 instance Eq (Button db) where
@@ -233,8 +233,8 @@ getJSVarValue (Widget _ _ jsv) = getJSVarValue_ jsv
 
 -- EditAction
 
-data EditAction db = EditAction { getActionViewId :: ViewId
-                                , getCommand :: [String] -> EditCommand db -- edit actions can get parameters when executed from javascript 
+data EditAction db = EditAction { getEditActionViewId :: ViewId
+                                , getEditActionCommand :: [String] -> EditCommand db -- edit actions can get parameters when executed from javascript 
                                 } deriving (Show, Typeable, Data)
 
 instance Eq (EditAction db) where
@@ -286,7 +286,7 @@ instance HasViewId (Button db) where
   getViewId = getButtonViewId
 
 instance HasViewId (EditAction db) where
-  getViewId = getActionViewId
+  getViewId = getEditActionViewId
 
 instance HasViewId (JSVar db) where
   getViewId = getJSVarViewId

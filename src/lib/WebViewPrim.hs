@@ -587,7 +587,7 @@ inertTextView tv = jsScript [ onEvent "Submit" tv ""
                             ] -- prevent this text widget from firing updates to the server
                               -- Focus event is still necessary though
                             
-callServerEditAction ea args = "queueCommand('PerformEditActionC ("++show (getActionViewId ea)++") [\"'+"++
+callServerEditAction ea args = "queueCommand('PerformEditActionC ("++show (getEditActionViewId ea)++") [\"'+"++
                                       intercalate "+'\",\"'+" args ++"+'\"]')"
 
 
