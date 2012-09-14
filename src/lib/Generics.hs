@@ -1,7 +1,7 @@
 {-# LANGUAGE FlexibleContexts #-}
 module Generics (module Generics, module GenericsSYB, module GenericsMap) where
 
-import GenericsSYB ( replace
+import GenericsSYB (-- replace
                 
 --                ,  getAllIds
 --                , clearIds
@@ -24,7 +24,7 @@ import GenericsSYB ( replace
                 , getLabelViewByViewId
                 , getJSVarByViewId
 -}
-                , getEditActionByViewId
+                 getEditActionByViewId
 --                , replaceWebViewById
                 )
 import GenericsMap ( 
@@ -50,6 +50,8 @@ import GenericsMap (
                 , replaceWebViewById
   
                 , substituteIds
+
+                , replace
                 )
 
 import Data.Generics

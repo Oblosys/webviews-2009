@@ -14,20 +14,20 @@ import Debug.Trace
 
 
 getAllIds :: forall db . WebView db -> [Id]
-getAllIds rootView = snd $ mapWebView (getAllIdsWV, getAllIdsWd, True) rootView [] 
+getAllIds rootView = snd $ mapWebView (getAllIdsWV, getAllIdsWd, noWidgetUpdates, True) rootView [] 
   where getAllIdsWV :: [Id] -> WebView db -> (WebView db, [Id])
         getAllIdsWV ids wv@(WebView _ sid id _ _) = (wv, sid:id:ids)
         getAllIdsWd ids wd@(Widget sid id _)          = (wd, sid:id:ids)
 
 clearIds :: forall db . WebView db -> WebView db
-clearIds rootView = fst $ mapWebView (clearIdsWV, clearIdsWd, True) rootView () 
+clearIds rootView = fst $ mapWebView (clearIdsWV, clearIdsWd, noWidgetUpdates, True) rootView () 
   where clearIdsWV :: () -> WebView db -> (WebView db, ())
         clearIdsWV _ wv@(WebView vid _ _ mkF v) = (WebView vid noId noId mkF v, ())
         clearIdsWd _ wd@(Widget _ _ w)          = (Widget noId noId w, ())
 
 assignIdsFromList :: forall db . (Data db) => [Id] -> WebView db -> WebView db
 assignIdsFromList allIds rootView =
-  let assigned = fst $ mapWebView (assignIdsWV, assignIdsWd, True) rootView freeIds
+  let assigned = fst $ mapWebView (assignIdsWV, assignIdsWd, noWidgetUpdates, True) rootView freeIds
   in {- trace (if [] /= filter (==Id (-1))(getAll assigned :: [Id]) then show assigned else "ok") $ -} assigned
  where usedIds = IntSet.fromList $ map unId $ filter (/= noId) $ allIds 
        freeIds = (IntSet.fromList $ [0 .. length allIds - 1]) `IntSet.difference` usedIds
@@ -118,7 +118,7 @@ getWebNodeById callerTag i wv =
     _   -> error $ "internal error: getWebNodeById (called by "++callerTag++"): multiple webnode with id " ++ show i
 
 getWebNodesAndViewIds :: forall db v . (Typeable db, MapWebView db v) => Bool -> v -> [(ViewId, WebNode db)]
-getWebNodesAndViewIds recursive v = snd $ mapWebView (getWebNodesAndViewIdsWV, getWebNodesAndViewIdsWd, recursive) v []
+getWebNodesAndViewIds recursive v = snd $ mapWebView (getWebNodesAndViewIdsWV, getWebNodesAndViewIdsWd, noWidgetUpdates, recursive) v []
  where getWebNodesAndViewIdsWV :: [(ViewId, WebNode db)] -> WebView db -> (WebView db, [(ViewId, WebNode db)])
        getWebNodesAndViewIdsWV state wv@(WebView vi _ _ _ _) = (wv, (vi, WebViewNode wv):state)
 
@@ -137,7 +137,7 @@ getWebNodesAndViewIds recursive v = snd $ mapWebView (getWebNodesAndViewIdsWV, g
 
 
 replaceWebViewById :: forall db . ViewId -> WebView db -> WebView db -> WebView db
-replaceWebViewById vid newWV rootView = fst $ mapWebView (replaceWebViewByIdWV, replaceWebViewByIdWd, True) rootView ()
+replaceWebViewById vid newWV rootView = fst $ mapWebView (replaceWebViewByIdWV, replaceWebViewByIdWd, noWidgetUpdates, True) rootView ()
  where replaceWebViewByIdWV :: () -> WebView db -> (WebView db, ())
        replaceWebViewByIdWV state wv@(WebView vi sid id mkF v) = (if vid == vi then newWV else wv, state)
 
@@ -145,7 +145,7 @@ replaceWebViewById vid newWV rootView = fst $ mapWebView (replaceWebViewByIdWV, 
 
 
 substituteIds :: forall db . [(Id, Id)] -> WebView db -> WebView db
-substituteIds subs rootView = fst $ mapWebView (substituteIdsWV, substituteIdsWd, True) rootView ()
+substituteIds subs rootView = fst $ mapWebView (substituteIdsWV, substituteIdsWd, noWidgetUpdates, True) rootView ()
  where substituteIdsWV :: () -> WebView db -> (WebView db, ())
        substituteIdsWV state (WebView vi sid id mkF v) = (WebView vi (substituteId sid) (substituteId id) mkF v, state)
        
@@ -156,3 +156,31 @@ substituteIds subs rootView = fst $ mapWebView (substituteIdsWV, substituteIdsWd
        substituteId id@(Id i) = case IntMap.lookup i subsMap of
                                   Nothing  -> id
                                   Just i' -> Id i'
+
+type Updates = Map ViewId String  -- maps id's to the string representation of the new value
+
+
+-- TODO: cleanup some names in Types
+-- TODO: fix editAction 
+-- TODO: remove Data constraints where possible (maybe replace by Typeable)
+-- TODO: rename
+
+-- update the datastructure at the id's in Updates 
+replace :: forall db d . Updates -> WebView db -> WebView db
+replace updates rootView = fst $ mapWebView (applyUpdatesWV, applyUpdatesWd, widgetUpdates, True) rootView ()
+ where applyUpdatesWV :: () -> WebView db -> (WebView db, ())
+       applyUpdatesWV state wd = (wd, state)
+       applyUpdatesWd state wd = (wd, state)
+       widgetUpdates = WidgetUpdates labelViewUpd textViewUpd radioViewUpd selectViewUpd buttonUpd jsVarUpd  
+                                     
+       labelViewUpd    = id
+       textViewUpd w   = mkWidgetUpdate w (\v -> w{getStrVal'=v})            id
+       radioViewUpd w  = mkWidgetUpdate w (\v -> w{getRadioSelection'=v})  $ unsafeRead ("Generics.replace.radioViewUpd at "++(show $ getViewId w))
+       selectViewUpd w = mkWidgetUpdate w (\v -> w{getSelectSelection'=v}) $ unsafeRead ("Generics.replace.selectViewUpd at "++(show $ getViewId w))
+       buttonUpd       = id  
+       jsVarUpd w      = mkWidgetUpdate w (\v -> w{getJSVarValue_=v})        id
+
+       mkWidgetUpdate :: HasViewId w => w -> (a -> w) -> (String -> a) -> w
+       mkWidgetUpdate w upd parse = case Map.lookup (getViewId w) updates of
+                                      Nothing  -> w
+                                      Just str -> upd (parse str)
