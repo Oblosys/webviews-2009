@@ -172,24 +172,30 @@ type Updates = Map ViewId String  -- maps id's to the string representation of t
 -- TODO: fix editAction
 -- TODO: use map instead of generics in this module 
 -- TODO: remove Data constraints where possible (maybe replace by Typeable)
-
+-- TODO: fix s and v param order and maybe make MapWebView instances easier by removing arg
+--       and fix applyUpdates and getWebNodesAndViewIds since their params can probably be curried then
+-- TODO: make TH generation for MapWebView instances
+-- TODO: make lenses for WebViews
 -- update the datastructure at the id's in Updates 
 applyUpdates :: forall db d . Updates -> WebView db -> WebView db
 applyUpdates updates rootView = fst $ mapWebView (applyUpdatesWV, applyUpdatesWd, widgetUpdates, True) rootView ()
  where applyUpdatesWV :: () -> WebView db -> (WebView db, ())
        applyUpdatesWV state wd = (wd, state)
        applyUpdatesWd state wd = (wd, state)
-       widgetUpdates = WidgetUpdates labelViewUpd textViewUpd radioViewUpd selectViewUpd buttonUpd jsVarUpd editActionUpd
+       widgetUpdates :: WidgetUpdates db ()
+       widgetUpdates = WidgetUpdates labelViewUpd textViewUpd undefined undefined undefined undefined undefined 
+       --WidgetUpdates labelViewUpd textViewUpd radioViewUpd selectViewUpd buttonUpd jsVarUpd editActionUpd
                                      
-       labelViewUpd    = id
-       textViewUpd w   = mkWidgetUpdate w (\v -> w{getStrVal'=v})            id
-       radioViewUpd w  = mkWidgetUpdate w (\v -> w{getRadioSelection'=v})  $ unsafeRead ("Generics.replace.radioViewUpd at "++(show $ getViewId w))
-       selectViewUpd w = mkWidgetUpdate w (\v -> w{getSelectSelection'=v}) $ unsafeRead ("Generics.replace.selectViewUpd at "++(show $ getViewId w))
-       buttonUpd       = id  
-       jsVarUpd w      = mkWidgetUpdate w (\v -> w{getJSVarValue_=v})        id
-       editActionUpd   = id  
+       labelViewUpd    = inert
+       textViewUpd s w   = mkWidgetUpdate s w (\v -> w{getStrVal'=v})            id
+       radioViewUpd s w  = mkWidgetUpdate s w (\v -> w{getRadioSelection'=v})  $ unsafeRead ("Generics.replace.radioViewUpd at "++(show $ getViewId w))
+       selectViewUpd s w = mkWidgetUpdate s w (\v -> w{getSelectSelection'=v}) $ unsafeRead ("Generics.replace.selectViewUpd at "++(show $ getViewId w))
+       buttonUpd       = inert 
+       jsVarUpd s w      = mkWidgetUpdate s w (\v -> w{getJSVarValue_=v})        id
+       editActionUpd   = inert 
 
-       mkWidgetUpdate :: HasViewId w => w -> (a -> w) -> (String -> a) -> w
-       mkWidgetUpdate w upd parse = case Map.lookup (getViewId w) updates of
-                                      Nothing  -> w
-                                      Just str -> upd (parse str)
+       mkWidgetUpdate :: HasViewId w => s -> w -> (a -> w) -> (String -> a) -> (w,s) 
+       mkWidgetUpdate w upd parse = undefined -- case Map.lookup (getViewId w) updates of
+--                                      Nothing  -> w
+--                                      Just str -> upd (parse str)
+                                      

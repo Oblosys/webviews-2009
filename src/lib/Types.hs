@@ -485,24 +485,26 @@ instance Data db => Initial (WebView db) where
 class MapWebView db v where
   mapWebView :: (forall w . ( s -> WebView db -> (WebView db,s) 
                             , Data (w db) => s -> Widget (w db) -> (Widget (w db),s) -- This Data context requires ImpredicativeTypes :-(
-                            , WidgetUpdates db
+                            , WidgetUpdates db s
                             , Bool -- specifies whether map will recurse in WebView children
                             )
                 ) -> v -> s -> (v, s)
   mapWebView fns x = pure x
 
-data WidgetUpdates db = WidgetUpdates { labelViewUpdate :: LabelView db -> LabelView db
-                                      , textViewUpdate :: TextView db -> TextView db  
-                                      , radioViewUpdate :: RadioView db -> RadioView db  
-                                      , selectViewUpdate :: SelectView db -> SelectView db  
-                                      , buttonUpdate :: Button db -> Button db  
-                                      , jsVarUpdate :: JSVar db -> JSVar db  
-                                      , editActionUpdate :: EditAction db -> EditAction db  
-                                      }
+data WidgetUpdates db s = WidgetUpdates { labelViewUpdate :: s -> LabelView db -> (LabelView db, s)
+                                        , textViewUpdate :: s -> TextView db -> (TextView db, s)
+                                        , radioViewUpdate :: s -> RadioView db -> (RadioView db, s)  
+                                        , selectViewUpdate :: s -> SelectView db -> (SelectView db, s) 
+                                        , buttonUpdate :: s -> Button db -> (Button db, s)
+                                        , jsVarUpdate :: s -> JSVar db -> (JSVar db, s)
+                                        , editActionUpdate :: s -> EditAction db -> (EditAction db, s)  
+                                        }
                                       
-noWidgetUpdates :: WidgetUpdates db
-noWidgetUpdates = WidgetUpdates id id id id id id id
-                                    
+noWidgetUpdates :: WidgetUpdates db s
+noWidgetUpdates = WidgetUpdates inert inert inert inert inert inert inert
+
+inert s x = (x,s)
+   
 instance MapWebView db (WebView db) where
   mapWebView fns@(fwv,_,_,recursive) wv state =
    case fwv state wv of
@@ -517,25 +519,25 @@ instance (Data (w db), MapWebView db (w db)) => MapWebView db (Widget (w db)) wh
                                    in  (Widget sid id w', state'')             -- used for WebViews, not widgets
 
 instance MapWebView db (LabelView db) where
-  mapWebView (_,_,widgetUpdates,_) w = pure $ labelViewUpdate widgetUpdates w 
+  mapWebView (_,_,widgetUpdates,_) w s = labelViewUpdate widgetUpdates s w 
 
 instance MapWebView db (TextView db) where
-  mapWebView (_,_,widgetUpdates,_) w = pure $ textViewUpdate widgetUpdates w 
+  mapWebView (_,_,widgetUpdates,_) w s = textViewUpdate widgetUpdates s w 
 
 instance MapWebView db (RadioView db) where
-  mapWebView (_,_,widgetUpdates,_) w = pure $ radioViewUpdate widgetUpdates w 
+  mapWebView (_,_,widgetUpdates,_) w s = radioViewUpdate widgetUpdates s w 
 
 instance MapWebView db (SelectView db) where
-  mapWebView (_,_,widgetUpdates,_) w = pure $ selectViewUpdate widgetUpdates w 
+  mapWebView (_,_,widgetUpdates,_) w s = selectViewUpdate widgetUpdates s w 
 
 instance MapWebView db (Button db) where
-  mapWebView (_,_,widgetUpdates,_) w = pure $ buttonUpdate widgetUpdates w 
+  mapWebView (_,_,widgetUpdates,_) w s = buttonUpdate widgetUpdates s w 
 
 instance MapWebView db (JSVar db) where
-  mapWebView (_,_,widgetUpdates,_) w = pure $ jsVarUpdate widgetUpdates w 
+  mapWebView (_,_,widgetUpdates,_) w s = jsVarUpdate widgetUpdates s w 
 
 instance MapWebView db (EditAction db) where
-  mapWebView (_,_,widgetUpdates,_) w = pure $ editActionUpdate widgetUpdates w 
+  mapWebView (_,_,widgetUpdates,_) w s = editActionUpdate widgetUpdates s w 
 
 instance MapWebView db a => MapWebView db (Maybe a) where
   mapWebView fns Nothing = pure Nothing
