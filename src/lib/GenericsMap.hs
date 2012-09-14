@@ -170,18 +170,10 @@ substituteIds subs rootView = fst $ mapWebView rootView (substituteIdsWV, substi
 
 type Updates = Map ViewId String  -- maps id's to the string representation of the new value
 
---           
--- TODO: fix s and v param order and maybe make MapWebView instances easier by removing arg
---       and fix applyUpdates and getWebNodesAndViewIds since their params can probably be curried then
--- TODO: profile
-
--- TODO: make TH generation for MapWebView instances
-
 -- TODO: take widgets out of the map. doesn't really add anything as they won't appear without a wrapping Widget
 -- TODO: use anywidget type in widget? There doesn't seem to be a need for different types
 -- TODO: add db to Widget type? might make things easier.
--- TODO: make lenses for WebViews
-
+-
 -- TODO: when we completely remove the old syb generics, remove Data and Typeable contexts where possible
 
 

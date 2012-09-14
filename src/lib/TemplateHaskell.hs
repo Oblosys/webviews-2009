@@ -39,6 +39,9 @@ TODO: check for recursive appearances of Widget or WebView and use pure if there
 TODO: use introspection for determining which deriveWebView to use? (check if a type appears as arg to WebView or Widget (w _))
 TODO: generate a deriveMapWebView function that already includes the database
       this one can also generate nice type synonyms for WebView Database and Widgets
+
+TODO: make lenses for WebViews
+ 
 -}       
 deriveMapWebView :: Name -> Q [Dec]
 deriveMapWebView tName = deriveMapWebViewEx True Nothing tName
