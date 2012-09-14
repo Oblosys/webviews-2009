@@ -16,7 +16,7 @@ module GenericsSYB ( getAllIds
                 , getJSVarByViewId
                 , getEditActionByViewId
                 , lookupOldView
-                , replace
+                , applyUpdates
                 ) where
 
 import Types
@@ -238,34 +238,34 @@ assignId = mkAccT $ \ids (Id id) -> if (id == -1)
 type Updates = Map ViewId String  -- maps id's to the string representation of the new value
 
 -- update the datastructure at the id's in Updates 
-replace :: forall db d . Data db => Updates -> WebView db -> WebView db
-replace updates v = (everywhere $  mkT    (replaceText updates :: TextView db -> TextView db)
-                                  `extT` (replaceRadioView updates :: RadioView db -> RadioView db)
-                                  `extT` (replaceSelectView updates :: SelectView db -> SelectView db)
-                                  `extT` (replaceJSVar updates :: JSVar db -> JSVar db)) v
+applyUpdates :: forall db d . Data db => Updates -> WebView db -> WebView db
+applyUpdates updates v = (everywhere $  mkT    (applyUpdatesText updates :: TextView db -> TextView db)
+                                  `extT` (applyUpdatesRadioView updates :: RadioView db -> RadioView db)
+                                  `extT` (applyUpdatesSelectView updates :: SelectView db -> SelectView db)
+                                  `extT` (applyUpdatesJSVar updates :: JSVar db -> JSVar db)) v
 
-replaceJSVar :: Updates -> JSVar db -> JSVar db
-replaceJSVar updates x@(JSVar i nm _) =
+applyUpdatesJSVar :: Updates -> JSVar db -> JSVar db
+applyUpdatesJSVar updates x@(JSVar i nm _) =
   case Map.lookup i updates of
     Just str -> (JSVar i nm str)
     Nothing -> x
 
-replaceText :: Updates -> TextView db -> TextView db
-replaceText updates x@(TextView i h _ st ba ea) =
+applyUpdatesText :: Updates -> TextView db -> TextView db
+applyUpdatesText updates x@(TextView i h _ st ba ea) =
   case Map.lookup i updates of
     Just str -> (TextView i h str st ba ea)
     Nothing -> x
 
-replaceRadioView :: Updates -> (RadioView db) -> (RadioView db)
-replaceRadioView updates x@(RadioView i is _ en st ch) =
+applyUpdatesRadioView :: Updates -> (RadioView db) -> (RadioView db)
+applyUpdatesRadioView updates x@(RadioView i is _ en st ch) =
   case Map.lookup i updates of
-    Just str -> (RadioView i is (unsafeRead ("Generics.replaceRadioView on "++show i) str) en st ch)
+    Just str -> (RadioView i is (unsafeRead ("Generics.applyUpdatesRadioView on "++show i) str) en st ch)
     Nothing -> x
 
-replaceSelectView :: Updates -> (SelectView db) -> (SelectView db)
-replaceSelectView updates x@(SelectView i is _ en st ch) =
+applyUpdatesSelectView :: Updates -> (SelectView db) -> (SelectView db)
+applyUpdatesSelectView updates x@(SelectView i is _ en st ch) =
   case Map.lookup i updates of
-    Just str -> (SelectView i is (unsafeRead ("Generics.replaceSelectView on "++show i) str) en st ch)
+    Just str -> (SelectView i is (unsafeRead ("Generics.applyUpdatesSelectView on "++show i) str) en st ch)
     Nothing -> x
 
 substituteIds :: Data x => [(Id, Id)] -> x -> x 

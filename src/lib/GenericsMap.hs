@@ -163,11 +163,10 @@ type Updates = Map ViewId String  -- maps id's to the string representation of t
 -- TODO: cleanup some names in Types
 -- TODO: fix editAction 
 -- TODO: remove Data constraints where possible (maybe replace by Typeable)
--- TODO: rename
 
 -- update the datastructure at the id's in Updates 
-replace :: forall db d . Updates -> WebView db -> WebView db
-replace updates rootView = fst $ mapWebView (applyUpdatesWV, applyUpdatesWd, widgetUpdates, True) rootView ()
+applyUpdates :: forall db d . Updates -> WebView db -> WebView db
+applyUpdates updates rootView = fst $ mapWebView (applyUpdatesWV, applyUpdatesWd, widgetUpdates, True) rootView ()
  where applyUpdatesWV :: () -> WebView db -> (WebView db, ())
        applyUpdatesWV state wd = (wd, state)
        applyUpdatesWd state wd = (wd, state)

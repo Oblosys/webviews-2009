@@ -429,7 +429,7 @@ handleCommand _ users sessionStateRef (SetC viewId value) =
  do { (sessionId, user, db, rootView, pendingEdit, hashArgs) <- readIORef sessionStateRef      
     ; putStrLn $ "Performing: "++show (SetC viewId value)
     --; putStrLn $ "RootView:\n" ++ show rootView ++"\n\n\n\n\n"
-    ; let rootView' = replace (Map.fromList [(viewId, value)]) (assignIds rootView)
+    ; let rootView' = applyUpdates (Map.fromList [(viewId, value)]) (assignIds rootView)
     ; let db' = save rootView' db
     ; writeIORef sessionStateRef (sessionId, user, db', rootView', pendingEdit, hashArgs)
     ; reloadRootView sessionStateRef
