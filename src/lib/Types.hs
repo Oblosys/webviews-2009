@@ -102,6 +102,7 @@ data Widget w = Widget { getWidgetStubId :: Id, getWidgetId :: Id, getWidgetWidg
 instance Eq (Widget w) where
   w1 == w2 = True
 
+-- TODO: Maybe type families are useful for widgets?
 data AnyWidget db = LabelWidget !(LabelView db)
                   | TextWidget !(TextView db)
                   | RadioViewWidget !(RadioView db) 
@@ -183,7 +184,7 @@ radioView viewId its i enabled style mChangeAction = Widget noId noId $ RadioVie
 
 -- SelectView
 
-data SelectView db = SelectView { getSelectViewId :: ViewId, getSelectItems :: [String], getSelection' :: Int 
+data SelectView db = SelectView { getSelectViewId :: ViewId, getSelectItems :: [String], getSelectSelection' :: Int 
                                 , getSelectEnabled :: Bool, getSelectStyle :: String, getSelectChange :: Maybe (Int -> EditCommand db)
                                 } deriving (Show, Typeable, Data)
 
@@ -480,20 +481,53 @@ instance Data db => Initial (WebView db) where
 class MapWebView db v where
   mapWebView :: (forall w . ( s -> WebView db -> (WebView db,s) 
                             , Data (w db) => s -> Widget (w db) -> (Widget (w db),s) -- This Data context requires ImpredicativeTypes :-(
+                            , WidgetUpdates db
                             , Bool -- specifies whether map will recurse in WebView children
                             )
                 ) -> v -> s -> (v, s)
   mapWebView fns x = pure x
 
+data WidgetUpdates db = WidgetUpdates { labelViewUpdate :: LabelView db -> LabelView db
+                                      , textViewUpdate :: TextView db -> TextView db  
+                                      , radioViewUpdate :: RadioView db -> RadioView db  
+                                      , selectViewUpdate :: SelectView db -> SelectView db  
+                                      , buttonUpdate :: Button db -> Button db  
+                                      , jsVarUpdate :: JSVar db -> JSVar db  
+                                      }
+                                      
+noWidgetUpdates :: WidgetUpdates db
+noWidgetUpdates = WidgetUpdates id id id id id id
+                                    
 instance MapWebView db (WebView db) where
-  mapWebView fns@(fwv,_,recursive) wv state =
+  mapWebView fns@(fwv,_,_,recursive) wv state =
    case fwv state wv of
      (WebView a b c d v, state') ->  let (v', state'') | recursive = mapWebView fns v state'
                                                        | otherwise   = (v, state')
                                      in  (WebView a b c d v', state'')
 
-instance Data (w db) => MapWebView db (Widget (w db)) where
-  mapWebView (_,fwd,_) wd state = fwd state wd
+instance (Data (w db), MapWebView db (w db)) => MapWebView db (Widget (w db)) where
+  mapWebView fns@(_,fwd,_,_) wd state = 
+    case fwd state wd of -- case not necessary here, but consistent with WebView instance
+      (Widget sid id w, state') -> let (w', state'') = mapWebView fns w state' -- NOTE: recurse flag is only
+                                   in  (Widget sid id w', state'')             -- used for WebViews, not widgets
+
+instance MapWebView db (LabelView db) where
+  mapWebView (_,_,widgetUpdates,_) w = pure $ labelViewUpdate widgetUpdates w 
+
+instance MapWebView db (TextView db) where
+  mapWebView (_,_,widgetUpdates,_) w = pure $ textViewUpdate widgetUpdates w 
+
+instance MapWebView db (RadioView db) where
+  mapWebView (_,_,widgetUpdates,_) w = pure $ radioViewUpdate widgetUpdates w 
+
+instance MapWebView db (SelectView db) where
+  mapWebView (_,_,widgetUpdates,_) w = pure $ selectViewUpdate widgetUpdates w 
+
+instance MapWebView db (Button db) where
+  mapWebView (_,_,widgetUpdates,_) w = pure $ buttonUpdate widgetUpdates w 
+
+instance MapWebView db (JSVar db) where
+  mapWebView (_,_,widgetUpdates,_) w = pure $ jsVarUpdate widgetUpdates w 
 
 instance MapWebView db a => MapWebView db (Maybe a) where
   mapWebView fns Nothing = pure Nothing
