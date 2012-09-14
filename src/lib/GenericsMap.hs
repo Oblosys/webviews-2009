@@ -131,7 +131,7 @@ getWebNodesAndViewIds recursive v = snd $ mapWebView (getWebNodesAndViewIdsWV, g
        getWebNodesAndViewIdsWd state wd@(Widget sid id w) = (wd, widgetNode ++  state) 
          where widgetNode :: [(ViewId, WebNode db)]
                widgetNode = case widgetToAnyWidget w of
-                              Nothing       -> error "bla"
+                              Nothing       -> error "Generics.getWebNodesAndViewIds Widget with non-widget child."
                               Just (vid,a)  -> [(vid, WidgetNode vid sid id a)]
 
 widgetToAnyWidget :: MapWebView db w => w -> (Maybe (ViewId,AnyWidget db))
@@ -170,16 +170,19 @@ substituteIds subs rootView = fst $ mapWebView (substituteIdsWV, substituteIdsWd
 
 type Updates = Map ViewId String  -- maps id's to the string representation of the new value
 
-
--- TODO: take widgets out of the map. doesn't really add anything as they won't appear without a wrapping Widget
--- TODO: when we completely remove the old syb generics, remove Data and Typeable contexts where possible
 --           
 -- TODO: fix s and v param order and maybe make MapWebView instances easier by removing arg
 --       and fix applyUpdates and getWebNodesAndViewIds since their params can probably be curried then
 -- TODO: profile
+
 -- TODO: make TH generation for MapWebView instances
+
+-- TODO: take widgets out of the map. doesn't really add anything as they won't appear without a wrapping Widget
 -- TODO: use anywidget type in widget? There doesn't seem to be a need for different types
 -- TODO: make lenses for WebViews
+
+-- TODO: when we completely remove the old syb generics, remove Data and Typeable contexts where possible
+
 
 -- update the datastructure at the id's in Updates 
 applyUpdates :: forall db d . Updates -> WebView db -> WebView db
