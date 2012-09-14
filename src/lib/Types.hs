@@ -121,8 +121,8 @@ data LabelView db = LabelView { getLabelViewId :: ViewId, getLabelText :: String
 instance Eq (LabelView db) where
   LabelView _ text1 style1 == LabelView _ text2 style2 = text1 == text2 && style1 == style2
 
-labelView :: ViewId -> String -> String -> Widget (LabelView db)  
-labelView viewId txt style = Widget noId noId $ LabelView viewId txt style
+labelViewWidget :: ViewId -> String -> String -> Widget (LabelView db)  
+labelViewWidget viewId txt style = Widget noId noId $ LabelView viewId txt style
 
 -- Text
 
@@ -139,14 +139,14 @@ instance Eq (TextView db) where
   
 getStrVal (Widget _ _ (TextView vi h v _ _ _)) = v
 
-textField :: ViewId -> String -> String -> Maybe (String -> EditCommand db) -> Maybe (EditCommand db) -> Widget (TextView db)
-textField viewId str style mChangeAction mSubmitAction = Widget noId noId $ TextView viewId TextField str style mChangeAction mSubmitAction
+textFieldWidget :: ViewId -> String -> String -> Maybe (String -> EditCommand db) -> Maybe (EditCommand db) -> Widget (TextView db)
+textFieldWidget viewId str style mChangeAction mSubmitAction = Widget noId noId $ TextView viewId TextField str style mChangeAction mSubmitAction
 
-passwordField :: ViewId -> String -> String -> Maybe (String -> EditCommand db) -> Maybe (EditCommand db) -> Widget (TextView db)
-passwordField viewId str style mChangeAction mSubmitAction = Widget noId noId $ TextView viewId PasswordField str style mChangeAction mSubmitAction
+passwordFieldWidget :: ViewId -> String -> String -> Maybe (String -> EditCommand db) -> Maybe (EditCommand db) -> Widget (TextView db)
+passwordFieldWidget viewId str style mChangeAction mSubmitAction = Widget noId noId $ TextView viewId PasswordField str style mChangeAction mSubmitAction
 
-textArea :: ViewId -> String -> String -> Maybe (String -> EditCommand db) -> Widget (TextView db)
-textArea viewId str style mChangeAction = Widget noId noId $ TextView viewId TextArea str style mChangeAction Nothing
+textAreaWidget :: ViewId -> String -> String -> Maybe (String -> EditCommand db) -> Widget (TextView db)
+textAreaWidget viewId str style mChangeAction = Widget noId noId $ TextView viewId TextArea str style mChangeAction Nothing
 
 strRef (Widget _ _ (TextView (ViewId i) h _ _ _ _)) = ViewIdRef i
 
@@ -180,8 +180,8 @@ instance HasSelection (RadioView db) where
   getSelection (RadioView i is sel _ _ _) = sel
   setSelection s (RadioView vi its _ en st ch) = RadioView vi its s en st ch
 
-radioView :: ViewId -> [String] -> Int -> Bool -> String -> Maybe (Int -> EditCommand db) -> Widget (RadioView db)
-radioView viewId its i enabled style mChangeAction = Widget noId noId $ RadioView viewId its i enabled style mChangeAction
+radioViewWidget :: ViewId -> [String] -> Int -> Bool -> String -> Maybe (Int -> EditCommand db) -> Widget (RadioView db)
+radioViewWidget viewId its i enabled style mChangeAction = Widget noId noId $ RadioView viewId its i enabled style mChangeAction
 
 -- SelectView
 
@@ -198,8 +198,8 @@ instance HasSelection (SelectView db) where
   getSelection (SelectView i is sel _ _ _) = sel
   setSelection s (SelectView vi its _ en st ch) = SelectView vi its s en st ch
 
-selectView :: ViewId -> [String] -> Int -> Bool -> String -> Maybe (Int -> EditCommand db) -> Widget (SelectView db)
-selectView viewId its i enabled style mChangeAction = Widget noId noId $ SelectView viewId its i enabled style mChangeAction
+selectViewWidget :: ViewId -> [String] -> Int -> Bool -> String -> Maybe (Int -> EditCommand db) -> Widget (SelectView db)
+selectViewWidget viewId its i enabled style mChangeAction = Widget noId noId $ SelectView viewId its i enabled style mChangeAction
   
 -- Button
 
@@ -213,8 +213,8 @@ instance Eq (Button db) where
     txt1 == txt2 && enabled1 == enabled2 && style1 == style2 && onclick1 == onclick2
     -- note that we don't need to look at the edit actions, since these live only in the Haskell world and have no effect on the html representation.
 
-button :: ViewId -> String -> Bool -> String -> String -> EditCommand db -> Widget (Button db)
-button viewId txt enabled style onclick cmd = Widget noId noId $ Button viewId txt enabled style onclick cmd
+buttonWidget :: ViewId -> String -> Bool -> String -> String -> EditCommand db -> Widget (Button db)
+buttonWidget viewId txt enabled style onclick cmd = Widget noId noId $ Button viewId txt enabled style onclick cmd
 
 -- JSVar
 
@@ -224,9 +224,8 @@ data JSVar db = JSVar { getJSVarViewId :: ViewId, getJSVarName :: String, getJSV
 instance Eq (JSVar db) where
   JSVar _ n1 v1 == JSVar _ n2 v2 = n1 == n2 && v1 == v2
 
--- renamed, so we can use jsVar for declaring a javascript variable. This constructor will probably be removed anyway
-jsVar_ :: ViewId -> String -> String -> Widget (JSVar db)
-jsVar_ viewId name value = Widget noId noId $ JSVar viewId name value
+jsVarWidget :: ViewId -> String -> String -> Widget (JSVar db)
+jsVarWidget viewId name value = Widget noId noId $ JSVar viewId name value
 
 getJSVarValue (Widget _ _ jsv) = getJSVarValue_ jsv
 
@@ -243,8 +242,8 @@ instance Eq (EditAction db) where
   -- note that we don't need to look at the edit actions, since these live only in the Haskell world and have no effect on the html representation.
 
 
-editAction :: ViewId -> ([String] -> EditCommand db) -> Widget (EditAction db)
-editAction viewId cmd = Widget noId noId $ EditAction viewId cmd
+editActionWidget :: ViewId -> ([String] -> EditCommand db) -> Widget (EditAction db)
+editActionWidget viewId cmd = Widget noId noId $ EditAction viewId cmd
 
 
 

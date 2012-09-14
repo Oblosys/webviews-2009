@@ -88,13 +88,13 @@ mkEditAction :: EditCommand db -> WebViewM db (Widget (EditAction db))
 mkEditAction ec = mkEditActionEx $ const ec
 
 mkEditActionEx :: ([String] -> EditCommand db) -> WebViewM db (Widget (EditAction db)) 
-mkEditActionEx fec = assignViewId $ \vid -> editAction vid fec
+mkEditActionEx fec = assignViewId $ \vid -> editActionWidget vid fec
 
 mkLabelView :: String -> WebViewM db (Widget (LabelView db))
-mkLabelView str = assignViewId $ \vid -> labelView vid str ""
+mkLabelView str = assignViewId $ \vid -> labelViewWidget vid str ""
 
 mkLabelViewWithStyle :: String -> String -> WebViewM db (Widget (LabelView db))
-mkLabelViewWithStyle str style = assignViewId $ \vid -> labelView vid str style
+mkLabelViewWithStyle str style = assignViewId $ \vid -> labelViewWidget vid str style
 
 mkTextField :: String -> WebViewM db (Widget (TextView db))
 mkTextField str = mkTextFieldEx str "" Nothing Nothing
@@ -113,7 +113,7 @@ mkTextFieldWithStyleChange :: String -> String -> (String -> EditCommand db) -> 
 mkTextFieldWithStyleChange str style changeAct = mkTextFieldEx str style (Just changeAct) Nothing
 
 mkTextFieldEx :: String -> String -> Maybe (String -> EditCommand db) -> Maybe (EditCommand db) -> WebViewM db (Widget (TextView db))
-mkTextFieldEx str style mChangeAction mEditAction = assignViewId $ \vid -> textField vid str style mChangeAction mEditAction
+mkTextFieldEx str style mChangeAction mEditAction = assignViewId $ \vid -> textFieldWidget vid str style mChangeAction mEditAction
 
 infixl 0 `withTextViewSubmit`
 
@@ -138,39 +138,39 @@ mkPasswordFieldAct :: String -> EditCommand db -> WebViewM db (Widget (TextView 
 mkPasswordFieldAct str act = mkPasswordFieldEx str "" Nothing $ Just act
 
 mkPasswordFieldEx :: String -> String -> Maybe (String -> EditCommand db) -> Maybe (EditCommand db) -> WebViewM db (Widget (TextView db))
-mkPasswordFieldEx str style mChangeAction mEditAction = assignViewId $ \vid -> passwordField vid str style mChangeAction mEditAction
+mkPasswordFieldEx str style mChangeAction mEditAction = assignViewId $ \vid -> passwordFieldWidget vid str style mChangeAction mEditAction
 
 mkTextArea :: String -> WebViewM db (Widget (TextView db))
-mkTextArea str = assignViewId $ \vid -> textArea vid str "" Nothing
+mkTextArea str = assignViewId $ \vid -> textAreaWidget vid str "" Nothing
 
 mkTextAreaWithStyle :: String -> String -> WebViewM db (Widget (TextView db))
-mkTextAreaWithStyle str stl = assignViewId $ \vid -> textArea vid str stl Nothing
+mkTextAreaWithStyle str stl = assignViewId $ \vid -> textAreaWidget vid str stl Nothing
 
 mkTextAreaWithStyleChange :: String -> String -> (String -> EditCommand db) -> WebViewM db (Widget (TextView db))
-mkTextAreaWithStyleChange str stl changeAct = assignViewId $ \vid -> textArea vid str stl $ Just changeAct
+mkTextAreaWithStyleChange str stl changeAct = assignViewId $ \vid -> textAreaWidget vid str stl $ Just changeAct
 
 mkRadioView :: [String] -> Int -> Bool -> WebViewM db (Widget (RadioView db))
-mkRadioView items s enabled = assignViewId $ \vid -> radioView vid items s enabled "" Nothing
+mkRadioView items s enabled = assignViewId $ \vid -> radioViewWidget vid items s enabled "" Nothing
 
 -- TODO: radio button style is not implemented correctly yet, first need to find out what we want exactly.
 mkRadioViewWithStyle :: [String] -> Int -> Bool -> String -> WebViewM db (Widget (RadioView db))
-mkRadioViewWithStyle items s enabled style = assignViewId $ \vid -> radioView vid items s enabled style Nothing
+mkRadioViewWithStyle items s enabled style = assignViewId $ \vid -> radioViewWidget vid items s enabled style Nothing
 
 mkRadioViewWithChange :: [String] -> Int -> Bool -> (Int -> EditCommand db) -> WebViewM db (Widget (RadioView db))
-mkRadioViewWithChange is s enabled act = assignViewId $ \vid -> radioView vid is s enabled "" $ Just act
+mkRadioViewWithChange is s enabled act = assignViewId $ \vid -> radioViewWidget vid is s enabled "" $ Just act
 
 mkSelectView :: [String] -> Int -> Bool -> WebViewM db (Widget (SelectView db))
-mkSelectView is s enabled = assignViewId $ \vid -> selectView vid is s enabled "" $ Nothing
+mkSelectView is s enabled = assignViewId $ \vid -> selectViewWidget vid is s enabled "" $ Nothing
 
 -- NOTE: changing the background-color breaks rounded select box presentation in Firefox.
 mkSelectViewWithStyle :: [String] -> Int -> Bool -> String -> WebViewM db (Widget (SelectView db))
-mkSelectViewWithStyle items s enabled style = assignViewId $ \vid -> selectView vid items s enabled style Nothing
+mkSelectViewWithStyle items s enabled style = assignViewId $ \vid -> selectViewWidget vid items s enabled style Nothing
 
 mkSelectViewWithStyleChange :: [String] -> Int -> Bool -> String -> (Int -> EditCommand db) -> WebViewM db (Widget (SelectView db))
-mkSelectViewWithStyleChange items s enabled style changeAct = assignViewId $ \vid -> selectView vid items s enabled style $ Just changeAct
+mkSelectViewWithStyleChange items s enabled style changeAct = assignViewId $ \vid -> selectViewWidget vid items s enabled style $ Just changeAct
 
 mkSelectViewWithChange :: [String] -> Int -> Bool -> (Int -> EditCommand db) -> WebViewM db (Widget (SelectView db))
-mkSelectViewWithChange is s enabled act = assignViewId $ \vid -> selectView vid is s enabled "" $ Just act
+mkSelectViewWithChange is s enabled act = assignViewId $ \vid -> selectViewWidget vid is s enabled "" $ Just act
 
 mkButton :: String -> Bool -> EditCommand db -> WebViewM db (Widget (Button db))
 mkButton str enabled ac = mkButtonEx str enabled "" (const "") ac
@@ -187,9 +187,9 @@ mkButtonWithStyleClick :: String -> Bool -> String -> (ViewId -> String) -> WebV
 mkButtonWithStyleClick str enabled st foc = mkButtonEx str enabled st foc $ Edit $ return () -- because onclick currently disables server edit command
 
 mkButtonEx :: String -> Bool -> String -> (ViewId -> String) -> EditCommand db -> WebViewM db (Widget (Button db))
-mkButtonEx str enabled st foc ac = assignViewId $ \vid -> button vid str enabled st (foc vid) ac
+mkButtonEx str enabled st foc ac = assignViewId $ \vid -> buttonWidget vid str enabled st (foc vid) ac
 
-mkJSVar name value = assignViewId $ \vid -> jsVar_ vid name value
+mkJSVar name value = assignViewId $ \vid -> jsVarWidget vid name value
 
 
 widgetGetViewRef widget = mkViewRef $ getViewId widget

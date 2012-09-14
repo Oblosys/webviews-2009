@@ -994,10 +994,10 @@ testwv i = testmkwv $ HtmlTemplateView (show i)
  
 testwv0 :: WebView Database
 testwv0 =  WebView (ViewId []) (Id 1) (Id 2) undefined $ ItemsRootView (testwv 1) (testwv 1) $
-                   button (ViewId []) "click me" True "" "" LogoutEdit
+                   buttonWidget (ViewId []) "click me" True "" "" LogoutEdit
 
 testwd :: String -> Widget (Button Database)
-testwd str = button (ViewId []) str True "" "" LogoutEdit
+testwd str = buttonWidget (ViewId []) str True "" "" LogoutEdit
 testproplist :: [(String, Property Item)]
 testproplist =  [("LeenClub ID",StaticProperty "martijn"),("M/V",EditableProperty (Right (PropertySelectView (Widget {getWidgetStubId = Id {unId = -1}, getWidgetId = Id {unId = -1}, getWidgetWidget = SelectView {getSelectViewId = ViewId [], getSelectItems = ["M","F"], getSelectSelection' = 0, getSelectEnabled = True, getSelectStyle = "", getSelectChange = Just undefined}}))))]
 instance MapWebView Database BorrowedRootView where
