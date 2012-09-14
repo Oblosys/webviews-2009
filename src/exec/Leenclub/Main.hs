@@ -936,13 +936,12 @@ data TestView2 =
 deriveInitial ''TestView2
 
 instance MapWebView Database TestView2 where
-  mapWebView fns (TestView2 a b c d e) = TestView2 <$> mapWebView fns a <*> mapWebView fns b <*> mapWebView fns c <*> mapWebView fns d <*> mapWebView fns d
+  mapWebView fns (TestView2 a b c d e) = TestView2 <$> mapWebView fns a <*> mapWebView fns b <*> mapWebView fns c <*> mapWebView fns d <*> mapWebView fns e
 
 mkTestView2 :: WebViewM Database (WebView Database)
 mkTestView2 = mkWebView $
   \vid oldTestView@(TestView2 ea radioOld text str1 str2) ->
-    do { ea <- mkEditAction $ Edit $ docEdit (id :: Database -> Database) 
-       --; ea <- mkJSVar "a" "1" 
+    do { ea <- mkEditAction $ Edit $ viewEdit vid $ \(TestView2 a b c d e) -> TestView2 a b c "clicked" e
        ; radio <-  mkRadioViewWithStyle ["Edit", "View"] (getSelection radioOld) True "background-color: red"
        ; let radioSel = getSelection radioOld
        ; text <- mkTextFieldWithStyle "Test" "background-color: red" `withTextViewChange` (\str -> Edit $ viewEdit vid $ \(TestView2 a b c d e) -> TestView2 a b c d str)
@@ -961,8 +960,7 @@ instance Presentable TestView2 where
       vList [ present radio
             , present text
             , toHtml $ "Property strings: " ++ show p1str ++ " and " ++ show p2str
-            --, withEditAction ea "click me"
-            , present ea
+            , withEditAction ea "click me"
             ]
 
 instance Storeable Database TestView2

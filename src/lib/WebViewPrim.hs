@@ -461,8 +461,16 @@ presentEditAction _ = noHtml
 instance Presentable (WebView db) where
   present (WebView _ (Id stubId) _ _ _) = mkSpan (show stubId) << "ViewStub"
   
-instance Presentable (Widget x) where
-  present (Widget (Id stubId) _ _) = mkSpan (show stubId) << "WidgetStub"
+instance Presentable (Widget (LabelView w)) where present = presentWidget
+instance Presentable (Widget (TextView w)) where present = presentWidget
+instance Presentable (Widget (RadioView w)) where present = presentWidget
+instance Presentable (Widget (SelectView w)) where present = presentWidget
+instance Presentable (Widget (Button w)) where present = presentWidget
+instance Presentable (Widget (JSVar w)) where present = presentWidget
+-- EditActions are not meant to presented, so also no instance here
+-- To prevent a node without a stub, no new node is created for EditAction widgets in Incrementality.newWebNodeHtml
+
+presentWidget (Widget (Id stubId) _ _) = mkSpan (show stubId) << "WidgetStub"
 
 
 instance Presentable (AnyWidget db) where                          
@@ -472,7 +480,7 @@ instance Presentable (AnyWidget db) where
   present (SelectViewWidget w) = presentSelectView w 
   present (ButtonWidget w) = presentButton w 
   present (JSVarWidget w) = presentJSVar w 
-  present (EditActionWidget w) = noHtml -- EditActions are not meant to be presented, but in case they are, the presentation is empty 
+  present (EditActionWidget w) = noHtml --  
   
   
   

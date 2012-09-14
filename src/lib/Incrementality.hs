@@ -44,7 +44,7 @@ mkIncrementalUpdates oldRootView rootView =
     --; putStrLn $ "\nChanged or new web nodes\n" ++ unlines (map shallowShowWebNode newWebNodes) 
     --; putStrLn $ "\nUpdates\n" ++ unlines (map show updates)
     
-    ; let (newCommands, mEvalCommands) = unzip $ map newWebNodeHtml newWebNodes
+    ; let (newCommands, mEvalCommands) = unzip $ mapMaybe newWebNodeHtml newWebNodes
     ; let evalCommands = catMaybes mEvalCommands 
     ; let htmlUpdates =newCommands  ++ map updateHtml updates ++ evalCommands
     -- TODO: we could separate the evalCommands from the rest, so we don't have to do it at client level.
@@ -179,19 +179,20 @@ getWebNodeStubId (WidgetNode _ si _ _) = si
 showViewMap viewMap = unlines $ "ViewMap:" : [ show k ++ shallowShowWebView wv | (k, wv) <- Map.toList viewMap ]
 
 -- note, there is no update, just new and move. 
-newWebNodeHtml :: WebNode db -> (Html, Maybe Html)
+newWebNodeHtml :: WebNode db -> Maybe (Html, Maybe Html)
+newWebNodeHtml (WidgetNode _ _ (Id i) (EditActionWidget _)) = Nothing -- don't make new node for edit action widgets
 newWebNodeHtml (WidgetNode _ _ (Id i) w) =
   let htmlWithScript = present w
       (html, scripts) = extractScriptHtml htmlWithScript
       updateResponse = div_ ! strAttr "op" "new"  $ (mkSpan (show i) $ html)
       scriptResponse = div_ ! strAttr "op" "eval" $ (toHtml $ concat scripts)
-  in  (updateResponse, if null scripts then Nothing else Just scriptResponse)
+  in  Just (updateResponse, if null scripts then Nothing else Just scriptResponse)
 newWebNodeHtml (WebViewNode (WebView _ _ (Id i) _ v)) = 
   let htmlWithScript = present v
       (html, scripts) = extractScriptHtml htmlWithScript
       updateResponse = div_ ! strAttr "op" "new" $ (mkSpan (show i) $ html)
       scriptResponse = div_ ! strAttr "op" "eval" $ (toHtml $ concat scripts)
-  in  (updateResponse, if null scripts then Nothing else Just scriptResponse)  
+  in  Just (updateResponse, if null scripts then Nothing else Just scriptResponse)  
 
 updateHtml :: Update -> Html
 updateHtml (Move _ (IdRef src) (IdRef dst)) = if src == dst then error $ "Source is destination: "++show src else
