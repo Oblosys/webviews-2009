@@ -2,32 +2,35 @@
 module Generics (module Generics, module GenericsSYB, module GenericsMap) where
 
 import GenericsSYB (
---                  getAllIds
---                , clearIds
+{-
+                  getAllIds
+                , clearIds
 
 
---                , assignIdsFromList
---                , getTopLevelWebNodes
---                , getTopLevelWebViews
---                , mkWebNodeMap
---                , mkViewMap
+                , assignIdsFromList
+                , getTopLevelWebNodes
+                , getTopLevelWebViews
+                , mkWebNodeMap
+                , mkViewMap
                 
 
---                , getWebViewById
---                , getAnyWidgetById
+                , getWebViewById
+                , getAnyWidgetById
 
-{-                
+                
                 , getButtonByViewId
                 , getTextViewByViewId
                 , getLabelViewByViewId
                 , getJSVarByViewId
                 , getEditActionByViewId
+
+                , replaceWebViewById
+                , substituteIds
+                , applyUpdates
+                , Updates
 -}
---                , replaceWebViewById
---                , substituteIds
---                , applyUpdates
                 )
-import GenericsMap ( 
+import GenericsMap (
                   getAllIds
                 , clearIds
                 , assignIdsFromList
@@ -50,6 +53,7 @@ import GenericsMap (
                 , replaceWebViewById
                 , substituteIds
                 , applyUpdates
+                , Updates
                 )
 
 import Data.Generics
