@@ -483,8 +483,8 @@ instance Data db => Initial (WebView db) where
 -- recursive map on v arg in WebView is maybe handled a bit dodgy still.
 class MapWebView db v where
   mapWebView :: v -> 
-                (forall w . ( s -> WebView db -> (WebView db,s) 
-                            , MapWebView db (w db) => s -> Widget (w db) -> (Widget (w db),s) -- This MapWebView context requires ImpredicativeTypes :-(
+                (forall w . ( WebView db -> s -> (WebView db,s) 
+                            , MapWebView db (w db) => Widget (w db) -> s -> (Widget (w db),s) -- This MapWebView context requires ImpredicativeTypes :-(
                             , WidgetUpdates db s
                             , Bool -- specifies whether map will recurse in WebView children
                             )
@@ -494,55 +494,57 @@ class MapWebView db v where
 {- By keeping the reader (ie. function tuple) and state arguments at the end, we can pass these around
    automatically in functions pure and <*>, which allows for very elegant instance declarations:
      mapWebView (Constr arg1 .. argn) = pure Constr <*> mapWebView arg1 <*> .. <*> mapWebView argn 
+
+   For consistency, the same order is used in the functions in the function tuple and in WidgetUpdates.
 -}
 
-data WidgetUpdates db s = WidgetUpdates { labelViewUpdate :: s -> LabelView db -> (LabelView db, s)
-                                        , textViewUpdate :: s -> TextView db -> (TextView db, s)
-                                        , radioViewUpdate :: s -> RadioView db -> (RadioView db, s)  
-                                        , selectViewUpdate :: s -> SelectView db -> (SelectView db, s) 
-                                        , buttonUpdate :: s -> Button db -> (Button db, s)
-                                        , jsVarUpdate :: s -> JSVar db -> (JSVar db, s)
-                                        , editActionUpdate :: s -> EditAction db -> (EditAction db, s)  
+data WidgetUpdates db s = WidgetUpdates { labelViewUpdate  :: LabelView db  -> s -> (LabelView db, s)
+                                        , textViewUpdate   :: TextView db   -> s -> (TextView db, s)
+                                        , radioViewUpdate  :: RadioView db  -> s -> (RadioView db, s)  
+                                        , selectViewUpdate :: SelectView db -> s -> (SelectView db, s) 
+                                        , buttonUpdate     :: Button db     -> s -> (Button db, s)
+                                        , jsVarUpdate      :: JSVar db      -> s -> (JSVar db, s)
+                                        , editActionUpdate :: EditAction db -> s -> (EditAction db, s)  
                                         }
-                                      
+                                       
 noWidgetUpdates :: WidgetUpdates db s
 noWidgetUpdates = WidgetUpdates inert inert inert inert inert inert inert
 
-inert s x = (x,s)
+inert x s = (x,s)
    
 instance MapWebView db (WebView db) where
   mapWebView wv fns@(fwv,_,_,recursive) state =
-   case fwv state wv of
+   case fwv wv state of
      (WebView a b c d v, state') ->  let (v', state'') | recursive = mapWebView v fns state'
                                                        | otherwise   = (v, state')
                                      in  (WebView a b c d v', state'')
 
 instance MapWebView db (w db) => MapWebView db (Widget (w db)) where
   mapWebView wd fns@(_,fwd,_,_) state = 
-    case fwd state wd of -- case not necessary here, but consistent with WebView instance
-      (Widget sid id w, state') -> let (w', state'') = mapWebView w fns  state' -- NOTE: recurse flag is only
+    case fwd wd state of -- case is not necessary here, but consistent with WebView instance
+      (Widget sid id w, state') -> let (w', state'') = mapWebView w fns state' -- NOTE: recurse flag is only
                                    in  (Widget sid id w', state'')             -- used for WebViews, not widgets
 
 instance MapWebView db (LabelView db) where
-  mapWebView w (_,_,widgetUpdates,_) s = labelViewUpdate widgetUpdates s w 
+  mapWebView w (_,_,widgetUpdates,_) s = labelViewUpdate widgetUpdates w s 
 
 instance MapWebView db (TextView db) where
-  mapWebView w (_,_,widgetUpdates,_) s = textViewUpdate widgetUpdates s w 
+  mapWebView w (_,_,widgetUpdates,_) s = textViewUpdate widgetUpdates w s 
 
 instance MapWebView db (RadioView db) where
-  mapWebView w (_,_,widgetUpdates,_) s = radioViewUpdate widgetUpdates s w 
+  mapWebView w (_,_,widgetUpdates,_) s = radioViewUpdate widgetUpdates w s 
 
 instance MapWebView db (SelectView db) where
-  mapWebView w (_,_,widgetUpdates,_) s = selectViewUpdate widgetUpdates s w 
+  mapWebView w (_,_,widgetUpdates,_) s = selectViewUpdate widgetUpdates w s 
 
 instance MapWebView db (Button db) where
-  mapWebView w (_,_,widgetUpdates,_) s = buttonUpdate widgetUpdates s w 
+  mapWebView w (_,_,widgetUpdates,_) s = buttonUpdate widgetUpdates w s
 
 instance MapWebView db (JSVar db) where
-  mapWebView w (_,_,widgetUpdates,_) s = jsVarUpdate widgetUpdates s w 
+  mapWebView w (_,_,widgetUpdates,_) s = jsVarUpdate widgetUpdates w s
 
 instance MapWebView db (EditAction db) where
-  mapWebView w (_,_,widgetUpdates,_) s = editActionUpdate widgetUpdates s w 
+  mapWebView w (_,_,widgetUpdates,_) s = editActionUpdate widgetUpdates w s
 
 instance MapWebView db a => MapWebView db (Maybe a) where
   mapWebView Nothing = pure Nothing

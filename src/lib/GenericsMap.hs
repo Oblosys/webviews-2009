@@ -14,15 +14,15 @@ import Debug.Trace
 
 getAllIds :: forall db . WebView db -> [Id]
 getAllIds rootView = snd $ mapWebView rootView (getAllIdsWV, getAllIdsWd, noWidgetUpdates, True) [] 
-  where getAllIdsWV :: [Id] -> WebView db -> (WebView db, [Id])
-        getAllIdsWV ids wv@(WebView _ sid id _ _) = (wv, sid:id:ids)
-        getAllIdsWd ids wd@(Widget sid id _)          = (wd, sid:id:ids)
+  where getAllIdsWV :: WebView db -> [Id] -> (WebView db, [Id])
+        getAllIdsWV wv@(WebView _ sid id _ _) ids = (wv, sid:id:ids)
+        getAllIdsWd wd@(Widget sid id _)      ids = (wd, sid:id:ids)
 
 clearIds :: forall db . WebView db -> WebView db
 clearIds rootView = fst $ mapWebView rootView (clearIdsWV, clearIdsWd, noWidgetUpdates, True) () 
-  where clearIdsWV :: () -> WebView db -> (WebView db, ())
-        clearIdsWV _ wv@(WebView vid _ _ mkF v) = (WebView vid noId noId mkF v, ())
-        clearIdsWd _ wd@(Widget _ _ w)          = (Widget noId noId w, ())
+  where clearIdsWV :: WebView db -> () -> (WebView db, ())
+        clearIdsWV wv@(WebView vid _ _ mkF v) _ = (WebView vid noId noId mkF v, ())
+        clearIdsWd wd@(Widget _ _ w)          _ = (Widget noId noId w, ())
 
 assignIdsFromList :: forall db . [Id] -> WebView db -> WebView db
 assignIdsFromList allIds rootView =
@@ -31,12 +31,12 @@ assignIdsFromList allIds rootView =
  where usedIds = IntSet.fromList $ map unId $ filter (/= noId) $ allIds 
        freeIds = (IntSet.fromList $ [0 .. length allIds - 1]) `IntSet.difference` usedIds
 
-       assignIdsWV :: IntSet -> WebView db -> (WebView db, IntSet)
-       assignIdsWV state (WebView vi sid id mkF v) = (WebView vi sid' id' mkF v, state'')
+       assignIdsWV :: WebView db -> IntSet -> (WebView db, IntSet)
+       assignIdsWV (WebView vi sid id mkF v) state = (WebView vi sid' id' mkF v, state'')
         where (sid',state') = mkId state sid
               (id',state'') = mkId state' id
        
-       assignIdsWd state (Widget sid id w) = (Widget sid' id' w, state'')
+       assignIdsWd (Widget sid id w) state = (Widget sid' id' w, state'')
         where (sid',state') = mkId state sid
               (id',state'') = mkId state' id
 
@@ -124,11 +124,11 @@ getWebNodeById callerTag i wv =
 
 getWebNodesAndViewIds :: forall db v . MapWebView db v => Bool -> v -> [(ViewId, WebNode db)]
 getWebNodesAndViewIds recursive v = snd $ mapWebView v (getWebNodesAndViewIdsWV, getWebNodesAndViewIdsWd, noWidgetUpdates, recursive) []
- where getWebNodesAndViewIdsWV :: [(ViewId, WebNode db)] -> WebView db -> (WebView db, [(ViewId, WebNode db)])
-       getWebNodesAndViewIdsWV state wv@(WebView vi _ _ _ _) = (wv, (vi, WebViewNode wv):state)
+ where getWebNodesAndViewIdsWV :: WebView db -> [(ViewId, WebNode db)] -> (WebView db, [(ViewId, WebNode db)])
+       getWebNodesAndViewIdsWV wv@(WebView vi _ _ _ _) state = (wv, (vi, WebViewNode wv):state)
 
-       getWebNodesAndViewIdsWd :: MapWebView db (w db) => [(ViewId, WebNode db)] -> Widget (w db) -> (Widget (w db), [(ViewId, WebNode db)])
-       getWebNodesAndViewIdsWd state wd@(Widget sid id w) = (wd, widgetNode ++  state) 
+       getWebNodesAndViewIdsWd :: MapWebView db (w db) => Widget (w db) -> [(ViewId, WebNode db)] -> (Widget (w db), [(ViewId, WebNode db)])
+       getWebNodesAndViewIdsWd wd@(Widget sid id w) state = (wd, widgetNode ++ state) 
          where widgetNode :: [(ViewId, WebNode db)]
                widgetNode = case widgetToAnyWidget w of
                               Nothing       -> error "Generics.getWebNodesAndViewIds Widget with non-widget child."
@@ -139,28 +139,28 @@ widgetToAnyWidget w = snd $ mapWebView w (inert,inert,widgetUpdates,False {- has
  where widgetUpdates :: WidgetUpdates db (Maybe (ViewId, AnyWidget db))
        widgetUpdates = WidgetUpdates labelViewUpd textViewUpd radioViewUpd selectViewUpd buttonUpd jsVarUpd editActionUpd
                                      
-       labelViewUpd s w  = (w, Just (getViewId w, LabelWidget w))
-       textViewUpd s w   = (w, Just (getViewId w, TextWidget w))
-       radioViewUpd s w  = (w, Just (getViewId w, RadioViewWidget w))
-       selectViewUpd s w = (w, Just (getViewId w, SelectViewWidget w))
-       buttonUpd s w     = (w, Just (getViewId w, ButtonWidget w))
-       jsVarUpd s w      = (w, Just (getViewId w, JSVarWidget w))
-       editActionUpd s w = (w, Just (getViewId w, EditActionWidget w))
+       labelViewUpd w s = (w, Just (getViewId w, LabelWidget w))
+       textViewUpd w s  = (w, Just (getViewId w, TextWidget w))
+       radioViewUpd w s  = (w, Just (getViewId w, RadioViewWidget w))
+       selectViewUpd w s = (w, Just (getViewId w, SelectViewWidget w))
+       buttonUpd w s     = (w, Just (getViewId w, ButtonWidget w))
+       jsVarUpd w s      = (w, Just (getViewId w, JSVarWidget w))
+       editActionUpd w s = (w, Just (getViewId w, EditActionWidget w))
 
 replaceWebViewById :: forall db . ViewId -> WebView db -> WebView db -> WebView db
 replaceWebViewById vid newWV rootView = fst $ mapWebView rootView (replaceWebViewByIdWV, replaceWebViewByIdWd, noWidgetUpdates, True) ()
- where replaceWebViewByIdWV :: () -> WebView db -> (WebView db, ())
-       replaceWebViewByIdWV state wv@(WebView vi sid id mkF v) = (if vid == vi then newWV else wv, state)
+ where replaceWebViewByIdWV :: WebView db -> () -> (WebView db, ())
+       replaceWebViewByIdWV wv@(WebView vi sid id mkF v) state = (if vid == vi then newWV else wv, state)
 
-       replaceWebViewByIdWd state wd = (wd, state)
+       replaceWebViewByIdWd wd state = (wd, state)
 
 
 substituteIds :: forall db . [(Id, Id)] -> WebView db -> WebView db
 substituteIds subs rootView = fst $ mapWebView rootView (substituteIdsWV, substituteIdsWd, noWidgetUpdates, True) ()
- where substituteIdsWV :: () -> WebView db -> (WebView db, ())
-       substituteIdsWV state (WebView vi sid id mkF v) = (WebView vi (substituteId sid) (substituteId id) mkF v, state)
+ where substituteIdsWV :: WebView db -> () -> (WebView db, ())
+       substituteIdsWV (WebView vi sid id mkF v) state = (WebView vi (substituteId sid) (substituteId id) mkF v, state)
        
-       substituteIdsWd state (Widget sid id w) = (Widget (substituteId sid) (substituteId id) w, state)
+       substituteIdsWd (Widget sid id w) state = (Widget (substituteId sid) (substituteId id) w, state)
        
        subsMap = IntMap.fromList $ map (\(Id i1, Id i2) -> (i1,i2)) subs
        
@@ -188,21 +188,21 @@ type Updates = Map ViewId String  -- maps id's to the string representation of t
 -- update the datastructure at the id's in Updates 
 applyUpdates :: forall db d . Updates -> WebView db -> WebView db
 applyUpdates updates rootView = fst $ mapWebView rootView (applyUpdatesWV, applyUpdatesWd, widgetUpdates, True) ()
- where applyUpdatesWV :: () -> WebView db -> (WebView db, ())
-       applyUpdatesWV state wd = (wd, state)
-       applyUpdatesWd state wd = (wd, state)
+ where applyUpdatesWV :: WebView db -> () -> (WebView db, ())
+       applyUpdatesWV wd state = (wd, state)
+       applyUpdatesWd wd state = (wd, state)
        widgetUpdates = WidgetUpdates labelViewUpd textViewUpd radioViewUpd selectViewUpd buttonUpd jsVarUpd editActionUpd
                                      
        labelViewUpd      = inert
-       textViewUpd s w   = mkWidgetUpdate s w (\v -> w{getTextStrVal=v})            id
-       radioViewUpd s w  = mkWidgetUpdate s w (\v -> w{getRadioSelection=v})  $ unsafeRead ("Generics.replace.radioViewUpd at "++(show $ getViewId w))
-       selectViewUpd s w = mkWidgetUpdate s w (\v -> w{getSelectSelection=v}) $ unsafeRead ("Generics.replace.selectViewUpd at "++(show $ getViewId w))
+       textViewUpd w     = mkWidgetUpdate w (\v -> w{getTextStrVal=v})        id
+       radioViewUpd w    = mkWidgetUpdate w (\v -> w{getRadioSelection=v})  $ unsafeRead ("Generics.replace.radioViewUpd at "++(show $ getViewId w))
+       selectViewUpd w   = mkWidgetUpdate w (\v -> w{getSelectSelection=v}) $ unsafeRead ("Generics.replace.selectViewUpd at "++(show $ getViewId w))
        buttonUpd         = inert 
-       jsVarUpd s w      = mkWidgetUpdate s w (\v -> w{getJSVarValue_=v})        id
+       jsVarUpd w        = mkWidgetUpdate w (\v -> w{getJSVarValue_=v})       id
        editActionUpd     = inert 
 
-       mkWidgetUpdate :: HasViewId w => s -> w -> (a -> w) -> (String -> a) -> (w,s) 
-       mkWidgetUpdate w upd parse = undefined -- case Map.lookup (getViewId w) updates of
---                                      Nothing  -> w
---                                      Just str -> upd (parse str)
+       mkWidgetUpdate :: HasViewId w => w -> (a -> w) -> (String -> a) -> s -> (w,s) 
+       mkWidgetUpdate w upd parse s = case Map.lookup (getViewId w) updates of
+                                        Nothing  -> (w,s)
+                                        Just str -> (upd (parse str),s)
                                       
