@@ -98,6 +98,12 @@ getJSVarByViewId i wv =
     JSVarWidget x -> x
     _             -> error $ "internal error: widget with id " ++ show i ++ " is not a JSVar" 
 
+getEditActionByViewId :: Typeable db => ViewId -> WebView db -> EditAction db
+getEditActionByViewId i wv =
+  case getAnyWidgetById i wv of
+    EditActionWidget x -> x
+    _             -> error $ "internal error: widget with id " ++ show i ++ " is not an EditAction" 
+
 getWebViewById :: Typeable db => ViewId -> WebView db -> WebView db
 getWebViewById i wv = 
   case getWebNodeById "getWebViewById" i wv of
@@ -161,7 +167,8 @@ substituteIds subs rootView = fst $ mapWebView (substituteIdsWV, substituteIdsWd
 type Updates = Map ViewId String  -- maps id's to the string representation of the new value
 
 
--- TODO: cleanup some names in Types
+-- TODO: cleanup some names in Types (rename all smart constructors to ..Widget: editAction -> editActionWidget),
+--       and then remove some ' and _ names.
 -- TODO: fix editAction
 -- TODO: use map instead of generics in this module 
 -- TODO: remove Data constraints where possible (maybe replace by Typeable)

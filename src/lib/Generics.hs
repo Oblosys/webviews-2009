@@ -21,11 +21,11 @@ import GenericsSYB (
                 , getTextViewByViewId
                 , getLabelViewByViewId
                 , getJSVarByViewId
+                , getEditActionByViewId
 -}
 --                , replaceWebViewById
 --                , substituteIds
 --                , applyUpdates
-                 getEditActionByViewId
                 )
 import GenericsMap ( 
                   getAllIds
@@ -45,11 +45,11 @@ import GenericsMap (
                 , getSelectViewByViewId
                 , getButtonByViewId
                 , getJSVarByViewId
+                , getEditActionByViewId
 
                 , replaceWebViewById
                 , substituteIds
                 , applyUpdates
---                , getEditActionByViewId
                 )
 
 import Data.Generics
