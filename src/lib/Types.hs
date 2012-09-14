@@ -517,7 +517,7 @@ instance MapWebView db (WebView db) where
                                                        | otherwise   = (v, state')
                                      in  (WebView a b c d v', state'')
 
-instance (Data (w db), MapWebView db (w db)) => MapWebView db (Widget (w db)) where
+instance MapWebView db (w db) => MapWebView db (Widget (w db)) where
   mapWebView wd fns@(_,fwd,_,_) state = 
     case fwd state wd of -- case not necessary here, but consistent with WebView instance
       (Widget sid id w, state') -> let (w', state'') = mapWebView w fns  state' -- NOTE: recurse flag is only
