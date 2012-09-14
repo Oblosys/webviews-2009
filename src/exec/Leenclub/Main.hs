@@ -208,13 +208,13 @@ ty_Function = mkDataType "Main.Function" [con_Function] -- todo: change accordin
 con_Function = mkConstr ty_WebView "Function" [] Prefix
 -}
 -- non-optimal way to show editable properties. The problem is that the update specified is not a view update but a database update.
-data Property a = EditableProperty (Either Html PropertyWidget)
-                | StaticProperty Html deriving (Eq, Show, Typeable, Data)
+data Property db a = EditableProperty (Either Html (PropertyWidget db))
+                   | StaticProperty Html deriving (Eq, Show, Typeable, Data)
 
 -- We want to put properties in a list, so an extra parameter for the widget is not an option.
 -- We could use an existential, but then deriving instances won't work anymore, so for now we use an explicit sum type.
-data PropertyWidget = PropertyTextView (Widget (TextView Database))
-                    | PropertySelectView (Widget (SelectView Database)) deriving (Eq, Show, Typeable, Data)
+data PropertyWidget db = PropertyTextView (Widget (TextView db))
+                       | PropertySelectView (Widget (SelectView db)) deriving (Eq, Show, Typeable, Data)
                     
 instance Data Html
 -- TODO: make sure that Data is not actually needed, or implement it.
@@ -224,27 +224,26 @@ instance Initial Html where
 
 instance MapWebView db Html
   
-instance Initial (Property a) where
+instance Initial (Property db a) where
   initial = StaticProperty initial
 
-instance MapWebView Database (Property a) where
+deriveMapWebView ''PropertyWidget 
+
+-- extra arg, so no derive
+instance MapWebView db (Property db a) where
   mapWebView (EditableProperty a) = EditableProperty <$> mapWebView a 
   mapWebView (StaticProperty a) = StaticProperty <$> mapWebView a 
   
-instance MapWebView Database PropertyWidget where
-  mapWebView (PropertyTextView a) = PropertyTextView <$> mapWebView a 
-  mapWebView (PropertySelectView a) = PropertySelectView <$> mapWebView a 
-
-
-instance MapWebView db b => MapWebView db (String, b) where
-  mapWebView (a,b) = (,) <$> mapWebView a <*> mapWebView b
 
 {- The update is a database update, but it would be better to be able to specify a view update, since we don't 
 want to commit all textfields immediately to the database. Maybe save could be part of the edit monad? (but then do we need
 to save again after performing the viewEdit in save?) or we could add an edit action to text fields (not the commit action, but
 a blur action) -}
 -- not a web view, but it is an instance of Presentable
-mkEditableProperty :: (Show v, Data v, Data a) => ViewId -> Bool -> (v :-> Maybe a) -> (a :-> p) -> (p -> String) -> (String -> Maybe p) -> (p -> Html) -> a -> WebViewM Database (Property a)
+mkEditableProperty :: (Data db, Show v, Data v, Data a) => 
+                      ViewId -> Bool -> (v :-> Maybe a) -> (a :-> p) ->
+                      (p -> String) -> (String -> Maybe p) -> (p -> Html) -> a -> 
+                      WebViewM db (Property db a)
 mkEditableProperty vid editing objectLens valueLens presStr parseStr pres orgObj =
  do { eValue <- if editing
                 then fmap (Right . PropertyTextView) $ mkTextFieldWithChange (presStr $ get valueLens orgObj) $ \str ->
@@ -259,9 +258,9 @@ mkEditableProperty vid editing objectLens valueLens presStr parseStr pres orgObj
     ; return $ EditableProperty eValue
     }
 
-mkEditableSelectProperty :: (Show v, Data v, Data a) => ViewId -> Bool -> (v :-> Maybe a) -> (a :-> p) ->
+mkEditableSelectProperty :: (Data db, Show v, Data v, Data a) => ViewId -> Bool -> (v :-> Maybe a) -> (a :-> p) ->
                             (p -> String) -> (p -> Html) -> [p] -> a ->
-                            WebViewM Database (Property a)
+                            WebViewM db (Property db a)
 mkEditableSelectProperty vid editing objectLens valueLens presStr pres propVals orgObj =
  do { eValue <- if editing
                 then let propValStrs = map presStr propVals
@@ -283,18 +282,18 @@ mkEditableSelectProperty vid editing objectLens valueLens presStr pres propVals 
     ; return $ EditableProperty eValue
     }
 
-mkStaticProperty :: (a :-> p) -> (p -> Html) -> a -> WebViewM Database (Property a) -- monadic only to have behave similar to
+mkStaticProperty :: (a :-> p) -> (p -> Html) -> a -> WebViewM Database (Property db a) -- monadic only to have behave similar to
 mkStaticProperty lens pres obj = return $ StaticProperty $ pres $ get lens obj  -- mkEditbleProperty (maybe not necessary)
 
-instance Presentable (Property a) where
+instance Presentable (Property db a) where
   present (StaticProperty htmlStr)             = toHtml htmlStr
   present (EditableProperty (Left htmlStr))    = toHtml htmlStr
   present (EditableProperty (Right (PropertyTextView textField)))     = present textField
   present (EditableProperty (Right (PropertySelectView selectField))) = present selectField
 
-instance Storeable Database (Property a)
+instance Storeable Database (Property db a)
 
-presentEditableProperties :: [(String, Property a)] -> Html            
+presentEditableProperties :: [(String, Property db a)] -> Html            
 presentEditableProperties namedProps =
   table $ sequence_ [ tr $ sequence_ [ td $ with [style "font-weight: bold"] $ toHtml propName, td $ nbsp +++ ":" +++ nbsp
                                      , td $ present prop] 
@@ -314,11 +313,11 @@ isInline Full   = False
 
 deriveInitial ''Inline
 
-instance MapWebView db Inline
+instance MapWebView Database Inline
 
 -- TODO: maybe distance
 data ItemView = 
-  ItemView Inline Double Item (Maybe Item) Lender (Widget (Button Database)) (Maybe Lender) [(String,Property Item)] [Widget (Button Database)]
+  ItemView Inline Double Item (Maybe Item) Lender (Widget (Button Database)) (Maybe Lender) [(String,Property Database Item)] [Widget (Button Database)]
     deriving (Eq, Show, Typeable, Data)
 
 instance Initial LenderId where
@@ -342,9 +341,7 @@ instance MapWebView db Item
 
 deriveInitial ''ItemView
 
-instance MapWebView Database ItemView where
-  mapWebView (ItemView a b c d e f g h i) = ItemView <$> mapWebView a <*> mapWebView b <*> mapWebView c <*> mapWebView d <*> mapWebView e <*>
-                                                             mapWebView f <*> mapWebView g <*> mapWebView h <*> mapWebView i 
+deriveMapWebViewDb ''Database ''ItemView 
 
 -- todo: use partial lense here?
 mEditedItem :: ItemView :-> Maybe Item
@@ -481,7 +478,7 @@ getInlineCategoryProps vid isEdited item c = do { props <- getAllCategoryProps v
 getFullCategoryProps vid isEdited item c = fmap (map $ either id id) $ getAllCategoryProps vid isEdited item c 
 
 -- Left is only Full, Right is Full and Inline
-getAllCategoryProps :: ViewId -> Bool -> Item -> Category -> WebViewM Database [Either (String,Property Item) (String, Property Item)]
+getAllCategoryProps :: ViewId -> Bool -> Item -> Category -> WebViewM Database [Either (String,Property Database Item) (String, Property Database Item)]
 getAllCategoryProps vid isEdited item c = 
   let mkStringProp leftOrRight name catField = fmap (\p -> leftOrRight (name, p)) $ mkEditableProperty vid isEdited mEditedItem (pLens "getAllCategoryProps" $ catField . itemCategory) id Just toHtml item 
       mkIntProp leftOrRight name catField = fmap (\p -> leftOrRight (name, p)) $ mkEditableProperty vid isEdited mEditedItem (pLens "getAllCategoryProps" $ catField . itemCategory) show readMaybe toHtml item
@@ -549,8 +546,7 @@ data LeenclubLoginOutView = LeenclubLoginOutView (WebView Database) deriving (Eq
 
 deriveInitial ''LeenclubLoginOutView
 
-instance MapWebView Database LeenclubLoginOutView where
-  mapWebView (LeenclubLoginOutView a) = LeenclubLoginOutView <$> mapWebView a
+deriveMapWebViewDb ''Database ''LeenclubLoginOutView
 
 instance Storeable Database LeenclubLoginOutView
 
@@ -582,7 +578,7 @@ mkItemRootView = mkMaybeView "Onbekend item" $
       
 
 data LenderView = 
-  LenderView Inline User Lender (Maybe Lender) {- [Property Lender] -} [(String,Property Lender)]  [(String,Property Lender)]
+  LenderView Inline User Lender (Maybe Lender) {- [Property Lender] -} [(String,Property Database Lender)]  [(String,Property Database Lender)]
              --(Maybe (Widget (TextView Database, TextView Database)))
              [WebView Database] [Widget (Button Database)]
     deriving (Eq, Show, Typeable, Data)
@@ -591,9 +587,7 @@ data LenderView =
 
 deriveInitial ''LenderView
 
-instance MapWebView Database LenderView where
-  mapWebView (LenderView a b c d e f g h) = LenderView <$> mapWebView a <*> mapWebView b <*> mapWebView c <*> mapWebView d <*> mapWebView e <*>
-                                                           mapWebView f <*> mapWebView g <*> mapWebView h 
+deriveMapWebViewDb ''Database ''LenderView 
 
 mEditedLender :: LenderView :-> Maybe Lender
 mEditedLender = lens (\(LenderView _ _ _ mEditedLender _ _ _ _) -> mEditedLender)
@@ -715,8 +709,7 @@ data ItemsRootView =
 
 deriveInitial ''ItemsRootView
 
-instance MapWebView Database ItemsRootView where
-  mapWebView (ItemsRootView a b c) = ItemsRootView <$> mapWebView a <*> mapWebView b <*> mapWebView c
+deriveMapWebViewDb ''Database ''ItemsRootView
 
 instance Storeable Database ItemsRootView
 
@@ -750,8 +743,7 @@ data LendersRootView = LendersRootView (WebView Database)
 
 deriveInitial ''LendersRootView
 
-instance MapWebView Database LendersRootView where
-  mapWebView (LendersRootView a) = LendersRootView <$> mapWebView a
+deriveMapWebViewDb ''Database ''LendersRootView
 
 instance Storeable Database LendersRootView
 
@@ -817,8 +809,7 @@ data LeenclubPageView = LeenclubPageView User String (Widget (EditAction Databas
 
 deriveInitial ''LeenclubPageView
 
-instance MapWebView Database LeenclubPageView where
-  mapWebView (LeenclubPageView a b c d) = LeenclubPageView <$> mapWebView a <*> mapWebView b <*> mapWebView c <*> mapWebView d
+deriveMapWebViewDb ''Database ''LeenclubPageView
 
 instance Storeable Database LeenclubPageView
 
@@ -882,9 +873,7 @@ data TestView =
 
 deriveInitial ''TestView
 
-instance MapWebView Database TestView where
-  mapWebView (TestView a b c d e f g h) = TestView <$> mapWebView a <*> mapWebView b <*> mapWebView c <*> mapWebView d <*> mapWebView e <*>
-                                                       mapWebView f <*> mapWebView g <*> mapWebView h
+deriveMapWebViewDb ''Database ''TestView
 
 mkTestView :: WebViewM Database (WebView Database)
 mkTestView = mkWebView $
@@ -935,8 +924,7 @@ data TestView2 =
 
 deriveInitial ''TestView2
 
-instance MapWebView Database TestView2 where
-  mapWebView (TestView2 a b c d e) = TestView2 <$> mapWebView a <*> mapWebView b <*> mapWebView c <*> mapWebView d <*> mapWebView e
+deriveMapWebViewDb ''Database ''TestView2
 
 mkTestView2 :: WebViewM Database (WebView Database)
 mkTestView2 = mkWebView $
@@ -976,14 +964,19 @@ mkTestView3 msg = mkPresentView (\hs -> hList $ toHtml (msg :: String) : hs) $
 -- some webviews for testing with ghci
 
 data AView db = AView (WebView db) (Widget (TextView db)) String (Widget (TextView db))
+              | AAView (WebView db)
 
-instance Data db => MapWebView db (AView db) where
+
+{-
+instance MapWebView db (AView db) where
   mapWebView (AView wv1 wd1 str wd2) = 
     AView <$> mapWebView wv1 <*> mapWebView wd1 <*> mapWebView str <*> mapWebView wd2 
+-}
+deriveMapWebView ''AView
 
 data BView db = BView String (AView db)
 
-instance Data db =>  MapWebView db (BView db) where
+instance MapWebView db (BView db) where
   mapWebView (BView str a) = BView <$> mapWebView str <*> mapWebView a
 
 --testmkwv :: x -> WebView Database
@@ -998,10 +991,9 @@ testwv0 =  WebView (ViewId []) (Id 1) (Id 2) undefined $ ItemsRootView (testwv 1
 
 testwd :: String -> Widget (Button Database)
 testwd str = buttonWidget (ViewId []) str True "" "" LogoutEdit
-testproplist :: [(String, Property Item)]
+testproplist :: [(String, Property Database Item)]
 testproplist =  [("LeenClub ID",StaticProperty "martijn"),("M/V",EditableProperty (Right (PropertySelectView (Widget {getWidgetStubId = Id {unId = -1}, getWidgetId = Id {unId = -1}, getWidgetWidget = SelectView {getSelectViewId = ViewId [], getSelectItems = ["M","F"], getSelectSelection = 0, getSelectEnabled = True, getSelectStyle = "", getSelectChange = Just undefined}}))))]
-instance MapWebView Database BorrowedRootView where
-  mapWebView (BorrowedRootView a b) = BorrowedRootView <$> mapWebView a <*> mapWebView b
+deriveMapWebViewDb ''Database ''BorrowedRootView
 
 
 
