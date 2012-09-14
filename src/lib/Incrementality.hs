@@ -175,14 +175,6 @@ getWebNodeStubId (WebViewNode (WebView _ si _ _ _)) = si
 getWebNodeStubId (WidgetNode _ si _ _) = si
 
 
-getWidgetInternalId :: AnyWidget db -> ViewId
-getWidgetInternalId  (LabelWidget (LabelView id _ _)) = id
-getWidgetInternalId  (TextWidget (TextView id _ _ _ _ _)) = id
-getWidgetInternalId  (RadioViewWidget (RadioView id _ _ _ _ _)) = id
-getWidgetInternalId  (SelectViewWidget (SelectView id _ _ _ _ _)) = id
-getWidgetInternalId  (ButtonWidget (Button id _ _ _ _ _)) = id
-getWidgetInternalId  (JSVarWidget (JSVar id _ _)) = id
-
                                        
 showViewMap viewMap = unlines $ "ViewMap:" : [ show k ++ shallowShowWebView wv | (k, wv) <- Map.toList viewMap ]
 
