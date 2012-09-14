@@ -484,7 +484,7 @@ instance Data db => Initial (WebView db) where
 -- recursive map on v arg in WebView is maybe handled a bit dodgy still.
 class MapWebView db v where
   mapWebView :: (forall w . ( s -> WebView db -> (WebView db,s) 
-                            , (MapWebView db (w db), Data (w db)) => s -> Widget (w db) -> (Widget (w db),s) -- This Data context requires ImpredicativeTypes :-(
+                            , MapWebView db (w db) => s -> Widget (w db) -> (Widget (w db),s) -- This Data context requires ImpredicativeTypes :-(
                             , WidgetUpdates db s
                             , Bool -- specifies whether map will recurse in WebView children
                             )
