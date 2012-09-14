@@ -17,6 +17,7 @@ module GenericsSYB ( getAllIds
                 , getEditActionByViewId
                 , lookupOldView
                 , applyUpdates
+                , Updates
                 ) where
 
 import Types
