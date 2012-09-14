@@ -84,11 +84,11 @@ liftS f = StateT (\(WebViewState user db viewMap path i sid has) ->
 assignViewId :: (ViewId -> v) -> WebViewM db v
 assignViewId viewConstr = liftS $ \path vidC -> (viewConstr (ViewId $ path ++ [vidC]), vidC +1)
 
-mkEditAction :: EditCommand db -> WebViewM db (EditAction db) 
+mkEditAction :: EditCommand db -> WebViewM db (Widget (EditAction db))
 mkEditAction ec = mkEditActionEx $ const ec
 
-mkEditActionEx :: ([String] -> EditCommand db) -> WebViewM db (EditAction db) 
-mkEditActionEx fec = assignViewId $ \vid -> EditAction vid fec
+mkEditActionEx :: ([String] -> EditCommand db) -> WebViewM db (Widget (EditAction db)) 
+mkEditActionEx fec = assignViewId $ \vid -> editAction vid fec
 
 mkLabelView :: String -> WebViewM db (Widget (LabelView db))
 mkLabelView str = assignViewId $ \vid -> labelView vid str ""
@@ -411,7 +411,7 @@ declareWVButtonScript viewId = jsDeclareVar (ViewIdT viewId) "script" $ "new But
 -- a descriptive text field can be added to the action, to let the server be able to show
 -- which button was pressed. However, it is not sure if this works okay with restoring id's
 -- though it probably works out, as the ea id is the only one needing restoration.
-withEditAction (EditAction viewId _) elt =
+withEditAction (Widget _ _ (EditAction viewId _)) elt =
   thespan !* [ id_ $ mkHtmlViewIdVal viewId
              , strAttr "onClick" $ "queueCommand('PerformEditActionC "++show viewId++" []')"] << elt
 
@@ -454,6 +454,8 @@ presentJSVar (JSVar viewId name value) = thediv ! (id_ $ mkHtmlViewIdVal viewId)
               in  "if (typeof "++jsVar++" ==\"undefined\") {"++jsVar++" = "++value++"};")
               -- no "var " here, does not work when evaluated with eval
   
+presentEditAction :: EditAction db -> Html
+presentEditAction _ = noHtml 
 
 
 instance Presentable (WebView db) where
@@ -463,7 +465,6 @@ instance Presentable (Widget x) where
   present (Widget (Id stubId) _ _) = mkSpan (show stubId) << "WidgetStub"
 
 
--- todo button text and radio/select text needs to go into view
 instance Presentable (AnyWidget db) where                          
   present (LabelWidget w) = presentLabelView w 
   present (TextWidget w) = presentTextField w
@@ -471,6 +472,7 @@ instance Presentable (AnyWidget db) where
   present (SelectViewWidget w) = presentSelectView w 
   present (ButtonWidget w) = presentButton w 
   present (JSVarWidget w) = presentJSVar w 
+  present (EditActionWidget w) = noHtml -- EditActions are not meant to be presented, but in case they are, the presentation is empty 
   
   
   

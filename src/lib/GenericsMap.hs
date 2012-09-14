@@ -132,6 +132,7 @@ getWebNodesAndViewIds recursive v = snd $ mapWebView (getWebNodesAndViewIdsWV, g
                     `extQ` (\(Widget sid id w) -> let vid = getViewId w in [(vid, WidgetNode vid sid id $ SelectViewWidget w)])
                     `extQ` (\(Widget sid id w) -> let vid = getViewId w in [(vid, WidgetNode vid sid id $ ButtonWidget w)])
                     `extQ` (\(Widget sid id w) -> let vid = getViewId w in [(vid, WidgetNode vid sid id $ JSVarWidget w)])
+                    `extQ` (\(Widget sid id w) -> let vid = getViewId w in [(vid, WidgetNode vid sid id $ EditActionWidget w)])
 -- todo: when we do this directly (without generics), get rid of the Data and Typeable contexts that were introduced
 -- with this getTopLevelWebNodesWebViewAlt
 
@@ -161,7 +162,8 @@ type Updates = Map ViewId String  -- maps id's to the string representation of t
 
 
 -- TODO: cleanup some names in Types
--- TODO: fix editAction 
+-- TODO: fix editAction
+-- TODO: use map instead of generics in this module 
 -- TODO: remove Data constraints where possible (maybe replace by Typeable)
 
 -- update the datastructure at the id's in Updates 
@@ -170,7 +172,7 @@ applyUpdates updates rootView = fst $ mapWebView (applyUpdatesWV, applyUpdatesWd
  where applyUpdatesWV :: () -> WebView db -> (WebView db, ())
        applyUpdatesWV state wd = (wd, state)
        applyUpdatesWd state wd = (wd, state)
-       widgetUpdates = WidgetUpdates labelViewUpd textViewUpd radioViewUpd selectViewUpd buttonUpd jsVarUpd  
+       widgetUpdates = WidgetUpdates labelViewUpd textViewUpd radioViewUpd selectViewUpd buttonUpd jsVarUpd editActionUpd
                                      
        labelViewUpd    = id
        textViewUpd w   = mkWidgetUpdate w (\v -> w{getStrVal'=v})            id
@@ -178,6 +180,7 @@ applyUpdates updates rootView = fst $ mapWebView (applyUpdatesWV, applyUpdatesWd
        selectViewUpd w = mkWidgetUpdate w (\v -> w{getSelectSelection'=v}) $ unsafeRead ("Generics.replace.selectViewUpd at "++(show $ getViewId w))
        buttonUpd       = id  
        jsVarUpd w      = mkWidgetUpdate w (\v -> w{getJSVarValue_=v})        id
+       editActionUpd   = id  
 
        mkWidgetUpdate :: HasViewId w => w -> (a -> w) -> (String -> a) -> w
        mkWidgetUpdate w upd parse = case Map.lookup (getViewId w) updates of

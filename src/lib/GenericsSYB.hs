@@ -313,7 +313,7 @@ getJSVarByViewId i view =
 getEditActionByViewId :: (Typeable db, Data d) => ViewId -> d -> EditAction db
 getEditActionByViewId i view = 
   case listify (\(EditAction i' _) -> i==i') view of
-    [b] -> b
+    [b] -> trace "getting edit action" $ b
     []  -> error $ "internal error: no edit action with id "++show i
     _   -> error $ "internal error: multiple edit actions with id "++show i
 

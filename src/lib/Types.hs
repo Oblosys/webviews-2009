@@ -109,6 +109,7 @@ data AnyWidget db = LabelWidget !(LabelView db)
                   | SelectViewWidget !(SelectView db) 
                   | ButtonWidget !(Button db)
                   | JSVarWidget !(JSVar db) -- TODO: not really a widget, but until we know what it is, or what we should call widget, it is here 
+                  | EditActionWidget !(EditAction db) -- TODO: not really a widget, but until we know what it is, or what we should call widget, it is here
                     deriving (Eq, Show, Typeable, Data)
 
 -- Label
@@ -231,19 +232,22 @@ getJSVarValue (Widget _ _ jsv) = getJSVarValue_ jsv
 
 
 
-
-
---- Editing
-
 -- EditAction
 
-data EditAction db = EditAction { getActionViewId :: ViewId, getCommand :: [String] -> EditCommand db 
-                             } deriving (Show, Typeable, Data)
+data EditAction db = EditAction { getActionViewId :: ViewId
+                                , getCommand :: [String] -> EditCommand db -- edit actions can get parameters when executed from javascript 
+                                } deriving (Show, Typeable, Data)
 
 instance Eq (EditAction db) where
   EditAction _ _ == EditAction _ _ = True
   -- note that we don't need to look at the edit actions, since these live only in the Haskell world and have no effect on the html representation.
-  
+
+
+editAction :: ViewId -> ([String] -> EditCommand db) -> Widget (EditAction db)
+editAction viewId cmd = Widget noId noId $ EditAction viewId cmd
+
+
+
 
 --- EditCommand
 
@@ -493,10 +497,11 @@ data WidgetUpdates db = WidgetUpdates { labelViewUpdate :: LabelView db -> Label
                                       , selectViewUpdate :: SelectView db -> SelectView db  
                                       , buttonUpdate :: Button db -> Button db  
                                       , jsVarUpdate :: JSVar db -> JSVar db  
+                                      , editActionUpdate :: EditAction db -> EditAction db  
                                       }
                                       
 noWidgetUpdates :: WidgetUpdates db
-noWidgetUpdates = WidgetUpdates id id id id id id
+noWidgetUpdates = WidgetUpdates id id id id id id id
                                     
 instance MapWebView db (WebView db) where
   mapWebView fns@(fwv,_,_,recursive) wv state =
@@ -529,6 +534,9 @@ instance MapWebView db (Button db) where
 instance MapWebView db (JSVar db) where
   mapWebView (_,_,widgetUpdates,_) w = pure $ jsVarUpdate widgetUpdates w 
 
+instance MapWebView db (EditAction db) where
+  mapWebView (_,_,widgetUpdates,_) w = pure $ editActionUpdate widgetUpdates w 
+
 instance MapWebView db a => MapWebView db (Maybe a) where
   mapWebView fns Nothing = pure Nothing
   mapWebView fns (Just a) = Just <$> mapWebView fns a
@@ -553,8 +561,6 @@ instance MapWebView db String
 instance MapWebView db Int
 
 instance MapWebView db Double
-
-instance MapWebView db (EditAction db)
 
 
 -- We could make this an instance of Applicative, but there don't seem to be many advantages (yet).

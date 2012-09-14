@@ -80,11 +80,11 @@ instance Presentable (LogoutView db) where
 
 -- This is a separate view for editActions. Putting edit actions inside a view that is changed
 -- may cause press events to get lost. This indirection solves the problem.
-data LinkView db = LinkView String (EditAction db) deriving (Eq, Show, Typeable, Data)
+data LinkView db = LinkView String (Widget (EditAction db)) deriving (Eq, Show, Typeable, Data)
 
 instance Initial (LinkView db) where initial = LinkView initial initial
 
-instance MapWebView db (LinkView db) where
+instance Data db => MapWebView db (LinkView db) where
   mapWebView fns (LinkView a b) = LinkView <$> mapWebView fns a <*> mapWebView fns b
 
 mkLinkView linkText action = mkWebView $
@@ -260,13 +260,13 @@ instance Data db => Storeable db (MaybeView db)
 -- 
 -- todo: need to make this phantom typed, so firing the dialog is safer
 
-data DialogView db = DialogView Bool (EditAction db) (Maybe (WebView db)) 
+data DialogView db = DialogView Bool (Widget (EditAction db)) (Maybe (WebView db)) 
     deriving (Eq, Show, Typeable, Data)
 
 instance Data db => Initial (DialogView db) where
   initial = DialogView False initial initial
 
-instance MapWebView db (DialogView db) where
+instance Data db => MapWebView db (DialogView db) where
   mapWebView fns (DialogView a b c) = DialogView <$> mapWebView fns a <*> mapWebView fns b <*> mapWebView fns c
 
 instance Data db => Storeable db (DialogView db)

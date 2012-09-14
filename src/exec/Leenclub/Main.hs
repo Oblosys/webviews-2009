@@ -813,7 +813,7 @@ instance Presentable BorrowedRootView where
     vList (map present lended)
 
 -- unnecessary at the moment, as the page has no controls of its own
-data LeenclubPageView = LeenclubPageView User String (EditAction Database) (WebView Database) deriving (Eq, Show, Typeable, Data)
+data LeenclubPageView = LeenclubPageView User String (Widget (EditAction Database)) (WebView Database) deriving (Eq, Show, Typeable, Data)
 
 deriveInitial ''LeenclubPageView
 
@@ -929,25 +929,27 @@ instance Storeable Database TestView
 
 
 data TestView2 = 
-  TestView2 (Widget (RadioView Database)) (Widget (TextView Database))
+  TestView2 (Widget (EditAction Database)) (Widget (RadioView Database)) (Widget (TextView Database))
            String String 
     deriving (Eq, Show, Typeable, Data)
 
 deriveInitial ''TestView2
 
 instance MapWebView Database TestView2 where
-  mapWebView fns (TestView2 a b c d) = TestView2 <$> mapWebView fns a <*> mapWebView fns b <*> mapWebView fns c <*> mapWebView fns d
+  mapWebView fns (TestView2 a b c d e) = TestView2 <$> mapWebView fns a <*> mapWebView fns b <*> mapWebView fns c <*> mapWebView fns d <*> mapWebView fns d
 
 mkTestView2 :: WebViewM Database (WebView Database)
 mkTestView2 = mkWebView $
-  \vid oldTestView@(TestView2 radioOld text str1 str2) ->
-    do { radio <-  mkRadioViewWithStyle ["Edit", "View"] (getSelection radioOld) True "background-color: red"
+  \vid oldTestView@(TestView2 ea radioOld text str1 str2) ->
+    do { ea <- mkEditAction $ Edit $ docEdit (id :: Database -> Database) 
+       --; ea <- mkJSVar "a" "1" 
+       ; radio <-  mkRadioViewWithStyle ["Edit", "View"] (getSelection radioOld) True "background-color: red"
        ; let radioSel = getSelection radioOld
-       ; text <- mkTextFieldWithStyle "Test" "background-color: red" `withTextViewChange` (\str -> Edit $ viewEdit vid $ \(TestView2 a b c d) -> TestView2 a b c str)
+       ; text <- mkTextFieldWithStyle "Test" "background-color: red" `withTextViewChange` (\str -> Edit $ viewEdit vid $ \(TestView2 a b c d e) -> TestView2 a b c d str)
        ; liftIO $ putStr $ show oldTestView
        ; liftIO $ putStrLn $ "radio value " ++ show radioSel
      --  ; propV2 <- mkPropertyView (radioSel == 0) "Straat" str2 $ \str -> viewEdit vid $ \(TestView2 a b c d) -> TestView2 a b  c str
-       ; let wv = TestView2 radio text str1 str2
+       ; let wv = TestView2 ea radio text str1 str2
        
        --; liftIO $ putStrLn $ "All top-level webnodes "++(show (everythingTopLevel webNodeQ wv :: [WebNode Database])) 
        
@@ -955,10 +957,12 @@ mkTestView2 = mkWebView $
        }
 
 instance Presentable TestView2 where
-  present (TestView2 radio text p1str p2str) =
+  present (TestView2 ea radio text p1str p2str) =
       vList [ present radio
             , present text
             , toHtml $ "Property strings: " ++ show p1str ++ " and " ++ show p2str
+            --, withEditAction ea "click me"
+            , present ea
             ]
 
 instance Storeable Database TestView2
@@ -1002,6 +1006,9 @@ instance MapWebView Database BorrowedRootView where
   mapWebView fns (BorrowedRootView a b) = BorrowedRootView <$> mapWebView fns a <*> mapWebView fns b
 
 
+
+
+---- Main (needs to be below all webviews that use deriveInitial)
 
 main :: IO ()
 main = server rootViews "LeenclubDB.txt" mkInitialDatabase lenders

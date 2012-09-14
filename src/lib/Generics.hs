@@ -1,12 +1,10 @@
 {-# LANGUAGE FlexibleContexts #-}
 module Generics (module Generics, module GenericsSYB, module GenericsMap) where
 
-import GenericsSYB ( applyUpdates
-                
---                ,  getAllIds
+import GenericsSYB (
+--                  getAllIds
 --                , clearIds
 
---                , substituteIds
 
 --                , assignIdsFromList
 --                , getTopLevelWebNodes
@@ -24,8 +22,10 @@ import GenericsSYB ( applyUpdates
                 , getLabelViewByViewId
                 , getJSVarByViewId
 -}
-               ,  getEditActionByViewId
 --                , replaceWebViewById
+--                , substituteIds
+--                , applyUpdates
+                 getEditActionByViewId
                 )
 import GenericsMap ( 
                   getAllIds
@@ -46,12 +46,10 @@ import GenericsMap (
                 , getButtonByViewId
                 , getJSVarByViewId
 
---                , getEditActionByViewId
                 , replaceWebViewById
-  
                 , substituteIds
-
-      --          , applyUpdates
+                , applyUpdates
+--                , getEditActionByViewId
                 )
 
 import Data.Generics
