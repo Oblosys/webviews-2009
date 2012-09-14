@@ -170,6 +170,8 @@ substituteIds subs rootView = fst $ mapWebView rootView (substituteIdsWV, substi
 
 type Updates = Map ViewId String  -- maps id's to the string representation of the new value
 
+-- TODO: build Piglet, Reservation, etc.
+
 -- TODO: take widgets out of the map. doesn't really add anything as they won't appear without a wrapping Widget
 -- TODO: use anywidget type in widget? There doesn't seem to be a need for different types
 -- TODO: add db to Widget type? might make things easier.
