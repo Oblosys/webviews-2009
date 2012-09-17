@@ -415,7 +415,8 @@ withEditAction (Widget _ _ (EditAction viewId _)) elt =
   thespan !* [ id_ $ mkHtmlViewIdVal viewId
              , strAttr "onClick" $ "queueCommand('PerformEditActionC "++show viewId++" []')"] << elt
 
-withEditActionAttr (EditAction viewId _) =  
+withEditActionAttr :: Widget (EditAction db) -> Attribute
+withEditActionAttr (Widget _ _ (EditAction viewId _)) =  
   strAttr "onClick" $ "queueCommand('PerformEditActionC ("++show viewId++") []')"
 
 presentRadioView (RadioView viewId items selectedIx enabled stl _) = thespan << sequence_
