@@ -558,8 +558,23 @@ instance (MapWebView db a, MapWebView db b) => MapWebView db (Either a b) where
   mapWebView (Left a)  = Left <$> mapWebView a
   mapWebView (Right a) = Right <$> mapWebView a
 
-instance (MapWebView db a, MapWebView db b) => MapWebView db (a,b) where
-  mapWebView (a,b) = (,) <$> mapWebView a <*> mapWebView b
+instance (MapWebView db a1, MapWebView db a2) => MapWebView db (a1,a2) where
+  mapWebView (a1,a2) = (,) <$> mapWebView a1 <*> mapWebView a2
+
+instance (MapWebView db a1, MapWebView db a2, MapWebView db a3) => MapWebView db (a1,a2,a3) where
+  mapWebView (a1,a2,a3) = (,,) <$> mapWebView a1 <*> mapWebView a2 <*> mapWebView a3
+
+instance (MapWebView db a1, MapWebView db a2, MapWebView db a3, MapWebView db a4) => MapWebView db (a1,a2,a3,a4) where
+  mapWebView (a1,a2,a3,a4) = (,,,) <$> mapWebView a1 <*> mapWebView a2 <*> mapWebView a3 <*> mapWebView a4
+
+instance (MapWebView db a1, MapWebView db a2, MapWebView db a3, MapWebView db a4, MapWebView db a5) => MapWebView db (a1,a2,a3,a4,a5) where
+  mapWebView (a1,a2,a3,a4,a5) = (,,,,) <$> mapWebView a1 <*> mapWebView a2 <*> mapWebView a3 <*> mapWebView a4 <*> mapWebView a5
+
+instance (MapWebView db a1, MapWebView db a2, MapWebView db a3, MapWebView db a4, MapWebView db a5, MapWebView db a6) => MapWebView db (a1,a2,a3,a4,a5,a6) where
+  mapWebView (a1,a2,a3,a4,a5,a6) = (,,,,,) <$> mapWebView a1 <*> mapWebView a2 <*> mapWebView a3 <*> mapWebView a4 <*> mapWebView a5 <*> mapWebView a6
+
+instance (MapWebView db a1, MapWebView db a2, MapWebView db a3, MapWebView db a4, MapWebView db a5, MapWebView db a6, MapWebView db a7) => MapWebView db (a1,a2,a3,a4,a5,a6,a7) where
+  mapWebView (a1,a2,a3,a4,a5,a6,a7) = (,,,,,,) <$> mapWebView a1 <*> mapWebView a2 <*> mapWebView a3 <*> mapWebView a4 <*> mapWebView a5 <*> mapWebView a6 <*> mapWebView a7
 
 instance MapWebView db ()
 
