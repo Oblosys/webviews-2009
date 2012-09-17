@@ -498,6 +498,9 @@ instance Data db => Initial (WebViewT wv db)
 instance Presentable (WebViewT wv db)
   where present (WebViewT wv) = present wv
  
+instance MapWebView db (WebViewT wv db)
+  where mapWebView (WebViewT wv) = WebViewT <$> mapWebView wv
+  
 getViewIdT :: WebViewT v db -> ViewIdT v
 getViewIdT (WebViewT wv) = ViewIdT $ getViewId wv
 
@@ -612,8 +615,8 @@ getLabelContents text =
     
 
 -- not sure if we'll need these, passing vars as arguments works for submit actions.
-getJSVarValue :: Data db => Widget (JSVar db) -> EditM db String
-getJSVarValue text =
+getJSVarContents :: Data db => Widget (JSVar db) -> EditM db String
+getJSVarContents text =
  do { (sessionId, user, db, rootView, pendingEdit, hashArgs) <- get
     ; return $ getJSVarValueByViewIdRef (widgetGetViewRef text) rootView
     } 
