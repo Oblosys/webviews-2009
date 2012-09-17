@@ -159,7 +159,8 @@ Executable leenclub
                 DatabaseTypes,
                 Imported,
                 Importer,
-                LeenclubUtils
+                LeenclubUtils,
+                WebViewLibExp
   if flag(leenclub)
     buildable:  True
   else
@@ -185,7 +186,8 @@ Executable importer
   GHC-Options: 
   Extensions: 
   HS-Source-Dirs:  src/exec/Leenclub
-  Other-Modules:DatabaseTypes
+  Other-Modules:
+                DatabaseTypes
   if flag(importer)
     buildable:  True
   else
