@@ -173,12 +173,12 @@ type Updates = Map ViewId String  -- maps id's to the string representation of t
 -- TODO: build Piglet, Reservation, etc.
 
 -- TODO: take widgets out of the map. doesn't really add anything as they won't appear without a wrapping Widget
--- TODO: add db to Widget type? might make things easier. (done in r3053, didn't seem to make things simpler) 
+-- TODO: add db to Widget type? might make things easier. (done in rolled-back r3053, didn't seem to make things simpler) 
 -- TODO: use anywidget type in widget? There doesn't seem to be a need for different types.
 --       In that case, probably need a phantom type in Widget, as well as db.
 
 -- TODO: when we completely remove the old syb generics, remove Data and Typeable contexts where possible
-
+--       (successfully done in rolled-back r3062)
 
 -- update the datastructure at the id's in Updates 
 applyUpdates :: forall db d . Updates -> WebView db -> WebView db

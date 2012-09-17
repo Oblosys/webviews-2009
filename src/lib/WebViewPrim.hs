@@ -4,7 +4,7 @@ module WebViewPrim where
 import Control.Monad.State
 import BlazeHtml
 import Data.List
-import Data.Generics hiding (Data)
+import Data.Generics
 import Debug.Trace
 
 import Types
@@ -51,7 +51,7 @@ debugLn str = trace str $ return ()
 
 -- When loading from different point than root, make sure Id's are not messed up
 
-instance Storeable db (WebView db) where
+instance Data db => Storeable db (WebView db) where
   save wv@(WebView _ _ _ _ v) =
     let topLevelWebViews :: [WebView db] = getTopLevelWebViews wv
     in  foldl (.) id $ save v : map save topLevelWebViews
@@ -240,7 +240,7 @@ docEdit docUpdate =
     ; put (sessionId, user, docUpdate db, rootView, pendingEdit, hashArgs)
     }
 
-viewEdit :: (Typeable db, Typeable v) => ViewId -> (v -> v) -> EditM db ()
+viewEdit :: (Typeable db, Data db, Data v) => ViewId -> (v -> v) -> EditM db ()
 viewEdit vid viewUpdate =
   do{ (sessionId, user, db, rootView, pendingEdit, hashArgs) <- get
     ; let webViewUpdate = \(WebView vi si i lv v) ->
@@ -261,7 +261,7 @@ applyIfCorrectType f x = case cast f of
                            Nothing -> x
 
 -- Experimental, not sure if we need this one and if it works correctly
-withView :: forall db v a . (Typeable db, Typeable v, Typeable a) => ViewId -> (v->a) -> EditM db (Maybe a)
+withView :: forall db v a . (Typeable db, Data db, Data v, Typeable a) => ViewId -> (v->a) -> EditM db (Maybe a)
 withView vid f =
   do{ (sessionId, user, db, rootView, pendingEdit, hashArgs) <- get
     ; let wf = \(WebView vi si i lv v) -> case cast f of
@@ -289,7 +289,7 @@ loadView (WebView _ si i mkView oldView') =
     ; return $ WebView newViewId si i mkView view    
     }
         
-mkWebView :: (Presentable v, Storeable db v, Initial v, Show v, Eq v, Typeable v, MapWebView db v) =>
+mkWebView :: Data db => (Presentable v, Storeable db v, Initial v, Show v, Eq v, Data v, MapWebView db v) =>
              (ViewId -> v -> WebViewM db v) ->
              WebViewM db (WebView db)
 mkWebView mkView =
@@ -490,9 +490,9 @@ instance Presentable (AnyWidget db) where
 
 newtype ViewIdT viewType = ViewIdT ViewId
 
-newtype WebViewT viewType db = WebViewT { unWebViewT :: WebView db } deriving (Eq, Show, Typeable)
+newtype WebViewT viewType db = WebViewT { unWebViewT :: WebView db } deriving (Eq, Show, Typeable, Data)
 
-instance Initial (WebViewT wv db)
+instance Data db => Initial (WebViewT wv db)
   where initial = WebViewT initial
 
 instance Presentable (WebViewT wv db)
@@ -509,7 +509,7 @@ getViewIdT (WebViewT wv) = ViewIdT $ getViewId wv
 getViewIdT_ :: HasViewId v => v -> ViewId
 getViewIdT_ = getViewId
 
-mkWebViewT :: (Presentable v, Storeable db v, Initial v, Typeable v, Show v, Eq v, MapWebView db v) =>
+mkWebViewT :: Data db => (Presentable v, Storeable db v, Initial v, Show v, Eq v, Data v, MapWebView db v) =>
              (ViewIdT v -> v -> WebViewM db v) ->
              WebViewM db (WebViewT v db)
              
@@ -522,7 +522,7 @@ mkWebViewT mkViewT =
 rootView :: String -> (WebViewM db (WebViewT  v db)) -> (String, WebViewM db (WebView db) )
 rootView name mkWV = (name, fmap unWebViewT mkWV)
     
-viewEditT :: (Typeable db, Typeable v) => ViewIdT v -> (v -> v) -> EditM db ()
+viewEditT :: (Typeable db, Data db, Data v) => ViewIdT v -> (v -> v) -> EditM db ()
 viewEditT (ViewIdT vid) viewUpdate = viewEdit vid viewUpdate
 
 
@@ -600,14 +600,14 @@ callServerEditAction (Widget _ _ ea) args =
 
 -- Hacky stuff
 
-getTextViewContents :: Widget (TextView db) -> EditM db String
+getTextViewContents ::Data db => Widget (TextView db) -> EditM db String
 getTextViewContents text =
  do { (sessionId, user, db, rootView, pendingEdit, hashArgs) <- get
     ; return $ getTextViewStrByViewIdRef (widgetGetViewRef text) rootView
     } 
 
 -- probably to be deleted, labels do not need to be accessed    
-getLabelContents :: Widget (LabelView db) -> EditM db String
+getLabelContents :: Data db => Widget (LabelView db) -> EditM db String
 getLabelContents text =
  do { (sessionId, user, db, rootView, pendingEdit, hashArgs) <- get
     ; return $ getLabelStrByViewIdRef (widgetGetViewRef text) rootView
@@ -615,7 +615,7 @@ getLabelContents text =
     
 
 -- not sure if we'll need these, passing vars as arguments works for submit actions.
-getJSVarContents :: Widget (JSVar db) -> EditM db String
+getJSVarContents :: Data db => Widget (JSVar db) -> EditM db String
 getJSVarContents text =
  do { (sessionId, user, db, rootView, pendingEdit, hashArgs) <- get
     ; return $ getJSVarValueByViewIdRef (widgetGetViewRef text) rootView

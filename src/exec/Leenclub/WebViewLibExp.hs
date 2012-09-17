@@ -5,7 +5,7 @@ module WebViewLibExp where
    Keeping them here during development prevents having to recompile the library on every change. 
 -}
 
-import Data.Generics hiding (Data)
+import Data.Generics
 import Data.List
 import Data.Function (on)
 import Types
@@ -23,18 +23,18 @@ import Debug.Trace
 
 data SortView db = 
   SortView (Widget (SelectView db)) (Widget (SelectView db)) [WebView db]  
-    deriving (Eq, Show, Typeable)
+    deriving (Eq, Show, Typeable, Data)
 
-instance Initial (SortView db) where
+instance Data db => Initial (SortView db) where
   initial = SortView initial initial initial
 
 deriveMapWebView ''SortView
 
-instance Storeable db (SortView db)
+instance Data db => Storeable db (SortView db)
 
 -- [("sorteer oplopend", id), ("sorteer aflopend", reverse)]
 -- [("Sorteer op naam", 
-mkSortView :: Typeable db => [(String, a->a->Ordering)] -> (a-> WebViewM db (WebView db)) -> [a] -> WebViewM db (WebView db)
+mkSortView :: Data db => [(String, a->a->Ordering)] -> (a-> WebViewM db (WebView db)) -> [a] -> WebViewM db (WebView db)
 mkSortView namedSortFunctions mkResultWV results = mkWebView $
   \vid oldView@(SortView sortFieldSelectOld sortOrderSelectOld _) ->
     do { let sortField = getSelection sortFieldSelectOld
@@ -64,14 +64,15 @@ instance Presentable (SortView db) where
 
 data SearchView db = 
   SearchView String (Widget (TextView db)) (Widget (Button db)) (WebView db) String 
-    deriving (Eq, Show, Typeable)
+    deriving (Eq, Show, Typeable, Data)
 
-instance Initial (SearchView db) where
+instance Data db => Initial (SearchView db) where
   initial = SearchView initial initial initial initial initial
 
-deriveMapWebView ''SearchView
+instance Data db =>  MapWebView db (SearchView db) where
+  mapWebView (SearchView a b c d e) = SearchView <$> mapWebView a <*> mapWebView b <*> mapWebView c <*> mapWebView d <*> mapWebView e
 
-instance Storeable db (SearchView db)
+instance Data db => Storeable db (SearchView db)
 
 -- todo: different languages 
 mkSearchView label argName resultsf = mkWebView $
@@ -129,13 +130,15 @@ con_Function = mkConstr ty_WebView "Function" [] Prefix
 -}
 -- non-optimal way to show editable properties. The problem is that the update specified is not a view update but a database update.
 data Property db a = EditableProperty (Either Html (PropertyWidget db))
-                   | StaticProperty Html deriving (Eq, Show, Typeable)
+                   | StaticProperty Html deriving (Eq, Show, Typeable, Data)
 
 -- We want to put properties in a list, so an extra parameter for the widget is not an option.
 -- We could use an existential, but then deriving instances won't work anymore, so for now we use an explicit sum type.
 data PropertyWidget db = PropertyTextView (Widget (TextView db))
-                       | PropertySelectView (Widget (SelectView db)) deriving (Eq, Show, Typeable)
+                       | PropertySelectView (Widget (SelectView db)) deriving (Eq, Show, Typeable, Data)
                     
+instance Data Html
+-- TODO: make sure that Data is not actually needed, or implement it.
 
 instance Initial Html where
   initial = noHtml
@@ -158,7 +161,7 @@ want to commit all textfields immediately to the database. Maybe save could be p
 to save again after performing the viewEdit in save?) or we could add an edit action to text fields (not the commit action, but
 a blur action) -}
 -- not a web view, but it is an instance of Presentable
-mkEditableProperty :: (Typeable db, Typeable v, Show v) => 
+mkEditableProperty :: (Data db, Show v, Data v, Data a) => 
                       ViewId -> Bool -> (v :-> Maybe a) -> (a :-> p) ->
                       (p -> String) -> (String -> Maybe p) -> (p -> Html) -> a -> 
                       WebViewM db (Property db a)
@@ -176,7 +179,7 @@ mkEditableProperty vid editing objectLens valueLens presStr parseStr pres orgObj
     ; return $ EditableProperty eValue
     }
 
-mkEditableSelectProperty :: (Typeable db, Typeable v, Show v) => ViewId -> Bool -> (v :-> Maybe a) -> (a :-> p) ->
+mkEditableSelectProperty :: (Data db, Show v, Data v, Data a) => ViewId -> Bool -> (v :-> Maybe a) -> (a :-> p) ->
                             (p -> String) -> (p -> Html) -> [p] -> a ->
                             WebViewM db (Property db a)
 mkEditableSelectProperty vid editing objectLens valueLens presStr pres propVals orgObj =

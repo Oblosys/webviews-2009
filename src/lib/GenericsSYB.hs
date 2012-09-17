@@ -1,5 +1,5 @@
 {-# LANGUAGE ExistentialQuantification, RankNTypes, DeriveDataTypeable, ScopedTypeVariables, FlexibleContexts #-}
-module GenericsSYB where {- ( getAllIds
+module GenericsSYB ( getAllIds
                 , clearIds
                 , assignIdsFromList
                 , substituteIds
@@ -361,5 +361,5 @@ getAnyWidgetById i x =
     []  -> error $ "internal error: getAnyWidgetById: no widget with id "
     _   -> error $ "internal error: getAnyWidgetById: multiple webviews with id "
      
--}
+
  
