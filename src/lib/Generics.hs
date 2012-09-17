@@ -1,6 +1,6 @@
 {-# LANGUAGE FlexibleContexts #-}
-module Generics (module Generics, module GenericsSYB, module GenericsMap) where
-
+module Generics (module Generics, module GenericsMap) where
+{-
 import GenericsSYB (
 {-
                   getAllIds
@@ -29,7 +29,7 @@ import GenericsSYB (
                 , applyUpdates
                 , Updates
 -}
-                )
+                ) -}
 import GenericsMap (
                   getAllIds
                 , clearIds

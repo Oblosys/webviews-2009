@@ -96,10 +96,15 @@ mkRef (Id i) = IdRef i
 
 ----- Widgets
 
-data Widget w = Widget { getWidgetStubId :: Id, getWidgetId :: Id, getWidgetWidget :: w }
-              deriving (Show, Typeable, Data)
-                       
-instance Eq (Widget w) where
+data Widget db w = Widget { getWidgetStubId :: Id, getWidgetId :: Id, getWidgetWidget :: w db }
+              deriving (Show, Data)
+
+instance (Typeable db, Typeable1 w) => Typeable (Widget db w) where
+    typeOf x = mkTyConApp (mkTyCon3 "WebViews" "Types" "Widget") [typeOf (undefined :: db), typeOf1 (w x)]
+     where w :: Widget db w -> w a -- todo: should this be db? (probably not, but both seem to work)
+           w = undefined
+  
+instance Eq (Widget db w) where
   w1 == w2 = True
 
 -- TODO: Maybe type families are useful for widgets?
@@ -121,7 +126,7 @@ data LabelView db = LabelView { getLabelViewId :: ViewId, getLabelText :: String
 instance Eq (LabelView db) where
   LabelView _ text1 style1 == LabelView _ text2 style2 = text1 == text2 && style1 == style2
 
-labelViewWidget :: ViewId -> String -> String -> Widget (LabelView db)  
+labelViewWidget :: ViewId -> String -> String -> Widget db LabelView  
 labelViewWidget viewId txt style = Widget noId noId $ LabelView viewId txt style
 
 -- Text
@@ -139,13 +144,13 @@ instance Eq (TextView db) where
   
 getStrVal (Widget _ _ (TextView vi h v _ _ _)) = v
 
-textFieldWidget :: ViewId -> String -> String -> Maybe (String -> EditCommand db) -> Maybe (EditCommand db) -> Widget (TextView db)
+textFieldWidget :: ViewId -> String -> String -> Maybe (String -> EditCommand db) -> Maybe (EditCommand db) -> Widget db TextView
 textFieldWidget viewId str style mChangeAction mSubmitAction = Widget noId noId $ TextView viewId TextField str style mChangeAction mSubmitAction
 
-passwordFieldWidget :: ViewId -> String -> String -> Maybe (String -> EditCommand db) -> Maybe (EditCommand db) -> Widget (TextView db)
+passwordFieldWidget :: ViewId -> String -> String -> Maybe (String -> EditCommand db) -> Maybe (EditCommand db) -> Widget db TextView
 passwordFieldWidget viewId str style mChangeAction mSubmitAction = Widget noId noId $ TextView viewId PasswordField str style mChangeAction mSubmitAction
 
-textAreaWidget :: ViewId -> String -> String -> Maybe (String -> EditCommand db) -> Widget (TextView db)
+textAreaWidget :: ViewId -> String -> String -> Maybe (String -> EditCommand db) -> Widget db TextView
 textAreaWidget viewId str style mChangeAction = Widget noId noId $ TextView viewId TextArea str style mChangeAction Nothing
 
 strRef (Widget _ _ (TextView (ViewId i) h _ _ _ _)) = ViewIdRef i
@@ -161,9 +166,9 @@ class HasSelection v where
   getSelection :: v -> Int
   setSelection :: Int -> v -> v
 
-instance HasSelection v => HasSelection (Widget v) where
-  getSelection (Widget _ _ v) = getSelection v
-  setSelection s (Widget si i v) = Widget si i $ setSelection s v
+instance HasSelection (w db) => HasSelection (Widget db w) where
+  getSelection (Widget _ _ w) = getSelection w
+  setSelection s (Widget si i w) = Widget si i $ setSelection s w
  
 -- RadioView
 
@@ -180,7 +185,7 @@ instance HasSelection (RadioView db) where
   getSelection (RadioView i is sel _ _ _) = sel
   setSelection s (RadioView vi its _ en st ch) = RadioView vi its s en st ch
 
-radioViewWidget :: ViewId -> [String] -> Int -> Bool -> String -> Maybe (Int -> EditCommand db) -> Widget (RadioView db)
+radioViewWidget :: ViewId -> [String] -> Int -> Bool -> String -> Maybe (Int -> EditCommand db) -> Widget db RadioView
 radioViewWidget viewId its i enabled style mChangeAction = Widget noId noId $ RadioView viewId its i enabled style mChangeAction
 
 -- SelectView
@@ -198,7 +203,7 @@ instance HasSelection (SelectView db) where
   getSelection (SelectView i is sel _ _ _) = sel
   setSelection s (SelectView vi its _ en st ch) = SelectView vi its s en st ch
 
-selectViewWidget :: ViewId -> [String] -> Int -> Bool -> String -> Maybe (Int -> EditCommand db) -> Widget (SelectView db)
+selectViewWidget :: ViewId -> [String] -> Int -> Bool -> String -> Maybe (Int -> EditCommand db) -> Widget db SelectView
 selectViewWidget viewId its i enabled style mChangeAction = Widget noId noId $ SelectView viewId its i enabled style mChangeAction
   
 -- Button
@@ -213,7 +218,7 @@ instance Eq (Button db) where
     txt1 == txt2 && enabled1 == enabled2 && style1 == style2 && onclick1 == onclick2
     -- note that we don't need to look at the edit actions, since these live only in the Haskell world and have no effect on the html representation.
 
-buttonWidget :: ViewId -> String -> Bool -> String -> String -> EditCommand db -> Widget (Button db)
+buttonWidget :: ViewId -> String -> Bool -> String -> String -> EditCommand db -> Widget db Button
 buttonWidget viewId txt enabled style onclick cmd = Widget noId noId $ Button viewId txt enabled style onclick cmd
 
 -- JSVar
@@ -224,7 +229,7 @@ data JSVar db = JSVar { getJSVarViewId :: ViewId, getJSVarName :: String, getJSV
 instance Eq (JSVar db) where
   JSVar _ n1 v1 == JSVar _ n2 v2 = n1 == n2 && v1 == v2
 
-jsVarWidget :: ViewId -> String -> String -> Widget (JSVar db)
+jsVarWidget :: ViewId -> String -> String -> Widget db JSVar
 jsVarWidget viewId name value = Widget noId noId $ JSVar viewId name value
 
 getJSVarValue (Widget _ _ jsv) = getJSVarValue_ jsv
@@ -242,7 +247,7 @@ instance Eq (EditAction db) where
   -- note that we don't need to look at the edit actions, since these live only in the Haskell world and have no effect on the html representation.
 
 
-editActionWidget :: ViewId -> ([String] -> EditCommand db) -> Widget (EditAction db)
+editActionWidget :: ViewId -> ([String] -> EditCommand db) -> Widget db EditAction
 editActionWidget viewId cmd = Widget noId noId $ EditAction viewId cmd
 
 
@@ -267,7 +272,7 @@ class HasViewId v where
 instance HasViewId (WebView db) where
   getViewId (WebView viewId _ _ _ _) = viewId 
   
-instance HasViewId w => HasViewId (Widget w) where
+instance HasViewId (w db) => HasViewId (Widget db w) where
   getViewId (Widget _ _ w) = getViewId w 
 
 instance HasViewId (LabelView db) where
@@ -451,7 +456,7 @@ instance Initial Float where
 instance Initial Double where
   initial = 0.0
 
-instance Initial w => Initial (Widget w) where
+instance Initial (w db) => Initial (Widget db w) where
   initial = Widget noId noId initial
   
 instance Initial (LabelView db) where
@@ -484,7 +489,7 @@ instance Data db => Initial (WebView db) where
 class MapWebView db v where
   mapWebView :: v -> 
                 (forall w . ( WebView db -> s -> (WebView db,s) 
-                            , MapWebView db (w db) => Widget (w db) -> s -> (Widget (w db),s) -- This MapWebView context requires ImpredicativeTypes :-(
+                            , MapWebView db (w db) => Widget db w -> s -> (Widget db w,s) -- This MapWebView context requires ImpredicativeTypes :-(
                             , WidgetUpdates db s
                             , Bool -- specifies whether map will recurse in WebView children
                             )
@@ -519,7 +524,7 @@ instance MapWebView db (WebView db) where
                                                        | otherwise   = (v, state')
                                      in  (WebView a b c d v', state'')
 
-instance MapWebView db (w db) => MapWebView db (Widget (w db)) where
+instance MapWebView db (w db) => MapWebView db (Widget db w) where
   mapWebView wd fns@(_,fwd,_,_) state = 
     case fwd wd state of -- case is not necessary here, but consistent with WebView instance
       (Widget sid id w, state') -> let (w', state'') = mapWebView w fns state' -- NOTE: recurse flag is only

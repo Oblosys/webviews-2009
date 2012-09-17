@@ -90,7 +90,7 @@ Home FAQ Profiel spullen geschiedenis Berichten aanmelden inloggen
 unsafeLookupM tag dbf key = withDb $ \db -> unsafeLookup tag (dbf db) key
 
 data SortView db = 
-  SortView (Widget (SelectView db)) (Widget (SelectView db)) [WebView db]  
+  SortView (Widget db SelectView) (Widget db SelectView) [WebView db]  
     deriving (Eq, Show, Typeable, Data)
 
 instance Data db => Initial (SortView db) where
@@ -132,7 +132,7 @@ instance Presentable (SortView db) where
  
 
 data SearchView db = 
-  SearchView String (Widget (TextView db)) (Widget (Button db)) (WebView db) String 
+  SearchView String (Widget db TextView) (Widget db Button) (WebView db) String 
     deriving (Eq, Show, Typeable, Data)
 
 instance Data db => Initial (SearchView db) where
@@ -213,8 +213,8 @@ data Property db a = EditableProperty (Either Html (PropertyWidget db))
 
 -- We want to put properties in a list, so an extra parameter for the widget is not an option.
 -- We could use an existential, but then deriving instances won't work anymore, so for now we use an explicit sum type.
-data PropertyWidget db = PropertyTextView (Widget (TextView db))
-                       | PropertySelectView (Widget (SelectView db)) deriving (Eq, Show, Typeable, Data)
+data PropertyWidget db = PropertyTextView (Widget db TextView)
+                       | PropertySelectView (Widget db SelectView) deriving (Eq, Show, Typeable, Data)
                     
 instance Data Html
 -- TODO: make sure that Data is not actually needed, or implement it.
@@ -317,7 +317,7 @@ instance MapWebView Database Inline
 
 -- TODO: maybe distance
 data ItemView = 
-  ItemView Inline Double Item (Maybe Item) Lender (Widget (Button Database)) (Maybe Lender) [(String,Property Database Item)] [Widget (Button Database)]
+  ItemView Inline Double Item (Maybe Item) Lender (Widget Database Button) (Maybe Lender) [(String,Property Database Item)] [Widget Database Button]
     deriving (Eq, Show, Typeable, Data)
 
 instance Initial LenderId where
@@ -579,8 +579,8 @@ mkItemRootView = mkMaybeView "Onbekend item" $
 
 data LenderView = 
   LenderView Inline User Lender (Maybe Lender) {- [Property Lender] -} [(String,Property Database Lender)]  [(String,Property Database Lender)]
-             --(Maybe (Widget (TextView Database, TextView Database)))
-             [WebView Database] [Widget (Button Database)]
+             --(Maybe (Widget Database TextView Database, TextView))
+             [WebView Database] [Widget Database Button]
     deriving (Eq, Show, Typeable, Data)
 
  -- todo: edit button in Inline/Full datatype?                  
@@ -704,7 +704,7 @@ getExtraProps vid isEdited lender = sequence
          , lenderRating :: Int, lenderItems :: [ItemId]
 -}
 data ItemsRootView = 
-  ItemsRootView (WebView Database) (WebView Database) (Widget (Button Database))
+  ItemsRootView (WebView Database) (WebView Database) (Widget Database Button)
     deriving (Eq, Show, Typeable, Data)
 
 deriveInitial ''ItemsRootView
@@ -805,7 +805,7 @@ instance Presentable BorrowedRootView where
     vList (map present lended)
 
 -- unnecessary at the moment, as the page has no controls of its own
-data LeenclubPageView = LeenclubPageView User String (Widget (EditAction Database)) (WebView Database) deriving (Eq, Show, Typeable, Data)
+data LeenclubPageView = LeenclubPageView User String (Widget Database EditAction) (WebView Database) deriving (Eq, Show, Typeable, Data)
 
 deriveInitial ''LeenclubPageView
 
@@ -867,8 +867,8 @@ mkHomeView = mkHtmlTemplateView "LeenclubWelcome.html" []
 
 
 data TestView = 
-  TestView Int (Widget (RadioView Database)) (Widget (Button Database)) (Widget (TextView Database)) (WebView Database) (WebView Database)
-           (Widget (LabelView Database)) (Widget (TextView Database))
+  TestView Int (Widget Database RadioView) (Widget Database Button) (Widget Database TextView) (WebView Database) (WebView Database)
+           (Widget Database LabelView) (Widget Database TextView)
     deriving (Eq, Show, Typeable, Data)
 
 deriveInitial ''TestView
@@ -918,7 +918,7 @@ instance Storeable Database TestView
 
 
 data TestView2 = 
-  TestView2 (Widget (EditAction Database)) (Widget (RadioView Database)) (Widget (TextView Database))
+  TestView2 (Widget Database EditAction) (Widget Database RadioView) (Widget Database TextView)
            String String 
     deriving (Eq, Show, Typeable, Data)
 
@@ -963,7 +963,7 @@ mkTestView3 msg = mkPresentView (\hs -> hList $ toHtml (msg :: String) : hs) $
 
 -- some webviews for testing with ghci
 
-data AView db = AView (WebView db) (Widget (TextView db)) String (Widget (TextView db))
+data AView db = AView (WebView db) (Widget db TextView) String (Widget db TextView)
               | AAView (WebView db)
 
 
@@ -989,7 +989,7 @@ testwv0 :: WebView Database
 testwv0 =  WebView (ViewId []) (Id 1) (Id 2) undefined $ ItemsRootView (testwv 1) (testwv 1) $
                    buttonWidget (ViewId []) "click me" True "" "" LogoutEdit
 
-testwd :: String -> Widget (Button Database)
+testwd :: String -> Widget Database Button
 testwd str = buttonWidget (ViewId []) str True "" "" LogoutEdit
 testproplist :: [(String, Property Database Item)]
 testproplist =  [("LeenClub ID",StaticProperty "martijn"),("M/V",EditableProperty (Right (PropertySelectView (Widget {getWidgetStubId = Id {unId = -1}, getWidgetId = Id {unId = -1}, getWidgetWidget = SelectView {getSelectViewId = ViewId [], getSelectItems = ["M","F"], getSelectSelection = 0, getSelectEnabled = True, getSelectStyle = "", getSelectChange = Just undefined}}))))]

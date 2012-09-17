@@ -84,109 +84,109 @@ liftS f = StateT (\(WebViewState user db viewMap path i sid has) ->
 assignViewId :: (ViewId -> v) -> WebViewM db v
 assignViewId viewConstr = liftS $ \path vidC -> (viewConstr (ViewId $ path ++ [vidC]), vidC +1)
 
-mkEditAction :: EditCommand db -> WebViewM db (Widget (EditAction db))
+mkEditAction :: EditCommand db -> WebViewM db (Widget db EditAction)
 mkEditAction ec = mkEditActionEx $ const ec
 
-mkEditActionEx :: ([String] -> EditCommand db) -> WebViewM db (Widget (EditAction db)) 
+mkEditActionEx :: ([String] -> EditCommand db) -> WebViewM db (Widget db EditAction) 
 mkEditActionEx fec = assignViewId $ \vid -> editActionWidget vid fec
 
-mkLabelView :: String -> WebViewM db (Widget (LabelView db))
+mkLabelView :: String -> WebViewM db (Widget db LabelView)
 mkLabelView str = assignViewId $ \vid -> labelViewWidget vid str ""
 
-mkLabelViewWithStyle :: String -> String -> WebViewM db (Widget (LabelView db))
+mkLabelViewWithStyle :: String -> String -> WebViewM db (Widget db LabelView)
 mkLabelViewWithStyle str style = assignViewId $ \vid -> labelViewWidget vid str style
 
-mkTextField :: String -> WebViewM db (Widget (TextView db))
+mkTextField :: String -> WebViewM db (Widget db TextView)
 mkTextField str = mkTextFieldEx str "" Nothing Nothing
 
 -- NOTE: don't use width in style: the text field gets width 100%, so an enclosing element can determine its width.
-mkTextFieldWithStyle :: String -> String -> WebViewM db (Widget (TextView db))
+mkTextFieldWithStyle :: String -> String -> WebViewM db (Widget db TextView)
 mkTextFieldWithStyle str style = mkTextFieldEx str style Nothing Nothing
 
-mkTextFieldAct :: String -> EditCommand db -> WebViewM db (Widget (TextView db))
+mkTextFieldAct :: String -> EditCommand db -> WebViewM db (Widget db TextView)
 mkTextFieldAct str submitAct = mkTextFieldEx str "" Nothing $ Just submitAct
 
-mkTextFieldWithChange :: String -> (String -> EditCommand db) -> WebViewM db (Widget (TextView db))
+mkTextFieldWithChange :: String -> (String -> EditCommand db) -> WebViewM db (Widget db TextView)
 mkTextFieldWithChange str changeAct = mkTextFieldEx str "" (Just changeAct) Nothing
 
-mkTextFieldWithStyleChange :: String -> String -> (String -> EditCommand db) -> WebViewM db (Widget (TextView db))
+mkTextFieldWithStyleChange :: String -> String -> (String -> EditCommand db) -> WebViewM db (Widget db TextView)
 mkTextFieldWithStyleChange str style changeAct = mkTextFieldEx str style (Just changeAct) Nothing
 
-mkTextFieldEx :: String -> String -> Maybe (String -> EditCommand db) -> Maybe (EditCommand db) -> WebViewM db (Widget (TextView db))
+mkTextFieldEx :: String -> String -> Maybe (String -> EditCommand db) -> Maybe (EditCommand db) -> WebViewM db (Widget db TextView)
 mkTextFieldEx str style mChangeAction mEditAction = assignViewId $ \vid -> textFieldWidget vid str style mChangeAction mEditAction
 
 infixl 0 `withTextViewSubmit`
 
 -- adds the submit action to the textview (use with mkTextView .. `withTextViewSubmit` .. )
 -- todo: make more generic mechanism (mkTextView `withProps` [ on submit := .. ])
-withTextViewSubmit :: WebViewM db (Widget (TextView db)) -> EditCommand db -> WebViewM db (Widget (TextView db))
+withTextViewSubmit :: WebViewM db (Widget db TextView) -> EditCommand db -> WebViewM db (Widget db TextView)
 withTextViewSubmit wm act = do { (Widget sid wid tv) <- wm
                                ; return $ Widget sid wid tv{getTextSubmit=Just act}
                                }
 
 infixl 0 `withTextViewChange`
 
-withTextViewChange :: WebViewM db (Widget (TextView db)) -> (String -> EditCommand db) -> WebViewM db (Widget (TextView db))
+withTextViewChange :: WebViewM db (Widget db TextView) -> (String -> EditCommand db) -> WebViewM db (Widget db TextView)
 withTextViewChange wm fAct = do { (Widget sid wid tv) <- wm
                                 ; return $ Widget sid wid tv{getTextChange=Just fAct}
                                 }
 
-mkPasswordField :: String -> WebViewM db (Widget (TextView db))
+mkPasswordField :: String -> WebViewM db (Widget db TextView)
 mkPasswordField str = mkPasswordFieldEx str "" Nothing Nothing
 
-mkPasswordFieldAct :: String -> EditCommand db -> WebViewM db (Widget (TextView db))
+mkPasswordFieldAct :: String -> EditCommand db -> WebViewM db (Widget db TextView)
 mkPasswordFieldAct str act = mkPasswordFieldEx str "" Nothing $ Just act
 
-mkPasswordFieldEx :: String -> String -> Maybe (String -> EditCommand db) -> Maybe (EditCommand db) -> WebViewM db (Widget (TextView db))
+mkPasswordFieldEx :: String -> String -> Maybe (String -> EditCommand db) -> Maybe (EditCommand db) -> WebViewM db (Widget db TextView)
 mkPasswordFieldEx str style mChangeAction mEditAction = assignViewId $ \vid -> passwordFieldWidget vid str style mChangeAction mEditAction
 
-mkTextArea :: String -> WebViewM db (Widget (TextView db))
+mkTextArea :: String -> WebViewM db (Widget db TextView)
 mkTextArea str = assignViewId $ \vid -> textAreaWidget vid str "" Nothing
 
-mkTextAreaWithStyle :: String -> String -> WebViewM db (Widget (TextView db))
+mkTextAreaWithStyle :: String -> String -> WebViewM db (Widget db TextView)
 mkTextAreaWithStyle str stl = assignViewId $ \vid -> textAreaWidget vid str stl Nothing
 
-mkTextAreaWithStyleChange :: String -> String -> (String -> EditCommand db) -> WebViewM db (Widget (TextView db))
+mkTextAreaWithStyleChange :: String -> String -> (String -> EditCommand db) -> WebViewM db (Widget db TextView)
 mkTextAreaWithStyleChange str stl changeAct = assignViewId $ \vid -> textAreaWidget vid str stl $ Just changeAct
 
-mkRadioView :: [String] -> Int -> Bool -> WebViewM db (Widget (RadioView db))
+mkRadioView :: [String] -> Int -> Bool -> WebViewM db (Widget db RadioView)
 mkRadioView items s enabled = assignViewId $ \vid -> radioViewWidget vid items s enabled "" Nothing
 
 -- TODO: radio button style is not implemented correctly yet, first need to find out what we want exactly.
-mkRadioViewWithStyle :: [String] -> Int -> Bool -> String -> WebViewM db (Widget (RadioView db))
+mkRadioViewWithStyle :: [String] -> Int -> Bool -> String -> WebViewM db (Widget db RadioView)
 mkRadioViewWithStyle items s enabled style = assignViewId $ \vid -> radioViewWidget vid items s enabled style Nothing
 
-mkRadioViewWithChange :: [String] -> Int -> Bool -> (Int -> EditCommand db) -> WebViewM db (Widget (RadioView db))
+mkRadioViewWithChange :: [String] -> Int -> Bool -> (Int -> EditCommand db) -> WebViewM db (Widget db RadioView)
 mkRadioViewWithChange is s enabled act = assignViewId $ \vid -> radioViewWidget vid is s enabled "" $ Just act
 
-mkSelectView :: [String] -> Int -> Bool -> WebViewM db (Widget (SelectView db))
+mkSelectView :: [String] -> Int -> Bool -> WebViewM db (Widget db SelectView)
 mkSelectView is s enabled = assignViewId $ \vid -> selectViewWidget vid is s enabled "" $ Nothing
 
 -- NOTE: changing the background-color breaks rounded select box presentation in Firefox.
-mkSelectViewWithStyle :: [String] -> Int -> Bool -> String -> WebViewM db (Widget (SelectView db))
+mkSelectViewWithStyle :: [String] -> Int -> Bool -> String -> WebViewM db (Widget db SelectView)
 mkSelectViewWithStyle items s enabled style = assignViewId $ \vid -> selectViewWidget vid items s enabled style Nothing
 
-mkSelectViewWithStyleChange :: [String] -> Int -> Bool -> String -> (Int -> EditCommand db) -> WebViewM db (Widget (SelectView db))
+mkSelectViewWithStyleChange :: [String] -> Int -> Bool -> String -> (Int -> EditCommand db) -> WebViewM db (Widget db SelectView)
 mkSelectViewWithStyleChange items s enabled style changeAct = assignViewId $ \vid -> selectViewWidget vid items s enabled style $ Just changeAct
 
-mkSelectViewWithChange :: [String] -> Int -> Bool -> (Int -> EditCommand db) -> WebViewM db (Widget (SelectView db))
+mkSelectViewWithChange :: [String] -> Int -> Bool -> (Int -> EditCommand db) -> WebViewM db (Widget db SelectView)
 mkSelectViewWithChange is s enabled act = assignViewId $ \vid -> selectViewWidget vid is s enabled "" $ Just act
 
-mkButton :: String -> Bool -> EditCommand db -> WebViewM db (Widget (Button db))
+mkButton :: String -> Bool -> EditCommand db -> WebViewM db (Widget db Button)
 mkButton str enabled ac = mkButtonEx str enabled "" (const "") ac
 
-mkButtonWithStyle :: String -> Bool -> String -> EditCommand db -> WebViewM db (Widget (Button db))
+mkButtonWithStyle :: String -> Bool -> String -> EditCommand db -> WebViewM db (Widget db Button)
 mkButtonWithStyle str enabled st ac = mkButtonEx str enabled st (const "") ac
 
 -- button with javascript click handler
-mkButtonWithClick :: String -> Bool -> (ViewId -> String) -> WebViewM db (Widget (Button db))
+mkButtonWithClick :: String -> Bool -> (ViewId -> String) -> WebViewM db (Widget db Button)
 mkButtonWithClick str enabled foc = mkButtonEx str enabled "" foc $ Edit $ return () -- because onclick currently disables server edit command
 
 -- button with javascript click handler
-mkButtonWithStyleClick :: String -> Bool -> String -> (ViewId -> String) -> WebViewM db (Widget (Button db))
+mkButtonWithStyleClick :: String -> Bool -> String -> (ViewId -> String) -> WebViewM db (Widget db Button)
 mkButtonWithStyleClick str enabled st foc = mkButtonEx str enabled st foc $ Edit $ return () -- because onclick currently disables server edit command
 
-mkButtonEx :: String -> Bool -> String -> (ViewId -> String) -> EditCommand db -> WebViewM db (Widget (Button db))
+mkButtonEx :: String -> Bool -> String -> (ViewId -> String) -> EditCommand db -> WebViewM db (Widget db Button)
 mkButtonEx str enabled st foc ac = assignViewId $ \vid -> buttonWidget vid str enabled st (foc vid) ac
 
 mkJSVar name value = assignViewId $ \vid -> jsVarWidget vid name value
@@ -461,12 +461,12 @@ presentEditAction _ = noHtml
 instance Presentable (WebView db) where
   present (WebView _ (Id stubId) _ _ _) = mkSpan (show stubId) << "ViewStub"
   
-instance Presentable (Widget (LabelView w)) where present = presentWidget
-instance Presentable (Widget (TextView w)) where present = presentWidget
-instance Presentable (Widget (RadioView w)) where present = presentWidget
-instance Presentable (Widget (SelectView w)) where present = presentWidget
-instance Presentable (Widget (Button w)) where present = presentWidget
-instance Presentable (Widget (JSVar w)) where present = presentWidget
+instance Presentable (Widget db LabelView) where present = presentWidget
+instance Presentable (Widget db TextView) where present = presentWidget
+instance Presentable (Widget db RadioView) where present = presentWidget
+instance Presentable (Widget db SelectView) where present = presentWidget
+instance Presentable (Widget db Button) where present = presentWidget
+instance Presentable (Widget db JSVar) where present = presentWidget
 -- EditActions are not meant to presented, so also no instance here
 -- To prevent a node without a stub, no new node is created for EditAction widgets in Incrementality.newWebNodeHtml
 
@@ -551,17 +551,17 @@ mkJson fields = "{"++intercalate "," [name++": "++value| (name, value)<-fields]+
 -- TODO should script have all fields? Or is a missing field no problem (or preventable by type checker)
 -- TODO generate script nodes before executing scripts? Now they are generated by the scripts, so either
 --      child cannot refer to parent or parent cannot refer to child.
-onClick :: (Widget (Button db)) -> String -> String
+onClick :: (Widget db Button) -> String -> String
 onClick button expr = onEvent "Click" button expr
 
-onKeyUp :: (Widget (TextView db)) -> String -> String
+onKeyUp :: (Widget db TextView) -> String -> String
 onKeyUp button expr = onEvent "KeyUp" button expr
 
 -- fired on return key
-onSubmit :: (Widget (TextView db)) -> String -> String
+onSubmit :: (Widget db TextView) -> String -> String
 onSubmit button expr = onEvent "Submit" button expr
 
-onEvent :: HasViewId w => String -> (Widget w) -> String -> String
+onEvent :: HasViewId (w db) => String -> (Widget db w) -> String -> String
 onEvent event widget expr = "script"++viewIdSuffix (getViewId widget) ++ ".on"++event++" = function () {"++expr++"};"
 
 jsVar (ViewIdT vid) name = name++viewIdSuffix vid
@@ -581,7 +581,7 @@ jsGetWidgetValue widget = jsGetElementByIdRef (widgetGetViewRef widget) ++".valu
 jsNavigateTo href = "window.location.href = "++ href ++ ";"
 
 
-inertTextView :: (Widget (TextView db)) -> String
+inertTextView :: (Widget db TextView) -> String
 inertTextView tv = jsScript [ onEvent "Submit" tv ""
                             , onEvent "Blur" tv ""
                             ] -- prevent this text widget from firing updates to the server
@@ -594,14 +594,14 @@ callServerEditAction ea args = "queueCommand('PerformEditActionC ("++show (getEd
 
 -- Hacky stuff
 
-getTextViewContents ::Data db => Widget (TextView db) -> EditM db String
+getTextViewContents ::Data db => Widget db TextView -> EditM db String
 getTextViewContents text =
  do { (sessionId, user, db, rootView, pendingEdit, hashArgs) <- get
     ; return $ getTextViewStrByViewIdRef (widgetGetViewRef text) rootView
     } 
 
 -- probably to be deleted, labels do not need to be accessed    
-getLabelContents :: Data db => Widget (LabelView db) -> EditM db String
+getLabelContents :: Data db => Widget db LabelView -> EditM db String
 getLabelContents text =
  do { (sessionId, user, db, rootView, pendingEdit, hashArgs) <- get
     ; return $ getLabelStrByViewIdRef (widgetGetViewRef text) rootView
@@ -609,7 +609,7 @@ getLabelContents text =
     
 
 -- not sure if we'll need these, passing vars as arguments works for submit actions.
-getJSVarValue :: Data db => Widget (JSVar db) -> EditM db String
+getJSVarValue :: Data db => Widget db JSVar -> EditM db String
 getJSVarValue text =
  do { (sessionId, user, db, rootView, pendingEdit, hashArgs) <- get
     ; return $ getJSVarValueByViewIdRef (widgetGetViewRef text) rootView
