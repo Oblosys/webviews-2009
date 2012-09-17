@@ -15,7 +15,7 @@ import WebViewPrim
 
 -- Login -----------------------------------------------------------------------  
 
-data LoginView db = LoginView (Widget db TextView) (Widget db TextView) (Widget db Button) 
+data LoginView db = LoginView (Widget (TextView db)) (Widget (TextView db)) (Widget (Button db)) 
   deriving (Eq, Show, Typeable, Data)
 
 instance Initial (LoginView db) where initial = LoginView initial initial initial
@@ -54,7 +54,7 @@ instance Presentable (LoginView db) where
 
 -- Logout ----------------------------------------------------------------------  
 
-data LogoutView db = LogoutView (Widget db Button) deriving (Eq, Show, Typeable, Data)
+data LogoutView db = LogoutView (Widget (Button db)) deriving (Eq, Show, Typeable, Data)
 
 instance Initial (LogoutView db) where initial = LogoutView initial
 
@@ -80,7 +80,7 @@ instance Presentable (LogoutView db) where
 
 -- This is a separate view for editActions. Putting edit actions inside a view that is changed
 -- may cause press events to get lost. This indirection solves the problem.
-data LinkView db = LinkView String (Widget db EditAction) deriving (Eq, Show, Typeable, Data)
+data LinkView db = LinkView String (Widget (EditAction db)) deriving (Eq, Show, Typeable, Data)
 
 instance Initial (LinkView db) where initial = LinkView initial initial
 
@@ -260,7 +260,7 @@ instance Data db => Storeable db (MaybeView db)
 -- 
 -- todo: need to make this phantom typed, so firing the dialog is safer
 
-data DialogView db = DialogView Bool (Widget db EditAction) (Maybe (WebView db)) 
+data DialogView db = DialogView Bool (Widget (EditAction db)) (Maybe (WebView db)) 
     deriving (Eq, Show, Typeable, Data)
 
 instance Data db => Initial (DialogView db) where

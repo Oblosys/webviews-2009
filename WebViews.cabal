@@ -59,6 +59,7 @@ Library
                    BlazeHtml,
                    Generics,
                    GenericsMap,
+                   GenericsSYB,
                    HtmlLib,
                    Incrementality,
                    ObloUtils,

@@ -127,7 +127,7 @@ getWebNodesAndViewIds recursive v = snd $ mapWebView v (getWebNodesAndViewIdsWV,
  where getWebNodesAndViewIdsWV :: WebView db -> [(ViewId, WebNode db)] -> (WebView db, [(ViewId, WebNode db)])
        getWebNodesAndViewIdsWV wv@(WebView vi _ _ _ _) state = (wv, (vi, WebViewNode wv):state)
 
-       getWebNodesAndViewIdsWd :: MapWebView db (w db) => Widget db w -> [(ViewId, WebNode db)] -> (Widget db w, [(ViewId, WebNode db)])
+       getWebNodesAndViewIdsWd :: MapWebView db (w db) => Widget (w db) -> [(ViewId, WebNode db)] -> (Widget (w db), [(ViewId, WebNode db)])
        getWebNodesAndViewIdsWd wd@(Widget sid id w) state = (wd, widgetNode ++ state) 
          where widgetNode :: [(ViewId, WebNode db)]
                widgetNode = case widgetToAnyWidget w of
@@ -173,9 +173,10 @@ type Updates = Map ViewId String  -- maps id's to the string representation of t
 -- TODO: build Piglet, Reservation, etc.
 
 -- TODO: take widgets out of the map. doesn't really add anything as they won't appear without a wrapping Widget
--- TODO: use anywidget type in widget? There doesn't seem to be a need for different types
--- TODO: add db to Widget type? might make things easier.
---
+-- TODO: add db to Widget type? might make things easier. (done in r3053, didn't seem to make things simpler) 
+-- TODO: use anywidget type in widget? There doesn't seem to be a need for different types.
+--       In that case, probably need a phantom type in Widget, as well as db.
+
 -- TODO: when we completely remove the old syb generics, remove Data and Typeable contexts where possible
 
 
