@@ -1,4 +1,4 @@
-{-# OPTIONS -XDeriveDataTypeable -XPatternGuards -XMultiParamTypeClasses -XScopedTypeVariables #-}
+{-# LANGUAGE DeriveDataTypeable, PatternGuards, MultiParamTypeClasses, ScopedTypeVariables, TemplateHaskell #-}
 module Main where
 
 import Data.List
@@ -21,6 +21,8 @@ import HtmlLib
 import Control.Monad.State
 import Server
 import System.IO.Unsafe (unsafePerformIO) -- just for calendar stuff
+import TemplateHaskell
+
 import Database
 import ClientWebView
 
@@ -39,7 +41,7 @@ rootViews = [ rootView ""           mkMainRootView
 
  -- TODO: sessionId? put this in an environment? or maybe the WebViewM monad?
 data TestView1 =
-  TestView1 (EditAction Database) (Widget (Button Database)) String String
+  TestView1 (Widget (EditAction Database)) (Widget (Button Database)) String String
     deriving (Eq, Show, Typeable, Data)
          
 instance Initial TestView1 where
@@ -69,7 +71,7 @@ instance Storeable Database TestView1 where
 
 -- trying to handle passing back client state by using a JSVar
 data TestView2 =
-  TestView2 (Widget JSVar) (Widget (Button Database)) String String
+  TestView2 (Widget (JSVar Database)) (Widget (Button Database)) String String
     deriving (Eq, Show, Typeable, Data)
          
 instance Initial TestView2 where
@@ -140,7 +142,7 @@ instance Storeable Database MainView where
 -- Main ----------------------------------------------------------------------  
 
 data RestaurantView = 
-  RestaurantView (Maybe Date) (Int,Int) [[(WebViewT CalendarDayView Database,String, EditAction Database)]] (WebViewT DayView Database) (WebViewT HourView Database) (WebViewT ReservationView Database) String
+  RestaurantView (Maybe Date) (Int,Int) [[(WebViewT CalendarDayView Database,String, Widget (EditAction Database))]] (WebViewT DayView Database) (WebViewT HourView Database) (WebViewT ReservationView Database) String
     deriving (Eq, Show, Typeable, Data)
 
 instance Initial RestaurantView where                 
@@ -478,7 +480,7 @@ instance Storeable Database HourView where
 -----------------------------------------------------------------------------
 
 data ReservationView = 
-  ReservationView (Widget (Button Database)) (EditAction Database) String
+  ReservationView (Widget (Button Database)) (Widget (EditAction Database)) String
     deriving (Eq, Show, Typeable, Data)
   
 instance Initial ReservationView where                 
@@ -535,9 +537,18 @@ instance Presentable ReservationView where
  
 instance Storeable Database ReservationView where
 
+instance MapWebView Database Reservation
 
 
+deriveMapWebViewDb ''Database ''DayView
+deriveMapWebViewDb ''Database ''HourView
+deriveMapWebViewDb ''Database ''CalendarDayView
+deriveMapWebViewDb ''Database ''ReservationView
+deriveMapWebViewDb ''Database ''RestaurantView
+deriveMapWebViewDb ''Database ''MainView
 
+deriveMapWebViewDb ''Database ''TestView1
+deriveMapWebViewDb ''Database ''TestView2
 
  
  {-

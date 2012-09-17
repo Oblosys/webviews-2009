@@ -1,4 +1,4 @@
-{-# OPTIONS -XDeriveDataTypeable -XPatternGuards -XMultiParamTypeClasses -XScopedTypeVariables #-}
+{-# LANGUAGE DeriveDataTypeable, PatternGuards, MultiParamTypeClasses, ScopedTypeVariables, TemplateHaskell #-}
 module ClientWebView where
 
 import Data.List
@@ -21,11 +21,13 @@ import HtmlLib
 import Control.Monad.State
 import Server
 import System.IO.Unsafe (unsafePerformIO) -- just for calendar stuff
+import TemplateHaskell
+
 import Database
 
 data ClientView = 
   ClientView Int (Maybe Date) (Maybe Time) [Widget (Button Database)] (Widget (TextView Database)) (Widget (TextView Database)) (Widget (Button Database)) (Widget (Button Database)) [Widget (Button Database)] [[Widget (Button Database)]] (Widget (Button Database)) 
-  (Widget LabelView) (Widget LabelView) (Widget LabelView) (EditAction Database)
+  (Widget (LabelView Database)) (Widget (LabelView Database)) (Widget (LabelView Database)) (Widget (EditAction Database))
     String
     deriving (Eq, Show, Typeable, Data)
     
@@ -250,3 +252,6 @@ showShortDay d = ["Mo","Tu","We","Th","Fr","Sa","Su"]!!(d-1)
 
 showShortMonth :: Database.Month -> String
 showShortMonth m = ["Jan.", "Feb.", "Mar.", "Apr.", "May", "June", "July", "Aug.","Sept.", "Oct.", "Nov.", "Dec."]!!(m-1)
+
+
+deriveMapWebViewDb ''Database ''ClientView
