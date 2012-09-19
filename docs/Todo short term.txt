@@ -1,0 +1,29 @@
+TVar or MVar instead of IORef (or maybe use atomicModifyIORef)
+
+
+Widget with lens
+
+Widget stubId id ParentViewID
+
+
+on SetC id str
+change Widget _ id pvid lens someWidget{value=read str}
+updateView pvid lens (read str)
+
+
+
+use case:
+
+create widget with init value
+access in edit monad or in presentation
+
+so widget needs a copy of the value
+
+Do we need a lens?
+Maybe the property thing can access the widgets on a change.
+
+when to update the widget on an external property change?
+
+use case:
+
+property widget with present and parse functions + lens; to view
