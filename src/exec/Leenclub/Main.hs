@@ -801,7 +801,7 @@ deriveMapWebViewDb ''Database ''BorrowedRootView
 ---- Main (needs to be below all webviews that use deriveInitial)
 
 main :: IO ()
-main = server rootViews "LeenclubDB.txt" mkInitialDatabase lenders
+main = server rootViews "LeenclubDB.txt" mkInitialDatabase users
 
 rootViews :: RootViews Database
 rootViews = [ ("",       mkLeenclubPageView "Home"   mkHomeView), ("test", mkTestView), ("test2", mkTestView2), ("test3", mkTestView3 "msg")
