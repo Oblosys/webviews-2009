@@ -13,7 +13,7 @@ import Control.Category hiding (Category) -- fclabels
 import Data.Label                         -- fclabels
 import Prelude hiding ((.), id)           -- fclabels
 import qualified Data.Label.Maybe         -- fclabels
-
+import Debug.Trace
 
 mGet :: (f Data.Label.Maybe.:~> a) -> f -> Maybe a
 mGet = Data.Label.Maybe.get
@@ -52,7 +52,7 @@ searchLenders term db = [ lender | lender <- Map.elems $ allLenders db
 updateLender :: LenderId -> (Lender -> Lender) -> Database -> Database
 updateLender i f db = 
   let lender = unsafeLookup "updateLender" (allLenders db) i
-  in  db  { allLenders = Map.insert i (f lender) (allLenders db)
+  in  db  { allLenders = Map.insert i (let r = f lender in trace (show r) r) (allLenders db)
           }
 -- add error
 
@@ -114,6 +114,17 @@ updateItem i f db =
 
 removeItem :: ItemId -> Database -> Database
 removeItem i db = db { allItems = Map.delete i (allItems db) }
+
+-- Remove the item from allItems as well as from the lenderItems field of its owner.
+deleteItem :: Item -> Database -> Database
+deleteItem item db =
+  let db' = updateLender (get itemOwner item) (removeLenderItem (get itemId item)) db
+  in  removeItem (get itemId item) db'
+ where removeLenderItem :: ItemId -> Lender -> Lender
+       removeLenderItem iId = modify lenderItems $ \is -> 
+                                                     let is' = delete iId is
+                                                     in  trace (show is ++ "\n"++ show (get itemId item)++"\n"++show is') $
+                                                         is'              
 
 newItem :: LenderId -> Database -> (Item, Database)
 newItem uid db =
