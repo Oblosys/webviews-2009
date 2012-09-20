@@ -150,7 +150,7 @@ mEditedItem = lens (\(ItemView _ _ _ mEditedItem _ _ _ _ _) -> mEditedItem)
  
 mkItemView inline item = mkWebView $
   \vid oldItemView@(ItemView _ _ _ mEdited _ _ _ _ _) -> 
-    do { owner <- unsafeLookupM "itemView" allLenders (get itemOwner item)
+    do { owner <- unsafeLookupM "itemView" (get allLenders) (get itemOwner item)
        
        ; user <- getUser
        ; button <- case (get itemBorrowed item, user) of
@@ -158,17 +158,17 @@ mkItemView inline item = mkWebView $
            (Nothing, Just (userId,_)) | get itemOwner item == LenderId userId -> mkButton "Lenen" False $ Edit $ return ()
                                       | otherwise                         -> 
              mkButton "Lenen" True  $ Edit $ docEdit $ \db -> 
-               let items' = Map.update (\i -> Just $ set itemBorrowed (Just $ LenderId userId) item) (get itemId item) (allItems db) 
-               in  db{allItems = items'}
+               let items' = Map.update (\i -> Just $ set itemBorrowed (Just $ LenderId userId) item) (get itemId item) (get allItems db) 
+               in  set allItems  items' db
            (Just borrowerId,_) -> 
              mkButton "Terug ontvangen" True  $ Edit $ docEdit $ \db -> 
-               let items' = Map.update (\i -> Just $ set itemBorrowed Nothing item) (get itemId item) (allItems db) 
-               in  db{allItems = items'}
+               let items' = Map.update (\i -> Just $ set itemBorrowed Nothing item) (get itemId item) (get allItems db) 
+               in  set allItems items' db
            
-       ; mBorrower <- maybe (return Nothing) (\borrowerId -> fmap Just $ unsafeLookupM "itemView2" allLenders borrowerId) $ get itemBorrowed item
+       ; mBorrower <- maybe (return Nothing) (\borrowerId -> fmap Just $ unsafeLookupM "itemView2" (get allLenders) borrowerId) $ get itemBorrowed item
 
        ; distance <- case user of
-           Just (userId,_) -> do { userLender <- unsafeLookupM "itemView3" allLenders (LenderId userId)
+           Just (userId,_) -> do { userLender <- unsafeLookupM "itemView3" (get allLenders) (LenderId userId)
                                  ; return $ lenderDistance userLender owner
                                  }   
            _               -> return $ -1
@@ -368,7 +368,7 @@ mkItemRootView = mkMaybeView "Onbekend item" $
   do { args <- getHashArgs
      ; case lookup "item" args of
          Just item | Just i <- readMaybe item -> 
-           do { mItem <- withDb $ \db -> Map.lookup (ItemId i) (allItems db)
+           do { mItem <- withDb $ \db -> Map.lookup (ItemId i) (get allItems db)
               ; case mItem of
                        Nothing    -> return Nothing
                        Just item -> fmap Just $ mkItemView Full item
@@ -569,7 +569,7 @@ instance Presentable LendersRootView where
 mkLenderRootView = mkMaybeView "Onbekende lener" $
   do { args <- getHashArgs 
      ; case lookup "lener" args of
-         Just lener -> do { mLender <- withDb $ \db -> Map.lookup (LenderId lener) (allLenders db)
+         Just lener -> do { mLender <- withDb $ \db -> Map.lookup (LenderId lener) (get allLenders db)
                      ; case mLender of
                          Nothing    -> return Nothing
                          Just lender -> fmap Just $ mkLenderView Full lender

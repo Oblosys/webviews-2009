@@ -36,19 +36,19 @@ users = Map.fromList [ ("martijn", ("p", "Martijn"))
 
 
 searchLenders :: String -> Database -> [Lender]
-searchLenders term db = [ lender | lender <- Map.elems $ allLenders db
+searchLenders term db = [ lender | lender <- Map.elems $ get allLenders db
                         , any (isInfixOf term) [get lenderFirstName lender, get lenderLastName lender, get lenderZipCode lender, get (lenderIdLogin . lenderId) lender]
                         ]
 
 updateLender :: LenderId -> (Lender -> Lender) -> Database -> Database
 updateLender i f db = 
-  let lender = unsafeLookup "updateLender" (allLenders db) i
-  in  db  { allLenders = Map.insert i (let r = f lender in trace (show r) r) (allLenders db)
-          }
+  let lender = unsafeLookup "updateLender" (get allLenders db) i
+  in  modify allLenders (Map.insert i (let r = f lender in trace (show r) r)) db
+
 -- add error
 
 removeLender :: LenderId -> Database -> Database
-removeLender i db = db { allLenders = Map.delete i (allLenders db) }
+removeLender i = modify allLenders (Map.delete i)
 
 {-
 newLender :: Database -> (LenLenderatabase)
@@ -75,7 +75,7 @@ assignItems allItems allLenders = [ set lenderItems myItems lender
                                   ] 
  
 searchItems :: String -> Database -> [Item]
-searchItems term db = [ item | item <- Map.elems $ allItems db
+searchItems term db = [ item | item <- Map.elems $ get allItems db
                       , any (isInfixOf term) $ [get (lenderIdLogin . itemOwner) item, show $ get itemPrice item, get itemName item, get itemDescr item ] ++
                                                (categorySearchFields $ get itemCategory item)
                       ]
@@ -89,26 +89,25 @@ searchItems term db = [ item | item <- Map.elems $ allItems db
 
 -- this is more efficient than looking up the lender and looking up all of its owned itemId's
 getOwnedItems :: LenderId -> Database -> [Item]
-getOwnedItems ownerId db = filter ((ownerId ==) . (get itemOwner)) $ Map.elems (allItems db) 
+getOwnedItems ownerId db = filter ((ownerId ==) . (get itemOwner)) $ Map.elems (get allItems db) 
 
 getLendedItems :: LenderId -> Database -> [Item]
 getLendedItems ownerId db =  filter (isJust . get itemBorrowed) $ getOwnedItems ownerId db 
 
 getBorrowedItems :: LenderId -> Database -> [Item]
-getBorrowedItems lenderId db = filter (maybe False (\borrower -> borrower == lenderId) . get itemBorrowed) $ Map.elems (allItems db)
+getBorrowedItems lenderId db = filter (maybe False (\borrower -> borrower == lenderId) . get itemBorrowed) $ Map.elems (get allItems db)
 
 updateItem :: ItemId -> (Item -> Item) -> Database -> Database
 updateItem i f db = 
-  let visit = unsafeLookup "updateItem" (allItems db) i
-  in  db  { allItems = Map.insert i (f visit) (allItems db)
-          }
+  let visit = unsafeLookup "updateItem" (get allItems db) i
+  in  modify allItems (Map.insert i (f visit)) db
 
 
 -- Remove the item from allItems as well as from the lenderItems field of its owner.
 deleteItem :: Item -> Database -> Database
 deleteItem item db =
   let db' = updateLender (get itemOwner item) (removeLenderItem (get itemId item)) db
-  in  db' { allItems = Map.delete (get itemId item) (allItems db') }
+  in  modify allItems (Map.delete (get itemId item)) db' 
  where removeLenderItem :: ItemId -> Lender -> Lender
        removeLenderItem iId = modify lenderItems $ \is -> 
                                                      let is' = delete iId is
@@ -117,10 +116,10 @@ deleteItem item db =
 
 newItem :: LenderId -> Database -> (Item, Database)
 newItem uid db =
-  let ids = [ i | ItemId i <- map fst (Map.toList $ allItems db) ]
+  let ids = [ i | ItemId i <- map fst (Map.toList $ get allItems db) ]
       newId = ItemId $ if null ids then 0 else (maximum ids + 1)
       newItem = Item newId uid 1 "<new>" "" "" "" Misc Nothing
-  in  ( newItem, db { allItems = Map.insert newId newItem (allItems db) } )
+  in  (newItem, modify allItems (Map.insert newId newItem) db)
 
 --loginnaam, geslacht, voornaam, tussenvoegsel, achternaam, straatnaam, nr, postcode, lat, long
 

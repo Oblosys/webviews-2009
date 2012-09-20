@@ -14,7 +14,7 @@ newtype ItemId = ItemId { _itemIdNr :: Int } deriving (Show, Read, Eq, Ord, Type
 
 
 -- must be Typeable and Data, because update functions in views (which must be Data etc.) are Database->Database
-data Database = Database { allLenders :: Map LenderId Lender, allItems :: Map ItemId Item 
+data Database = Database { _allLenders :: Map LenderId Lender, _allItems :: Map ItemId Item 
                          }
                   deriving (Eq, Show, Read, Typeable,Data)
 
@@ -50,4 +50,4 @@ data Item =
 
 -- put id in element? It is also in the map.
 
-mkLabels [ ''LenderId, ''Lender, ''ItemId, ''Item, ''Category ]
+mkLabels [ ''Database, ''LenderId, ''Lender, ''ItemId, ''Item, ''Category ]
