@@ -176,7 +176,8 @@ mkItemView inline item = mkWebView $
        ; props <- (if inline == Inline then getInlineCategoryProps else getFullCategoryProps) vid (isJust mEdited) item $ get itemCategory item
        
        ; buttons <- if False {- isInline inline -} then return [] else
-          do { editButton <- mkButton (maybe "Aanpassen" (const "Gereed") mEdited) True $
+          do { deleteButton <- mkButton "Verwijderen" True $ Edit $ docEdit $ deleteItem item
+             ; editButton <- mkButton (maybe "Aanpassen" (const "Gereed") mEdited) True $
                  Edit $ case mEdited of
                           Nothing            -> viewEdit vid $ set mEditedItem (Just item)
                           Just updatedItem -> do { docEdit $ updateItem (get itemId updatedItem) $ \item -> updatedItem
@@ -185,7 +186,7 @@ mkItemView inline item = mkWebView $
                                                  }
              ; buttons <- if not $ isJust mEdited then return [] else
                     fmap singleton $ mkButton "Annuleren" True $ Edit $ viewEdit vid $ set mEditedItem Nothing
-             ; return $ [ editButton ] ++ buttons
+             ; return $ [ deleteButton, editButton ] ++ buttons
              }
        
        
