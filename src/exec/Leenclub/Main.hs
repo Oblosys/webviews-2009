@@ -216,12 +216,12 @@ instance Presentable ItemView where
   present (ItemView Inline dist item mEdited owner button mBorrower props buttons) =
     -- todo present imdb link, present movieOrSeries
       hStretchList
-            [ E $ linkedItem item $ (div_ (boxedEx 1 $ image ("items/" ++ get itemImage item) ! style "height: 120px")) ! style "width: 124px" ! align "top"
+            [ E $ linkedItem item $ (div_ (boxedEx 1 $ image ("items/" ++ get itemImage item) ! style "height: 130px")) ! style "width: 134px" ! align "top"
             , E $  nbsp +++ nbsp
             
             -- TODO: this stretch doesn't work. Until we have good compositional layout combinators, just set the width.
             , Stretch $ linkedItem item $
-                 div_ ! style "height: 120px; width: 428px; font-size: 12px" $ sequence_ 
+                 div_ ! style "height: 130px; width: 428px; font-size: 12px" $ sequence_ 
                            [ with [style "font-weight: bold; font-size: 15px"] $ toHtml (getItemCategoryName item ++ ": " ++ get itemName item) 
                            , vSpace 2
                            , with [style "color: #333"] $
@@ -247,7 +247,7 @@ instance Presentable ItemView where
                 , vSpace 10
                 , hList $ map present buttons
               ]
-                ) ! style "width: 200px; height: 120px; padding: 5; font-size: 12px"
+                ) ! style "width: 200px; height: 130px; padding: 5; font-size: 12px"
             ]
 vDivList elts = div_ $ mapM_ div_ elts 
 
