@@ -1,14 +1,17 @@
 module Database ( module DatabaseTypes
                 , mkInitialDatabase
                 , users
+                , updateLender
+                , searchLenders
                 , getOwnedItems
                 , getLendedItems
                 , getBorrowedItems
-                , deleteItem
                 , updateItem 
                 , searchItems
-                , updateLender
-                , searchLenders
+                , deleteItem
+                , insertAsNewItem
+                , getItemCategoryName
+                , emptyItem, emptyBook, emptyGame, emptyCD, emptyDVD, emptyTool
                 ) where
 
 import Data.Generics
@@ -112,16 +115,42 @@ deleteItem item db =
        removeLenderItem iId = modify lenderItems $ \is -> 
                                                      let is' = delete iId is
                                                      in  trace (show is ++ "\n"++ show (get itemId item)++"\n"++show is') $
-                                                         is'              
-
-newItem :: LenderId -> Database -> (Item, Database)
-newItem uid db =
+                                                         is'
+                                                                       
+-- Assign a fresh id to newItem and insert in database as well as lenderItems field of its owner.
+insertAsNewItem :: Item -> Database -> Database
+insertAsNewItem itemWithoutId db =
   let ids = [ i | ItemId i <- map fst (Map.toList $ get allItems db) ]
       newId = ItemId $ if null ids then 0 else (maximum ids + 1)
-      newItem = Item newId uid 1 "<new>" "" "" "" Misc Nothing
-  in  (newItem, modify allItems (Map.insert newId newItem) db)
+      newItem = set itemId newId itemWithoutId
+      db' = modify allItems (Map.insert newId newItem) db
+  in  updateLender (get itemOwner newItem) (modify lenderItems $ (newId :) ) db' 
 
---loginnaam, geslacht, voornaam, tussenvoegsel, achternaam, straatnaam, nr, postcode, lat, long
+getItemCategoryName :: Item -> String
+getItemCategoryName item = case get itemCategory item of 
+                             Book{}        -> "Boek"
+                             Game{}        -> "Game"
+                             CD{}          -> "CD"
+                             DVD{}         -> "DVD"
+                             Tool{}        -> "Gereedschap"
+                             Electronics{} -> "Gadget"
+                             Misc{}        -> "Misc"
+
+emptyItem :: LenderId -> Category -> Item
+emptyItem lenderId category = Item (ItemId $ -1) lenderId 0 "" "" "" genericImage category Nothing
+  where genericImage = case category of
+                         Book{} -> "book.png"
+                         Game{} -> "game.png"
+                         CD{} -> "cd.png"
+                         DVD{} -> "dvd.png"
+                         Tool{} -> "tool.png"
+                         
+emptyBook, emptyGame, emptyCD, emptyDVD, emptyTool :: LenderId -> Item
+emptyBook lenderId = emptyItem lenderId $ Book "" 0 "" "" 0 ""
+emptyGame lenderId = emptyItem lenderId $ Game "" 0 "" ""
+emptyCD   lenderId = emptyItem lenderId $ CD "" 0 ""
+emptyDVD lenderId = emptyItem lenderId $ DVD Movie "" "" 0 "" 0 "" 0 0
+emptyTool lenderId = emptyItem lenderId $ Tool "" "" 0
 
 mkInitialDatabase :: IO Database
 mkInitialDatabase = return initialDatabase

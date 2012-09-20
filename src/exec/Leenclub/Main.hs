@@ -260,17 +260,6 @@ presentProperties props =
                     ]
 
 
-getItemCategoryName :: Item -> String
-getItemCategoryName item = case get itemCategory item of 
-                             Book{}        -> "Boek"
-                             Game{}        -> "Game"
-                             CD{}          -> "CD"
-                             DVD{}         -> "DVD"
-                             Tool{}        -> "Gereedschap"
-                             Electronics{} -> "Gadget"
-                             Misc{}        -> "Misc"
-
-
 getInlineCategoryProps vid isEdited item c = do { props <- getAllCategoryProps vid isEdited item c
                                                 ; return [ inlineProp | Left inlineProp <- props ]
                                                 } 
@@ -380,7 +369,7 @@ mkItemRootView = mkMaybeView "Onbekend item" $
 data LenderView = 
   LenderView Inline User Lender (Maybe Lender) {- [Property Lender] -} [(String,Property Database Lender)]  [(String,Property Database Lender)]
              --(Maybe (Widget (TextView Database, TextView Database)))
-             [WebView Database] [Widget (Button Database)]
+             [WebView Database] [Widget (Button Database)] [Widget (Button Database)]
     deriving (Eq, Show, Typeable, Data)
 
  -- todo: edit button in Inline/Full datatype?                  
@@ -390,14 +379,14 @@ deriveInitial ''LenderView
 deriveMapWebViewDb ''Database ''LenderView 
 
 mEditedLender :: LenderView :-> Maybe Lender
-mEditedLender = lens (\(LenderView _ _ _ mEditedLender _ _ _ _) -> mEditedLender)
-                     (\mLender (LenderView a b c d e f g h) -> (LenderView a b c mLender e f g h))
+mEditedLender = lens (\(LenderView _ _ _ mEditedLender _ _ _ _ _) -> mEditedLender)
+                     (\mLender (LenderView a b c d e f g h i) -> (LenderView a b c mLender e f g h i))
 
 instance Storeable Database LenderView -- where
 --  save (LenderView _ _ _ modifiedLender@Lender{lenderId=lId} _ _  _ _)  = updateLender lId $ \lender -> modifiedLender
 
 mkLenderView inline lender = mkWebView $
-  \vid oldLenderView@(LenderView _ _ _ mEdited _ _ _ _) ->
+  \vid oldLenderView@(LenderView _ _ _ mEdited _ _ _ _ _) ->
     do { mUser <- getUser
        ; let itemIds = get lenderItems lender
        ; items <- withDb $ \db -> getOwnedItems (get lenderId lender) db
@@ -412,7 +401,7 @@ mkLenderView inline lender = mkWebView $
 -}
        ; props <- (if lenderIsUser lender mUser then getLenderPropsSelf else getLenderPropsEveryone) vid (isJust mEdited) lender
        ; extraProps <- if lenderIsUser lender mUser then getExtraProps vid (isJust mEdited) lender else return [] 
-       ; (itemWebViews, buttons) <- if isInline inline then return ([],[]) else
+       ; (itemWebViews, buttons, addButtons) <- if isInline inline then return ([],[],[]) else
           do { itemWebViews <-  mapM (mkItemView Inline) items
              ; editButton <- mkButton (maybe "Aanpassen" (const "Gereed") mEdited) (lenderIsUser lender mUser) $
                  Edit $ case mEdited of
@@ -423,16 +412,22 @@ mkLenderView inline lender = mkWebView $
                                                    }
              ; buttons <- if not $ isJust mEdited then return [] else
                     fmap singleton $ mkButton "Annuleren" True $ Edit $ viewEdit vid $ set mEditedLender Nothing
-             ; return (itemWebViews, [ editButton ] ++ buttons)
+             ; addButtons <- sequence [ mkAddButton (someEmptyItem $ get lenderId lender) 
+                                      | someEmptyItem <- [emptyBook, emptyGame,emptyCD,emptyDVD,emptyTool] ]  
+             ; return (itemWebViews, [ editButton ] ++ buttons,addButtons)
              }
-       ; return $ LenderView inline mUser lender mEdited {- testProps -} props extraProps itemWebViews buttons 
+       ; return $ LenderView inline mUser lender mEdited {- testProps -} props extraProps itemWebViews buttons addButtons 
        }
-       
+
+mkAddButton :: Item -> WebViewM Database (Widget (Button Database))
+mkAddButton item = mkButton (getItemCategoryName item) True $ Edit $ docEdit $ insertAsNewItem item
+  
+
 lenderIsUser lender Nothing          = False
 lenderIsUser lender (Just (login,_)) = get (lenderIdLogin . lenderId) lender == login
  
 instance Presentable LenderView where
-  present (LenderView Full mUser lender _ {- testProps -} props extraProps itemWebViews buttons)   =
+  present (LenderView Full mUser lender _ {- testProps -} props extraProps itemWebViews buttons addButtons)   =
         vList [ vSpace 20
               , hList [ (div_ (boxedEx 1 $ image ("leners/" ++ get lenderImage lender) ! style "height: 200px")) ! style "width: 204px" ! align "top"
                       , hSpace 20
@@ -451,9 +446,10 @@ instance Presentable LenderView where
                       ]
               , vSpace 20
               , h2 $ (toHtml $ "Spullen van "++get lenderFirstName lender)
+              , hList $ "Toevoegen:" : map present addButtons
               , vList $ map present itemWebViews
               ]
-  present (LenderView Inline mUser lender mEdited {- testProps -} props extraProps itemWebViews buttons) =
+  present (LenderView Inline mUser lender mEdited {- testProps -} props extraProps itemWebViews buttons _) =
     linkedLender lender $
       hList [ (div_ (boxedEx 1 $ image ("leners/" ++ get lenderImage lender) ! style "height: 30px")) ! style "width: 34px" ! align "top"
             , nbsp
