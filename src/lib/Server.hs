@@ -157,10 +157,13 @@ readInt s = fromMaybe (-1) (readMaybe s)
 
 handlers :: (Data db, Show db, Eq db) => RootViews db -> String -> db -> Map String (String, String) -> ServerInstanceId -> GlobalStateRef db -> [ServerPart Response]
 handlers rootViews dbFilename theDatabase users serverSessionId globalStateRef = 
-  [ dir "favicon.ico" $ serveDirectory DisableBrowsing [] "favicon.ico"
-  , dir "scr" $ serveDirectory DisableBrowsing [] "scr"  
-  , dir "img" $ serveDirectory DisableBrowsing [] "img"  
-  , dir "handle" $ 
+  (do { neverExpires
+      ; msum [ dir "favicon.ico" $  serveDirectory DisableBrowsing [] "favicon.ico"
+             , dir "scr" $  serveDirectory DisableBrowsing [] "scr"
+             , dir "img" $ serveDirectory DisableBrowsing [] "img"
+             ]
+      }) :
+  [ dir "handle" $ 
       withData (\cmds -> do { requestIdData <- getData
                             ; requestId <- case requestIdData of
                                             Right i |  i/=(-1)  -> return i
