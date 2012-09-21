@@ -137,8 +137,7 @@ data Property db a = EditableProperty (Either Html (PropertyWidget db))
 data PropertyWidget db = PropertyTextView (Widget (TextView db))
                        | PropertySelectView (Widget (SelectView db)) deriving (Eq, Show, Typeable, Data)
                     
-instance Data Html
--- TODO: make sure that Data is not actually needed, or implement it.
+instance Data Html -- TODO: can be removed once we completely discard old SYB generics
 
 instance Initial Html where
   initial = noHtml
