@@ -62,14 +62,43 @@ instance MapWebView Database ButtonAnswer
 deriveInitial ''TextAnswer
 instance MapWebView Database TextAnswer
 
-testForm = [ TableElt 
+testForm = [ TableElt $
               [ [ HtmlElt "Leeftijd", TextAnswerElt $ TextAnswer "age"]
               , [ HtmlElt "Geslacht", ButtonAnswerElt $ ButtonAnswer "gender" ["Man", "Vrouw"]]
               , [ HtmlElt "App is leuk",       RadioAnswerElt $ RadioAnswer "nice" ["Ja","Nee"]]
-              ]
-           , HtmlElt "<p>yo</p>"
+              ]  
+           , mkVignette 1 "Een app waarmee u rapporten mondeling kunt inspreken, die achteraf door andere medewerkers schriftelijk kunnen worden vastgelegd"
+                                "Een app waarmee u snel kunt zien welke medicijnen met elkaar interacteren"
+                                "Mogelijk" "Niet mogelijk" "Onvoldoende" "Goed" "Goed" "Onvoldoende" 
+                                "Sceptisch" "Enthousiast"
+                                "Tijdbesparing" "Minder kans op fouten" 
+           , HtmlElt "<br/><br/>" 
+           , mkVignette 2 "Een app waarmee u snel kunt zien welke medicijnen met elkaar interacteren"
+                                "Een app waarmee u pati&euml;ntgegevens als een zakkaartje op uw iPhone meedraagt"
+                                "Niet mogelijk" "Mogelijk" "Onvoldoende" "Onvoldoende" "Goed" "Onvoldoende" 
+                                "Sceptisch" "Sceptisch"
+                                "Minder kans op fouten" "Niet meer zeulen met dossiers" 
            ]
 
+mkVignette nr omschr1 omschr2 uitproberen1 uitproberen2 klaar1 klaar2 succes1 succes2 collegas1 collegas2 beloning1 beloning2 = 
+  TableElt $
+  [ [ HtmlElt "Vignette 1", HtmlElt $ greyBg "Situatie 1", HtmlElt $ greyBg "Situatie 2"]
+  , [ HtmlElt $ greyBg "<div style='width:300px; height:100px'>Omschrijving van de app</div>", HtmlElt $ "<div style='width:300px'>"++omschr1++"</div>"
+                                       , HtmlElt $ "<div style='width:300px'>"++omschr2++"</div>"]
+  , [ HtmlElt $ greyBg "Uitproberen", HtmlElt uitproberen1, HtmlElt uitproberen2]
+  , [ HtmlElt $ greyBg "De mate waarin de organisatie technisch klaar is om de app in te voeren", HtmlElt klaar1, HtmlElt klaar2]
+  , [ HtmlElt $ greyBg "De mate waarin de organisatie in het verleden succesvol technische innovaties heeft ingevoerd", HtmlElt succes1, HtmlElt succes2]
+  , [ HtmlElt $ greyBg "Mening van uw collega's", HtmlElt collegas1, HtmlElt collegas2]
+  , [ HtmlElt $ greyBg "Beloning", HtmlElt beloning1, HtmlElt beloning2]
+  , [HtmlElt $ "<br/><em>Vragen (kruis de situatie aan die het beste bij u past):</em><br/><br/>" ]
+  , [ HtmlElt $ greyBg "De app die het meest gemakkelijk te gebruiken voor mij als persoon is"
+    , ButtonAnswerElt $ ButtonAnswer ("vignette"++show nr++".gemak") ["App 1", "App 2"]]
+  , [ HtmlElt $ greyBg "De app die het meest nuttig ter ondersteuning van mijn dagelijkse werkzaamheden"
+    , ButtonAnswerElt $ ButtonAnswer ("vignette"++show nr++".nut") ["App 1", "App 2"]]
+  , [ HtmlElt $ greyBg "De app die ik zou gebruiken is"
+    , ButtonAnswerElt $ ButtonAnswer ("vignette"++show nr++".voorkeur") ["App 1", "App 2"]]
+  ]
+  where greyBg str = "<div style='background-color: #EEE'>"++str++"</div>"  
 
 ------- WebViews
 
