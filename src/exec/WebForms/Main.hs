@@ -79,13 +79,16 @@ deriveInitial ''SelectableView
 deriveMapWebViewDb ''Database ''SelectableView
 
 
-mkSelectableView :: [ViewId] -> String -> WebViewM Database (WebView Database)
-mkSelectableView allSelectableVids str = mkWebView $
+mkSelectableView :: [ViewId] -> String -> EditM Database () -> WebViewM Database (WebView Database)
+mkSelectableView allSelectableVids str clickCommand = mkWebView $
   \vid (SelectableView selected _ _) ->
-    do { clickAction <- mkEditAction $ Edit $ sequence_ [ viewEdit v $ \(SelectableView _ str ca) ->
-                                                                           SelectableView (vid == v) str ca
-                                                        | v <- allSelectableVids
-                                                        ]
+    do { clickAction <- mkEditAction $ Edit $ do { sequence_ [ viewEdit v $ \(SelectableView _ str ca) ->
+                                                                              SelectableView (vid == v) str ca
+                                                             | v <- allSelectableVids
+                                                             ]
+                                                 ; clickCommand
+                                                 }
+                                             
                                                   
        ; return $ SelectableView selected str clickAction
        }
@@ -98,9 +101,12 @@ instance Presentable SelectableView where
 
 instance Storeable Database SelectableView
   
-mkSelectionViews :: [String] -> WebViewM Database [WebView Database]
-mkSelectionViews strs =
- do { rec { wvs <- mapM (mkSelectableView vids) strs
+-- TODO: can make this more general by providing a list of (EditM db ()) for each button
+mkSelectionViews :: [String] -> ((Int,String) -> EditM Database ()) -> WebViewM Database [WebView Database]
+mkSelectionViews strs clickActionF =
+ do { rec { wvs <- sequence [ mkSelectableView vids str $ clickActionF (i,str)  
+                            | (i,str) <- zip [0..] strs
+                            ]
           ; let vids = map getViewId wvs
           }
     ; return wvs
@@ -138,10 +144,11 @@ deriveInitial ''ButtonAnswerView
 deriveMapWebViewDb ''Database ''ButtonAnswerView
 
 mkButtonAnswerView :: ButtonAnswer -> WebViewM Database (WebView Database)
-mkButtonAnswerView b@(ButtonAnswer _ answers) = mkWebView $
+mkButtonAnswerView b@(ButtonAnswer questionTag answers) = mkWebView $
   \vid (ButtonAnswerView _ buttonsold) ->
-    do { buttons <- mkSelectionViews answers  
-    
+    do { buttons <- mkSelectionViews answers $ \(_,str) -> docEdit $ setAnswer questionTag str
+       -- because we cannot access webview fields like widget values (because of existentials) we cannot
+       -- query the webview in Storeable and put the setAnswer in an edit command instead.
        ; return $ ButtonAnswerView b buttons
        }
 
@@ -205,9 +212,8 @@ deriveMapWebViewDb ''Database ''FormView
 mkFormView :: WebForm -> WebViewM Database (WebView Database)
 mkFormView form = mkWebView $
   \vid _ ->
-    do { selViews <- mkSelectionViews ["Ja","Nee", "Misschien"] 
-       ; formElts <- mapM mkView form
-       ; return $ FormView $ selViews ++ formElts
+    do { formElts <- mapM mkView form
+       ; return $ FormView $ formElts
        }
 
 instance Presentable FormView where
