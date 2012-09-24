@@ -21,6 +21,10 @@ Flag trac
   description:  Build WebViews Trac
   default:      False        
 
+Flag webforms
+  description:  Build WebViews WebForms
+  default:      False       
+
 Flag leenclub
   description:  Build WebViews Leenclub
   default:      False       
@@ -131,7 +135,7 @@ Executable trac
   else
     buildable:  False
 
-Executable leenclub
+Executable webforms
   Main-is:    Main.hs 
   Build-Depends:  WebViews,
                   base >=4.5 && <4.6,
@@ -141,7 +145,39 @@ Executable leenclub
                   old-time >=1.1 && <1.2,
                   html >=1.0 && <1.1,
                   template-haskell >=2.7 && <2.8,
-                  download-curl >=0.1 && <0.2,
+--                  download-curl >=0.1 && <0.2,
+                  fclabels >=1.1
+--                  gps >= 1.0 && <1.1
+
+  GHC-Options: 
+  Extensions: 
+              DeriveDataTypeable, 
+              ExistentialQuantification, 
+              OverloadedStrings, 
+              PatternGuards, 
+              RankNTypes, 
+              ScopedTypeVariables, 
+              TemplateHaskell
+  HS-Source-Dirs:  src/exec/WebForms
+  Other-Modules:
+                Database,
+                WebFormUtils
+  if flag(webforms)
+    buildable:  True
+  else
+    buildable:  False
+
+ Executable leenclub
+  Main-is:    Main.hs 
+  Build-Depends:  WebViews,
+                  base >=4.5 && <4.6,
+                  containers >=0.4 && <0.5,
+                  syb >=0.3 && <0.4,
+                  mtl >=2.0 && <2.1,
+                  old-time >=1.1 && <1.2,
+                  html >=1.0 && <1.1,
+                  template-haskell >=2.7 && <2.8,
+--                  download-curl >=0.1 && <0.2,
                   fclabels >=1.1
 --                  gps >= 1.0 && <1.1
 
@@ -167,7 +203,7 @@ Executable leenclub
   else
     buildable:  False
 
-Executable importer
+  Executable importer
   Main-is:    Importer.hs 
   Build-Depends:  
                   WebViews,
