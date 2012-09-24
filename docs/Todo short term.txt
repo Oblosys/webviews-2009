@@ -27,3 +27,13 @@ when to update the widget on an external property change?
 use case:
 
 property widget with present and parse functions + lens; to view
+
+
+use case:
+check how radio has to access oldvalue, maybe more clear than textview.
+
+
+Fact: property needs to access widget to show whether value parses. Passing old value is awkward, as they are typically
+created as a list.
+Fact: don't want to wrap editable property in a webview because we want to customize its presentation.
+unclear: setting textfield does not change existing textfield? should it?
