@@ -31,6 +31,7 @@ import Prelude hiding ((.), id)           -- fclabels
 import Database
 import WebFormUtils
 
+
 type WebForm = [FormElt]
 
 data FormElt = HtmlElt String
@@ -40,13 +41,13 @@ data FormElt = HtmlElt String
              | TableElt [[FormElt]]
    deriving (Eq, Show, Typeable, Data)
 
-data RadioAnswer = RadioAnswer [String]
+data RadioAnswer = RadioAnswer QuestionTag [String]
    deriving (Eq, Show, Typeable, Data)
 
-data ButtonAnswer = ButtonAnswer [String]
+data ButtonAnswer = ButtonAnswer QuestionTag [String]
    deriving (Eq, Show, Typeable, Data)
 
-data TextAnswer = TextAnswer
+data TextAnswer = TextAnswer QuestionTag
    deriving (Eq, Show, Typeable, Data)
 
 deriveInitial ''FormElt
@@ -62,12 +63,11 @@ deriveInitial ''TextAnswer
 instance MapWebView Database TextAnswer
 
 testForm = [ TableElt 
-              [ [ HtmlElt "Leeftijd", TextAnswerElt TextAnswer]
-              , [ HtmlElt "Geslacht", ButtonAnswerElt $ ButtonAnswer ["Man", "Vrouw"]]
-              , [ HtmlElt "App is leuk",       RadioAnswerElt $ RadioAnswer ["Ja","Nee"]]
+              [ [ HtmlElt "Leeftijd", TextAnswerElt $ TextAnswer "age"]
+              , [ HtmlElt "Geslacht", ButtonAnswerElt $ ButtonAnswer "gender" ["Man", "Vrouw"]]
+              , [ HtmlElt "App is leuk",       RadioAnswerElt $ RadioAnswer "nice" ["Ja","Nee"]]
               ]
            , HtmlElt "<p>yo</p>"
-           , RadioAnswerElt $ RadioAnswer ["Veel","Weinig"]
            ]
 
 
@@ -114,7 +114,7 @@ deriveInitial ''RadioAnswerView
 deriveMapWebViewDb ''Database ''RadioAnswerView
 
 mkRadioAnswerView :: RadioAnswer -> WebViewM Database (WebView Database)
-mkRadioAnswerView r@(RadioAnswer answers) = mkWebView $
+mkRadioAnswerView r@(RadioAnswer _ answers) = mkWebView $
   \vid (RadioAnswerView _ radioOld) ->
     do { radio <-  mkRadioView answers (getSelection radioOld) True 
     
@@ -125,7 +125,10 @@ instance Presentable RadioAnswerView where
   present (RadioAnswerView _ radio) =
       present radio
 
-instance Storeable Database RadioAnswerView
+instance Storeable Database RadioAnswerView where
+  save (RadioAnswerView (RadioAnswer questionTag answers) radio) =
+    setAnswer questionTag $ answers !! getSelection radio -- todo: unsafe
+
 
 data ButtonAnswerView = ButtonAnswerView ButtonAnswer [WebView Database]
    deriving (Eq, Show, Typeable, Data)
@@ -135,7 +138,7 @@ deriveInitial ''ButtonAnswerView
 deriveMapWebViewDb ''Database ''ButtonAnswerView
 
 mkButtonAnswerView :: ButtonAnswer -> WebViewM Database (WebView Database)
-mkButtonAnswerView b@(ButtonAnswer answers) = mkWebView $
+mkButtonAnswerView b@(ButtonAnswer _ answers) = mkWebView $
   \vid (ButtonAnswerView _ buttonsold) ->
     do { buttons <- mkSelectionViews answers  
     
@@ -148,7 +151,6 @@ instance Presentable ButtonAnswerView where
 
 instance Storeable Database ButtonAnswerView
 
-
 data TextAnswerView = TextAnswerView TextAnswer (Widget (TextView Database))
    deriving (Eq, Show, Typeable, Data)
 
@@ -157,7 +159,7 @@ deriveInitial ''TextAnswerView
 deriveMapWebViewDb ''Database ''TextAnswerView
 
 mkTextAnswerView :: TextAnswer -> WebViewM Database (WebView Database)
-mkTextAnswerView t@(TextAnswer) = mkWebView $
+mkTextAnswerView t = mkWebView $
   \vid (TextAnswerView _ _) ->
     do { text <-  mkTextField "" 
     
@@ -168,7 +170,8 @@ instance Presentable TextAnswerView where
   present (TextAnswerView _ radio) =
       present radio
 
-instance Storeable Database TextAnswerView
+instance Storeable Database TextAnswerView where
+  save (TextAnswerView (TextAnswer questionTag) text) = setAnswer questionTag $ getStrVal text
 
 
 data TableView = TableView [[WebView Database]]
