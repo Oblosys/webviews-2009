@@ -30,6 +30,9 @@ import Prelude hiding ((.), id)           -- fclabels
 import Database
 import WebFormUtils
 
+
+-- WebForm data types
+
 type WebForm = [FormElt]
 
 data FormElt = HtmlElt String
@@ -60,48 +63,77 @@ instance MapWebView Database ButtonAnswer
 deriveInitial ''TextAnswer
 instance MapWebView Database TextAnswer
 
+
+
+-- Form instance declaration
+
 testForm = [ TableElt $
               [ [ HtmlElt "Leeftijd", TextAnswerElt $ TextAnswer "age"]
               , [ HtmlElt "Geslacht", ButtonAnswerElt $ ButtonAnswer "gender" ["Man", "Vrouw"]]
               , [ HtmlElt "App is leuk",       RadioAnswerElt $ RadioAnswer "nice" ["Ja","Nee"]]
               ] ] ++
-           mkVignette 1 "Een app waarmee u rapporten mondeling kunt inspreken, die achteraf door andere medewerkers schriftelijk kunnen worden vastgelegd"
-                                "Een app waarmee u snel kunt zien welke medicijnen met elkaar interacteren"
-                                "Mogelijk" "Niet mogelijk" "Onvoldoende" "Goed" "Goed" "Onvoldoende" 
-                                "Sceptisch" "Enthousiast"
-                                "Tijdbesparing" "Minder kans op fouten" ++ 
+           mkVignette Vignette { nummer = 1
+                               , omschr1 = "Een app waarmee u rapporten mondeling kunt inspreken, die achteraf door andere medewerkers schriftelijk kunnen worden vastgelegd"
+                               , omschr2 = "Een app waarmee u snel kunt zien welke medicijnen met elkaar interacteren"
+                               , uitproberen1 = "Mogelijk"
+                               , uitproberen2 = "Niet mogelijk"
+                               , klaar1 = "Onvoldoende"
+                               , klaar2 = "Goed"
+                               , succes1 = "Goed"
+                               , succes2 = "Onvoldoende"
+                               , collegas1 = "Sceptisch"
+                               , collegas2 = "Enthousiast"
+                               , beloning1 = "Tijdbesparing"
+                               , beloning2 = "Minder kans op fouten"
+                               } ++ 
            [ HtmlElt "<br/><br/>" ] ++ 
-           mkVignette 2 "Een app waarmee u snel kunt zien welke medicijnen met elkaar interacteren"
-                                "Een app waarmee u pati&euml;ntgegevens als een zakkaartje op uw iPhone meedraagt"
-                                "Niet mogelijk" "Mogelijk" "Onvoldoende" "Onvoldoende" "Goed" "Onvoldoende" 
-                                "Sceptisch" "Sceptisch"
-                                "Minder kans op fouten" "Niet meer zeulen met dossiers" 
+           mkVignette Vignette { nummer = 2
+                               , omschr1 = "Een app waarmee u snel kunt zien welke medicijnen met elkaar interacteren"
+                               , omschr2 = "Een app waarmee u pati&euml;ntgegevens als een zakkaartje op uw iPhone meedraagt"
+                               , uitproberen1 = "Niet mogelijk"
+                               , uitproberen2 = "Mogelijk"
+                               , klaar1 = "Onvoldoende"
+                               , klaar2 = "Onvoldoende"
+                               , succes1 = "Goed"
+                               , succes2 = "Onvoldoende"
+                               , collegas1 = "Sceptisch"
+                               , collegas2 = "Sceptisch"
+                               , beloning1 = "Minder kans op fouten"
+                               , beloning2 = "Niet meer zeulen met dossiers"
+                               }
 
+data Vignette = Vignette { nummer :: Int
+                         , omschr1, omschr2, uitproberen1, uitproberen2, klaar1, klaar2, succes1, succes2
+                         , collegas1, collegas2, beloning1, beloning2 :: String
+                         }
 
-mkVignette nr omschr1 omschr2 uitproberen1 uitproberen2 klaar1 klaar2 succes1 succes2 collegas1 collegas2 beloning1 beloning2 = 
+mkVignette vt = 
   [ TableElt $
-    [ [ HtmlElt "Vignette 1", HtmlElt $ greyBg "Situatie 1", HtmlElt $ greyBg "Situatie 2"]
-    , [ HtmlElt $ greyBg "<div style='width:300px; height:100px'>Omschrijving van de app</div>", HtmlElt $ "<div style='width:300px'>"++omschr1++"</div>"
-                                         , HtmlElt $ "<div style='width:300px'>"++omschr2++"</div>"]
-    , [ HtmlElt $ greyBg "Uitproberen", HtmlElt uitproberen1, HtmlElt uitproberen2]
-    , [ HtmlElt $ greyBg "De mate waarin de organisatie technisch klaar is om de app in te voeren", HtmlElt klaar1, HtmlElt klaar2]
-    , [ HtmlElt $ greyBg "De mate waarin de organisatie in het verleden succesvol technische innovaties heeft ingevoerd", HtmlElt succes1, HtmlElt succes2]
-    , [ HtmlElt $ greyBg "Mening van uw collega's", HtmlElt collegas1, HtmlElt collegas2]
-    , [ HtmlElt $ greyBg "Beloning", HtmlElt beloning1, HtmlElt beloning2] ]
+    [ [ HtmlElt $ "Vignette "++show (nummer vt), HtmlElt $ greyBg "Situatie 1", HtmlElt $ greyBg "Situatie 2"]
+    , [ HtmlElt $ greyBg "<div style='width:300px; height:100px'>Omschrijving van de app</div>", HtmlElt $ "<div style='width:300px'>"++omschr1 vt++"</div>"
+                                         , HtmlElt $ "<div style='width:300px'>"++omschr2 vt++"</div>"]
+    , [ HtmlElt $ greyBg "Uitproberen", HtmlElt $ uitproberen1 vt, HtmlElt $ uitproberen2 vt]
+    , [ HtmlElt $ greyBg "De mate waarin de organisatie technisch klaar is om de app in te voeren", HtmlElt $ klaar1 vt, HtmlElt $ klaar2 vt]
+    , [ HtmlElt $ greyBg "De mate waarin de organisatie in het verleden succesvol technische innovaties heeft ingevoerd", HtmlElt $ succes1 vt, HtmlElt $ succes2 vt]
+    , [ HtmlElt $ greyBg "Mening van uw collega's", HtmlElt $ collegas1 vt, HtmlElt $ collegas2 vt]
+    , [ HtmlElt $ greyBg "Beloning", HtmlElt $ beloning1 vt, HtmlElt $ beloning2 vt] ]
     , HtmlElt $ "<br/><em>Vragen (kruis de situatie aan die het beste bij u past):</em><br/><br/>"
   , TableElt $
     [ [ HtmlElt $ greyBg "De app die het meest gemakkelijk te gebruiken voor mij als persoon is"
-      , ButtonAnswerElt $ ButtonAnswer ("vignette"++show nr++".gemak") ["App 1", "App 2"]]
+      , ButtonAnswerElt $ ButtonAnswer ("vignette"++show (nummer vt)++".gemak") ["App 1", "App 2"]]
     , [ HtmlElt $ greyBg "De app die het meest nuttig ter ondersteuning van mijn dagelijkse werkzaamheden"
-      , ButtonAnswerElt $ ButtonAnswer ("vignette"++show nr++".nut") ["App 1", "App 2"]]
+      , ButtonAnswerElt $ ButtonAnswer ("vignette"++show (nummer vt)++".nut") ["App 1", "App 2"]]
     , [ HtmlElt $ greyBg "De app die ik zou gebruiken is"
-      , ButtonAnswerElt $ ButtonAnswer ("vignette"++show nr++".voorkeur") ["App 1", "App 2"]]
+      , ButtonAnswerElt $ ButtonAnswer ("vignette"++show (nummer vt)++".voorkeur") ["App 1", "App 2"]]
     , [HtmlElt $ "<br/><em>Omcirkel het getal dat aangeeft in hoeverre u het eens bent met onderstaande stelling:</em><br/><br/>" ]
     , [ HtmlElt $ greyBg "Ik vond het moeilijk om te kiezen"
-      , ButtonAnswerElt $ ButtonAnswer ("vignette"++show nr++".moeilijkKiezen") $ map show [1..10]]
+      , ButtonAnswerElt $ ButtonAnswer ("vignette"++show (nummer vt)++".moeilijkKiezen") $ map show [1..10]]
     ]
   ]
   where greyBg str = "<div style='background-color: #EEE'>"++str++"</div>"  
+
+
+
 
 ------- WebViews
 
