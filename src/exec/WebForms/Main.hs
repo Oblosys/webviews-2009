@@ -27,10 +27,8 @@ import TemplateHaskell
 import Control.Category hiding (Category) -- fclabels
 import Data.Label                         -- fclabels
 import Prelude hiding ((.), id)           -- fclabels
-
 import Database
 import WebFormUtils
-
 
 type WebForm = [FormElt]
 
@@ -201,9 +199,17 @@ deriveMapWebViewDb ''Database ''TextAnswerView
 
 mkTextAnswerView :: TextAnswer -> WebViewM Database (WebView Database)
 mkTextAnswerView t = mkWebView $
-  \vid (TextAnswerView _ _) ->
-    do { text <-  mkTextField "" 
-    
+  \vid (TextAnswerView (TextAnswer questionTag) textfield) ->
+    do { db <- getDb
+                                 
+       ; str <- case Map.lookup questionTag db of
+                  Nothing  -> do { modifyDb $ Map.insert questionTag Nothing
+                                 ; return ""
+                                 }
+                  Just Nothing    -> return ""
+                  Just (Just str) -> return str  
+       ; --if getStrVal textfield == "" then Nothing else Just $ getStrVal textfield
+       ; text <-  mkTextField str 
        ; return $ TextAnswerView t text
        }
 
@@ -212,7 +218,9 @@ instance Presentable TextAnswerView where
       present radio
 
 instance Storeable Database TextAnswerView where
-  save (TextAnswerView (TextAnswer questionTag) text) = setAnswer questionTag $ getStrVal text
+  save (TextAnswerView (TextAnswer questionTag) text) =
+    let str = getStrVal text
+    in  if str == "" then clearAnswer questionTag else setAnswer questionTag str
 
 
 data TableView = TableView [[WebView Database]]
@@ -236,7 +244,7 @@ instance Storeable Database TableView
 
 
 data FormView = 
-  FormView [WebView Database]
+  FormView Bool (Widget (Button Database)) [WebView Database]
     deriving (Eq, Show, Typeable, Data)
 
 deriveInitial ''FormView
@@ -247,14 +255,20 @@ mkFormView :: WebForm -> WebViewM Database (WebView Database)
 mkFormView form = mkWebView $
   \vid _ ->
     do { formElts <- mapM mkView form
-       ; return $ FormView $ formElts
+       ; db <- getDb
+       ; let isComplete = all isJust $ Map.elems db
+       ; sendButton <- mkButton "Opsturen" isComplete $ Edit $
+          do { db <- getDb'
+             ; liftIO $ putStrLn $ "Sending answers:\n"++show db
+             }
+       ; return $ FormView isComplete sendButton formElts
        }
 
 instance Presentable FormView where
-  present (FormView wvs) =
+  present (FormView isComplete sendButton wvs) =
     mkPage [thestyle "background: url('img/noise.png') repeat scroll center top transparent; min-height: 100%; font-family: Geneva"] $
       with [thestyle "background: white; width:1000px; margin: 10px; padding: 10px"] $
-        vList $ map present wvs
+        vList $ map present wvs ++ [present sendButton]
 
 instance Storeable Database FormView
 

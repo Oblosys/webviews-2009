@@ -7,10 +7,13 @@ type QuestionTag = String
 
 type Answer = String
 
-type Database = Map QuestionTag Answer
+type Database = Map QuestionTag (Maybe Answer)
 
 mkInitialDatabase :: IO Database
 mkInitialDatabase = return $ Map.empty
 
 setAnswer :: QuestionTag -> Answer -> Database -> Database
-setAnswer questionTag answer = Map.insert questionTag answer 
+setAnswer questionTag answer = Map.insert questionTag $ Just answer 
+
+clearAnswer :: QuestionTag -> Database -> Database
+clearAnswer questionTag = Map.insert questionTag Nothing 
