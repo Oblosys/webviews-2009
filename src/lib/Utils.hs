@@ -11,26 +11,26 @@ import HtmlLib
 
 getRootView :: SessionStateRef db -> IO (WebView db)
 getRootView sessionStateRef =
- do { (_, _, _, rootView, _, _) <- readIORef sessionStateRef
-    ; return rootView
+ do { sessionState <- readIORef sessionStateRef
+    ; return $ getSStateRootView sessionState
     }
  
 setRootView :: SessionStateRef db -> WebView db -> IO ()
 setRootView sessionStateRef rootView =
- do { (sessionId, user, db, _, pendingEdit, hashArgs) <- readIORef sessionStateRef
-    ; writeIORef sessionStateRef (sessionId, user, db, rootView, pendingEdit, hashArgs)
+ do { sessionState <- readIORef sessionStateRef
+    ; writeIORef sessionStateRef sessionState{ getSStateRootView = rootView }
     }
 
 getSessionHashArgs :: SessionStateRef db -> IO HashArgs
 getSessionHashArgs sessionStateRef =
- do { (_, _, _, _, _, hashArgs) <- readIORef sessionStateRef
-    ; return hashArgs
+ do { sessionState <- readIORef sessionStateRef
+    ; return $ getSStateHashArgs sessionState
     }
  
 setSessionHashArgs :: SessionStateRef db -> HashArgs -> IO ()
 setSessionHashArgs sessionStateRef hashArgs =
- do { (sessionId, user, db, rootView, pendingEdit, _) <- readIORef sessionStateRef
-    ; writeIORef sessionStateRef (sessionId, user, db, rootView, pendingEdit, hashArgs)
+ do { sessionState <- readIORef sessionStateRef
+    ; writeIORef sessionStateRef sessionState{ getSStateHashArgs = hashArgs }
     }
 
 

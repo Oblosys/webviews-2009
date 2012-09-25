@@ -604,10 +604,10 @@ f <$> x = pure f <*> x
 -- WebViewState
 
 data WebViewState db = 
-  WebViewState { getStateUser :: User, getStateDb :: db, getStateViewMap :: (ViewMap db) 
-               , getStatePath :: [Int], getStateViewIdCounter :: Int 
-               , getStateSessionId :: SessionId -- not sure we really need the session ID here, but it doesn't do any harm
-               , getStateHashArgs :: HashArgs
+  WebViewState { getWVStateUser :: User, getWVStateDb :: db, getWVStateViewMap :: (ViewMap db) 
+               , getWVStatePath :: [Int], getWVStateViewIdCounter :: Int 
+               , getWVStateSessionId :: SessionId -- not sure we really need the session ID here, but it doesn't do any harm
+               , getWVStateHashArgs :: HashArgs
                } deriving (Typeable, Data)
 
 type WebViewM db a = StateT (WebViewState db) IO a
@@ -615,8 +615,13 @@ type WebViewM db a = StateT (WebViewState db) IO a
 
 type SessionId = Int
 
-type SessionState db = (SessionId, User, db, WebView db, Maybe (EditCommand db), HashArgs) 
-                     --(sessionId, user, db, rootView,   pendingEdit,            hashArgs)
+data SessionState db = SessionState { getSStateSessionId :: SessionId
+                                    , getSStateUser :: User
+                                    , getSStateDb :: db
+                                    , getSStateRootView :: WebView db
+                                    , getSStatePendingEdit :: Maybe (EditCommand db)
+                                    , getSStateHashArgs :: HashArgs
+                                    } deriving (Typeable, Data) 
                      
 type SessionStateRef db = IORef (SessionState db)
 
