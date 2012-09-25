@@ -239,7 +239,9 @@ viewEdit vid viewUpdate =
           wv' = webViewUpdate wv
           rootView' = replaceWebViewById vid wv' $ getSStateRootView sessionState 
                           
-    ; put sessionState{getSStateDb = save rootView' (getSStateDb sessionState)}
+    ; put sessionState{ getSStateDb = save rootView' (getSStateDb sessionState)
+                      , getSStateRootView = rootView'
+                      }
     }
 
 -- TODO save automatically, or maybe require explicit save? (after several view updates)
