@@ -59,7 +59,7 @@ mkCommentView commentId new = mkWebView $ \vid (CommentView _ edited' _ _ _ _ _ 
                            else Nothing
     ; removeAction <- mkLinkView "Remove" 
                         (ConfirmEdit ("Are you sure you want to remove this comment?") $ 
-                          Edit $ docEdit $ removeComment commentId)
+                          Edit $ modifyDb $ removeComment commentId)
     ; let mRemoveAction = if userIsAuthorized author user 
                           then Just removeAction
                           else Nothing
@@ -133,7 +133,7 @@ mkPigView parentViewId pignr pigId@(PigId pigInt) viewedPig = mkWebView $
                          viewStateT nameT [rv1, rv2, rv3] diagnosis
       }
  where removePigAlsoFromVisit pid vid =
-         Edit $ docEdit $ removePig pid . updateVisit vid (\v -> v { pigs = delete pid $ pigs v } )  
+         Edit $ modifyDb $ removePig pid . updateVisit vid (\v -> v { pigs = delete pid $ pigs v } )  
        
        imageUrl s0 = "pig"++pigColor s0++pigDirection++".png" 
        pigColor s0 = if s0 == 1 then "Grey" else ""
@@ -202,7 +202,7 @@ mkVisitView i = mkWebView $
  where -- next and previous may cause out of bounds, but on reload, this is constrained
        previous vi = Edit $ viewEdit vi $ modifyViewedPig decrease
        next vi = Edit $ viewEdit vi $ modifyViewedPig increase
-       addPig i = Edit $ docEdit $ addNewPig i 
+       addPig i = Edit $ modifyDb $ addNewPig i 
       
 addNewPig vid db = let ((Pig newPigId _ _ _ _), db') = newPig vid db      
                    in  (updateVisit vid $ \v -> v { pigs = pigs v ++ [newPigId] }) db'
@@ -249,7 +249,7 @@ mkVisitsView = mkWebView $
      ; addB    <- mkButton "Add"      True                                $ addNewVisit today
      ; removeB <- mkButton "Remove" (not $ null visits) $
                     ConfirmEdit ("Are you sure you want to remove this visit?") $ 
-                      Edit $ docEdit $ removeVisit (visitIds !! viewedVisit)
+                      Edit $ modifyDb $ removeVisit (visitIds !! viewedVisit)
                   
      ; let selectionEdits = [ selectVisit vid v | v <- [0..length visits - 1 ] ]
                                     
@@ -291,7 +291,7 @@ mkVisitsView = mkWebView $
  where prev vid = Edit $ viewEdit vid $ modifyViewedVisit decrease
        next vid = Edit $ viewEdit vid $ modifyViewedVisit increase
        
-       addNewVisit today = Edit $ docEdit $ \db -> let ((Visit nvid _ _ _),db') = newVisit db 
+       addNewVisit today = Edit $ modifyDb $ \db -> let ((Visit nvid _ _ _),db') = newVisit db 
                                                    in  updateVisit nvid (\v -> v {date = today}) db' 
        selectVisit vi v = viewEdit vi $ modifyViewedVisit (const v)
 
@@ -303,7 +303,7 @@ mkVisitsView = mkWebView $
             }
          
        addComment login today = 
-         Edit $ docEdit $ \db -> let ((Comment ncid _ _ _), db') = newComment db
+         Edit $ modifyDb $ \db -> let ((Comment ncid _ _ _), db') = newComment db
                           in  updateComment ncid (\v -> v { commentAuthor = login
                                                           , commentDate = today}) db'
 

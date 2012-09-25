@@ -178,7 +178,7 @@ deriveMapWebViewDb ''Database ''ButtonAnswerView
 mkButtonAnswerView :: ButtonAnswer -> WebViewM Database (WebView Database)
 mkButtonAnswerView b@(ButtonAnswer questionTag answers) = mkWebView $
   \vid (ButtonAnswerView _ buttonsold) ->
-    do { buttons <- mkSelectionViews answers $ \(_,str) -> docEdit $ setAnswer questionTag str
+    do { buttons <- mkSelectionViews answers $ \(_,str) -> modifyDb $ setAnswer questionTag str
        -- because we cannot access webview fields like widget values (because of existentials) we cannot
        -- query the webview in Storeable and put the setAnswer in an edit command instead.
        ; return $ ButtonAnswerView b buttons
@@ -258,7 +258,7 @@ mkFormView form = mkWebView $
        ; db <- getDb
        ; let isComplete = all isJust $ Map.elems db
        ; sendButton <- mkButton "Opsturen" isComplete $ Edit $
-          do { db <- getDb'
+          do { db <- getDb
              ; liftIO $ putStrLn $ "Sending answers:\n"++show db
              }
        ; return $ FormView isComplete sendButton formElts

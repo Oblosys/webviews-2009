@@ -636,3 +636,37 @@ type HashArgs = [(String,String)]
   
 type RootViews db = [ (String, WebViewM db (WebView db)) ]
 -- for keeping track of the root webviews
+
+-- A class for state types that contain the database. Allows us to use the same functions in the WebViewM and EditM monads.
+class HasDb state db where
+  getStateDb :: state db -> db
+  setStateDb :: db -> state db -> state db
+  modifyStateDb :: (db -> db) -> state db -> state db
+  
+instance HasDb SessionState db where
+  getStateDb sessionState = getSStateDb sessionState
+  setStateDb db sessionState = sessionState{ getSStateDb = db }
+  modifyStateDb f sessionState = sessionState{ getSStateDb = f $ getSStateDb sessionState }
+
+instance HasDb WebViewState db where
+  getStateDb wvState = getWVStateDb wvState
+  setStateDb db wvState = wvState{ getWVStateDb = db }
+  modifyStateDb f wvState = wvState{ getWVStateDb = getWVStateDb wvState }
+  
+
+-- getDb :: WebViewM db db
+-- getDb :: EditM db db
+getDb :: (HasDb state db, Functor m, Monad m) => StateT (state db) m db
+getDb = fmap getStateDb get
+
+-- withDb :: (db -> a) -> WebViewM db a
+-- withDb :: (db -> a) -> EditM db a
+withDb :: (HasDb state db, Functor m, Monad m) => (db -> a) -> StateT (state db) m a
+withDb f = fmap (f . getStateDb) $ get
+
+-- modifyDb :: (db -> db) -> WebViewM db ()
+-- modifyDb :: (db -> db) -> EditM db ()
+modifyDb :: (HasDb state db, Functor m, Monad m) => (db -> db) -> StateT (state db) m ()
+modifyDb f = modify (modifyStateDb f)
+
+ 

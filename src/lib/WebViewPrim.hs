@@ -65,9 +65,6 @@ runWebView user db viewMap path viewIdCounter sessionId args wvm =
     ; return $ assignIds rv
     }
 
-withDb :: (db -> a) -> WebViewM db a
-withDb f = fmap (f . getWVStateDb) $ get
-
 getUser :: WebViewM db User 
 getUser = fmap getWVStateUser $ get
 
@@ -232,13 +229,6 @@ mkTestView v = mkView $
 
 
 --- Edit Monad
-
-
-docEdit :: (db -> db) -> EditM db ()
-docEdit docUpdate =
- do { sessionState <- get
-    ; put sessionState{getSStateDb = docUpdate $ getSStateDb sessionState}
-    }
 
 viewEdit :: (Typeable db, Data db, Data v) => ViewId -> (v -> v) -> EditM db ()
 viewEdit vid viewUpdate =

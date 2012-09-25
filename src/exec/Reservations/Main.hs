@@ -489,7 +489,7 @@ instance Initial ReservationView where
 mkReservationView restaurantViewId = mkWebViewT $
  \vid (ReservationView _ _ _) ->
   do { removeButton <- mkButton "x" True $ Edit $ return ()
-     ; removeAction <- mkEditActionEx $ \[reservationId] -> Edit $ docEdit $ removeReservation $ read reservationId  
+     ; removeAction <- mkEditActionEx $ \[reservationId] -> Edit $ modifyDb $ removeReservation $ read reservationId  
      ; return $ ReservationView removeButton removeAction $ jsScript 
          [ jsFunction vid "load" [] $ 
            let selRes = jsVar restaurantViewId "selectedReservationObj"

@@ -107,7 +107,7 @@ mkClientView = mkWebViewT $
                    ; let time = read timeStr
                    ; debugLn $ "time "++show time
                    
-                   ; docEdit $ \db -> 
+                   ; modifyDb $ \db -> 
                         let (Reservation rid _ _ _ _ _, db') = newReservation db
                             db'' = updateReservation rid (const $ Reservation rid date time nameStr nrOfPeople commentStr) db
                         in  db''

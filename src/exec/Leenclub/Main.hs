@@ -157,11 +157,11 @@ mkItemView inline item = mkWebView $
            (Nothing, Nothing)         -> mkButton "Leen" False $ Edit $ return () 
            (Nothing, Just (userId,_)) | get itemOwner item == LenderId userId -> mkButton "Lenen" False $ Edit $ return ()
                                       | otherwise                         -> 
-             mkButton "Lenen" True  $ Edit $ docEdit $ \db -> 
+             mkButton "Lenen" True  $ Edit $ modifyDb $ \db -> 
                let items' = Map.update (\i -> Just $ set itemBorrowed (Just $ LenderId userId) item) (get itemId item) (get allItems db) 
                in  set allItems  items' db
            (Just borrowerId,_) -> 
-             mkButton "Terug ontvangen" True  $ Edit $ docEdit $ \db -> 
+             mkButton "Terug ontvangen" True  $ Edit $ modifyDb $ \db -> 
                let items' = Map.update (\i -> Just $ set itemBorrowed Nothing item) (get itemId item) (get allItems db) 
                in  set allItems items' db
            
@@ -176,11 +176,11 @@ mkItemView inline item = mkWebView $
        ; props <- (if inline == Inline then getInlineCategoryProps else getFullCategoryProps) vid (isJust mEdited) item $ get itemCategory item
        
        ; buttons <- if False {- isInline inline -} then return [] else
-          do { deleteButton <- mkButton "Verwijderen" True $ Edit $ docEdit $ deleteItem item
+          do { deleteButton <- mkButton "Verwijderen" True $ Edit $ modifyDb $ deleteItem item
              ; editButton <- mkButton (maybe "Aanpassen" (const "Gereed") mEdited) True $
                  Edit $ case mEdited of
                           Nothing            -> viewEdit vid $ set mEditedItem (Just item)
-                          Just updatedItem -> do { docEdit $ updateItem (get itemId updatedItem) $ \item -> updatedItem
+                          Just updatedItem -> do { modifyDb $ updateItem (get itemId updatedItem) $ \item -> updatedItem
                                                  ; viewEdit vid $ set mEditedItem Nothing
                                                  ; liftIO $ putStrLn $ "updating item \n" ++ show updatedItem
                                                  }
@@ -406,7 +406,7 @@ mkLenderView inline lender = mkWebView $
              ; editButton <- mkButton (maybe "Aanpassen" (const "Gereed") mEdited) (lenderIsUser lender mUser) $
                  Edit $ case mEdited of
                           Nothing            -> viewEdit vid $ set mEditedLender (Just lender)
-                          Just updatedLender -> do { docEdit $ updateLender (get lenderId updatedLender) $ \lender -> updatedLender
+                          Just updatedLender -> do { modifyDb $ updateLender (get lenderId updatedLender) $ \lender -> updatedLender
                                                    ; viewEdit vid $ set mEditedLender Nothing
                                                    ; liftIO $ putStrLn $ "updating lender\n" ++ show updatedLender
                                                    }
@@ -420,7 +420,7 @@ mkLenderView inline lender = mkWebView $
        }
 
 mkAddButton :: Item -> WebViewM Database (Widget (Button Database))
-mkAddButton item = mkButton (getItemCategoryName item) True $ Edit $ docEdit $ insertAsNewItem item
+mkAddButton item = mkButton (getItemCategoryName item) True $ Edit $ modifyDb $ insertAsNewItem item
   
 
 lenderIsUser lender Nothing          = False
