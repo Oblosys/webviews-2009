@@ -167,7 +167,7 @@ Executable webforms
   else
     buildable:  False
 
- Executable leenclub
+Executable leenclub
   Main-is:    Main.hs 
   Build-Depends:  WebViews,
                   base >=4.5 && <4.6,
@@ -203,7 +203,7 @@ Executable webforms
   else
     buildable:  False
 
-  Executable importer
+Executable importer
   Main-is:    Importer.hs 
   Build-Depends:  
                   WebViews,
