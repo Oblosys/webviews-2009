@@ -651,7 +651,7 @@ instance HasDb SessionState db where
 instance HasDb WebViewState db where
   getStateDb wvState = getWVStateDb wvState
   setStateDb db wvState = wvState{ getWVStateDb = db }
-  modifyStateDb f wvState = wvState{ getWVStateDb = getWVStateDb wvState }
+  modifyStateDb f wvState = wvState{ getWVStateDb = f $ getWVStateDb wvState }
   
 
 -- getDb :: WebViewM db db
