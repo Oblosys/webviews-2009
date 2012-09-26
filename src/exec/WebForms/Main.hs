@@ -8,6 +8,7 @@ import Data.Generics
 import Data.Char hiding (Space)
 import Data.Function (on)
 import Data.Maybe
+import Data.List
 import Data.Map (Map)
 import qualified Data.Map as Map 
 import Data.IntMap (IntMap)
@@ -36,19 +37,19 @@ import WebFormUtils
 type WebForm = [FormElt]
 
 data FormElt = HtmlElt String
-             | RadioAnswerElt RadioAnswer
+             | RadioAnswerElt  RadioAnswer
              | ButtonAnswerElt ButtonAnswer
-             | TextAnswerElt TextAnswer
+             | TextAnswerElt   TextAnswer
              | TableElt [[FormElt]]
    deriving (Eq, Show, Typeable, Data)
 
-data RadioAnswer = RadioAnswer QuestionTag [String]
+data RadioAnswer = RadioAnswer { getRadioQuestionTag :: QuestionTag, getRadioAnswers :: [String] }
    deriving (Eq, Show, Typeable, Data)
 
-data ButtonAnswer = ButtonAnswer QuestionTag [String]
+data ButtonAnswer = ButtonAnswer { getButtonQuestionTag :: QuestionTag, getButtonAnswers :: [String] }
    deriving (Eq, Show, Typeable, Data)
 
-data TextAnswer = TextAnswer QuestionTag
+data TextAnswer = TextAnswer { getTextQuestionTag :: QuestionTag }
    deriving (Eq, Show, Typeable, Data)
 
 deriveInitial ''FormElt
@@ -85,7 +86,7 @@ testForm = [ TableElt $
                                , collegas2 = "Enthousiast"
                                , beloning1 = "Tijdbesparing"
                                , beloning2 = "Minder kans op fouten"
-                               } ++ 
+                               } {- ++ 
            [ HtmlElt "<br/><br/>" ] ++ 
            mkVignette Vignette { nummer = 2
                                , omschr1 = "Een app waarmee u snel kunt zien welke medicijnen met elkaar interacteren"
@@ -101,6 +102,7 @@ testForm = [ TableElt $
                                , beloning1 = "Minder kans op fouten"
                                , beloning2 = "Niet meer zeulen met dossiers"
                                }
+-}
 
 data Vignette = Vignette { nummer :: Int
                          , omschr1, omschr2, uitproberen1, uitproberen2, klaar1, klaar2, succes1, succes2
@@ -143,9 +145,9 @@ deriveInitial ''SelectableView
 deriveMapWebViewDb ''Database ''SelectableView
 
 
-mkSelectableView :: [ViewId] -> String -> EditM Database () -> WebViewM Database (WebView Database)
-mkSelectableView allSelectableVids str clickCommand = mkWebView $
-  \vid (SelectableView selected _ _) ->
+mkSelectableView :: [ViewId] -> String -> Bool -> EditM Database () -> WebViewM Database (WebView Database)
+mkSelectableView allSelectableVids str selected clickCommand = mkWebView $
+  \vid (SelectableView _ _ _) ->
     do { clickAction <- mkEditAction $ Edit $ do { sequence_ [ viewEdit v $ \(SelectableView _ str ca) ->
                                                                               SelectableView (vid == v) str ca
                                                              | v <- allSelectableVids
@@ -166,9 +168,9 @@ instance Presentable SelectableView where
 instance Storeable Database SelectableView
   
 -- TODO: can make this more general by providing a list of (EditM db ()) for each button
-mkSelectionViews :: [String] -> ((Int,String) -> EditM Database ()) -> WebViewM Database [WebView Database]
-mkSelectionViews strs clickActionF =
- do { rec { wvs <- sequence [ mkSelectableView vids str $ clickActionF (i,str)  
+mkSelectionViews :: [String] -> [String] -> ((Int,String) -> EditM Database ()) -> WebViewM Database [WebView Database]
+mkSelectionViews strs selectedStrs clickActionF =
+ do { rec { wvs <- sequence [ mkSelectableView vids str (str `elem` selectedStrs) $ clickActionF (i,str)  
                             | (i,str) <- zip [0..] strs
                             ]
           ; let vids = map getViewId wvs
@@ -184,9 +186,14 @@ deriveInitial ''RadioAnswerView
 deriveMapWebViewDb ''Database ''RadioAnswerView
 
 mkRadioAnswerView :: RadioAnswer -> WebViewM Database (WebView Database)
-mkRadioAnswerView r@(RadioAnswer _ answers) = mkWebView $
+mkRadioAnswerView r@(RadioAnswer questionTag answers) = mkWebView $
   \vid (RadioAnswerView _ radioOld) ->
-    do { radio <-  mkRadioView answers (getSelection radioOld) True 
+    do { db <- getDb
+       ; selection <- case unsafeLookup "mkRadioAnswerView" questionTag db of
+                        Nothing    -> return $ -1
+                        (Just str) -> return $ fromMaybe (-1) $ elemIndex str answers
+
+       ; radio <-  mkRadioView answers selection True 
     
        ; return $ RadioAnswerView r radio
        }
@@ -197,7 +204,9 @@ instance Presentable RadioAnswerView where
 
 instance Storeable Database RadioAnswerView where
   save (RadioAnswerView (RadioAnswer questionTag answers) radio) =
-    setAnswer questionTag $ answers !! getSelection radio -- todo: unsafe
+    if getSelection radio == -1
+    then clearAnswer questionTag 
+    else setAnswer questionTag $ answers !! getSelection radio -- todo: unsafe
 
 
 data ButtonAnswerView = ButtonAnswerView ButtonAnswer [WebView Database]
@@ -210,7 +219,12 @@ deriveMapWebViewDb ''Database ''ButtonAnswerView
 mkButtonAnswerView :: ButtonAnswer -> WebViewM Database (WebView Database)
 mkButtonAnswerView b@(ButtonAnswer questionTag answers) = mkWebView $
   \vid (ButtonAnswerView _ buttonsold) ->
-    do { buttons <- mkSelectionViews answers $ \(_,str) -> modifyDb $ setAnswer questionTag str
+    do { db <- getDb
+       ; selectedStrs <- case unsafeLookup "mkButtonAnswerView" questionTag db of
+                  Nothing    -> return []
+                  (Just str) -> return [str]
+       
+       ; buttons <- mkSelectionViews answers selectedStrs $ \(_,str) -> modifyDb $ setAnswer questionTag str
        -- because we cannot access webview fields like widget values (because of existentials) we cannot
        -- query the webview in Storeable and put the setAnswer in an edit command instead.
        ; return $ ButtonAnswerView b buttons
@@ -230,18 +244,17 @@ deriveInitial ''TextAnswerView
 deriveMapWebViewDb ''Database ''TextAnswerView
 
 mkTextAnswerView :: TextAnswer -> WebViewM Database (WebView Database)
-mkTextAnswerView t = mkWebView $
-  \vid (TextAnswerView (TextAnswer questionTag) textfield) ->
+mkTextAnswerView t@(TextAnswer questionTag) = mkWebView $
+  \vid (TextAnswerView _ textfield) ->
     do { db <- getDb
-                                 
-       ; str <- case Map.lookup questionTag db of
-                  Nothing  -> do { modifyDb $ Map.insert questionTag Nothing
-                                 ; return ""
-                                 }
-                  Just Nothing    -> return ""
-                  Just (Just str) -> return str  
-       ; --if getStrVal textfield == "" then Nothing else Just $ getStrVal textfield
+       ; str <- case unsafeLookup "mkTextAnswerView" questionTag db of
+                  Nothing    -> return ""
+                  (Just str) -> return str  
+       ; db <- getDb
+       ; liftIO $ putStrLn $ "Db: "++show db
+       
        ; text <-  mkTextField str 
+
        ; return $ TextAnswerView t text
        }
 
@@ -276,7 +289,7 @@ instance Storeable Database TableView
 
 
 data FormView = 
-  FormView Bool (Widget (Button Database)) [WebView Database]
+  FormView Bool (Widget (Button Database)) (Widget (Button Database)) [WebView Database]
     deriving (Eq, Show, Typeable, Data)
 
 deriveInitial ''FormView
@@ -286,30 +299,49 @@ deriveMapWebViewDb ''Database ''FormView
 mkFormView :: WebForm -> WebViewM Database (WebView Database)
 mkFormView form = mkWebView $
   \vid _ ->
-    do { formElts <- mapM mkView form
+    do { modifyDb $ initializeDb form
+       ; formElts <- mapM mkView form
        ; db <- getDb
+       ; liftIO $ putStrLn $ "Db is "++show db
        ; let isComplete = all isJust $ Map.elems db
        ; sendButton <- mkButton "Opsturen" isComplete $ Edit $
           do { db <- getDb
              ; liftIO $ putStrLn $ "Sending answers:\n"++show db
              }
-       ; return $ FormView isComplete sendButton formElts
+       ; clearButton <- mkButton "Opnieuw" True $ Edit $ modifyDb $ \db -> Map.empty
+       ; return $ FormView isComplete sendButton clearButton formElts
        }
 
 instance Presentable FormView where
-  present (FormView isComplete sendButton wvs) =
+  present (FormView isComplete sendButton clearButton wvs) =
     mkPage [thestyle "background: url('img/noise.png') repeat scroll center top transparent; min-height: 100%; font-family: Geneva"] $
       with [thestyle "background: white; width:1000px; margin: 10px; padding: 10px"] $
-        vList $ map present wvs ++ [present sendButton]
+        vList $ map present wvs ++ [present sendButton, present clearButton]
 
 instance Storeable Database FormView
 
+-- Initialize the database by putting a Nothing for each answer. (so completeness == absence of Nothings)  
+initializeDb :: WebForm -> Database -> Database
+initializeDb webForm = compose $ map initializeDbFormElt webForm
 
+initializeDbFormElt (RadioAnswerElt r)  = initializeDbQuestion $ getRadioQuestionTag r
+initializeDbFormElt (ButtonAnswerElt b) = initializeDbQuestion $ getButtonQuestionTag b
+initializeDbFormElt (TextAnswerElt t)   = initializeDbQuestion $ getTextQuestionTag t
+initializeDbFormElt (HtmlElt html) = id
+initializeDbFormElt (TableElt rows) = compose $ concatMap (map initializeDbFormElt) rows
 
+compose :: [(a->a)] -> a -> a
+compose = foldl (.) id
+
+initializeDbQuestion :: QuestionTag -> Database -> Database
+initializeDbQuestion questionTag db = case Map.lookup questionTag db of
+                                        Nothing  -> Map.insert questionTag Nothing db
+                                        Just _   -> db
+                            
 mkView :: FormElt -> WebViewM Database (WebView Database)
 mkView (RadioAnswerElt r) = mkRadioAnswerView r
-mkView (ButtonAnswerElt r) = mkButtonAnswerView r
-mkView (TextAnswerElt r) = mkTextAnswerView r
+mkView (ButtonAnswerElt b) = mkButtonAnswerView b
+mkView (TextAnswerElt t) = mkTextAnswerView t
 mkView (HtmlElt html) = mkHtmlView html
 mkView (TableElt rows) = do { wvs <- mapM (mapM mkView) rows
                             ; mkTableView wvs
