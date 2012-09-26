@@ -405,7 +405,7 @@ instance Presentable FormPageView where
 instance Storeable Database FormPageView
 
 data FormView = 
-  FormView Bool (Widget (Button Database)) (Widget (Button Database)) [WebView Database]
+  FormView Bool Int (Widget (Button Database)) (Widget (Button Database)) (Widget (Button Database)) (Widget (Button Database)) (WebView Database)
     deriving (Eq, Show, Typeable, Data)
 
 deriveInitial ''FormView
@@ -414,10 +414,10 @@ deriveMapWebViewDb ''Database ''FormView
 
 mkFormView :: WebForm -> WebViewM Database (WebView Database)
 mkFormView form@(Form pages) = mkWebView $
-  \vid _ ->
+  \vid (FormView _ currentPage _ _ _ _ _) ->
     do { modifyDb $ initializeDb form
        
-       ; pageViews <- mapM mkFormPageView pages
+       ; pageView <- mkFormPageView $ pages!!currentPage
        ; db <- getDb
        ; liftIO $ putStrLn $ "Db is "++show db
        ; let isComplete = all isJust $ Map.elems db
@@ -426,14 +426,19 @@ mkFormView form@(Form pages) = mkWebView $
              ; liftIO $ putStrLn $ "Sending answers:\n"++show db
              }
        ; clearButton <- mkButton "Opnieuw" True $ Edit $ modifyDb $ \db -> Map.empty
-       ; return $ FormView isComplete sendButton clearButton pageViews
+       ; prevButton <- mkButton "Vorige" (currentPage/=0) $ Edit $ viewEdit vid $ \(FormView a p c d e f g) -> FormView a (p-1) c d e f g
+       ; nextButton <- mkButton "Volgende" (currentPage < length pages - 1)  $ Edit $ viewEdit vid $ \(FormView a p c d e f g) -> FormView a (p+1) c d e f g
+       ; return $ FormView isComplete currentPage prevButton nextButton sendButton clearButton pageView
        }
 
 instance Presentable FormView where
-  present (FormView isComplete sendButton clearButton wvs) =
+  present (FormView isComplete currentPage prevButton nextButton sendButton clearButton wv) =
     mkPage [thestyle "background: url('img/noise.png') repeat scroll center top transparent; min-height: 100%; font-family: Geneva"] $
       with [thestyle "background: white; width:1000px; margin: 10px; padding: 10px"] $
-        vList $ map present wvs ++ [present sendButton, present clearButton]
+        vList $ present wv : 
+               [ hList [ present prevButton, toHtml $ "Pagina "++show (currentPage+1), present nextButton ] 
+               , present sendButton
+               , present clearButton]
 
 instance Storeable Database FormView
 
