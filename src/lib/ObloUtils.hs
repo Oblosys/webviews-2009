@@ -16,7 +16,7 @@ readMaybe str = case reads str of
 unsafeRead :: Read a => String -> String -> a
 unsafeRead tag str = fromMaybe (error $ "Unsafe read tagged \""++tag++"\" on "++ show str ) $ readMaybe str
 
-unsafeLookup tag map key = 
+unsafeLookup tag key map = 
   Map.findWithDefault
     (error $ "Unsafe lookup tagged \""++tag++"\" element "++ show key ++ " not found in " ++ show map) key map
 
