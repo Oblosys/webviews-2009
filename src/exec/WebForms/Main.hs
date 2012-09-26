@@ -34,16 +34,21 @@ import WebFormUtils
 
 -- WebForm data types
 
+-- TODO: the question tags are more answer tags
 type WebForm = [FormElt]
 
 data FormElt = HtmlElt String
              | RadioAnswerElt  RadioAnswer
+             | RadioTextAnswerElt  RadioTextAnswer
              | ButtonAnswerElt ButtonAnswer
              | TextAnswerElt   TextAnswer
              | TableElt [[FormElt]]
    deriving (Eq, Show, Typeable, Data)
 
 data RadioAnswer = RadioAnswer { getRadioQuestionTag :: QuestionTag, getRadioAnswers :: [String] }
+   deriving (Eq, Show, Typeable, Data)
+
+data RadioTextAnswer = RadioTextAnswer { getRadioTextRadioQuestionTag :: QuestionTag, getRadioTextTextQuestionTag :: QuestionTag, getRadioTextAnswers :: [String] }
    deriving (Eq, Show, Typeable, Data)
 
 data ButtonAnswer = ButtonAnswer { getButtonQuestionTag :: QuestionTag, getButtonAnswers :: [String] }
@@ -58,6 +63,9 @@ instance MapWebView Database FormElt
 deriveInitial ''RadioAnswer
 instance MapWebView Database RadioAnswer
 
+deriveInitial ''RadioTextAnswer
+instance MapWebView Database RadioTextAnswer
+
 deriveInitial ''ButtonAnswer
 instance MapWebView Database ButtonAnswer
 
@@ -69,9 +77,16 @@ instance MapWebView Database TextAnswer
 -- Form instance declaration
 
 testForm = [ TableElt $
-              [ [ HtmlElt "Leeftijd", TextAnswerElt $ TextAnswer "age"]
-              , [ HtmlElt "Geslacht", ButtonAnswerElt $ ButtonAnswer "gender" ["Man", "Vrouw"]]
-              , [ HtmlElt "App is leuk",       RadioAnswerElt $ RadioAnswer "nice" ["Ja","Nee"]]
+              [ [ HtmlElt "Wat is uw leeftijd?", TextAnswerElt $ TextAnswer "age"]
+              , [ HtmlElt "Wat is uw geslacht?", ButtonAnswerElt $ ButtonAnswer "gender" ["Man", "Vrouw"]]
+              , [ HtmlElt "In welke functie bent u momenteel werkzaam?", RadioTextAnswerElt $ RadioTextAnswer "functie" "functieAnders" 
+                                                                                            [ "Activiteitenbegeleider"
+                                                                                            , "Groepsbegeleider"
+                                                                                            , "Helpende gezondheidszorg"
+                                                                                            , "Verpleeghulp"
+                                                                                            , "Verpleegkundige"
+                                                                                            , "Verzorgende"
+                                                                                            , "Anders, nl. :" ] ]
               ] ] ++
            mkVignette Vignette { nummer = 1
                                , omschr1 = "Een app waarmee u rapporten mondeling kunt inspreken, die achteraf door andere medewerkers schriftelijk kunnen worden vastgelegd"
@@ -209,6 +224,46 @@ instance Storeable Database RadioAnswerView where
     else setAnswer questionTag $ answers !! getSelection radio -- todo: unsafe
 
 
+-- Similar to Radio, but has a text field that is enabled when the last answer is selected (which will be "other:")
+data RadioTextAnswerView = RadioTextAnswerView RadioTextAnswer (Widget (RadioView Database)) (Widget (TextView Database))
+   deriving (Eq, Show, Typeable, Data)
+
+deriveInitial ''RadioTextAnswerView
+deriveMapWebViewDb ''Database ''RadioTextAnswerView
+
+
+mkRadioTextAnswerView :: RadioTextAnswer -> WebViewM Database (WebView Database)
+mkRadioTextAnswerView r@(RadioTextAnswer radioQuestionTag textQuestionTag answers) = mkWebView $
+  \vid _ ->
+    do { db <- getDb
+       ; selection <- case unsafeLookup "mkRadioTextAnswerView.1" radioQuestionTag db of
+                        Nothing    -> return $ -1
+                        (Just str) -> return $ fromMaybe (-1) $ elemIndex str answers
+
+       ; str <- case unsafeLookup "mkRadioTextAnswerView.2" textQuestionTag db of
+                  Nothing    -> return ""
+                  (Just str) -> return str  
+
+       ; radio <-  mkRadioView answers selection True 
+       ; let isTextAnswerSelected = selection == length answers - 1
+       ; text <- mkTextFieldEx (if isTextAnswerSelected then str else "") isTextAnswerSelected "" Nothing Nothing
+       ; return $ RadioTextAnswerView r radio text
+       }
+
+instance Presentable RadioTextAnswerView where
+  present (RadioTextAnswerView _ radio text) =
+      present radio >> present text
+
+instance Storeable Database RadioTextAnswerView where
+  save (RadioTextAnswerView (RadioTextAnswer radioQuestionTag textQuestionTag answers) radio text) =
+    if getSelection radio == -1 
+    then clearAnswer radioQuestionTag . clearAnswer textQuestionTag
+    else (setAnswer radioQuestionTag $ answers !! getSelection radio) . -- todo: unsafe
+         if getSelection radio < length answers - 1
+         then (setAnswer textQuestionTag "") -- don't clear, because then it counts as not completed 
+         else if getStrVal text == "" then clearAnswer textQuestionTag else setAnswer textQuestionTag $ getStrVal text 
+-- TODO: maybe cache answer?
+
 data ButtonAnswerView = ButtonAnswerView ButtonAnswer [WebView Database]
    deriving (Eq, Show, Typeable, Data)
 
@@ -218,7 +273,7 @@ deriveMapWebViewDb ''Database ''ButtonAnswerView
 
 mkButtonAnswerView :: ButtonAnswer -> WebViewM Database (WebView Database)
 mkButtonAnswerView b@(ButtonAnswer questionTag answers) = mkWebView $
-  \vid (ButtonAnswerView _ buttonsold) ->
+  \vid _ ->
     do { db <- getDb
        ; selectedStrs <- case unsafeLookup "mkButtonAnswerView" questionTag db of
                   Nothing    -> return []
@@ -245,13 +300,11 @@ deriveMapWebViewDb ''Database ''TextAnswerView
 
 mkTextAnswerView :: TextAnswer -> WebViewM Database (WebView Database)
 mkTextAnswerView t@(TextAnswer questionTag) = mkWebView $
-  \vid (TextAnswerView _ textfield) ->
+  \vid _ ->
     do { db <- getDb
        ; str <- case unsafeLookup "mkTextAnswerView" questionTag db of
                   Nothing    -> return ""
                   (Just str) -> return str  
-       ; db <- getDb
-       ; liftIO $ putStrLn $ "Db: "++show db
        
        ; text <-  mkTextField str 
 
@@ -324,9 +377,11 @@ instance Storeable Database FormView
 initializeDb :: WebForm -> Database -> Database
 initializeDb webForm = compose $ map initializeDbFormElt webForm
 
-initializeDbFormElt (RadioAnswerElt r)  = initializeDbQuestion $ getRadioQuestionTag r
-initializeDbFormElt (ButtonAnswerElt b) = initializeDbQuestion $ getButtonQuestionTag b
-initializeDbFormElt (TextAnswerElt t)   = initializeDbQuestion $ getTextQuestionTag t
+initializeDbFormElt (RadioAnswerElt r)     = initializeDbQuestion $ getRadioQuestionTag r
+initializeDbFormElt (RadioTextAnswerElt r) = (initializeDbQuestion $ getRadioTextRadioQuestionTag r) . 
+                                             (initializeDbQuestion $ getRadioTextTextQuestionTag r)
+initializeDbFormElt (ButtonAnswerElt b)    = initializeDbQuestion $ getButtonQuestionTag b
+initializeDbFormElt (TextAnswerElt t)      = initializeDbQuestion $ getTextQuestionTag t
 initializeDbFormElt (HtmlElt html) = id
 initializeDbFormElt (TableElt rows) = compose $ concatMap (map initializeDbFormElt) rows
 
@@ -340,6 +395,7 @@ initializeDbQuestion questionTag db = case Map.lookup questionTag db of
                             
 mkView :: FormElt -> WebViewM Database (WebView Database)
 mkView (RadioAnswerElt r) = mkRadioAnswerView r
+mkView (RadioTextAnswerElt rt) = mkRadioTextAnswerView rt
 mkView (ButtonAnswerElt b) = mkButtonAnswerView b
 mkView (TextAnswerElt t) = mkTextAnswerView t
 mkView (HtmlElt html) = mkHtmlView html
