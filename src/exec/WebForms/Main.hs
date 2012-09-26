@@ -35,7 +35,11 @@ import WebFormUtils
 -- WebForm data types
 
 -- TODO: the question tags are more answer tags
-type WebForm = [FormElt]
+-- TODO: how about using css for table decorations? (add classes for top row, left column, etc.)
+
+data WebForm = Form [FormPage]
+
+data FormPage = Page [FormElt]
 
 data FormElt = HtmlElt String
              | RadioAnswerElt  RadioAnswer
@@ -77,41 +81,47 @@ instance MapWebView Database TextAnswer
 
 -- Form instance declaration
 
-testForm = [ TableElt False False False $
-              [ [ HtmlElt "Wat is uw leeftijd?", TextAnswerElt $ TextAnswer "age"]
-              , [ HtmlElt "Wat is uw geslacht?", ButtonAnswerElt $ ButtonAnswer "gender" ["Man", "Vrouw"]]
-              , [ HtmlElt "In welke functie bent u momenteel werkzaam?", RadioTextAnswerElt $ RadioTextAnswer "functie" "functieAnders" 
-                                                                                            [ "Activiteitenbegeleider"
-                                                                                            , "Groepsbegeleider"
-                                                                                            , "Helpende gezondheidszorg"
-                                                                                            , "Verpleeghulp"
-                                                                                            , "Verpleegkundige"
-                                                                                            , "Verzorgende"
-                                                                                            , "Anders, nl. :" ] ]
-              ]
-           , vSkip 20
-           , TableElt False False False $
-              [ [ HtmlElt "", HtmlElt "Mee eens", HtmlElt "", HtmlElt "Mee oneens" ]
-              , mkScaleQuestion 7 "presteren" "Ik vind het belangrijk om beter te presteren dan mijn collega's"
-              , mkScaleQuestion 7 "angst" "Mijn angst om op mijn werk onder te presteren is vaak wat mij motiveert"
-              , mkScaleQuestion 7 "vermijden" "Ik wil vooral vermijden dat onderpresteer op mijn werk"
-              ] 
-           , vSkip 20
-           ] ++
-           mkVignette Vignette { nummer = 1
-                               , omschr1 = "Een app waarmee u rapporten mondeling kunt inspreken, die achteraf door andere medewerkers schriftelijk kunnen worden vastgelegd"
-                               , omschr2 = "Een app waarmee u snel kunt zien welke medicijnen met elkaar interacteren"
-                               , uitproberen1 = "Mogelijk"
-                               , uitproberen2 = "Niet mogelijk"
-                               , klaar1 = "Onvoldoende"
-                               , klaar2 = "Goed"
-                               , succes1 = "Goed"
-                               , succes2 = "Onvoldoende"
-                               , collegas1 = "Sceptisch"
-                               , collegas2 = "Enthousiast"
-                               , beloning1 = "Tijdbesparing"
-                               , beloning2 = "Minder kans op fouten"
-                               } {- ++ 
+testForm = Form [ persoonsgegevens, stellingen, vignette ]
+
+persoonsgegevens = Page
+  [ TableElt False False False $
+      [ [ HtmlElt "Wat is uw leeftijd?", TextAnswerElt $ TextAnswer "age"]
+      , [ HtmlElt "Wat is uw geslacht?", ButtonAnswerElt $ ButtonAnswer "gender" ["Man", "Vrouw"]]
+      , [ HtmlElt "In welke functie bent u momenteel werkzaam?", RadioTextAnswerElt $ RadioTextAnswer "functie" "functieAnders" 
+                                                                                    [ "Activiteitenbegeleider"
+                                                                                    , "Groepsbegeleider"
+                                                                                    , "Helpende gezondheidszorg"
+                                                                                    , "Verpleeghulp"
+                                                                                    , "Verpleegkundige"
+                                                                                    , "Verzorgende"
+                                                                                    , "Anders, nl. :" ] ]
+      ]
+       ]
+       
+stellingen = Page
+  [ TableElt False False False $
+      [ [ HtmlElt "", HtmlElt "Mee eens", HtmlElt "", HtmlElt "Mee oneens" ]
+      , mkScaleQuestion 7 "presteren" "Ik vind het belangrijk om beter te presteren dan mijn collega's"
+      , mkScaleQuestion 7 "angst" "Mijn angst om op mijn werk onder te presteren is vaak wat mij motiveert"
+      , mkScaleQuestion 7 "vermijden" "Ik wil vooral vermijden dat onderpresteer op mijn werk"
+      ] 
+  ]
+       
+vignette = Page $
+  mkVignette Vignette { nummer = 1
+                      , omschr1 = "Een app waarmee u rapporten mondeling kunt inspreken, die achteraf door andere medewerkers schriftelijk kunnen worden vastgelegd"
+                      , omschr2 = "Een app waarmee u snel kunt zien welke medicijnen met elkaar interacteren"
+                      , uitproberen1 = "Mogelijk"
+                      , uitproberen2 = "Niet mogelijk"
+                      , klaar1 = "Onvoldoende"
+                      , klaar2 = "Goed"
+                      , succes1 = "Goed"
+                      , succes2 = "Onvoldoende"
+                      , collegas1 = "Sceptisch"
+                      , collegas2 = "Enthousiast"
+                      , beloning1 = "Tijdbesparing"
+                      , beloning2 = "Minder kans op fouten"
+                      } {- ++ 
            [ HtmlElt "<br/><br/>" ] ++ 
            mkVignette Vignette { nummer = 2
                                , omschr1 = "Een app waarmee u snel kunt zien welke medicijnen met elkaar interacteren"
@@ -359,6 +369,41 @@ instance Presentable TableView where
 instance Storeable Database TableView
 
 
+mkViewFormElt :: FormElt -> WebViewM Database (WebView Database)
+mkViewFormElt (RadioAnswerElt r) = mkRadioAnswerView r
+mkViewFormElt (RadioTextAnswerElt rt) = mkRadioTextAnswerView rt
+mkViewFormElt (ButtonAnswerElt b) = mkButtonAnswerView b
+mkViewFormElt (TextAnswerElt t) = mkTextAnswerView t
+mkViewFormElt (HtmlElt html) = mkHtmlView html
+mkViewFormElt (TableElt border topHeader leftHeader rows) = 
+  do { wvs <- mapM (mapM mkViewFormElt) rows
+     ; mkTableView border topHeader leftHeader wvs
+     }
+-- TODO: recursion in mkView (Form & FormPage) or separate (TableEtl)
+--       separate may be clearer, but has the weird situation that we get both FormPage and the WebViews
+--       representing the page. Also maybe we don't want to generate all pages but only the current one.
+
+data FormPageView = 
+  FormPageView [WebView Database]
+    deriving (Eq, Show, Typeable, Data)
+
+deriveInitial ''FormPageView
+
+deriveMapWebViewDb ''Database ''FormPageView
+
+mkFormPageView :: FormPage -> WebViewM Database (WebView Database)
+mkFormPageView (Page elts) = mkWebView $
+  \vid _ ->
+    do { pageViews <- mapM mkViewFormElt elts
+       ; return $ FormPageView pageViews
+       }
+
+instance Presentable FormPageView where
+  present (FormPageView wvs) =
+    vList $ map present wvs
+
+instance Storeable Database FormPageView
+
 data FormView = 
   FormView Bool (Widget (Button Database)) (Widget (Button Database)) [WebView Database]
     deriving (Eq, Show, Typeable, Data)
@@ -368,10 +413,11 @@ deriveInitial ''FormView
 deriveMapWebViewDb ''Database ''FormView
 
 mkFormView :: WebForm -> WebViewM Database (WebView Database)
-mkFormView form = mkWebView $
+mkFormView form@(Form pages) = mkWebView $
   \vid _ ->
     do { modifyDb $ initializeDb form
-       ; formElts <- mapM mkView form
+       
+       ; pageViews <- mapM mkFormPageView pages
        ; db <- getDb
        ; liftIO $ putStrLn $ "Db is "++show db
        ; let isComplete = all isJust $ Map.elems db
@@ -380,7 +426,7 @@ mkFormView form = mkWebView $
              ; liftIO $ putStrLn $ "Sending answers:\n"++show db
              }
        ; clearButton <- mkButton "Opnieuw" True $ Edit $ modifyDb $ \db -> Map.empty
-       ; return $ FormView isComplete sendButton clearButton formElts
+       ; return $ FormView isComplete sendButton clearButton pageViews
        }
 
 instance Presentable FormView where
@@ -391,9 +437,13 @@ instance Presentable FormView where
 
 instance Storeable Database FormView
 
+
 -- Initialize the database by putting a Nothing for each answer. (so completeness == absence of Nothings)  
 initializeDb :: WebForm -> Database -> Database
-initializeDb webForm = compose $ map initializeDbFormElt webForm
+initializeDb (Form pages) = compose $ map initializeDbFormPage pages
+
+initializeDbFormPage :: FormPage -> Database -> Database
+initializeDbFormPage (Page elts) = compose $ map initializeDbFormElt elts
 
 initializeDbFormElt (RadioAnswerElt r)     = initializeDbQuestion $ getRadioQuestionTag r
 initializeDbFormElt (RadioTextAnswerElt r) = (initializeDbQuestion $ getRadioTextRadioQuestionTag r) . 
@@ -410,17 +460,7 @@ initializeDbQuestion :: QuestionTag -> Database -> Database
 initializeDbQuestion questionTag db = case Map.lookup questionTag db of
                                         Nothing  -> Map.insert questionTag Nothing db
                                         Just _   -> db
-                            
-mkView :: FormElt -> WebViewM Database (WebView Database)
-mkView (RadioAnswerElt r) = mkRadioAnswerView r
-mkView (RadioTextAnswerElt rt) = mkRadioTextAnswerView rt
-mkView (ButtonAnswerElt b) = mkButtonAnswerView b
-mkView (TextAnswerElt t) = mkTextAnswerView t
-mkView (HtmlElt html) = mkHtmlView html
-mkView (TableElt border topHeader leftHeader rows) = 
-  do { wvs <- mapM (mapM mkView) rows
-     ; mkTableView border topHeader leftHeader wvs
-     }
+
 
 ---- Main (needs to be below all webviews that use deriveInitial)
 
