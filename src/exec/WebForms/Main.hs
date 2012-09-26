@@ -88,7 +88,16 @@ testForm = [ TableElt False False False $
                                                                                             , "Verpleegkundige"
                                                                                             , "Verzorgende"
                                                                                             , "Anders, nl. :" ] ]
-              ] ] ++
+              ]
+           , vSkip 20
+           , TableElt False False False $
+              [ [ HtmlElt "", HtmlElt "Mee eens", HtmlElt "", HtmlElt "Mee oneens" ]
+              , mkScaleQuestion 7 "presteren" "Ik vind het belangrijk om beter te presteren dan mijn collega's"
+              , mkScaleQuestion 7 "angst" "Mijn angst om op mijn werk onder te presteren is vaak wat mij motiveert"
+              , mkScaleQuestion 7 "vermijden" "Ik wil vooral vermijden dat onderpresteer op mijn werk"
+              ] 
+           , vSkip 20
+           ] ++
            mkVignette Vignette { nummer = 1
                                , omschr1 = "Een app waarmee u rapporten mondeling kunt inspreken, die achteraf door andere medewerkers schriftelijk kunnen worden vastgelegd"
                                , omschr2 = "Een app waarmee u snel kunt zien welke medicijnen met elkaar interacteren"
@@ -120,6 +129,10 @@ testForm = [ TableElt False False False $
                                }
 -}
 
+vSkip :: Int -> FormElt
+vSkip height = HtmlElt $ "<div style='height: " ++ show height ++ "px'></div>"
+
+mkScaleQuestion scaleMax tag question = [ HtmlElt question, HtmlElt "", ButtonAnswerElt $ ButtonAnswer tag $ map show [1..scaleMax]]
 data Vignette = Vignette { nummer :: Int
                          , omschr1, omschr2, uitproberen1, uitproberen2, klaar1, klaar2, succes1, succes2
                          , collegas1, collegas2, beloning1, beloning2 :: String
@@ -152,7 +165,7 @@ mkVignette vt =
 
 
 
-------- WebViews
+------- WebViews lib
 
 data SelectableView = SelectableView Bool String (Widget (EditAction Database)) deriving (Eq, Show, Typeable, Data)
 
@@ -176,7 +189,7 @@ mkSelectableView allSelectableVids str selected clickCommand = mkWebView $
 
 instance Presentable SelectableView where
   present (SelectableView selected str clickAction) =
-    let color = if selected then "#0f3" else "white"
+    let color = if selected then "#aaa" else "#eee"
     in  withEditAction clickAction $ with [thestyle $ "background-color: "++color] $ boxed $ toHtml str
 
 
@@ -192,10 +205,11 @@ mkSelectionViews strs selectedStrs clickActionF =
           }
     ; return wvs
     }
+
+------- WebViews form
      
 data RadioAnswerView = RadioAnswerView RadioAnswer (Widget (RadioView Database))
    deriving (Eq, Show, Typeable, Data)
-
 
 deriveInitial ''RadioAnswerView
 deriveMapWebViewDb ''Database ''RadioAnswerView
@@ -287,7 +301,7 @@ mkButtonAnswerView b@(ButtonAnswer questionTag answers) = mkWebView $
 
 instance Presentable ButtonAnswerView where
   present (ButtonAnswerView _ buttons) =
-      hList $ map present buttons
+      hList $ intersperse (hSpace 5) $ map present buttons
 
 instance Storeable Database ButtonAnswerView
 
