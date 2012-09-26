@@ -94,17 +94,17 @@ mkLabelViewWithStyle :: String -> String -> WebViewM db (Widget (LabelView db))
 mkLabelViewWithStyle str style = assignViewId $ \vid -> labelViewWidget vid str style
 
 mkTextField :: String -> WebViewM db (Widget (TextView db))
-mkTextField str = mkTextFieldEx str False "" Nothing Nothing
+mkTextField str = mkTextFieldEx str True "" Nothing Nothing
 
 -- NOTE: don't use width in style: the text field gets width 100%, so an enclosing element can determine its width.
 mkTextFieldWithStyle :: String -> String -> WebViewM db (Widget (TextView db))
-mkTextFieldWithStyle str style = mkTextFieldEx str False style Nothing Nothing
+mkTextFieldWithStyle str style = mkTextFieldEx str True style Nothing Nothing
 
 mkTextFieldAct :: String -> EditCommand db -> WebViewM db (Widget (TextView db))
-mkTextFieldAct str submitAct = mkTextFieldEx str False "" Nothing $ Just submitAct
+mkTextFieldAct str submitAct = mkTextFieldEx str True "" Nothing $ Just submitAct
 
 mkTextFieldWithChange :: String -> (String -> EditCommand db) -> WebViewM db (Widget (TextView db))
-mkTextFieldWithChange str changeAct = mkTextFieldEx str False "" (Just changeAct) Nothing
+mkTextFieldWithChange str changeAct = mkTextFieldEx str True "" (Just changeAct) Nothing
 
 mkTextFieldWithStyleChange :: String -> String -> (String -> EditCommand db) -> WebViewM db (Widget (TextView db))
 mkTextFieldWithStyleChange str style changeAct = mkTextFieldEx str False style (Just changeAct) Nothing
@@ -141,10 +141,10 @@ mkTextArea :: String -> WebViewM db (Widget (TextView db))
 mkTextArea str = mkTextAreaEx str True "" Nothing
 
 mkTextAreaWithStyle :: String -> String -> WebViewM db (Widget (TextView db))
-mkTextAreaWithStyle str stl = mkTextAreaEx str False stl Nothing
+mkTextAreaWithStyle str stl = mkTextAreaEx str True stl Nothing
 
 mkTextAreaWithStyleChange :: String -> String -> (String -> EditCommand db) -> WebViewM db (Widget (TextView db))
-mkTextAreaWithStyleChange str stl changeAct = mkTextAreaEx str False stl $ Just changeAct
+mkTextAreaWithStyleChange str stl changeAct = mkTextAreaEx str True stl $ Just changeAct
 
 mkTextAreaEx :: String -> Bool -> String -> Maybe (String -> EditCommand db) -> WebViewM db (Widget (TextView db))
 mkTextAreaEx str enabled stl mChangeAct = assignViewId $ \vid -> textAreaWidget vid str enabled stl mChangeAct
