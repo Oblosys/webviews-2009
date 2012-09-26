@@ -440,7 +440,7 @@ handleCommand _ users sessionStateRef (SetC viewId value) =
 
     --; putStrLn $ "Updated rootView:\n" ++ show rootView'
     ; response <- case  getAnyWidgetById viewId rootView' :: AnyWidget db of
-        TextWidget (TextView _ _ _ _ (Just fChangeAction) _)         -> performEditCommand users sessionStateRef (fChangeAction value) 
+        TextWidget (TextView _ _ _ _ _ (Just fChangeAction) _)         -> performEditCommand users sessionStateRef (fChangeAction value) 
         RadioViewWidget (RadioView _ _ _ _ _ (Just fChangeAction))   -> performEditCommand users sessionStateRef (fChangeAction $ unsafeRead "Server.handle: radio selection" value) 
         SelectViewWidget (SelectView _ _ _ _ _ (Just fChangeAction)) -> performEditCommand users sessionStateRef (fChangeAction $ unsafeRead "Server.handle: select selection" value) 
         _                                                  -> return ViewUpdate -- Not a widget with an change action
@@ -459,7 +459,7 @@ handleCommand _  users sessionStateRef (ButtonC viewId) =
     }
 handleCommand _ users sessionStateRef (SubmitC viewId) =
  do { SessionState _ user db rootView pendingEdit hashArgs <- readIORef sessionStateRef
-    ; let TextView _ _ txt _ _ mAct = getTextViewByViewId viewId rootView
+    ; let TextView _ _ txt _ _ _ mAct = getTextViewByViewId viewId rootView
     ; putStrLn $ "TextView #" ++ show viewId ++ ":" ++ txt ++ " was submitted"
 
     ; response <- case mAct of 

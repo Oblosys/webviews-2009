@@ -252,9 +252,9 @@ applyUpdatesJSVar updates x@(JSVar i nm _) =
     Nothing -> x
 
 applyUpdatesText :: Updates -> TextView db -> TextView db
-applyUpdatesText updates x@(TextView i h _ st ba ea) =
+applyUpdatesText updates x@(TextView i h _ en st ba ea) =
   case Map.lookup i updates of
-    Just str -> (TextView i h str st ba ea)
+    Just str -> (TextView i h str en st ba ea)
     Nothing -> x
 
 applyUpdatesRadioView :: Updates -> (RadioView db) -> (RadioView db)
@@ -298,7 +298,7 @@ getLabelViewByViewId i view =
 
 getTextViewByViewId :: (Typeable db, Data d) => ViewId -> d -> (TextView db)
 getTextViewByViewId i view = 
-  case listify (\(TextView i' _ _ _ _ _) -> i==i') view of
+  case listify (\(TextView i' _ _ _ _ _ _) -> i==i') view of
     [b] -> b
     []  -> error $ "internal error: no textView with id "++show i
     _   -> error $ "internal error: multiple texts with id "++show i

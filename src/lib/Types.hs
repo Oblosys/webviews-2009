@@ -131,24 +131,25 @@ labelViewWidget viewId txt style = Widget noId noId $ LabelView viewId txt style
 data TextType = TextField | PasswordField | TextArea deriving (Eq, Show, Typeable, Data)
 
 data TextView db = TextView { getTextViewId :: ViewId, getTextType :: TextType, getTextStrVal :: String
-                            , getTextStyle :: String, getTextChange :: Maybe (String -> EditCommand db), getTextSubmit :: Maybe (EditCommand db) } deriving ( Show, Typeable, Data)
+                            , getTextEnabled :: Bool, getTextStyle :: String, getTextChange :: Maybe (String -> EditCommand db), getTextSubmit :: Maybe (EditCommand db) } deriving ( Show, Typeable, Data)
 
 instance Eq (TextView db) where
-  TextView _ t1 str1 style1 _ _ == TextView _ t2 str2 style2 _ _ = t1 == t2 && str1 == str2 && style1 == style2
+  TextView _ t1 str1 enabled1 style1 _ _ == TextView _ t2 str2 enabled2 style2 _ _ =
+    t1 == t2 && enabled1 == enabled2 && str1 == str2 && style1 == style2
   -- note that we don't need to look at the edit actions, since these live only in the Haskell world and have no effect on the html representation.
   
-getStrVal (Widget _ _ (TextView vi h v _ _ _)) = v
+getStrVal (Widget _ _ (TextView vi h v _ _ _ _)) = v
 
-textFieldWidget :: ViewId -> String -> String -> Maybe (String -> EditCommand db) -> Maybe (EditCommand db) -> Widget (TextView db)
-textFieldWidget viewId str style mChangeAction mSubmitAction = Widget noId noId $ TextView viewId TextField str style mChangeAction mSubmitAction
+textFieldWidget :: ViewId -> String -> Bool -> String -> Maybe (String -> EditCommand db) -> Maybe (EditCommand db) -> Widget (TextView db)
+textFieldWidget viewId str enabled style mChangeAction mSubmitAction = Widget noId noId $ TextView viewId TextField str enabled style mChangeAction mSubmitAction
 
-passwordFieldWidget :: ViewId -> String -> String -> Maybe (String -> EditCommand db) -> Maybe (EditCommand db) -> Widget (TextView db)
-passwordFieldWidget viewId str style mChangeAction mSubmitAction = Widget noId noId $ TextView viewId PasswordField str style mChangeAction mSubmitAction
+passwordFieldWidget :: ViewId -> String -> Bool -> String -> Maybe (String -> EditCommand db) -> Maybe (EditCommand db) -> Widget (TextView db)
+passwordFieldWidget viewId str enabled style mChangeAction mSubmitAction = Widget noId noId $ TextView viewId PasswordField str enabled style mChangeAction mSubmitAction
 
-textAreaWidget :: ViewId -> String -> String -> Maybe (String -> EditCommand db) -> Widget (TextView db)
-textAreaWidget viewId str style mChangeAction = Widget noId noId $ TextView viewId TextArea str style mChangeAction Nothing
+textAreaWidget :: ViewId -> String -> Bool -> String -> Maybe (String -> EditCommand db) -> Widget (TextView db)
+textAreaWidget viewId str enabled style mChangeAction = Widget noId noId $ TextView viewId TextArea str enabled style mChangeAction Nothing
 
-strRef (Widget _ _ (TextView (ViewId i) h _ _ _ _)) = ViewIdRef i
+strRef (Widget _ _ (TextView (ViewId i) h _ _ _ _ _)) = ViewIdRef i
 
 
 -- RadioView and SelectView
@@ -458,7 +459,7 @@ instance Initial (LabelView db) where
   initial = LabelView noViewId "" ""
 
 instance Initial (TextView db) where
-  initial = TextView noViewId TextField "" "" Nothing Nothing
+  initial = TextView noViewId TextField "" False "" Nothing Nothing
 
 instance Initial (RadioView db) where
   initial = RadioView noViewId [] 0 False "" Nothing
