@@ -117,13 +117,15 @@ vListEx attrs  elts = simpleTable ([cellpadding "0", cellspacing "0"] ++ attrs) 
 simpleTable :: [HtmlAttr] -> [HtmlAttr] -> [[Html]] -> Html
 simpleTable tableAttrs allCellAttrs rows = mkTable tableAttrs [] allCellAttrs rows 
 
+
 mkTable :: [HtmlAttr] -> [[HtmlAttr]] -> [HtmlAttr] -> [[Html]] -> Html
 mkTable tableAttrs rowAttrss allCellAttrs rows =
-  table!!!tableAttrs $ tbody ! valign "top" $ concatHtml
+  table!!!([cellpadding "0", cellspacing "0"]++tableAttrs) $ tbody ! valign "top" $ concatHtml
     [ tr !!! rowAttrs $ mapM_ (td!!!allCellAttrs) row 
     | (rowAttrs, row) <- zip (rowAttrss++repeat []) rows
     ] -- if no row attrss are given (or not enough), just assume no attrs ([])
 
+-- NOTE: doesn't set cellspacing and cellpadding to 0
 mkTableEx :: [HtmlAttr] -> [[HtmlAttr]] -> [HtmlAttr] -> [[([HtmlAttr],Html)]] -> Html
 mkTableEx tableAttrs rowAttrss allCellAttrs rows =
   table!!!tableAttrs $ tbody ! valign "top" $ concatHtml

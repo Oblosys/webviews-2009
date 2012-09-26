@@ -54,7 +54,7 @@ textfield str = input ! type_ "text" ! name (fromString str)
 password str = input ! type_ "password" ! name (fromString str)
 radio str val = input ! type_ "radio" ! name (fromString str) ! value (fromString val)
 
-table = H.table ! cellpadding "0" ! cellspacing "0"
+table = H.table
 -- TODO
 {-  
 
