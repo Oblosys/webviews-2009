@@ -42,7 +42,8 @@ data FormElt = HtmlElt String
              | RadioTextAnswerElt  RadioTextAnswer
              | ButtonAnswerElt ButtonAnswer
              | TextAnswerElt   TextAnswer
-             | TableElt [[FormElt]]
+             | TableElt Bool Bool Bool [[FormElt]] -- because elts are in other web view, they cannot set the table cell's
+                                                   -- background color, so we need to specify headers explicitly.
    deriving (Eq, Show, Typeable, Data)
 
 data RadioAnswer = RadioAnswer { getRadioQuestionTag :: QuestionTag, getRadioAnswers :: [String] }
@@ -76,7 +77,7 @@ instance MapWebView Database TextAnswer
 
 -- Form instance declaration
 
-testForm = [ TableElt $
+testForm = [ TableElt False False False $
               [ [ HtmlElt "Wat is uw leeftijd?", TextAnswerElt $ TextAnswer "age"]
               , [ HtmlElt "Wat is uw geslacht?", ButtonAnswerElt $ ButtonAnswer "gender" ["Man", "Vrouw"]]
               , [ HtmlElt "In welke functie bent u momenteel werkzaam?", RadioTextAnswerElt $ RadioTextAnswer "functie" "functieAnders" 
@@ -125,29 +126,28 @@ data Vignette = Vignette { nummer :: Int
                          }
 
 mkVignette vt = 
-  [ TableElt $
-    [ [ HtmlElt $ "Vignette "++show (nummer vt), HtmlElt $ greyBg "Situatie 1", HtmlElt $ greyBg "Situatie 2"]
-    , [ HtmlElt $ greyBg "<div style='width:300px; height:100px'>Omschrijving van de app</div>", HtmlElt $ "<div style='width:300px'>"++omschr1 vt++"</div>"
+  [ TableElt True True True $
+    [ [ HtmlElt $ "Vignette "++show (nummer vt), HtmlElt "Situatie 1", HtmlElt "Situatie 2"]
+    , [ HtmlElt "<div style='width:300px; height:100px'>Omschrijving van de app</div>", HtmlElt $ "<div style='width:300px'>"++omschr1 vt++"</div>"
                                          , HtmlElt $ "<div style='width:300px'>"++omschr2 vt++"</div>"]
-    , [ HtmlElt $ greyBg "Uitproberen", HtmlElt $ uitproberen1 vt, HtmlElt $ uitproberen2 vt]
-    , [ HtmlElt $ greyBg "De mate waarin de organisatie technisch klaar is om de app in te voeren", HtmlElt $ klaar1 vt, HtmlElt $ klaar2 vt]
-    , [ HtmlElt $ greyBg "De mate waarin de organisatie in het verleden succesvol technische innovaties heeft ingevoerd", HtmlElt $ succes1 vt, HtmlElt $ succes2 vt]
-    , [ HtmlElt $ greyBg "Mening van uw collega's", HtmlElt $ collegas1 vt, HtmlElt $ collegas2 vt]
-    , [ HtmlElt $ greyBg "Beloning", HtmlElt $ beloning1 vt, HtmlElt $ beloning2 vt] ]
+    , [ HtmlElt "Uitproberen", HtmlElt $ uitproberen1 vt, HtmlElt $ uitproberen2 vt]
+    , [ HtmlElt "De mate waarin de organisatie technisch klaar is om de app in te voeren", HtmlElt $ klaar1 vt, HtmlElt $ klaar2 vt]
+    , [ HtmlElt "De mate waarin de organisatie in het verleden succesvol technische innovaties heeft ingevoerd", HtmlElt $ succes1 vt, HtmlElt $ succes2 vt]
+    , [ HtmlElt "Mening van uw collega's", HtmlElt $ collegas1 vt, HtmlElt $ collegas2 vt]
+    , [ HtmlElt "Beloning", HtmlElt $ beloning1 vt, HtmlElt $ beloning2 vt] ]
     , HtmlElt $ "<br/><em>Vragen (kruis de situatie aan die het beste bij u past):</em><br/><br/>"
-  , TableElt $
-    [ [ HtmlElt $ greyBg "De app die het meest gemakkelijk te gebruiken voor mij als persoon is"
+  , TableElt False False True $
+    [ [ HtmlElt "De app die het meest gemakkelijk te gebruiken voor mij als persoon is"
       , ButtonAnswerElt $ ButtonAnswer ("vignette"++show (nummer vt)++".gemak") ["App 1", "App 2"]]
-    , [ HtmlElt $ greyBg "De app die het meest nuttig ter ondersteuning van mijn dagelijkse werkzaamheden"
+    , [ HtmlElt "De app die het meest nuttig ter ondersteuning van mijn dagelijkse werkzaamheden"
       , ButtonAnswerElt $ ButtonAnswer ("vignette"++show (nummer vt)++".nut") ["App 1", "App 2"]]
-    , [ HtmlElt $ greyBg "De app die ik zou gebruiken is"
+    , [ HtmlElt "De app die ik zou gebruiken is"
       , ButtonAnswerElt $ ButtonAnswer ("vignette"++show (nummer vt)++".voorkeur") ["App 1", "App 2"]]
     , [HtmlElt $ "<br/><em>Omcirkel het getal dat aangeeft in hoeverre u het eens bent met onderstaande stelling:</em><br/><br/>" ]
-    , [ HtmlElt $ greyBg "Ik vond het moeilijk om te kiezen"
+    , [ HtmlElt "Ik vond het moeilijk om te kiezen"
       , ButtonAnswerElt $ ButtonAnswer ("vignette"++show (nummer vt)++".moeilijkKiezen") $ map show [1..10]]
     ]
   ]
-  where greyBg str = "<div style='background-color: #EEE'>"++str++"</div>"  
 
 
 
@@ -321,22 +321,26 @@ instance Storeable Database TextAnswerView where
     in  if str == "" then clearAnswer questionTag else setAnswer questionTag str
 
 
-data TableView = TableView [[WebView Database]]
+data TableView = TableView Bool Bool Bool [[WebView Database]]
    deriving (Eq, Show, Typeable, Data)
 
 
 deriveInitial ''TableView
 deriveMapWebViewDb ''Database ''TableView
 
-mkTableView :: [[WebView Database]] -> WebViewM Database (WebView Database)
-mkTableView rows = mkWebView $
+mkTableView :: Bool -> Bool -> Bool -> [[WebView Database]] -> WebViewM Database (WebView Database)
+mkTableView border topHeader leftHeader rows = mkWebView $
   \vid _ ->
-    do { return $ TableView rows
+    do { return $ TableView border topHeader leftHeader rows
        }
 
 instance Presentable TableView where
-  present (TableView rows) =
-      mkTable [border "1", cellpadding "5"] [] [] $ map (map present) rows
+  present (TableView hasBorder topHeader leftHeader rows) =
+      mkTableEx [border $ if hasBorder then "1" else "0", cellpadding "5"] [] [] $ 
+        [ [ (if isTop && topHeader || isLeft && leftHeader then [style "background-color: #EEE"] else []
+            , present elt) 
+          | (elt, isLeft) <- zip row (True: repeat False) ]
+        | (row, isTop) <- zip rows (True: repeat False) ]
 
 instance Storeable Database TableView
 
@@ -383,7 +387,7 @@ initializeDbFormElt (RadioTextAnswerElt r) = (initializeDbQuestion $ getRadioTex
 initializeDbFormElt (ButtonAnswerElt b)    = initializeDbQuestion $ getButtonQuestionTag b
 initializeDbFormElt (TextAnswerElt t)      = initializeDbQuestion $ getTextQuestionTag t
 initializeDbFormElt (HtmlElt html) = id
-initializeDbFormElt (TableElt rows) = compose $ concatMap (map initializeDbFormElt) rows
+initializeDbFormElt (TableElt _ _ _ rows) = compose $ concatMap (map initializeDbFormElt) rows
 
 compose :: [(a->a)] -> a -> a
 compose = foldl (.) id
@@ -399,9 +403,10 @@ mkView (RadioTextAnswerElt rt) = mkRadioTextAnswerView rt
 mkView (ButtonAnswerElt b) = mkButtonAnswerView b
 mkView (TextAnswerElt t) = mkTextAnswerView t
 mkView (HtmlElt html) = mkHtmlView html
-mkView (TableElt rows) = do { wvs <- mapM (mapM mkView) rows
-                            ; mkTableView wvs
-                            }
+mkView (TableElt border topHeader leftHeader rows) = 
+  do { wvs <- mapM (mapM mkView) rows
+     ; mkTableView border topHeader leftHeader wvs
+     }
 
 ---- Main (needs to be below all webviews that use deriveInitial)
 
