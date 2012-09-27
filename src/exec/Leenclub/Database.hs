@@ -45,7 +45,7 @@ searchLenders term db = [ lender | lender <- Map.elems $ get allLenders db
 
 updateLender :: LenderId -> (Lender -> Lender) -> Database -> Database
 updateLender i f db = 
-  let lender = unsafeLookup "updateLender" (get allLenders db) i
+  let lender = unsafeLookup "updateLender" i $ get allLenders db
   in  modify allLenders (Map.insert i (let r = f lender in trace (show r) r)) db
 
 -- add error
@@ -102,7 +102,7 @@ getBorrowedItems lenderId db = filter (maybe False (\borrower -> borrower == len
 
 updateItem :: ItemId -> (Item -> Item) -> Database -> Database
 updateItem i f db = 
-  let visit = unsafeLookup "updateItem" (get allItems db) i
+  let visit = unsafeLookup "updateItem" i $ get allItems db
   in  modify allItems (Map.insert i (f visit)) db
 
 
