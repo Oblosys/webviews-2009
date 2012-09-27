@@ -1,5 +1,6 @@
 {-# LANGUAGE DeriveDataTypeable, PatternGuards, MultiParamTypeClasses, OverloadedStrings, TemplateHaskell #-}
 {-# LANGUAGE TypeOperators, TupleSections, FlexibleInstances, ScopedTypeVariables #-}
+{-# LANGUAGE FlexibleContexts, UndecidableInstances #-}
 module WebViewLibExp where
 {- Module for experimenting with generic WebViews that will be put in WebViewLib.
    Keeping them here during development prevents having to recompile the library on every change. 
@@ -21,22 +22,49 @@ import Data.Label                         -- fclabels
 import Prelude hiding ((.), id)           -- fclabels
 import Debug.Trace
 
-data SortView db = 
-  SortView (Widget (SelectView db)) (Widget (SelectView db)) [WebView db]  
+
+class TaggedPresent tag args where
+  taggedPresent :: tag -> args -> Html
+  
+  
+
+data SortDefaultPresent = SortDefaultPresent deriving (Show,Eq,Data,Typeable)
+
+instance MapWebView db SortDefaultPresent
+instance Initial SortDefaultPresent where
+  initial = SortDefaultPresent
+  
+instance TaggedPresent SortDefaultPresent (Widget (SelectView db), Widget (SelectView db), [WebView db]) where
+  taggedPresent SortDefaultPresent (sortFieldSelect, sortOrderSelect, webViews) =
+    (vList $ hStretchList [space, E $ "Sorteer" +++ nbsp, E $ present sortOrderSelect, E $ nbsp +++ "op" +++ nbsp, E $ present sortFieldSelect] 
+              ! style (toValue $ "margin: 4 0 4 0;" ++ gradientStyle Nothing "#101010" "#707070") 
+            : intersperse hSep (map present webViews)
+    ) ! style "width: 100%"        
+   where hSep = div_ ! style "width: 100%; height:1px; background-color: black; margin: 5 0 5 0" $ noHtml
+
+
+
+data SortView tag db = 
+  SortView tag (Widget (SelectView db)) (Widget (SelectView db)) [WebView db]  
     deriving (Eq, Show, Typeable, Data)
 
-instance Data db => Initial (SortView db) where
-  initial = SortView initial initial initial
+-- no derive Initial/MapWebView functions for parameterized types yet, so we specify manual instances
+instance (Initial tag, Data tag, Data db) => Initial (SortView tag db) where
+  initial = SortView initial initial initial initial
+instance MapWebView db tag => MapWebView db (SortView tag db) where
+  mapWebView (SortView tag wv1 wv2 wvs)  = SortView <$> mapWebView tag <*> mapWebView wv1 <*> mapWebView wv2 <*> mapWebView wvs 
 
-deriveMapWebView ''SortView
+instance Data db => Storeable db (SortView tag db)
 
-instance Data db => Storeable db (SortView db)
+mkSortView :: (Data db) => [(String, a->a->Ordering)] -> (a-> WebViewM db (WebView db)) -> [a] -> WebViewM db (WebView db)
+mkSortView = mkSortViewEx SortDefaultPresent
 
 -- [("sorteer oplopend", id), ("sorteer aflopend", reverse)]
 -- [("Sorteer op naam", 
-mkSortView :: Data db => [(String, a->a->Ordering)] -> (a-> WebViewM db (WebView db)) -> [a] -> WebViewM db (WebView db)
-mkSortView namedSortFunctions mkResultWV results = mkWebView $
-  \vid oldView@(SortView sortFieldSelectOld sortOrderSelectOld _) ->
+mkSortViewEx :: (TaggedPresent tag (Widget (SelectView db), Widget (SelectView db), [WebView db]), Eq tag, Data tag, Show tag, Initial tag, Data db, MapWebView db tag) =>
+              tag -> [(String, a->a->Ordering)] -> (a-> WebViewM db (WebView db)) -> [a] -> WebViewM db (WebView db)
+mkSortViewEx tag namedSortFunctions mkResultWV results = mkWebView $
+  \vid oldView@(SortView _ sortFieldSelectOld sortOrderSelectOld _) ->
     do { let sortField = getSelection sortFieldSelectOld
        ; let sortOrder = getSelection sortOrderSelectOld
        ; let (sortFieldNames, sortFunctions) = unzip namedSortFunctions
@@ -49,18 +77,11 @@ mkSortView namedSortFunctions mkResultWV results = mkWebView $
                                 _  -> return $ map snd $ (if sortOrder == 0 then id else reverse) $ 
                                                          sortBy (sortFunctions !! sortField `on` fst) $ resultsWVs
     
-       ; return $ SortView sortFieldSelect sortOrderSelect sortedResultViews
+       ; return $ SortView tag sortFieldSelect sortOrderSelect sortedResultViews
        }
 
-instance Presentable (SortView db) where
-  present (SortView sortFieldSelect sortOrderSelect webViews) = 
-    (vList $ hStretchList [space, E $ "Sorteer" +++ nbsp, E $ present sortOrderSelect, E $ nbsp +++ "op" +++ nbsp, E $ present sortFieldSelect] 
-              ! style "margin: 4 0 4 0"
-            : intersperse hSep (map present webViews)
-    ) ! style "width: 100%"        
-   where hSep = div_ ! style "width: 100%; height:1px; background-color: black; margin: 5 0 5 0" $ noHtml
- 
- 
+instance TaggedPresent tag (Widget (SelectView db), Widget (SelectView db), [WebView db]) => Presentable (SortView tag db) where
+  present (SortView tag sortFieldSelect sortOrderSelect webViews) = taggedPresent tag (sortFieldSelect, sortOrderSelect, webViews)
 
 data SearchView db = 
   SearchView String (Widget (TextView db)) (Widget (Button db)) (WebView db) String 
