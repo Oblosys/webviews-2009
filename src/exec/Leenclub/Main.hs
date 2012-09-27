@@ -88,7 +88,7 @@ Home FAQ Profiel spullen geschiedenis Berichten aanmelden inloggen
 -- Utils
 
 
-unsafeLookupM tag dbf key = withDb $ \db -> unsafeLookup tag (dbf db) key
+unsafeLookupM tag dbf key = withDb $ \db -> unsafeLookup tag key $ dbf db
 
 
 -- Leenclub utils
