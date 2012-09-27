@@ -165,6 +165,11 @@ withBgColor color elt = thediv !!! [bgColorAttr color] << elt
 bgColorAttr color = 
   thestyle $ "background-color: "++htmlColor color++";"
 
+gradientStyle :: Maybe Int -> String -> String -> String
+gradientStyle mHeight topColor bottomColor =
+    "background: -moz-linear-gradient("++topColor++" 0px, "++bottomColor++ maybe "" (\h -> " "++show h++"px") mHeight ++ "); "
+  ++"background: -webkit-gradient(linear, left top, left "++maybe "bottom" show mHeight ++", from("++topColor++"), to("++bottomColor++"));"
+
 withSize width height elt = thediv!!! [thestyle $ "width: "++show width++"px;" ++
                                                 "height: "++show height++"px;" ++
                                                 "overflow: auto" ] << elt

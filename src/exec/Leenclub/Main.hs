@@ -645,14 +645,7 @@ instance Presentable LeenclubPageView where
                                                     then gradientStyle Nothing "#303030" "#101010" 
                                                     else "" ] $
                                     with [style "padding: 2 10 5 10;" ] e
-                                     
-gradientStyle :: Maybe Int -> String -> String -> String
-gradientStyle mHeight topColor bottomColor =
-    "background: -moz-linear-gradient("++topColor++" 0px, "++bottomColor++ maybe "" (\h -> " "++show h++"px") mHeight ++ "); "
-  ++"background: -webkit-gradient(linear, left top, left "++maybe "bottom" show mHeight ++", from("++topColor++"), to("++bottomColor++"));"
-  
-  
-  
+
   
 
 
