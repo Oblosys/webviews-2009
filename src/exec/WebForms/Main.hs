@@ -151,8 +151,8 @@ data Vignette = Vignette { nummer :: Int
 mkVignette vt = 
   [ TableElt True True True $
     [ [ HtmlElt $ "Vignette "++show (nummer vt), HtmlElt "Situatie 1", HtmlElt "Situatie 2"]
-    , [ HtmlElt "<div style='width:300px; height:100px'>Omschrijving van de app</div>", HtmlElt $ "<div style='width:300px'>"++omschr1 vt++"</div>"
-                                         , HtmlElt $ "<div style='width:300px'>"++omschr2 vt++"</div>"]
+    , [ HtmlElt "<div >Omschrijving van de app</div>", HtmlElt $ "<div >"++omschr1 vt++"</div>"
+                                         , HtmlElt $ "<div >"++omschr2 vt++"</div>"]
     , [ HtmlElt "Uitproberen", HtmlElt $ uitproberen1 vt, HtmlElt $ uitproberen2 vt]
     , [ HtmlElt "De mate waarin de organisatie technisch klaar is om de app in te voeren", HtmlElt $ klaar1 vt, HtmlElt $ klaar2 vt]
     , [ HtmlElt "De mate waarin de organisatie in het verleden succesvol technische innovaties heeft ingevoerd", HtmlElt $ succes1 vt, HtmlElt $ succes2 vt]
@@ -405,7 +405,7 @@ instance Presentable FormPageView where
 instance Storeable Database FormPageView
 
 data FormView = 
-  FormView Bool Int (Widget (Button Database)) (Widget (Button Database)) (Widget (Button Database)) (Widget (Button Database)) (WebView Database)
+  FormView Bool Int Int (Widget (Button Database)) (Widget (Button Database)) (Widget (Button Database)) (Widget (Button Database)) (WebView Database)
     deriving (Eq, Show, Typeable, Data)
 
 deriveInitial ''FormView
@@ -414,7 +414,7 @@ deriveMapWebViewDb ''Database ''FormView
 
 mkFormView :: WebForm -> WebViewM Database (WebView Database)
 mkFormView form@(Form pages) = mkWebView $
-  \vid (FormView _ currentPage _ _ _ _ _) ->
+  \vid (FormView _ currentPage _ _ _ _ _ _) ->
     do { modifyDb $ initializeDb form
        
        ; pageView <- mkFormPageView $ pages!!currentPage
@@ -425,20 +425,26 @@ mkFormView form@(Form pages) = mkWebView $
           do { db <- getDb
              ; liftIO $ putStrLn $ "Sending answers:\n"++show db
              }
-       ; clearButton <- mkButton "Opnieuw" True $ Edit $ modifyDb $ \db -> Map.empty
-       ; prevButton <- mkButton "Vorige" (currentPage/=0) $ Edit $ viewEdit vid $ \(FormView a p c d e f g) -> FormView a (p-1) c d e f g
-       ; nextButton <- mkButton "Volgende" (currentPage < length pages - 1)  $ Edit $ viewEdit vid $ \(FormView a p c d e f g) -> FormView a (p+1) c d e f g
-       ; return $ FormView isComplete currentPage prevButton nextButton sendButton clearButton pageView
+       ; clearButton <- mkButton "Alles wissen" True $ Edit $ modifyDb $ \db -> Map.empty
+       ; prevButton <- mkButton "Vorige" (currentPage/=0) $ Edit $ viewEdit vid $ \(FormView a p c d e f g h) -> FormView a (p-1) c d e f g h
+       ; nextButton <- mkButton "Volgende" (currentPage < length pages - 1)  $ Edit $ viewEdit vid $ \(FormView a p c d e f g h) -> FormView a (p+1) c d e f g h
+       ; return $ FormView isComplete currentPage (length pages) prevButton nextButton sendButton clearButton pageView
        }
 
 instance Presentable FormView where
-  present (FormView isComplete currentPage prevButton nextButton sendButton clearButton wv) =
+  present (FormView isComplete currentPage nrOfPages prevButton nextButton sendButton clearButton wv) =
     mkPage [thestyle "background: url('img/noise.png') repeat scroll center top transparent; min-height: 100%; font-family: Geneva"] $
-      with [thestyle "background: white; width:1000px; margin: 10px; padding: 10px"] $
-        vList $ present wv : 
-               [ hList [ present prevButton, toHtml $ "Pagina "++show (currentPage+1), present nextButton ] 
-               , present sendButton
-               , present clearButton]
+      with [thestyle "background: white; width:1000px; margin: 10px; padding: 10px", align "left"] $
+        mkPageHeader +++
+           vList [ present wv
+                 , present sendButton
+                 , present clearButton ]
+   where mkPageHeader = with [ align "right"] $
+                          hList [ present prevButton
+                                , with [style "font-size: 80%"] $ nbsp >> (toHtml $ "Pagina "++show (currentPage+1) ++"/"++show nrOfPages) >> nbsp
+                                , present nextButton ] 
+      --  +++
+          
 
 instance Storeable Database FormView
 
