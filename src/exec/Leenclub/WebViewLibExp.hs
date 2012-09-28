@@ -1,6 +1,6 @@
 {-# LANGUAGE DeriveDataTypeable, PatternGuards, MultiParamTypeClasses, OverloadedStrings, TemplateHaskell #-}
 {-# LANGUAGE TypeOperators, TupleSections, FlexibleInstances, ScopedTypeVariables #-}
-{-# LANGUAGE FlexibleContexts, UndecidableInstances #-}
+{-# LANGUAGE FlexibleContexts, UndecidableInstances #-} -- For TaggedPresent instances.
 module WebViewLibExp where
 {- Module for experimenting with generic WebViews that will be put in WebViewLib.
    Keeping them here during development prevents having to recompile the library on every change. 
@@ -33,7 +33,7 @@ data SortDefaultPresent = SortDefaultPresent deriving (Show,Eq,Data,Typeable)
 instance MapWebView db SortDefaultPresent
 instance Initial SortDefaultPresent where
   initial = SortDefaultPresent
-  
+
 instance TaggedPresent SortDefaultPresent (Widget (SelectView db), Widget (SelectView db), [WebView db]) where
   taggedPresent SortDefaultPresent (sortFieldSelect, sortOrderSelect, webViews) =
     (vList $ hStretchList [space, E $ "Sorteer" +++ nbsp, E $ present sortOrderSelect, E $ nbsp +++ "op" +++ nbsp, E $ present sortFieldSelect] 
