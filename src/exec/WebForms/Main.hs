@@ -416,11 +416,11 @@ instance Presentable TableView where
   present (TableView classTag hasBorder topHeader leftHeader rows) =
     mkTableEx [border $ if hasBorder then "1" else "0", cellpadding "5", theclass $ "FormTable Table"++classTag ] [] [] $ 
       [ [ ([ theclass $ "TableCell " ++ (if rowNr == 1 then " TopRow" else "") ++
-                                       (if rowNr > 1 && rowNr < nrOfRows then " MiddleRow" else "") ++
-                                       (if rowNr == nrOfRows then " BottomRow" else "") ++
-                                       (if colNr == 1 then " LeftCol" else "") ++
-                                       (if colNr > 1 && colNr < nrOfCols then " MiddleCol" else "") ++
-                                       (if colNr == nrOfCols then " RightCol" else "")
+                                        (if rowNr > 1 && rowNr < nrOfRows then " MiddleRow" else "") ++
+                                        (if rowNr == nrOfRows then " BottomRow" else "") ++
+                                        (if colNr == 1 then " LeftCol" else "") ++
+                                        (if colNr > 1 && colNr < nrOfCols then " MiddleCol" else "") ++
+                                        (if colNr == nrOfCols then " RightCol" else "")
            ] ++                              
            if rowNr == 1 && topHeader || colNr == 1 && leftHeader then [style "background-color: #EEE"] else []
           , present elt) 
