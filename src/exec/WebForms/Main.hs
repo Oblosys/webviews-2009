@@ -47,6 +47,7 @@ data FormElt = HtmlElt String
              | RadioTextAnswerElt  RadioTextAnswer
              | ButtonAnswerElt ButtonAnswer
              | TextAnswerElt   TextAnswer
+             | StyleElt String FormElt
              | TableElt Bool Bool Bool [[FormElt]] -- because elts are in other web view, they cannot set the table cell's
                                                    -- background color, so we need to specify headers explicitly.
    deriving (Eq, Show, Typeable, Data)
@@ -90,9 +91,9 @@ persoonsgegevens = Page
   [ HtmlElt "<em>Eerst wil ik u enkele algemene vragen stellen, klik op het antwoord dat voor u van toepassing is of vul de betreffende informatie in.</em>"
   , bigSkip
   , TableElt False False False $
-      [ [ HtmlElt "Wat is uw leeftijd?", TextAnswerElt $ TextAnswer "age"]
+      [ [ HtmlElt "Wat is uw leeftijd?", StyleElt "width: 50px" $ TextAnswerElt $ TextAnswer "age"]
       , [ bigSkip ]
-      , [ HtmlElt "Wat is uw geslacht?", ButtonAnswerElt $ ButtonAnswer "gender" ["Man", "Vrouw"]]
+      , [ HtmlElt "Wat is uw geslacht?", StyleElt "width: 100px" $ ButtonAnswerElt $ ButtonAnswer "gender" ["Man", "Vrouw"]]
       , [ bigSkip ]
       , [ HtmlElt "In welke functie bent u momenteel werkzaam?", RadioTextAnswerElt $ RadioTextAnswer "functie" "functieAnders" 
                                                                                     [ "Activiteitenbegeleider"
@@ -119,7 +120,7 @@ stellingen = Page
   [ HtmlElt "<em>Het tweede deel van de vragenlijst bevat twaalf stellingen die betrekking hebben op uw persoonlijke situatie in uw huidige werk. Wilt u aangeven in hoeverre u het eens bent met de stellingen hieronder door het cijfer aan te klikken. Hoe hoger het cijfer, des te beter u zich kunt vinden in de stelling.</em>"
   , bigSkip
   , TableElt False False False $
-      [ [ HtmlElt "", HtmlElt "Mee eens", HtmlElt "", HtmlElt "Mee oneens" ]
+      [ [ HtmlElt "", HtmlElt "Mee&nbsp;eens<span style='margin-left:50px'></span>Mee&nbsponeens" ]
       , mkScaleQuestion 7 "presteren" "Ik vind het belangrijk om beter te presteren dan mijn collega's"
       , mkScaleQuestion 7 "angst" "Mijn angst om op mijn werk onder te presteren is vaak wat mij motiveert"
       , mkScaleQuestion 7 "vermijden" "Ik wil vooral vermijden dat onderpresteer op mijn werk"
@@ -174,7 +175,7 @@ bigSkip = vSkip 20
 vSkip :: Int -> FormElt
 vSkip height = HtmlElt $ "<div style='height: " ++ show height ++ "px'></div>"
 
-mkScaleQuestion scaleMax tag question = [ HtmlElt question, HtmlElt "", ButtonAnswerElt $ ButtonAnswer tag $ map show [1..scaleMax]]
+mkScaleQuestion scaleMax tag question = [ HtmlElt question, ButtonAnswerElt $ ButtonAnswer tag $ map show [1..scaleMax]]
 data Vignette = Vignette { nummer :: Int
                          , omschr1, omschr2, uitproberen1, uitproberen2, klaar1, klaar2, succes1, succes2
                          , collegas1, collegas2, beloning1, beloning2 :: String
@@ -343,7 +344,7 @@ mkButtonAnswerView b@(ButtonAnswer questionTag answers) = mkWebView $
 
 instance Presentable ButtonAnswerView where
   present (ButtonAnswerView _ buttons) =
-      hList $ intersperse (hSpace 5) $ map present buttons
+      hStretchList $ intersperse space $ map (E . present) buttons
 
 instance Storeable Database ButtonAnswerView
 
@@ -377,9 +378,28 @@ instance Storeable Database TextAnswerView where
     in  if str == "" then clearAnswer questionTag else setAnswer questionTag str
 
 
-data TableView = TableView Bool Bool Bool [[WebView Database]]
+data StyleView = StyleView String (WebView Database)
    deriving (Eq, Show, Typeable, Data)
 
+deriveInitial ''StyleView
+deriveMapWebViewDb ''Database ''StyleView
+
+mkStyleView :: String -> WebView Database -> WebViewM Database (WebView Database)
+mkStyleView styleStr wv = mkWebView $
+  \vid _ ->
+    do { return $ StyleView styleStr wv
+       }
+
+instance Presentable StyleView where
+  present (StyleView styleStr wv) =
+      with [thestyle styleStr] $ present wv
+
+instance Storeable Database StyleView
+
+
+
+data TableView = TableView Bool Bool Bool [[WebView Database]]
+   deriving (Eq, Show, Typeable, Data)
 
 deriveInitial ''TableView
 deriveMapWebViewDb ''Database ''TableView
@@ -402,12 +422,16 @@ instance Storeable Database TableView
 
 
 mkViewFormElt :: FormElt -> WebViewM Database (WebView Database)
-mkViewFormElt (RadioAnswerElt r) = mkRadioAnswerView r
+mkViewFormElt (RadioAnswerElt r)      = mkRadioAnswerView r
 mkViewFormElt (RadioTextAnswerElt rt) = mkRadioTextAnswerView rt
-mkViewFormElt (ButtonAnswerElt b) = mkButtonAnswerView b
-mkViewFormElt (TextAnswerElt t) = mkTextAnswerView t
-mkViewFormElt (HtmlElt html) = mkHtmlView html
-mkViewFormElt (HtmlFileElt path) = mkHtmlTemplateView ("Webforms/"++path) []
+mkViewFormElt (ButtonAnswerElt b)     = mkButtonAnswerView b
+mkViewFormElt (TextAnswerElt t)       = mkTextAnswerView t
+mkViewFormElt (HtmlElt html)          = mkHtmlView html
+mkViewFormElt (HtmlFileElt path)      = mkHtmlTemplateView ("Webforms/"++path) []
+mkViewFormElt (StyleElt styleStr elt) = 
+ do { wv <- mkViewFormElt elt
+    ; mkStyleView styleStr wv
+    }
 mkViewFormElt (TableElt border topHeader leftHeader rows) = 
   do { wvs <- mapM (mapM mkViewFormElt) rows
      ; mkTableView border topHeader leftHeader wvs
@@ -495,9 +519,10 @@ initializeDbFormElt (RadioTextAnswerElt r) = (initializeDbQuestion $ getRadioTex
                                              (initializeDbQuestion $ getRadioTextTextQuestionTag r)
 initializeDbFormElt (ButtonAnswerElt b)    = initializeDbQuestion $ getButtonQuestionTag b
 initializeDbFormElt (TextAnswerElt t)      = initializeDbQuestion $ getTextQuestionTag t
-initializeDbFormElt (HtmlElt html) = id
-initializeDbFormElt (HtmlFileElt path) = id
-initializeDbFormElt (TableElt _ _ _ rows) = compose $ concatMap (map initializeDbFormElt) rows
+initializeDbFormElt (HtmlElt html)         = id
+initializeDbFormElt (HtmlFileElt path)     = id
+initializeDbFormElt (StyleElt _ elt)       = initializeDbFormElt elt
+initializeDbFormElt (TableElt _ _ _ rows)  = compose $ concatMap (map initializeDbFormElt) rows
 
 compose :: [(a->a)] -> a -> a
 compose = foldl (.) id
