@@ -42,6 +42,7 @@ data WebForm = Form [FormPage]
 data FormPage = Page [FormElt]
 
 data FormElt = HtmlElt String
+             | HtmlFileElt String
              | RadioAnswerElt  RadioAnswer
              | RadioTextAnswerElt  RadioTextAnswer
              | ButtonAnswerElt ButtonAnswer
@@ -81,7 +82,9 @@ instance MapWebView Database TextAnswer
 
 -- Form instance declaration
 
-testForm = Form [ persoonsgegevens, stellingen, vignette ]
+testForm = Form [introPage, persoonsgegevens, stellingen, vignette ]
+
+introPage = Page [ HtmlFileElt "Introductie.html" ]
 
 persoonsgegevens = Page
   [ TableElt False False False $
@@ -94,6 +97,15 @@ persoonsgegevens = Page
                                                                                     , "Verpleeghulp"
                                                                                     , "Verpleegkundige"
                                                                                     , "Verzorgende"
+                                                                                    , "Anders, nl. :" ] ]
+      , [ HtmlElt "Wat is uw hoogst afgeronde opleiding?", RadioTextAnswerElt $ RadioTextAnswer "opleiding" "opleidingAnders" 
+                                                                                    [ "Lager algemeen onderwijs (basisonderwijs)"
+                                                                                    , "Lager beroepsonderwijs (LTS, LEAO)"
+                                                                                    , "Middelbaar algemeen onderwijs (MAVO, MULO, VMBO)"
+                                                                                    , "Middelbaar beroepsonderwijs (MTS, MEAO, MBO)"
+                                                                                    , "Voortgezet algemeen onderwijs (HAVO,VWO, Atheneum, Gymnasium)"
+                                                                                    , "Hoger beroepsonderwijs (HBO, HEAO, HTS)"
+                                                                                    , "Wetenschappelijk onderwijs"
                                                                                     , "Anders, nl. :" ] ]
       ]
        ]
@@ -199,8 +211,8 @@ mkSelectableView allSelectableVids str selected clickCommand = mkWebView $
 
 instance Presentable SelectableView where
   present (SelectableView selected str clickAction) =
-    let color = if selected then "#aaa" else "#eee"
-    in  withEditAction clickAction $ with [thestyle $ "background-color: "++color] $ boxed $ toHtml str
+    let color = if selected then Color "#aaa" else Color "#eee"
+    in  withEditAction clickAction $ {- with [thestyle $ "background-color: "++color] $ -} roundedBoxed (Just color) $ toHtml str
 
 
 instance Storeable Database SelectableView
@@ -276,7 +288,7 @@ mkRadioTextAnswerView r@(RadioTextAnswer radioQuestionTag textQuestionTag answer
 
 instance Presentable RadioTextAnswerView where
   present (RadioTextAnswerView _ radio text) =
-      present radio >> present text
+    present radio >> present text
 
 instance Storeable Database RadioTextAnswerView where
   save (RadioTextAnswerView (RadioTextAnswer radioQuestionTag textQuestionTag answers) radio text) =
@@ -375,6 +387,7 @@ mkViewFormElt (RadioTextAnswerElt rt) = mkRadioTextAnswerView rt
 mkViewFormElt (ButtonAnswerElt b) = mkButtonAnswerView b
 mkViewFormElt (TextAnswerElt t) = mkTextAnswerView t
 mkViewFormElt (HtmlElt html) = mkHtmlView html
+mkViewFormElt (HtmlFileElt path) = mkHtmlTemplateView ("Webforms/"++path) []
 mkViewFormElt (TableElt border topHeader leftHeader rows) = 
   do { wvs <- mapM (mapM mkViewFormElt) rows
      ; mkTableView border topHeader leftHeader wvs
@@ -462,6 +475,7 @@ initializeDbFormElt (RadioTextAnswerElt r) = (initializeDbQuestion $ getRadioTex
 initializeDbFormElt (ButtonAnswerElt b)    = initializeDbQuestion $ getButtonQuestionTag b
 initializeDbFormElt (TextAnswerElt t)      = initializeDbQuestion $ getTextQuestionTag t
 initializeDbFormElt (HtmlElt html) = id
+initializeDbFormElt (HtmlFileElt path) = id
 initializeDbFormElt (TableElt _ _ _ rows) = compose $ concatMap (map initializeDbFormElt) rows
 
 compose :: [(a->a)] -> a -> a
