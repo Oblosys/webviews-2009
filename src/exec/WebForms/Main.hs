@@ -191,16 +191,18 @@ mkVignette vt =
     , [ HtmlElt "De mate waarin de organisatie in het verleden succesvol technische innovaties heeft ingevoerd", HtmlElt $ succes1 vt, HtmlElt $ succes2 vt]
     , [ HtmlElt "Mening van uw collega's", HtmlElt $ collegas1 vt, HtmlElt $ collegas2 vt]
     , [ HtmlElt "Beloning", HtmlElt $ beloning1 vt, HtmlElt $ beloning2 vt] ]
-    , HtmlElt $ "<br/><em>Vragen (kruis de situatie aan die het beste bij u past):</em><br/><br/>"
+  , HtmlElt $ "<br/><em>Vragen (kruis de situatie aan die het beste bij u past):</em><br/><br/>"
   , TableElt False False True $
     [ [ HtmlElt "De app die het meest gemakkelijk te gebruiken voor mij als persoon is"
-      , ButtonAnswerElt $ ButtonAnswer ("vignette"++show (nummer vt)++".gemak") ["App 1", "App 2"]]
+      , ButtonAnswerElt $ ButtonAnswer ("vignette"++show (nummer vt)++".gemak") ["App&nbsp;1", "App&nbsp;2"]]
     , [ HtmlElt "De app die het meest nuttig ter ondersteuning van mijn dagelijkse werkzaamheden"
-      , ButtonAnswerElt $ ButtonAnswer ("vignette"++show (nummer vt)++".nut") ["App 1", "App 2"]]
+      , ButtonAnswerElt $ ButtonAnswer ("vignette"++show (nummer vt)++".nut") ["App&nbsp;1", "App&nbsp;2"]]
     , [ HtmlElt "De app die ik zou gebruiken is"
-      , ButtonAnswerElt $ ButtonAnswer ("vignette"++show (nummer vt)++".voorkeur") ["App 1", "App 2"]]
-    , [HtmlElt $ "<br/><em>Omcirkel het getal dat aangeeft in hoeverre u het eens bent met onderstaande stelling:</em><br/><br/>" ]
-    , [ HtmlElt "Ik vond het moeilijk om te kiezen"
+      , ButtonAnswerElt $ ButtonAnswer ("vignette"++show (nummer vt)++".voorkeur") ["App&nbsp;1", "App&nbsp;2"]]
+    ]
+  , HtmlElt $ "<br/><em>Klik op het cijfer dat aangeeft in hoeverre u het eens bent met onderstaande stelling:</em><br/><br/>" 
+  , TableElt False False True $
+     [[ HtmlElt "Ik vond het moeilijk om te kiezen"
       , ButtonAnswerElt $ ButtonAnswer ("vignette"++show (nummer vt)++".moeilijkKiezen") $ map show [1..10]]
     ]
   ]
@@ -233,7 +235,7 @@ mkSelectableView allSelectableVids str selected clickCommand = mkWebView $
 instance Presentable SelectableView where
   present (SelectableView selected str clickAction) =
     let color = if selected then Color "#aaa" else Color "#eee"
-    in  withEditAction clickAction $ {- with [thestyle $ "background-color: "++color] $ -} roundedBoxed (Just color) $ toHtml str
+    in  withEditAction clickAction $ {- with [thestyle $ "background-color: "++color] $ -} roundedBoxed (Just color) $ primHtml str
 
 
 instance Storeable Database SelectableView
@@ -495,6 +497,7 @@ instance Presentable FormView where
       with [thestyle "background: white; width:800px; margin: 10px; padding: 10px 50px 100px 50px", align "left"] $
         mkPageHeader +++
         vList [ present wv
+              , vSpace 40
               , hStretchList [ E $ present clearButton, space, E $ present sendButton ]
               ]
    where mkPageHeader = with [ align "right", style "margin-bottom:40px"] $
