@@ -1,7 +1,8 @@
 <html>
  <head>
-  <title>WebViews prototype</title>
+  <title>__TITLE__</title>
   <link href="/scr/css/WebViews.css" rel="stylesheet" type="text/css" />
+  <link href="/scr/css/__CSSFILE__" rel="stylesheet" type="text/css" />
 
   <script type="text/javascript" src="/scr/js/jquery-1.8.0.min.js"></script>
   <script type="text/javascript" src="/scr/js/jquery-ui-1.8.23.custom.min.js"></script>
@@ -454,20 +455,20 @@ function processPendingMoves(moves) {
   }
 }
 
-// Because eval may change local parameters, we put ___ after the identifiers.
-function processPendingScripts(scripts___) {
-	for (var i___=0; i___<scripts___.length; i___++) {    
-    var scriptLines___ = scripts___[i___].split('\n')
+// Because eval may change local parameters, we put _X_ after the identifiers.
+function processPendingScripts(scripts_X_) {
+	for (var i_X_=0; i_X_<scripts_X_.length; i_X_++) {    
+    var scriptLines_X_ = scripts_X_[i_X_].split('\n')
     try {
-      for (var j___=0; j___<scriptLines___.length; j___++) {
-        console.log('Eval ('+i___+'.'+j___+'/'+scripts___.length+'): ',scriptLines___[j___]);
-        eval(scriptLines___[j___]);
+      for (var j_X_=0; j_X_<scriptLines_X_.length; j_X_++) {
+        console.log('Eval ('+i_X_+'.'+j_X_+'/'+scripts_X_.length+'): ',scriptLines_X_[j_X_]);
+        eval(scriptLines_X_[j_X_]);
       }
     }
     catch (e) {
       alert("Error in dynamic script:\n\n"+e+"\n\nSee console log for more information."); // important, so alert (doesn't seem to work)
       console.error("Error in script: "+e); // log error, so we can see when the problem occurs
-                                            // Firebug output may be a bit confusing, stating that scripts___ is undefined
+                                            // Firebug output may be a bit confusing, stating that scripts_X_ is undefined
     }
 	}
 }

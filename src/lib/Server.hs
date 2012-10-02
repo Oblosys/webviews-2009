@@ -97,7 +97,7 @@ type Sessions db = IntMap (User, WebView db, Maybe (EditCommand db), HashArgs)
 
 server :: (Data db, Typeable db, Show db, Read db, Eq db) =>
           String -> RootViews db -> String -> String -> IO (db) -> Map String (String, String) -> IO ()
-server title rootViews css dbFilename mkInitialDatabase users =
+server title rootViews cssFilename dbFilename mkInitialDatabase users =
  do { hSetBuffering stdout NoBuffering -- necessary to run server in Eclipse
     ; time <- getClockTime
     ; putStrLn $ "\n\n### Started WebViews server (port "++show webViewsPort++"): "++show time ++"\n"
@@ -126,7 +126,7 @@ server title rootViews css dbFilename mkInitialDatabase users =
     ; globalStateRef <- newIORef $ initGlobalState theDatabase
 
     ; simpleHTTP nullConf { port = webViewsPort, logAccess = Nothing {-Just logWebViewAccess-} } $
-        msum (handlers rootViews dbFilename theDatabase users serverSessionId globalStateRef)
+        msum (handlers title rootViews cssFilename dbFilename theDatabase users serverSessionId globalStateRef)
     }
 {-
 handle:
@@ -155,8 +155,8 @@ instance FromData Int where
 
 readInt s = fromMaybe (-1) (readMaybe s)
 
-handlers :: (Data db, Show db, Eq db) => RootViews db -> String -> db -> Map String (String, String) -> ServerInstanceId -> GlobalStateRef db -> [ServerPart Response]
-handlers rootViews dbFilename theDatabase users serverSessionId globalStateRef = 
+handlers :: (Data db, Show db, Eq db) => String -> RootViews db -> String -> String -> db -> Map String (String, String) -> ServerInstanceId -> GlobalStateRef db -> [ServerPart Response]
+handlers title rootViews cssFilename dbFilename theDatabase users serverSessionId globalStateRef = 
   (do { neverExpires
       ; msum [ dir "favicon.ico" $  serveDirectory DisableBrowsing [] "favicon.ico"
              , dir "scr" $  serveDirectory DisableBrowsing [] "scr"
@@ -179,10 +179,8 @@ handlers rootViews dbFilename theDatabase users serverSessionId globalStateRef =
        serveRootPage =
         do { io $ putStrLn $ "Root requested"
            ; templateStr <- io $ readUTFFile $ "htmlTemplates/WebViews.html"
-      -- TODO: warn for non-existing placeholders
-           ; let htmlStr = substitute [] templateStr
-           ; io $ putStrLn htmlStr
-           ; serveFile (asContentType "text/html") "scr/WebViews.html"
+           ; let htmlStr = substitute [("TITLE",title),("CSSFILE",cssFilename)] templateStr
+           ; ok $ setHeader "Content-Type" "text/html; charset=utf-8" $ toResponse htmlStr
            } 
     
 {-
