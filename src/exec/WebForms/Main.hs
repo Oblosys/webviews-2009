@@ -48,7 +48,7 @@ data FormElt = HtmlElt String
              | ButtonAnswerElt ButtonAnswer
              | TextAnswerElt   TextAnswer
              | StyleElt String FormElt
-             | TableElt Bool Bool Bool [[FormElt]] -- because elts are in other web view, they cannot set the table cell's
+             | TableElt String Bool Bool Bool [[FormElt]] -- because elts are in other web view, they cannot set the table cell's
                                                    -- background color, so we need to specify headers explicitly.
    deriving (Eq, Show, Typeable, Data)
 
@@ -90,7 +90,7 @@ introductie = Page [ HtmlFileElt "Introductie.html" ]
 persoonsgegevens = Page
   [ HtmlElt "<em>Eerst wil ik u enkele algemene vragen stellen, klik op het antwoord dat voor u van toepassing is of vul de betreffende informatie in.</em>"
   , bigSkip
-  , TableElt False False False $
+  , TableElt "Algemeen" False False False $
       [ [ HtmlElt "Wat is uw leeftijd?", StyleElt "width: 50px" $ TextAnswerElt $ TextAnswer "age"]
       , [ bigSkip ]
       , [ HtmlElt "Wat is uw geslacht?", StyleElt "width: 100px" $ ButtonAnswerElt $ ButtonAnswer "gender" ["Man", "Vrouw"]]
@@ -119,7 +119,7 @@ persoonsgegevens = Page
 stellingen = Page
   [ HtmlElt "<em>Het tweede deel van de vragenlijst bevat twaalf stellingen die betrekking hebben op uw persoonlijke situatie in uw huidige werk. Wilt u aangeven in hoeverre u het eens bent met de stellingen hieronder door het cijfer aan te klikken. Hoe hoger het cijfer, des te beter u zich kunt vinden in de stelling.</em>"
   , bigSkip
-  , TableElt False False False $
+  , TableElt "Stellingen" False False False $
       [ [ HtmlElt "", HtmlElt "Mee&nbsp;eens<span style='margin-left:50px'></span>Mee&nbsponeens" ]
       , mkScaleQuestion 7 "presteren" "Ik vind het belangrijk om beter te presteren dan mijn collega's"
       , mkScaleQuestion 7 "angst" "Mijn angst om op mijn werk onder te presteren is vaak wat mij motiveert"
@@ -182,7 +182,7 @@ data Vignette = Vignette { nummer :: Int
                          }
 
 mkVignette vt = 
-  [ TableElt True True True $
+  [ TableElt "VignetteOmschr" False False False $
     [ [ HtmlElt $ "Vignette "++show (nummer vt), HtmlElt "Situatie 1", HtmlElt "Situatie 2"]
     , [ HtmlElt "<div >Omschrijving van de app</div>", HtmlElt $ "<div >"++omschr1 vt++"</div>"
                                          , HtmlElt $ "<div >"++omschr2 vt++"</div>"]
@@ -192,7 +192,7 @@ mkVignette vt =
     , [ HtmlElt "Mening van uw collega's", HtmlElt $ collegas1 vt, HtmlElt $ collegas2 vt]
     , [ HtmlElt "Beloning", HtmlElt $ beloning1 vt, HtmlElt $ beloning2 vt] ]
   , HtmlElt $ "<br/><em>Vragen (kruis de situatie aan die het beste bij u past):</em><br/><br/>"
-  , TableElt False False True $
+  , TableElt "VignetteVragen" False False True $
     [ [ HtmlElt "De app die het meest gemakkelijk te gebruiken voor mij als persoon is"
       , ButtonAnswerElt $ ButtonAnswer ("vignette"++show (nummer vt)++".gemak") ["App&nbsp;1", "App&nbsp;2"]]
     , [ HtmlElt "De app die het meest nuttig ter ondersteuning van mijn dagelijkse werkzaamheden"
@@ -201,7 +201,7 @@ mkVignette vt =
       , ButtonAnswerElt $ ButtonAnswer ("vignette"++show (nummer vt)++".voorkeur") ["App&nbsp;1", "App&nbsp;2"]]
     ]
   , HtmlElt $ "<br/><em>Klik op het cijfer dat aangeeft in hoeverre u het eens bent met onderstaande stelling:</em><br/><br/>" 
-  , TableElt False False True $
+  , TableElt "VignetteKiezen" False False True $
      [[ HtmlElt "Ik vond het moeilijk om te kiezen"
       , ButtonAnswerElt $ ButtonAnswer ("vignette"++show (nummer vt)++".moeilijkKiezen") $ map show [1..10]]
     ]
@@ -400,25 +400,36 @@ instance Storeable Database StyleView
 
 
 
-data TableView = TableView Bool Bool Bool [[WebView Database]]
+data TableView = TableView String Bool Bool Bool [[WebView Database]]
    deriving (Eq, Show, Typeable, Data)
 
 deriveInitial ''TableView
 deriveMapWebViewDb ''Database ''TableView
 
-mkTableView :: Bool -> Bool -> Bool -> [[WebView Database]] -> WebViewM Database (WebView Database)
-mkTableView border topHeader leftHeader rows = mkWebView $
+mkTableView :: String -> Bool -> Bool -> Bool -> [[WebView Database]] -> WebViewM Database (WebView Database)
+mkTableView classTag border topHeader leftHeader rows = mkWebView $
   \vid _ ->
-    do { return $ TableView border topHeader leftHeader rows
+    do { return $ TableView classTag border topHeader leftHeader rows
        }
 
 instance Presentable TableView where
-  present (TableView hasBorder topHeader leftHeader rows) =
-      mkTableEx [border $ if hasBorder then "1" else "0", cellpadding "5"] [] [] $ 
-        [ [ (if isTop && topHeader || isLeft && leftHeader then [style "background-color: #EEE"] else []
-            , present elt) 
-          | (elt, isLeft) <- zip row (True: repeat False) ]
-        | (row, isTop) <- zip rows (True: repeat False) ]
+  present (TableView classTag hasBorder topHeader leftHeader rows) =
+    mkTableEx [border $ if hasBorder then "1" else "0", cellpadding "5", theclass $ "FormTable Table"++classTag ] [] [] $ 
+      [ [ ([ theclass $ "TableCell " ++ (if rowNr == 1 then " TopRow" else "") ++
+                                       (if rowNr > 1 && rowNr < nrOfRows then " MiddleRow" else "") ++
+                                       (if rowNr == nrOfRows then " BottomRow" else "") ++
+                                       (if colNr == 1 then " LeftCol" else "") ++
+                                       (if colNr > 1 && colNr < nrOfCols then " MiddleCol" else "") ++
+                                       (if colNr == nrOfCols then " RightCol" else "")
+           ] ++                              
+           if rowNr == 1 && topHeader || colNr == 1 && leftHeader then [style "background-color: #EEE"] else []
+          , present elt) 
+        | (colNr, elt) <- zip [1..] row ]
+      | (rowNr, row) <- zip [1..] rows ]
+      where nrOfRows = length rows
+            nrOfCols = case rows of
+                         [] -> 0
+                         (row:_) -> length row
 
 instance Storeable Database TableView
 
@@ -434,9 +445,9 @@ mkViewFormElt (StyleElt styleStr elt) =
  do { wv <- mkViewFormElt elt
     ; mkStyleView styleStr wv
     }
-mkViewFormElt (TableElt border topHeader leftHeader rows) = 
+mkViewFormElt (TableElt classTag border topHeader leftHeader rows) = 
   do { wvs <- mapM (mapM mkViewFormElt) rows
-     ; mkTableView border topHeader leftHeader wvs
+     ; mkTableView classTag border topHeader leftHeader wvs
      }
 -- TODO: recursion in mkView (Form & FormPage) or separate (TableEtl)
 --       separate may be clearer, but has the weird situation that we get both FormPage and the WebViews
@@ -517,15 +528,15 @@ initializeDb (Form pages) = compose $ map initializeDbFormPage pages
 initializeDbFormPage :: FormPage -> Database -> Database
 initializeDbFormPage (Page elts) = compose $ map initializeDbFormElt elts
 
-initializeDbFormElt (RadioAnswerElt r)     = initializeDbQuestion $ getRadioQuestionTag r
-initializeDbFormElt (RadioTextAnswerElt r) = (initializeDbQuestion $ getRadioTextRadioQuestionTag r) . 
-                                             (initializeDbQuestion $ getRadioTextTextQuestionTag r)
-initializeDbFormElt (ButtonAnswerElt b)    = initializeDbQuestion $ getButtonQuestionTag b
-initializeDbFormElt (TextAnswerElt t)      = initializeDbQuestion $ getTextQuestionTag t
-initializeDbFormElt (HtmlElt html)         = id
-initializeDbFormElt (HtmlFileElt path)     = id
-initializeDbFormElt (StyleElt _ elt)       = initializeDbFormElt elt
-initializeDbFormElt (TableElt _ _ _ rows)  = compose $ concatMap (map initializeDbFormElt) rows
+initializeDbFormElt (RadioAnswerElt r)      = initializeDbQuestion $ getRadioQuestionTag r
+initializeDbFormElt (RadioTextAnswerElt r)  = (initializeDbQuestion $ getRadioTextRadioQuestionTag r) . 
+                                              (initializeDbQuestion $ getRadioTextTextQuestionTag r)
+initializeDbFormElt (ButtonAnswerElt b)     = initializeDbQuestion $ getButtonQuestionTag b
+initializeDbFormElt (TextAnswerElt t)       = initializeDbQuestion $ getTextQuestionTag t
+initializeDbFormElt (HtmlElt html)          = id
+initializeDbFormElt (HtmlFileElt path)      = id
+initializeDbFormElt (StyleElt _ elt)        = initializeDbFormElt elt
+initializeDbFormElt (TableElt _ _ _ _ rows) = compose $ concatMap (map initializeDbFormElt) rows
 
 compose :: [(a->a)] -> a -> a
 compose = foldl (.) id
