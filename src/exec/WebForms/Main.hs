@@ -82,14 +82,18 @@ instance MapWebView Database TextAnswer
 
 -- Form instance declaration
 
-testForm = Form [introPage, persoonsgegevens, stellingen, vignette ]
+testForm = Form [introductie, persoonsgegevens, stellingen, deelDrie, vignette ]
 
-introPage = Page [ HtmlFileElt "Introductie.html" ]
+introductie = Page [ HtmlFileElt "Introductie.html" ]
 
 persoonsgegevens = Page
-  [ TableElt False False False $
+  [ HtmlElt "<em>Eerst wil ik u enkele algemene vragen stellen, klik op het antwoord dat voor u van toepassing is of vul de betreffende informatie in.</em>"
+  , bigSkip
+  , TableElt False False False $
       [ [ HtmlElt "Wat is uw leeftijd?", TextAnswerElt $ TextAnswer "age"]
+      , [ bigSkip ]
       , [ HtmlElt "Wat is uw geslacht?", ButtonAnswerElt $ ButtonAnswer "gender" ["Man", "Vrouw"]]
+      , [ bigSkip ]
       , [ HtmlElt "In welke functie bent u momenteel werkzaam?", RadioTextAnswerElt $ RadioTextAnswer "functie" "functieAnders" 
                                                                                     [ "Activiteitenbegeleider"
                                                                                     , "Groepsbegeleider"
@@ -98,6 +102,7 @@ persoonsgegevens = Page
                                                                                     , "Verpleegkundige"
                                                                                     , "Verzorgende"
                                                                                     , "Anders, nl. :" ] ]
+      , [ bigSkip ]
       , [ HtmlElt "Wat is uw hoogst afgeronde opleiding?", RadioTextAnswerElt $ RadioTextAnswer "opleiding" "opleidingAnders" 
                                                                                     [ "Lager algemeen onderwijs (basisonderwijs)"
                                                                                     , "Lager beroepsonderwijs (LTS, LEAO)"
@@ -111,14 +116,27 @@ persoonsgegevens = Page
        ]
        
 stellingen = Page
-  [ TableElt False False False $
+  [ HtmlElt "<em>Het tweede deel van de vragenlijst bevat twaalf stellingen die betrekking hebben op uw persoonlijke situatie in uw huidige werk. Wilt u aangeven in hoeverre u het eens bent met de stellingen hieronder door het cijfer aan te klikken. Hoe hoger het cijfer, des te beter u zich kunt vinden in de stelling.</em>"
+  , bigSkip
+  , TableElt False False False $
       [ [ HtmlElt "", HtmlElt "Mee eens", HtmlElt "", HtmlElt "Mee oneens" ]
       , mkScaleQuestion 7 "presteren" "Ik vind het belangrijk om beter te presteren dan mijn collega's"
       , mkScaleQuestion 7 "angst" "Mijn angst om op mijn werk onder te presteren is vaak wat mij motiveert"
       , mkScaleQuestion 7 "vermijden" "Ik wil vooral vermijden dat onderpresteer op mijn werk"
+      , mkScaleQuestion 7 "vergelijking" "Ik vind het belangrijk om goed te presteren, in vergelijking met mijn directe collega's"
+      , mkScaleQuestion 7 "beheersen" "Het is belangrijk voor mij om de werkzaamheden die ik verricht zo goed als mogelijk te beheersen"
+      , mkScaleQuestion 7 "zorgen" "Ik maak mij vaak zorgen dat ik niet alle kennis en vaardigheden op kan doen die deze baan mij te bieden heeft"
+      , mkScaleQuestion 7 "ontwikkelen" "Ik wil mij zo goed als mogelijk ontwikkelen tijdens mijn werk"
+      , mkScaleQuestion 7 "kennis" "Soms maak ik mij zorgen dat ik kennis en vaardigheden mis om mijn werk uit te voeren, zoals ik dat zou willen"
+      , mkScaleQuestion 7 "verlangen" "Ik verlang er naar om de vereiste kennis en vaardigheden voor mijn werk compleet onder de knie te krijgen"
+      , mkScaleQuestion 7 "beoordeling" "Mijn doel binnen het werk dat ik doe is om een betere beoordeling te krijgen dan mijn collega's"
+      , mkScaleQuestion 7 "onderprestatie" "Mijn doel op mijn werk is om onderprestatie te vermijden"
+      , mkScaleQuestion 7 "vermogens" "Ik maak mij zorgen dat ik mij niet naar mijn eigen vermogen(s) kan ontwikkelen in deze baan"
       ] 
   ]
-       
+
+deelDrie = Page [ HtmlFileElt "DeelDrie.html" ]
+
 vignette = Page $
   mkVignette Vignette { nummer = 1
                       , omschr1 = "Een app waarmee u rapporten mondeling kunt inspreken, die achteraf door andere medewerkers schriftelijk kunnen worden vastgelegd"
@@ -150,6 +168,8 @@ vignette = Page $
                                , beloning2 = "Niet meer zeulen met dossiers"
                                }
 -}
+
+bigSkip = vSkip 20
 
 vSkip :: Int -> FormElt
 vSkip height = HtmlElt $ "<div style='height: " ++ show height ++ "px'></div>"
@@ -447,12 +467,12 @@ mkFormView form@(Form pages) = mkWebView $
 instance Presentable FormView where
   present (FormView isComplete currentPage nrOfPages prevButton nextButton sendButton clearButton wv) =
     mkPage [thestyle "background: url('img/noise.png') repeat scroll center top transparent; min-height: 100%; font-family: Geneva"] $
-      with [thestyle "background: white; width:1000px; margin: 10px; padding: 10px", align "left"] $
+      with [thestyle "background: white; width:800px; margin: 10px; padding: 10px 50px 100px 50px", align "left"] $
         mkPageHeader +++
-           vList [ present wv
-                 , present sendButton
-                 , present clearButton ]
-   where mkPageHeader = with [ align "right"] $
+        vList [ present wv
+              , hStretchList [ E $ present clearButton, space, E $ present sendButton ]
+              ]
+   where mkPageHeader = with [ align "right", style "margin-bottom:40px"] $
                           hList [ present prevButton
                                 , with [style "font-size: 80%"] $ nbsp >> (toHtml $ "Pagina "++show (currentPage+1) ++"/"++show nrOfPages) >> nbsp
                                 , present nextButton ] 
