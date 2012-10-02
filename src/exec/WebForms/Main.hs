@@ -458,7 +458,8 @@ mkFormView form@(Form pages) = mkWebView $
           do { db <- getDb
              ; liftIO $ putStrLn $ "Sending answers:\n"++show db
              }
-       ; clearButton <- mkButton "Alles wissen" True $ Edit $ modifyDb $ \db -> Map.empty
+       ; clearButton <- mkButton "Alles wissen" True $ ConfirmEdit "Weet u zeker dat u alle antwoorden wilt wissen?" 
+                                                     $ Edit $ modifyDb $ \db -> Map.empty
        ; prevButton <- mkButton "Vorige" (currentPage/=0) $ Edit $ viewEdit vid $ \(FormView a p c d e f g h) -> FormView a (p-1) c d e f g h
        ; nextButton <- mkButton "Volgende" (currentPage < length pages - 1)  $ Edit $ viewEdit vid $ \(FormView a p c d e f g h) -> FormView a (p+1) c d e f g h
        ; return $ FormView isComplete currentPage (length pages) prevButton nextButton sendButton clearButton pageView
