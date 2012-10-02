@@ -2,7 +2,10 @@ module Utils where
 
 import Data.IORef
 import Data.Generics
-
+import Data.Map (Map)
+import qualified Data.Map as Map 
+import System.IO
+import Control.Monad.Trans (MonadIO, liftIO)
 import Generics
 import Types
 import Data.Tree
@@ -60,3 +63,38 @@ getTopLevelWebNodesForWebNode :: (Data db) => WebNode db -> [WebNode db]
 getTopLevelWebNodesForWebNode (WidgetNode _ _ _ wn) = []
 getTopLevelWebNodesForWebNode (WebViewNode wv) = getTopLevelWebNodes wv
 
+
+-- Template utils
+
+substitute ::  [(String, String)] -> String -> String
+substitute subsList str = substitute' str  
+ where subs = Map.fromList subsList 
+       substitute' ""            = ""
+       substitute' ('_':'_':str) =
+         let (placeholder,_:_:rest) = break (== '_') str
+         in  case Map.lookup placeholder subs of
+               Just value -> value ++ substitute' rest
+               Nothing -> "__"++placeholder++"__" ++ substitute' rest
+       substitute' (c:cs) = c:substitute' cs 
+
+getPlaceholders [] = []
+getPlaceholders ('_':'_':str) =
+  let (placeholder,_:_:rest) = break (== '_') str
+  in  placeholder : getPlaceholders rest
+getPlaceholders (c:cs) = getPlaceholders cs
+
+-- IO
+
+-- shorthand for liftIO
+io :: MonadIO m => IO a -> m a
+io = liftIO
+
+-- this function handles UTF files well, unlike readFile
+
+readUTFFile filePath =
+ do { h <- openFile  filePath ReadMode
+    ; c <- hGetContents h
+    ; seq (length c) $ return ()
+    ; hClose h
+    ; return c
+    }

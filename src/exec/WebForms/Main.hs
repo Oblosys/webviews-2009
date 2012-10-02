@@ -539,7 +539,7 @@ initializeDbQuestion questionTag db = case Map.lookup questionTag db of
 ---- Main (needs to be below all webviews that use deriveInitial)
 
 main :: IO ()
-main = server rootViews "WebFormDB.txt" mkInitialDatabase $ Map.empty
+main = server "" rootViews "" "WebFormDB.txt" mkInitialDatabase $ Map.empty
 
 rootViews :: RootViews Database
 rootViews = [ ("",  mkFormView testForm)

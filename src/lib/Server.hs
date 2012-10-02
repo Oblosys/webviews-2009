@@ -14,7 +14,7 @@ import Control.Monad.Reader
 import Control.Monad.State
 import Data.Generics
 import Data.Map (Map)
-import qualified Data.Map as Map 
+import qualified Data.Map as Map
 import Data.IntMap (IntMap)
 import qualified Data.IntMap as IntMap 
 import System.Time (getClockTime)
@@ -96,8 +96,8 @@ type SessionCounter = Int
 type Sessions db = IntMap (User, WebView db, Maybe (EditCommand db), HashArgs)
 
 server :: (Data db, Typeable db, Show db, Read db, Eq db) =>
-          RootViews db -> String -> IO (db) -> Map String (String, String) -> IO ()
-server rootViews dbFilename mkInitialDatabase users =
+          String -> RootViews db -> String -> String -> IO (db) -> Map String (String, String) -> IO ()
+server title rootViews css dbFilename mkInitialDatabase users =
  do { hSetBuffering stdout NoBuffering -- necessary to run server in Eclipse
     ; time <- getClockTime
     ; putStrLn $ "\n\n### Started WebViews server (port "++show webViewsPort++"): "++show time ++"\n"
@@ -167,17 +167,21 @@ handlers rootViews dbFilename theDatabase users serverSessionId globalStateRef =
       withData (\cmds -> do { requestIdData <- getData
                             ; requestId <- case requestIdData of
                                             Right i |  i/=(-1)  -> return i
-                                            Right i | otherwise -> do { liftIO $ putStrLn "Unreadable requestId";    mzero }
-                                            Left err            -> do { liftIO $ putStrLn "No requestId in request"; mzero }
+                                            Right i | otherwise -> do { io $ putStrLn "Unreadable requestId";    mzero }
+                                            Left err            -> do { io $ putStrLn "No requestId in request"; mzero }
                                 
-                            ; liftIO $ putStrLn $ "RequestId: "++show (requestId :: Int)
+                            ; io $ putStrLn $ "RequestId: "++show (requestId :: Int)
                             ; method GET >> nullDir >> session rootViews dbFilename theDatabase users serverSessionId globalStateRef requestId cmds
                             })
   , serveRootPage -- this generates an init event, which will handle hash arguments
   ] 
  where serveRootPage :: ServerPart Response
        serveRootPage =
-        do { liftIO $ putStrLn $ "Root requested"
+        do { io $ putStrLn $ "Root requested"
+           ; templateStr <- io $ readUTFFile $ "htmlTemplates/WebViews.html"
+      -- TODO: warn for non-existing placeholders
+           ; let htmlStr = substitute [] templateStr
+           ; io $ putStrLn htmlStr
            ; serveFile (asContentType "text/html") "scr/WebViews.html"
            } 
     
@@ -222,7 +226,7 @@ session rootViews dbFilename theDatabase users serverInstanceId globalStateRef r
         
         ; storeSessionState globalStateRef sessionId sessionStateRef
         
-        ; liftIO $ putStrLn "Done\n\n"
+        ; io $ putStrLn "Done\n\n"
         ; ok $ toResponse $ responseHtml
         }
  
@@ -252,46 +256,46 @@ mkInitialRootView theDatabase = runWebView Nothing theDatabase Map.empty [] 0 (-
 
 createNewSessionState :: Data db => db -> GlobalStateRef db -> ServerInstanceId -> ServerPart SessionId
 createNewSessionState theDatabase globalStateRef serverInstanceId = 
- do { (database, sessions,sessionCounter) <- liftIO $ readIORef globalStateRef
+ do { (database, sessions,sessionCounter) <- io $ readIORef globalStateRef
     ; let sessionId = sessionCounter
-    ; lputStrLn $ "New session: "++show sessionId
+    ; io $ putStrLn $ "New session: "++show sessionId
     ; addCookie Session (mkCookie "webviews" $ show (serverInstanceId, sessionId))
     -- cookie lasts for one hour
  
-    ; initialRootView <- liftIO $ mkInitialRootView theDatabase
+    ; initialRootView <- io $ mkInitialRootView theDatabase
                         
                        -- for debugging, begin with user martijn  
     ; let newSession = (Just ("martijn", "Martijn Schrage") {- Nothing -}, initialRootView, Nothing, [])
     ; let sessions' = IntMap.insert sessionId newSession sessions
    
-    ; liftIO $ writeIORef globalStateRef (database, sessions', sessionCounter + 1)
+    ; io $ writeIORef globalStateRef (database, sessions', sessionCounter + 1)
     
     ; return sessionId
     }
  
 retrieveSessionState :: GlobalStateRef db -> SessionId -> ServerPart (SessionStateRef db)
 retrieveSessionState globalStateRef sessionId =
- do { (database, sessions, sessionCounter) <- liftIO $ readIORef globalStateRef
+ do { (database, sessions, sessionCounter) <- io $ readIORef globalStateRef
     --; lputStrLn $ "\n\nNumber of active sessions: " ++ show sessionCounter                                          
     ; sessionState <- case IntMap.lookup sessionId sessions of -- in monad to show errors (which are not caught :-( )
-                             Nothing                      -> do { lputStrLn "\n\n\n\nInternal error: Session not found\n\n\n\n\n"
+                             Nothing                      -> do { io $ putStrLn "\n\n\n\nInternal error: Session not found\n\n\n\n\n"
                                                                 ; error "Internal error: Session not found"
                                                                 }
                              Just (user, rootView, pendingEdit, hashArgs) -> 
                                return $ SessionState sessionId user database rootView pendingEdit hashArgs
-    ; liftIO $ newIORef sessionState
+    ; io $ newIORef sessionState
     }      
  
 storeSessionState :: GlobalStateRef db -> SessionId -> SessionStateRef db -> ServerPart ()
 storeSessionState globalStateRef sessionId sessionStateRef =
- do { (_, sessions, sessionCounter) <- liftIO $ readIORef globalStateRef
-    ; SessionState _ user' database' rootView' pendingEdit' hashArgs <- liftIO $ readIORef sessionStateRef
+ do { (_, sessions, sessionCounter) <- io $ readIORef globalStateRef
+    ; SessionState _ user' database' rootView' pendingEdit' hashArgs <- io $ readIORef sessionStateRef
     ; let sessions' = IntMap.insert sessionId (user', rootView', pendingEdit', hashArgs) sessions                                          
-    ; liftIO $ writeIORef globalStateRef (database', sessions', sessionCounter)
+    ; io $ writeIORef globalStateRef (database', sessions', sessionCounter)
     }
  
 sessionHandler :: (Data db, Show db, Eq db) => RootViews db -> String -> db -> Map String (String, String) -> SessionStateRef db -> Int -> Commands -> ServerPart Html
-sessionHandler rootViews dbFilename theDatabase users sessionStateRef requestId cmds = liftIO $  
+sessionHandler rootViews dbFilename theDatabase users sessionStateRef requestId cmds = io $  
  do { --putStrLn $ "Received commands" ++ show cmds
     
     ; SessionState _ _ db oldRootView' _ _ <- readIORef sessionStateRef
@@ -371,7 +375,7 @@ sessionHandler rootViews dbFilename theDatabase users sessionStateRef requestId 
                             $ noHtml)                       
           }
  where evaluateDbAndRootView sessionStateRef =
-        do { dbRootView <- liftIO $ readIORef sessionStateRef
+        do { dbRootView <- io $ readIORef sessionStateRef
            ; seq (length $ show dbRootView) $ return ()
            }
 
@@ -405,7 +409,7 @@ handleCommand rootViews _ sessionStateRef (Init rootViewName hashArgs) =
  do { putStrLn $ "Init " ++ show rootViewName ++ " " ++ show hashArgs
     ; setSessionHashArgs sessionStateRef hashArgs
     ; SessionState sessionId user db oldRootView _ _ <- readIORef sessionStateRef
-    ; rootView <- liftIO $ mkRootView rootViews rootViewName hashArgs user db sessionId (mkViewMap oldRootView)
+    ; rootView <- io $ mkRootView rootViews rootViewName hashArgs user db sessionId (mkViewMap oldRootView)
     ; setRootView sessionStateRef rootView
      
     ; return ViewUpdate
@@ -414,7 +418,7 @@ handleCommand rootViews _ sessionStateRef (HashUpdate rootViewName hashArgs) = -
  do { putStrLn $ "HashUpdate " ++ show rootViewName ++ " " ++ show hashArgs
     ; setSessionHashArgs sessionStateRef hashArgs
     ; SessionState sessionId user db oldRootView _ _ <- readIORef sessionStateRef
-    ; rootView <- liftIO $ mkRootView rootViews rootViewName hashArgs user db sessionId (mkViewMap oldRootView)
+    ; rootView <- io $ mkRootView rootViews rootViewName hashArgs user db sessionId (mkViewMap oldRootView)
     ; setRootView sessionStateRef rootView
      
     ; return ViewUpdate
@@ -544,12 +548,3 @@ logout sessionStateRef =
     ; reloadRootView sessionStateRef
     ; return ViewUpdate
     }  
-
--- Utils
-
-lputStr :: MonadIO m => String -> m ()
-lputStr = liftIO . putStr
-
-lputStrLn :: MonadIO m => String -> m ()
-lputStrLn = liftIO . putStrLn
-

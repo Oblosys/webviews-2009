@@ -3,12 +3,10 @@ module WebViewLib where
 
 import BlazeHtml
 import qualified Text.Html as Html
-import Data.Map (Map)
-import qualified Data.Map as Map 
 import Data.Generics
-import System.IO
 import Control.Monad.State
 import Types
+import Utils
 import Generics
 import HtmlLib
 import WebViewPrim
@@ -198,30 +196,15 @@ instance MapWebView db HtmlTemplateView where
 mkHtmlTemplateView ::  Data db => String -> [(String,String)] -> WebViewM db (WebView db)
 mkHtmlTemplateView path subs = mkWebView $
  \vid (HtmlTemplateView _) ->
-   do { htmlStr <- liftIO $ readUTFFile $ "htmlTemplates/"++path
+   do { templateStr <- liftIO $ readUTFFile $ "htmlTemplates/"++path
       -- TODO: warn for non-existing placeholders
-      ; return $ HtmlTemplateView $ substitute (Map.fromList subs) htmlStr
+      ; return $ HtmlTemplateView $ substitute subs templateStr
       }
 
 instance Presentable HtmlTemplateView where
   present (HtmlTemplateView htmlStr) = primHtml htmlStr
 
 instance Data db => Storeable db HtmlTemplateView
-
-substitute :: Map String String -> String -> String
-substitute subs [] = ""
-substitute subs ('_':'_':str) =
-  let (placeholder,_:_:rest) = break (== '_') str
-  in  case Map.lookup placeholder subs of
-        Just value -> value ++ substitute subs rest
-        Nothing -> "__"++placeholder++"__" ++ substitute subs rest
-substitute subs (c:cs) = c:substitute subs cs 
-
-getPlaceholders [] = []
-getPlaceholders ('_':'_':str) =
-  let (placeholder,_:_:rest) = break (== '_') str
-  in  placeholder : getPlaceholders rest
-getPlaceholders (c:cs) = getPlaceholders cs
 
 
 -- MaybeView ---------------------------------------------------------------------  
@@ -377,23 +360,3 @@ mkPresentView presentList mkSubWebViews = mkWebView $
 
 instance Presentable (PresentView db) where
   present (PresentView (Wrapped presentList) wvs) = presentList $ map present wvs
-
-
-
--- Utils
-
-
--- Module utils (maybe not export these)
-
-
--- this function handles UTF files well, unlike readFile
-readUTFFile filePath =
- do { h <- openFile  filePath ReadMode
-    ; c <- hGetContents h
-    ; seq (length c) $ return ()
-    ; hClose h
-    ; return c
-    }
-
-    
-    
