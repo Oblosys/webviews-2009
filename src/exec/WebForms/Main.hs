@@ -83,7 +83,7 @@ instance MapWebView Database TextAnswer
 
 -- Form instance declaration
 
-testForm = Form [introductie, persoonsgegevens, stellingen, deelDrie, vignette ]
+testForm = Form $ [ introductie, persoonsgegevens, stellingen, deelDrie ] ++ vignettes
 
 introductie = Page [ HtmlFileElt "Introductie.html" ]
 
@@ -138,38 +138,39 @@ stellingen = Page
 
 deelDrie = Page [ HtmlFileElt "DeelDrie.html" ]
 
-vignette = Page $
-  mkVignette Vignette { nummer = 1
-                      , omschr1 = "Een app waarmee u rapporten mondeling kunt inspreken, die achteraf door andere medewerkers schriftelijk kunnen worden vastgelegd"
-                      , omschr2 = "Een app waarmee u snel kunt zien welke medicijnen met elkaar interacteren"
-                      , uitproberen1 = "Mogelijk"
-                      , uitproberen2 = "Niet mogelijk"
-                      , klaar1 = "Onvoldoende"
-                      , klaar2 = "Goed"
-                      , succes1 = "Goed"
-                      , succes2 = "Onvoldoende"
-                      , collegas1 = "Sceptisch"
-                      , collegas2 = "Enthousiast"
-                      , beloning1 = "Tijdbesparing"
-                      , beloning2 = "Minder kans op fouten"
-                      } {- ++ 
-           [ HtmlElt "<br/><br/>" ] ++ 
-           mkVignette Vignette { nummer = 2
-                               , omschr1 = "Een app waarmee u snel kunt zien welke medicijnen met elkaar interacteren"
-                               , omschr2 = "Een app waarmee u pati&euml;ntgegevens als een zakkaartje op uw iPhone meedraagt"
-                               , uitproberen1 = "Niet mogelijk"
-                               , uitproberen2 = "Mogelijk"
-                               , klaar1 = "Onvoldoende"
-                               , klaar2 = "Onvoldoende"
-                               , succes1 = "Goed"
-                               , succes2 = "Onvoldoende"
-                               , collegas1 = "Sceptisch"
-                               , collegas2 = "Sceptisch"
-                               , beloning1 = "Minder kans op fouten"
-                               , beloning2 = "Niet meer zeulen met dossiers"
-                               }
--}
-
+vignettes = 
+  [ Page $
+      mkVignette Vignette { nummer = 1
+                          , omschr1 = "Een app waarmee u rapporten mondeling kunt inspreken, die achteraf door andere medewerkers schriftelijk kunnen worden vastgelegd"
+                          , omschr2 = "Een app waarmee u snel kunt zien welke medicijnen met elkaar interacteren"
+                          , uitproberen1 = "Mogelijk"
+                          , uitproberen2 = "Niet mogelijk"
+                          , klaar1 = "Onvoldoende"
+                          , klaar2 = "Goed"
+                          , succes1 = "Goed"
+                          , succes2 = "Onvoldoende"
+                          , collegas1 = "Sceptisch"
+                          , collegas2 = "Enthousiast"
+                          , beloning1 = "Tijdbesparing"
+                          , beloning2 = "Minder kans op fouten"
+                          } 
+  , Page $
+      mkVignette Vignette { nummer = 2
+                          , omschr1 = "Een app waarmee u snel kunt zien welke medicijnen met elkaar interacteren"
+                          , omschr2 = "Een app waarmee u pati&euml;ntgegevens als een zakkaartje op uw iPhone meedraagt"
+                          , uitproberen1 = "Niet mogelijk"
+                          , uitproberen2 = "Mogelijk"
+                          , klaar1 = "Onvoldoende"
+                          , klaar2 = "Onvoldoende"
+                          , succes1 = "Goed"
+                          , succes2 = "Onvoldoende"
+                          , collegas1 = "Sceptisch"
+                          , collegas2 = "Sceptisch"
+                          , beloning1 = "Minder kans op fouten"
+                          , beloning2 = "Niet meer zeulen met dossiers"
+                          }
+  ]
+  
 bigSkip = vSkip 20
 
 vSkip :: Int -> FormElt

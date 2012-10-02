@@ -5,8 +5,34 @@
 }
 
 .TableVignetteOmschr {
+  border-collapse: collapse;
 }
-
+.TableVignetteOmschr .LeftCol {
+  border-color: black;
+  background-color: #eee;
+}
+.TableVignetteOmschr .TopRow.LeftCol {
+  border-color: black;
+  border-style: none solid solid none;
+  background-color: #fff;
+}
+.TableVignetteOmschr .TopRow.MiddleCol {
+  border-color: black;
+  border-style: solid solid solid solid;
+  background-color: #eee;
+}
+.TableVignetteOmschr .TopRow.RightCol {
+  border-color: black;
+  border-style: solid solid solid solid;
+  background-color: #ddd;
+}
 .TableVignetteOmschr .MiddleRow {
-  background-color: red
+  border-bottom-color: #ddd;
+  border-right-color: black;
+  border-style: solid;
+}
+.TableVignetteOmschr .BottomRow {
+  border-bottom-color: black;
+  border-right-color: black;
+  border-style: solid;
 }
