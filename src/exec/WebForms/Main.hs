@@ -485,9 +485,12 @@ deriveMapWebViewDb ''Database ''FormView
 
 mkFormView :: WebForm -> WebViewM Database (WebView Database)
 mkFormView form@(Form pages) = mkWebView $
-  \vid (FormView _ currentPage _ _ _ _ _ _) ->
+  \vid (FormView _ _ _ _ _ _ _ _) ->
     do { modifyDb $ initializeDb form
-       
+       ; args <- getHashArgs
+       ; let currentPage = case args of
+                             ("p", nrStr):_ | Just nr <- readMaybe nrStr  -> nr - 1
+                             _                                            -> 0 
        ; pageView <- mkFormPageView $ pages!!currentPage
        ; db <- getDb
        ; liftIO $ putStrLn $ "Db is "++show db
@@ -498,8 +501,8 @@ mkFormView form@(Form pages) = mkWebView $
              }
        ; clearButton <- mkButton "Alles wissen" True $ ConfirmEdit "Weet u zeker dat u alle antwoorden wilt wissen?" 
                                                      $ Edit $ modifyDb $ \db -> Map.empty
-       ; prevButton <- mkButton "Vorige" (currentPage/=0) $ Edit $ viewEdit vid $ \(FormView a p c d e f g h) -> FormView a (p-1) c d e f g h
-       ; nextButton <- mkButton "Volgende" (currentPage < length pages - 1)  $ Edit $ viewEdit vid $ \(FormView a p c d e f g h) -> FormView a (p+1) c d e f g h
+       ; prevButton <- mkButtonWithClick "Vorige" (currentPage/=0) $ \_ -> jsNavigateTo $ "'#form&p="++show (1+ currentPage - 1)++"'"
+       ; nextButton <- mkButtonWithClick "Volgende" (currentPage < length pages - 1) $ \_ -> jsNavigateTo $ "'#form&p="++show (1+ currentPage + 1)++"'" 
        ; return $ FormView isComplete currentPage (length pages) prevButton nextButton sendButton clearButton pageView
        }
 
@@ -554,5 +557,5 @@ main :: IO ()
 main = server "Blij van IT" rootViews "BlijVanIT.css" "WebFormDB.txt" mkInitialDatabase $ Map.empty
 
 rootViews :: RootViews Database
-rootViews = [ ("",  mkFormView testForm)
+rootViews = [ ("",  mkFormView testForm), ("form",  mkFormView testForm)
             ] 
