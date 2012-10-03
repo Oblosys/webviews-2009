@@ -179,7 +179,9 @@ handlers title rootViews cssFilename dbFilename theDatabase users serverSessionI
        serveRootPage =
         do { io $ putStrLn $ "Root requested"
            ; templateStr <- io $ readUTFFile $ "htmlTemplates/WebViews.html"
-           ; let htmlStr = substitute [("TITLE",title),("CSSFILE",cssFilename)] templateStr
+           ; let linksAndScripts = if null cssFilename then "" -- don't add css link if css file is empty string
+                                   else "  <link href=\"/scr/css/"++cssFilename++"\" rel=\"stylesheet\" type=\"text/css\" />"
+           ; let htmlStr = substitute [("TITLE",title),("LINKSANDSCRIPTS",linksAndScripts)] templateStr
            ; ok $ setHeader "Content-Type" "text/html; charset=utf-8" $ toResponse htmlStr
            } 
     
