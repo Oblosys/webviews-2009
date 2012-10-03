@@ -196,7 +196,7 @@ mkItemView inline item = mkWebView $
 instance Presentable ItemView where
   present (ItemView Full dist item _ owner button mBorrower props buttons) =
         vList [ h2 $ toHtml (getItemCategoryName item ++ ": " ++ get itemName item)
-              , hList [ (div_ (boxedEx 1 $ image ("items/" ++ get itemImage item) ! style "height: 200px")) ! style "width: 204px" ! align "top"
+              , hList [ (div_ (boxedEx 1 1 $ image ("items/" ++ get itemImage item) ! style "height: 200px")) ! style "width: 204px" ! align "top"
                       , nbsp
                       , nbsp
                       , vList $ [ with [style "color: #333; font-size: 16px"] $
@@ -216,7 +216,7 @@ instance Presentable ItemView where
   present (ItemView Inline dist item mEdited owner button mBorrower props buttons) =
     -- todo present imdb link, present movieOrSeries
       hStretchList
-            [ E $ linkedItem item $ (div_ (boxedEx 1 $ image ("items/" ++ get itemImage item) ! style "height: 130px")) ! style "width: 134px" ! align "top"
+            [ E $ linkedItem item $ (div_ (boxedEx 1 1 $ image ("items/" ++ get itemImage item) ! style "height: 130px")) ! style "width: 134px" ! align "top"
             , E $  nbsp +++ nbsp
             
             -- TODO: this stretch doesn't work. Until we have good compositional layout combinators, just set the width.
@@ -429,7 +429,7 @@ lenderIsUser lender (Just (login,_)) = get (lenderIdLogin . lenderId) lender == 
 instance Presentable LenderView where
   present (LenderView Full mUser lender _ {- testProps -} props extraProps itemWebViews buttons addButtons)   =
         vList [ vSpace 20
-              , hList [ (div_ (boxedEx 1 $ image ("leners/" ++ get lenderImage lender) ! style "height: 200px")) ! style "width: 204px" ! align "top"
+              , hList [ (div_ (boxedEx 1 1 $ image ("leners/" ++ get lenderImage lender) ! style "height: 200px")) ! style "width: 204px" ! align "top"
                       , hSpace 20
                       , vList [ h2 $ {- if editing 
                                      then hList [ present fName, nbsp, present lName ] 
@@ -451,7 +451,7 @@ instance Presentable LenderView where
               ]
   present (LenderView Inline mUser lender mEdited {- testProps -} props extraProps itemWebViews buttons _) =
     linkedLender lender $
-      hList [ (div_ (boxedEx 1 $ image ("leners/" ++ get lenderImage lender) ! style "height: 30px")) ! style "width: 34px" ! align "top"
+      hList [ (div_ (boxedEx 1 1 $ image ("leners/" ++ get lenderImage lender) ! style "height: 30px")) ! style "width: 34px" ! align "top"
             , nbsp
             , nbsp
             , vList [ toHtml (showName lender)
@@ -790,7 +790,7 @@ deriveMapWebViewDb ''Database ''BorrowedRootView
 ---- Main (needs to be below all webviews that use deriveInitial)
 
 main :: IO ()
-main = server rootViews "LeenclubDB.txt" mkInitialDatabase users
+main = server "Leenclub" rootViews "" "LeenclubDB.txt" mkInitialDatabase users
 
 rootViews :: RootViews Database
 rootViews = [ ("",       mkLeenclubPageView "Home"   mkHomeView), ("test", mkTestView), ("test2", mkTestView2), ("test3", mkTestView3 "msg")

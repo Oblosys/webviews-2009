@@ -27,7 +27,7 @@ import Database
 import ClientWebView
 
 main :: IO ()
-main = server rootViews "ReservationsDB.txt" mkInitialDatabase users
+main = server "Reservations" rootViews "" "ReservationsDB.txt" mkInitialDatabase users
 
 -- the webviews here are phantom typed, so we need rootView to get rid of the phantom types
 rootViews = [ rootView ""           mkMainRootView
@@ -466,7 +466,7 @@ mkHourView restaurantViewId reservationViewId hourReservations = mkWebViewT $
 instance Presentable HourView where
   present (HourView selectReservationActions hourReservations script) =
     (with [id_ "hourView"] $ -- in separate div, because spinners on scrolling elements  cause scrollbars to be shown
-    boxedEx 0 $ with [ thestyle "height:90px;overflow:auto"] $
+    boxedEx 1 0 $ with [ thestyle "height:90px;overflow:auto"] $
       mkTableEx [width "100%", cellpadding "0", cellspacing "0", thestyle "border-collapse:collapse"] [] [] $ 
         [ [ ([id_ . toValue $ "reservationLine_"++show i
              , strAttr "onClick" sa -- todo: don't like this onClick here
@@ -530,7 +530,7 @@ instance Presentable ReservationView where
       , hList [ "Name:",nbsp, with [colorAttr reservationColor] $ with [id_ "nameField"] $ noHtml]
       , hList [ "Nr. of people:",nbsp, with [colorAttr reservationColor] $ with [id_ "nrOfPeopleField"] $ noHtml ]
       , "Comment:" 
-      , boxedEx 0 $ with [thestyle $ "padding-left:4px;height:70px; width:300px; overflow:auto; color:" ++ htmlColor reservationColor] $ with [id_ "commentField"] $  
+      , boxedEx 1 0 $ with [thestyle $ "padding-left:4px;height:70px; width:300px; overflow:auto; color:" ++ htmlColor reservationColor] $ with [id_ "commentField"] $  
           noHtml
       ]) +++ mkScript script
    where reservationColor = Rgb 0x00 0x00 0xff
