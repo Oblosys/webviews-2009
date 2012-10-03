@@ -235,8 +235,8 @@ mkSelectableView allSelectableVids str selected clickCommand = mkWebView $
 
 instance Presentable SelectableView where
   present (SelectableView selected str clickAction) =
-    let color = if selected then Color "#aaa" else Color "#eee"
-    in  withEditAction clickAction $ {- with [thestyle $ "background-color: "++color] $ -} roundedBoxed (Just color) $ primHtml str
+    let (lineWidth,bgColor) = if selected then (2, "#aaa") else (1, "#eee")
+    in  withEditAction clickAction $ with [thestyle $ "background-color: "++bgColor] $ boxedEx lineWidth 4 $ primHtml str
 
 
 instance Storeable Database SelectableView

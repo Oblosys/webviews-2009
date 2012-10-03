@@ -44,9 +44,11 @@ multiLineStringToHtml text =
                     txt -> if last txt == '\n' then br >> nbsp else return ()
      }
      
-boxed elt = boxedEx 4 elt
+boxed :: Html -> Html
+boxed elt = boxedEx 1 4 elt
 
-boxedEx padding elt = thediv!!![thestyle $ "border:solid; border-width:1px; padding:"++show padding++"px;"] << elt
+boxedEx :: Int -> Int -> Html -> Html
+boxedEx lineWidth padding elt = thediv!!![thestyle $ "border:solid; border-width:"++show lineWidth++"px; padding:"++show padding++"px;"] << elt
 
 roundedBoxed mColor elt =
   mkTable attrs [] [] [[elt]]
