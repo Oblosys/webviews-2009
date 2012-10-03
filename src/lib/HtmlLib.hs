@@ -137,7 +137,7 @@ mkTableEx tableAttrs rowAttrss allCellAttrs rows =
 
 -- make a stretching page with the contents aligned at the top
 mkPage :: [HtmlAttr] -> Html -> Html
-mkPage attrs elt = table !* ([height "100%", width "100%"]++attrs) $ 
+mkPage attrs elt = table !* ([height "100%", width "100%", cellpadding "0", cellspacing "0"]++attrs) $ 
                       tr $ sequence_ [td ! width "50%" $ noHtml, td !* [valign "top", align "center"] $ elt, td ! width "50%" $ noHtml] --[valign "top", align "center"] 
                             --[[div_ ! width "50%" $ noHtml, elt, div_ ! width "50%" $ noHtml]]
                             -- this way the centered div gets minimal size
