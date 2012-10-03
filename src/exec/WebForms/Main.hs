@@ -119,6 +119,7 @@ persoonsgegevens = Page
 stellingen = Page
   [ HtmlElt "<em>Het tweede deel van de vragenlijst bevat twaalf stellingen die betrekking hebben op uw persoonlijke situatie in uw huidige werk. Wilt u aangeven in hoeverre u het eens bent met de stellingen hieronder door het cijfer aan te klikken. Hoe hoger het cijfer, des te beter u zich kunt vinden in de stelling.</em>"
   , bigSkip
+  , bigSkip
   , TableElt "Stellingen" False False False $
       [ [ HtmlElt "", HtmlElt "Mee&nbsp;eens<span style='margin-left:50px'></span>Mee&nbsponeens" ]
       , mkScaleQuestion 7 "presteren" "Ik vind het belangrijk om beter te presteren dan mijn collega's"
@@ -171,7 +172,7 @@ vignettes =
                           }
   ]
   
-bigSkip = vSkip 20
+bigSkip = vSkip 10
 
 vSkip :: Int -> FormElt
 vSkip height = HtmlElt $ "<div style='height: " ++ show height ++ "px'></div>"
@@ -235,8 +236,9 @@ mkSelectableView allSelectableVids str selected clickCommand = mkWebView $
 
 instance Presentable SelectableView where
   present (SelectableView selected str clickAction) =
-    let (lineWidth,bgColor) = if selected then (2, "#aaa") else (1, "#eee")
-    in  withEditAction clickAction $ with [thestyle $ "background-color: "++bgColor] $ boxedEx lineWidth 4 $ primHtml str
+    let (lineWidth,bgColor,fgColor) = if selected then (2, "#33f", "#fff") else (1, "#eee", "#000")
+    in  withEditAction clickAction $ with [thestyle $ "background-color: "++bgColor] $
+          boxedEx lineWidth 4 $ with [thestyle $ "color: "++fgColor] $ primHtml str
 
 
 instance Storeable Database SelectableView
