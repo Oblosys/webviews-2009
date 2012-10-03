@@ -34,27 +34,41 @@
 .TableStellingen tr:nth-child(even) {
   background-color: #f8f8f8;
 }
-.TableVignetteOmschr {
-  border-collapse: collapse;
+
+
+.TableVignetteOmschr td {
+  border-color: black;
+  border-width: 2px;
+  border-style: none;
 }
 .TableVignetteOmschr .LeftCol {
   border-color: black;
   background-color: #eee;
+  border-right-style: solid;
+  border-left-style: none;
 }
+.TableVignetteOmschr .MiddleCol {
+  width: 250px;
+  text-align: center;
+}
+.TableVignetteOmschr .RightCol {
+  width: 250px;
+  text-align: center;
+}
+
 .TableVignetteOmschr .TopRow.LeftCol {
   border-color: black;
   border-style: none solid solid none;
   background-color: #fff;
 }
 .TableVignetteOmschr .TopRow.MiddleCol {
-  border-color: black;
-  border-style: solid solid solid solid;
+  border-style: solid solid none none;
   background-color: #eee;
 }
 .TableVignetteOmschr .TopRow.RightCol {
   border-color: black;
-  border-style: solid solid solid solid;
-  background-color: #ddd;
+  border-style: solid solid solid none;
+  background-color: #eee;
 }
 .TableVignetteOmschr .MiddleRow {
   border-bottom-color: #ddd;
@@ -63,6 +77,27 @@
 }
 .TableVignetteOmschr .BottomRow {
   border-bottom-color: black;
-  border-right-color: black;
   border-style: solid;
+}
+
+
+.TableVignetteVragen {
+  border-width: 1px;
+  border-color: black;
+  border-style: solid;
+}
+.TableVignetteVragen .LeftCol {
+}
+.TableVignetteVragen .RightCol {
+  width: 200px;
+}
+.TableVignetteVragen .MiddleRow {
+  border-width: 1px;
+  border-color: #ddd;
+  border-bottom-style: solid;
+  border-top-style: solid;
+}
+
+.TableVignetteKiezen .LeftCol {
+  vertical-align: middle;
 }

@@ -89,12 +89,12 @@ introductie = Page [ HtmlFileElt "Introductie.html" ]
 
 persoonsgegevens = Page
   [ HtmlElt "<em>Eerst wil ik u enkele algemene vragen stellen, klik op het antwoord dat voor u van toepassing is of vul de betreffende informatie in.</em>"
-  , bigSkip
+  , medSkip
   , TableElt "Algemeen" False False False $
       [ [ HtmlElt "Wat is uw leeftijd?", StyleElt "width: 50px" $ TextAnswerElt $ TextAnswer "age"]
-      , [ bigSkip ]
+      , [ medSkip ]
       , [ HtmlElt "Wat is uw geslacht?", StyleElt "width: 100px" $ ButtonAnswerElt $ ButtonAnswer "gender" ["Man", "Vrouw"]]
-      , [ bigSkip ]
+      , [ medSkip ]
       , [ HtmlElt "In welke functie bent u momenteel werkzaam?", RadioTextAnswerElt $ RadioTextAnswer "functie" "functieAnders" 
                                                                                     [ "Activiteitenbegeleider"
                                                                                     , "Groepsbegeleider"
@@ -103,7 +103,7 @@ persoonsgegevens = Page
                                                                                     , "Verpleegkundige"
                                                                                     , "Verzorgende"
                                                                                     , "Anders, nl. :" ] ]
-      , [ bigSkip ]
+      , [ medSkip ]
       , [ HtmlElt "Wat is uw hoogst afgeronde opleiding?", RadioTextAnswerElt $ RadioTextAnswer "opleiding" "opleidingAnders" 
                                                                                     [ "Lager algemeen onderwijs (basisonderwijs)"
                                                                                     , "Lager beroepsonderwijs (LTS, LEAO)"
@@ -118,7 +118,6 @@ persoonsgegevens = Page
        
 stellingen = Page
   [ HtmlElt "<em>Het tweede deel van de vragenlijst bevat twaalf stellingen die betrekking hebben op uw persoonlijke situatie in uw huidige werk. Wilt u aangeven in hoeverre u het eens bent met de stellingen hieronder door het cijfer aan te klikken. Hoe hoger het cijfer, des te beter u zich kunt vinden in de stelling.</em>"
-  , bigSkip
   , bigSkip
   , TableElt "Stellingen" False False False $
       [ [ HtmlElt "", HtmlElt "Mee&nbsp;eens<span style='margin-left:50px'></span>Mee&nbsponeens" ]
@@ -172,7 +171,8 @@ vignettes =
                           }
   ]
   
-bigSkip = vSkip 10
+medSkip = vSkip 10
+bigSkip = vSkip 20
 
 vSkip :: Int -> FormElt
 vSkip height = HtmlElt $ "<div style='height: " ++ show height ++ "px'></div>"
@@ -193,8 +193,9 @@ mkVignette vt =
     , [ HtmlElt "De mate waarin de organisatie in het verleden succesvol technische innovaties heeft ingevoerd", HtmlElt $ succes1 vt, HtmlElt $ succes2 vt]
     , [ HtmlElt "Mening van uw collega's", HtmlElt $ collegas1 vt, HtmlElt $ collegas2 vt]
     , [ HtmlElt "Beloning", HtmlElt $ beloning1 vt, HtmlElt $ beloning2 vt] ]
+  , bigSkip
   , HtmlElt $ "<br/><em>Vragen (kruis de situatie aan die het beste bij u past):</em><br/><br/>"
-  , TableElt "VignetteVragen" False False True $
+  , TableElt "VignetteVragen" False False False $
     [ [ HtmlElt "De app die het meest gemakkelijk te gebruiken voor mij als persoon is"
       , ButtonAnswerElt $ ButtonAnswer ("vignette"++show (nummer vt)++".gemak") ["App&nbsp;1", "App&nbsp;2"]]
     , [ HtmlElt "De app die het meest nuttig ter ondersteuning van mijn dagelijkse werkzaamheden"
@@ -202,8 +203,9 @@ mkVignette vt =
     , [ HtmlElt "De app die ik zou gebruiken is"
       , ButtonAnswerElt $ ButtonAnswer ("vignette"++show (nummer vt)++".voorkeur") ["App&nbsp;1", "App&nbsp;2"]]
     ]
+  , bigSkip
   , HtmlElt $ "<br/><em>Klik op het cijfer dat aangeeft in hoeverre u het eens bent met onderstaande stelling:</em><br/><br/>" 
-  , TableElt "VignetteKiezen" False False True $
+  , TableElt "VignetteKiezen" False False False $
      [[ HtmlElt "Ik vond het moeilijk om te kiezen"
       , ButtonAnswerElt $ ButtonAnswer ("vignette"++show (nummer vt)++".moeilijkKiezen") $ map show [1..10]]
     ]
