@@ -1,9 +1,39 @@
+.FormTable {
+  border-collapse: collapse;
+}
+
 .TableAlgemeen {
 }
 
 .TableStellingen {
+  border-width: 1px;
+  border-color: black;
+  border-style: solid;
 }
-
+.TableStellingen .LeftCol {
+  border-width: 1px;
+  vertical-align: middle;
+  border-left-style: solid;
+  border-left-color: black;
+  border-right-style: solid;
+  border-right-color: black;
+}
+.TableStellingen .RightCol {
+  border-width: 1px;
+  border-right-style: solid;
+  border-right-color: black;
+}
+.TableStellingen .TopRow {
+  border-bottom-style: solid;
+  border-bottom-color: #eee;
+}
+.TableStellingen .MiddleRow {
+  border-bottom-style: solid;
+  border-bottom-color: #eee;
+}
+.TableStellingen tr:nth-child(even) {
+  background-color: #f8f8f8;
+}
 .TableVignetteOmschr {
   border-collapse: collapse;
 }
