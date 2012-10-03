@@ -17,10 +17,6 @@ Flag reservations
   description:  Build WebViews Reservations
   default:      False        
 
-Flag trac
-  description:  Build WebViews Trac
-  default:      False        
-
 Flag webforms
   description:  Build WebViews WebForms
   default:      False       
@@ -110,27 +106,6 @@ Executable reservations
   HS-Source-Dirs:  src/exec/Reservations
   Other-Modules:
   if flag(reservations)
-    buildable:  True
-  else
-    buildable:  False
-
-Executable trac
-  Main-is:    Main.hs 
-  Build-Depends:  WebViews,
-                  base >=4.5 && <4.6,
-                  containers >=0.4 && <0.5,
-                  syb >=0.3 && <0.4,
-                  mtl >=2.0 && <2.1,
-                  old-time >=1.1 && <1.2,
-                  html >=1.0 && <1.1,
-                  download-curl >=0.1 && <0.2,
-                  split >=0.1 && <0.2
-
-  GHC-Options: 
-  Extensions: OverloadedStrings
-  HS-Source-Dirs:  src/exec/Trac
-  Other-Modules:
-  if flag(trac)
     buildable:  True
   else
     buildable:  False
