@@ -513,7 +513,8 @@ mkFormView form@(Form pages) = mkWebView $
 instance Presentable FormView where
   present (FormView isComplete currentPage nrOfPages prevButton nextButton sendButton clearButton wv) =
     mkPage [thestyle "background: url('img/noise.png') repeat scroll center top transparent; min-height: 100%; font-family: Geneva"] $
-      with [thestyle "background: white; width:800px; margin: 10px; padding: 10px 50px 100px 50px", align "left"] $
+      with [theclass "FormPage", thestyle "background: white;", align "left"] $
+                                 -- dimensions are specified in css to allow iPad specific style                                                              
         mkPageHeader +++
         vList [ present wv
               , vSpace 40
