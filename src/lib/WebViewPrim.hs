@@ -600,8 +600,9 @@ inertTextView tv = jsScript [ onEvent "Submit" tv ""
    
 callServerEditAction :: (Widget (EditAction db)) -> [String] -> String                         
 callServerEditAction (Widget _ _ ea) args = 
-   "queueCommand('PerformEditActionC ("++show (getEditActionViewId ea)++") [\"'+"++
-   intercalate "+'\",\"'+" args ++"+'\"]')"
+   "queueCommand('PerformEditActionC ("++show (getEditActionViewId ea)++") ["++
+      intercalate "," ["\"'+"++arg++"+'\"" | arg <- args] 
+      ++"]');"
 
 
 
