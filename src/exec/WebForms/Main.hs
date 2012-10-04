@@ -478,7 +478,8 @@ instance Presentable FormView where
               , hStretchList [ E $ present clearButton, space, E $ present sendButton ]
               ]
    where mkPageHeader = with [ align "right", style "margin-bottom:40px"] $
-                          hList [ present prevButton
+                          hListCenter 
+                                [ present prevButton
                                 , with [style "font-size: 80%"] $ nbsp >> (toHtml $ "Pagina "++show (currentPage+1) ++"/"++show nrOfPages) >> nbsp
                                 , present nextButton ] 
       --  +++

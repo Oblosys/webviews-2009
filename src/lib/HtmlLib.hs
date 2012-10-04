@@ -110,6 +110,10 @@ hList elts = hListEx [] elts
 hListEx attrs [] = noHtml
 hListEx attrs  elts = simpleTable ([cellpadding "0", cellspacing "0"] ++ attrs) [theclass "draggable"] [ elts ]
 
+hListCenter elts = mkTableEx [cellpadding "0", cellspacing "0"] [] [style "vertical-align: middle"] [[ ([],elt) |elt <- elts ]] 
+
+vListCenter elts = mkTableEx [cellpadding "0", cellspacing "0"] [] [style "text-align: center"] [ [([],elt)] |elt <- elts ] 
+
 vList elts = vListEx [] elts
 
 vListEx attrs  [] = noHtml
