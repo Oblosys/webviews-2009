@@ -237,33 +237,38 @@ instance Data db => Storeable db (MaybeView db)
 -- SelectableView ---------------------------------------------------------------------  
  
 -- TODO: maybe add a class tag to allow specific presentation in css
-data SelectableView db = SelectableView Bool String (Widget (EditAction db)) deriving (Eq, Show, Typeable, Data)
+data SelectableView db = SelectableView Bool String (Widget (EditAction db)) String deriving (Eq, Show, Typeable, Data)
 
 instance Initial (SelectableView db) where
-  initial = SelectableView initial initial initial
+  initial = SelectableView initial initial initial initial
 
 instance MapWebView db (SelectableView db) where
-  mapWebView (SelectableView a b c) = SelectableView <$> mapWebView a <*> mapWebView b <*> mapWebView c
+  mapWebView (SelectableView a b c d) = SelectableView <$> mapWebView a <*> mapWebView b <*> mapWebView c <*> mapWebView d
 
+-- todo: use vid for identifying click area and clear other selections in addition to selecting the clicked one
 mkSelectableView :: forall db . Data db => [ViewId] -> String -> Bool -> EditM db () -> WebViewM db (WebView db)
 mkSelectableView allSelectableVids str selected clickCommand = mkWebView $
-  \vid (SelectableView _ _ _) ->
-    do { clickAction <- mkEditAction $ Edit $ do { sequence_ [ viewEdit v $ \(SelectableView _ str ca :: SelectableView db) ->
-                                                                              SelectableView (vid == v) str ca
+  \vid (SelectableView _ _ _ _) ->
+    do { clickAction <- mkEditAction $ Edit $ do { sequence_ [ viewEdit v $ \(SelectableView _ str ca scr :: SelectableView db) ->
+                                                                              SelectableView (vid == v) str ca scr
                                                              | v <- allSelectableVids
                                                              ]
                                                  ; clickCommand
                                                  }
-                                             
-                                                  
-       ; return $ SelectableView selected str clickAction
+       ; return $ SelectableView selected str clickAction $ jsScript []
        }
 
 instance Presentable (SelectableView db) where
-  present (SelectableView selected str clickAction) =
-    withEditAction clickAction $ with [theclass $ "SelectableView " ++ if selected then "Selected" else "Unselected"] $
-      thediv $ thediv $ primHtml str
-
+  present (SelectableView selected str clickAction script) =
+    {-withEditAction clickAction $-} 
+    with [ id_ . toValue $ clickAreaJsId
+         , theclass $ "SelectableView " ++ if selected then "Selected" else "Unselected"
+         ] $
+      with [strAttr "onClick" $ "$('#"++clickAreaJsId ++"').removeClass('Unselected').addClass('Selected');" ++
+                                callServerEditAction clickAction []
+           ] $ thediv $ primHtml str +++ mkScript script
+   where clickAreaJsId = "SelectableView_"++show (getViewId clickAction)
+                      -- use unique id from clickAction to create a unique id that we can refer to
 
 instance Storeable db (SelectableView db)
   
