@@ -426,15 +426,20 @@ withEditActionAttr :: Widget (EditAction db) -> Attribute
 withEditActionAttr (Widget _ _ (EditAction viewId _)) =  
   strAttr "onClick" $ "queueCommand('PerformEditActionC ("++show viewId++") []')"
 
-presentRadioView (RadioView viewId items selectedIx enabled stl _) = thespan << sequence_
-  [ radio (show viewId) (show i) !* ( [ id_ (toValue eltId) -- all buttons have viewId as name, so they belong to the same radio button set 
+-- Radio needs table to prevent overflowed text to end up under the button.
+presentRadioView (RadioView viewId items selectedIx enabled stl _) = 
+   table!!![cellpadding "0", cellspacing "2px"] $ tbody ! valign "top" $ concatHtml
+  [ tr $ concatHtml  
+      [ td !!! [style "vertical-align: top"] $
+         radio (show viewId) (show i) !* ( [ id_ (toValue eltId) -- all buttons have viewId as name, so they belong to the same radio button set 
                           , strAttr "onChange" ("queueCommand('SetC "++show viewId++" %22"++show i++"%22')") 
                           , strAttr "onFocus" ("elementGotFocus('"++eltId++"')")
                           ]
                           ++ (if enabled && i == selectedIx then [strAttr "checked" ""] else []) 
                           ++ (if not enabled then [strAttr "disabled" ""] else [])
                           ++ (if stl /= "" then [thestyle stl] else [])) 
-                          >> toHtml item >> br 
+      , td !!! [ strAttr "onClick" $ "$('#"++eltId++"').attr('checked',true);$('#"++eltId++"').change()"] $ toHtml item
+      ] -- add onClick handler, so we can click anywhere on the text, instead of only on the button.
   | (i, item) <- zip [0..] items 
   , let eltId = "radio"++show viewId++"button"++show i ] -- these must be unique for setting focus
 
