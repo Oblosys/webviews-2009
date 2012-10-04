@@ -34,6 +34,14 @@ function clearSpinners() {
 	
 }
 
+// Selects and deselect selectable views immediately, so we don't have to wait for the server response.
+function selectSelectableView(viewId, viewIds) {
+  for (var i = 0; i<viewIds.length; i++)
+    if (viewIds[i]!=viewId)
+      $('#'+viewIds[i]).removeClass('Selected').addClass('Unselected');
+    
+  $('#'+viewId).removeClass('Unselected').addClass('Selected');
+}
 
 (function($) { // from http://stackoverflow.com/questions/536814/insert-ellipsis-into-html-tag-if-content-too-wide
 	$.fn.ellipsis = function() {

@@ -4,6 +4,7 @@ module WebViewLib where
 import BlazeHtml
 import qualified Text.Html as Html
 import Data.Generics
+import Data.List
 import Control.Monad.State
 import Types
 import Utils
@@ -237,38 +238,39 @@ instance Data db => Storeable db (MaybeView db)
 -- SelectableView ---------------------------------------------------------------------  
  
 -- TODO: maybe add a class tag to allow specific presentation in css
-data SelectableView db = SelectableView Bool String (Widget (EditAction db)) String deriving (Eq, Show, Typeable, Data)
+--       add 'enabled' field? 
+data SelectableView db = SelectableView ViewId [ViewId] Bool String (Widget (EditAction db)) String deriving (Eq, Show, Typeable, Data)
 
 instance Initial (SelectableView db) where
-  initial = SelectableView initial initial initial initial
+  initial = SelectableView (ViewId []) initial initial initial initial initial
 
+instance MapWebView db ViewId
 instance MapWebView db (SelectableView db) where
-  mapWebView (SelectableView a b c d) = SelectableView <$> mapWebView a <*> mapWebView b <*> mapWebView c <*> mapWebView d
+  mapWebView (SelectableView a b c d e f) = SelectableView <$> mapWebView a <*> mapWebView b <*> mapWebView c <*> mapWebView d <*> mapWebView e <*> mapWebView f
 
--- todo: use vid for identifying click area and clear other selections in addition to selecting the clicked one
 mkSelectableView :: forall db . Data db => [ViewId] -> String -> Bool -> EditM db () -> WebViewM db (WebView db)
 mkSelectableView allSelectableVids str selected clickCommand = mkWebView $
-  \vid (SelectableView _ _ _ _) ->
-    do { clickAction <- mkEditAction $ Edit $ do { sequence_ [ viewEdit v $ \(SelectableView _ str ca scr :: SelectableView db) ->
-                                                                              SelectableView (vid == v) str ca scr
+  \vid _ ->
+    do { clickAction <- mkEditAction $ Edit $ do { sequence_ [ viewEdit v $ \(SelectableView vi vis _ str ca scr :: SelectableView db) ->
+                                                                              SelectableView vi vis (vid == v) str ca scr
                                                              | v <- allSelectableVids
                                                              ]
                                                  ; clickCommand
                                                  }
-       ; return $ SelectableView selected str clickAction $ jsScript []
+       ; return $ SelectableView vid allSelectableVids selected str clickAction $ jsScript []
        }
 
 instance Presentable (SelectableView db) where
-  present (SelectableView selected str clickAction script) =
-    {-withEditAction clickAction $-} 
-    with [ id_ . toValue $ clickAreaJsId
+  present (SelectableView vid allVids selected str clickAction script) =
+    with [ id_ . toValue $ mkId vid
          , theclass $ "SelectableView " ++ if selected then "Selected" else "Unselected"
          ] $
-      with [strAttr "onClick" $ "$('#"++clickAreaJsId ++"').removeClass('Unselected').addClass('Selected');" ++
-                                callServerEditAction clickAction []
+      with [strAttr "onClick" $ concat -- use js to select/deselect views immediately (while waiting for server response)
+                                  [ "selectSelectableView("++show (mkId vid)++",["++ intercalate "," [ show $ mkId vi |vi <- allVids] ++ "]);"
+                                  , callServerEditAction clickAction []
+                                  ]
            ] $ thediv $ primHtml str +++ mkScript script
-   where clickAreaJsId = "SelectableView_"++show (getViewId clickAction)
-                      -- use unique id from clickAction to create a unique id that we can refer to
+   where mkId viewId = "SelectableView_"++show viewId
 
 instance Storeable db (SelectableView db)
   
