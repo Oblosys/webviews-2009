@@ -216,6 +216,7 @@ mkVignette vt =
 
 ------- WebViews lib
 
+-- TODO: maybe add a class tag to allow specific presentation in css
 data SelectableView = SelectableView Bool String (Widget (EditAction Database)) deriving (Eq, Show, Typeable, Data)
 
 deriveInitial ''SelectableView
@@ -238,9 +239,8 @@ mkSelectableView allSelectableVids str selected clickCommand = mkWebView $
 
 instance Presentable SelectableView where
   present (SelectableView selected str clickAction) =
-    let (lineWidth,bgColor,fgColor) = if selected then (2, "#33f", "#fff") else (1, "#eee", "#000")
-    in  withEditAction clickAction $ with [thestyle $ "background-color: "++bgColor] $
-          boxedEx lineWidth 4 $ with [thestyle $ "color: "++fgColor] $ primHtml str
+    withEditAction clickAction $ with [theclass $ "SelectableView " ++ if selected then "Selected" else "Unselected"] $
+      thediv $ thediv $ primHtml str
 
 
 instance Storeable Database SelectableView

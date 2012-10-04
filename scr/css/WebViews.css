@@ -48,3 +48,23 @@ a {
 	color: currentColor;
 	text-decoration: inherit! important
 }
+
+/* default style of gui elements, can be overridden in project-specific css */
+.SelectableView.Selected {
+  background-color: #33f;
+  border-width: 2px;
+  border-style: solid;
+  padding: 4px;
+  color: #000;
+}
+.SelectableView.Selected div {
+  color: #fff;
+}
+
+.SelectableView.Unselected {
+  background-color: #eee;
+  border-width: 1px;
+  border-style: solid;
+  padding: 4px;
+  color: #000;
+}
