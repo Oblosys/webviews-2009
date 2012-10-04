@@ -213,49 +213,6 @@ mkVignette vt =
 
 
 
-
-------- WebViews lib
-
--- TODO: maybe add a class tag to allow specific presentation in css
-data SelectableView = SelectableView Bool String (Widget (EditAction Database)) deriving (Eq, Show, Typeable, Data)
-
-deriveInitial ''SelectableView
-deriveMapWebViewDb ''Database ''SelectableView
-
-
-mkSelectableView :: [ViewId] -> String -> Bool -> EditM Database () -> WebViewM Database (WebView Database)
-mkSelectableView allSelectableVids str selected clickCommand = mkWebView $
-  \vid (SelectableView _ _ _) ->
-    do { clickAction <- mkEditAction $ Edit $ do { sequence_ [ viewEdit v $ \(SelectableView _ str ca) ->
-                                                                              SelectableView (vid == v) str ca
-                                                             | v <- allSelectableVids
-                                                             ]
-                                                 ; clickCommand
-                                                 }
-                                             
-                                                  
-       ; return $ SelectableView selected str clickAction
-       }
-
-instance Presentable SelectableView where
-  present (SelectableView selected str clickAction) =
-    withEditAction clickAction $ with [theclass $ "SelectableView " ++ if selected then "Selected" else "Unselected"] $
-      thediv $ thediv $ primHtml str
-
-
-instance Storeable Database SelectableView
-  
--- TODO: can make this more general by providing a list of (EditM db ()) for each button
-mkSelectionViews :: [String] -> [String] -> ((Int,String) -> EditM Database ()) -> WebViewM Database [WebView Database]
-mkSelectionViews strs selectedStrs clickActionF =
- do { rec { wvs <- sequence [ mkSelectableView vids str (str `elem` selectedStrs) $ clickActionF (i,str)  
-                            | (i,str) <- zip [0..] strs
-                            ]
-          ; let vids = map getViewId wvs
-          }
-    ; return wvs
-    }
-
 ------- WebViews form
      
 data RadioAnswerView = RadioAnswerView RadioAnswer (Widget (RadioView Database))
@@ -343,7 +300,7 @@ mkButtonAnswerView b@(ButtonAnswer questionTag answers) = mkWebView $
                   Nothing    -> return []
                   (Just str) -> return [str]
        
-       ; buttons <- mkSelectionViews answers selectedStrs $ \(_,str) -> modifyDb $ setAnswer questionTag str
+       ; buttons <- mkSelectableViews answers selectedStrs $ \(_,str) -> modifyDb $ setAnswer questionTag str
        -- because we cannot access webview fields like widget values (because of existentials) we cannot
        -- query the webview in Storeable and put the setAnswer in an edit command instead.
        ; return $ ButtonAnswerView b buttons

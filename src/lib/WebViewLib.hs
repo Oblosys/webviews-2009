@@ -234,6 +234,55 @@ instance Presentable (MaybeView db) where
 instance Data db => Storeable db (MaybeView db)
 
 
+-- SelectableView ---------------------------------------------------------------------  
+ 
+-- TODO: maybe add a class tag to allow specific presentation in css
+data SelectableView db = SelectableView Bool String (Widget (EditAction db)) deriving (Eq, Show, Typeable, Data)
+
+instance Initial (SelectableView db) where
+  initial = SelectableView initial initial initial
+
+instance MapWebView db (SelectableView db) where
+  mapWebView (SelectableView a b c) = SelectableView <$> mapWebView a <*> mapWebView b <*> mapWebView c
+
+mkSelectableView :: forall db . Data db => [ViewId] -> String -> Bool -> EditM db () -> WebViewM db (WebView db)
+mkSelectableView allSelectableVids str selected clickCommand = mkWebView $
+  \vid (SelectableView _ _ _) ->
+    do { clickAction <- mkEditAction $ Edit $ do { sequence_ [ viewEdit v $ \(SelectableView _ str ca :: SelectableView db) ->
+                                                                              SelectableView (vid == v) str ca
+                                                             | v <- allSelectableVids
+                                                             ]
+                                                 ; clickCommand
+                                                 }
+                                             
+                                                  
+       ; return $ SelectableView selected str clickAction
+       }
+
+instance Presentable (SelectableView db) where
+  present (SelectableView selected str clickAction) =
+    withEditAction clickAction $ with [theclass $ "SelectableView " ++ if selected then "Selected" else "Unselected"] $
+      thediv $ thediv $ primHtml str
+
+
+instance Storeable db (SelectableView db)
+  
+-- TODO: can make this more general by providing a list of (EditM db ()) for each button
+mkSelectableViews :: Data db => [String] -> [String] -> ((Int,String) -> EditM db ()) -> WebViewM db [WebView db]
+mkSelectableViews strs selectedStrs clickActionF =
+ do { rec { wvs <- sequence [ mkSelectableView vids str (str `elem` selectedStrs) $ clickActionF (i,str)  
+                            | (i,str) <- zip [0..] strs
+                            ]
+          ; let vids = map getViewId wvs
+          }
+    ; return wvs
+    }
+
+
+
+
+
+
 
 -- Experimental webviews
 
@@ -360,3 +409,4 @@ mkPresentView presentList mkSubWebViews = mkWebView $
 
 instance Presentable (PresentView db) where
   present (PresentView (Wrapped presentList) wvs) = presentList $ map present wvs
+
