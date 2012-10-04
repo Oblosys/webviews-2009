@@ -61,7 +61,7 @@ a {
   color: #fff;
 }
 
-.SelectableView.Unselected {
+.SelectableView.Deselected {
   background-color: #eee;
   border-width: 1px;
   border-style: solid;

@@ -38,9 +38,9 @@ function clearSpinners() {
 function selectSelectableView(viewId, viewIds) {
   for (var i = 0; i<viewIds.length; i++)
     if (viewIds[i]!=viewId)
-      $('#'+viewIds[i]).removeClass('Selected').addClass('Unselected');
+      $('#'+viewIds[i]).removeClass('Selected').addClass('Deselected');
     
-  $('#'+viewId).removeClass('Unselected').addClass('Selected');
+  $('#'+viewId).removeClass('Deselected').addClass('Selected');
 }
 
 (function($) { // from http://stackoverflow.com/questions/536814/insert-ellipsis-into-html-tag-if-content-too-wide
