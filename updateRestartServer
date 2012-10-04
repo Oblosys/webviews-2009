@@ -1,0 +1,6 @@
+# update and restart server on MacMini server
+# path are absolute, so we can execute remotely with ssh
+
+cd ~/svn/Oblomov/WebViews
+svn update
+/Users/martijn/Library/Haskell/bin/cabal build && ./startServer
