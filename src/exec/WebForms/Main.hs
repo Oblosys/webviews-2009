@@ -476,10 +476,11 @@ mkFormView form@(Form pages) = mkWebView $
              }
        ; clearButton <- mkButton "Alles wissen" True $ ConfirmEdit "Weet u zeker dat u alle antwoorden wilt wissen?" 
                                                      $ Edit $ modifyDb $ \db -> Map.empty
-       ; prevButton <- mkButtonWithClick "Vorige" (currentPage/=0) $ \_ -> jsNavigateTo $ "'#form&p="++show (1+ currentPage - 1)++"'"
-       ; nextButton <- mkButtonWithClick "Volgende" (currentPage < length pages - 1) $ \_ -> jsNavigateTo $ "'#form&p="++show (1+ currentPage + 1)++"'" 
+       ; prevButton <- mkButtonWithClick "Vorige" (currentPage/=0)                   $ \_ -> gotoPageNr (currentPage - 1) 
+       ; nextButton <- mkButtonWithClick "Volgende" (currentPage < length pages - 1) $ \_ -> gotoPageNr (currentPage + 1) 
        ; return $ FormView isComplete currentPage (length pages) prevButton nextButton sendButton clearButton pageView
        }
+ where gotoPageNr nr = jsNavigateTo $ "'#form&p="++show (1+ nr)++"'" -- nr is 0-based
 
 instance Presentable FormView where
   present (FormView isComplete currentPage nrOfPages prevButton nextButton sendButton clearButton wv) =
