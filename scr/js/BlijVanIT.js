@@ -1,4 +1,7 @@
 function initProgressMarkers() {
+  $('.ProgressMarker').remove();
+  $('.ProgressLine').remove();
+  
   var $formPage = $('.FormPage');
   var $progressMarkers = $('.Answer').map(function() {
     var $progressMarker = $("<div class='ProgressMarker'/>");
