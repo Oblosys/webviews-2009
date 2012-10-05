@@ -214,8 +214,14 @@ mkVignette vt =
 
 
 ------- WebViews form
-     
-data RadioAnswerView = RadioAnswerView RadioAnswer (Widget (RadioView Database))
+type Answered = Bool
+
+withAnswerClass :: Answered -> Html -> Html
+withAnswerClass answered = with [theclass $ "Answer " ++ if answered then "Answered" else "Unanswered" ]
+
+--------- RadioAnswerView ------------------------------------------------------------
+
+data RadioAnswerView = RadioAnswerView RadioAnswer Answered (Widget (RadioView Database))
    deriving (Eq, Show, Typeable, Data)
 
 deriveInitial ''RadioAnswerView
@@ -223,7 +229,7 @@ deriveMapWebViewDb ''Database ''RadioAnswerView
 
 mkRadioAnswerView :: RadioAnswer -> WebViewM Database (WebView Database)
 mkRadioAnswerView r@(RadioAnswer questionTag answers) = mkWebView $
-  \vid (RadioAnswerView _ radioOld) ->
+  \vid _ ->
     do { db <- getDb
        ; selection <- case unsafeLookup "mkRadioAnswerView" questionTag db of
                         Nothing    -> return $ -1
@@ -231,22 +237,23 @@ mkRadioAnswerView r@(RadioAnswer questionTag answers) = mkWebView $
 
        ; radio <-  mkRadioView answers selection True 
     
-       ; return $ RadioAnswerView r radio
+       ; return $ RadioAnswerView r (selection /= -1) radio
        }
 
 instance Presentable RadioAnswerView where
-  present (RadioAnswerView _ radio) =
-      present radio
+  present (RadioAnswerView _ answered radio) = withAnswerClass answered $ present radio
 
 instance Storeable Database RadioAnswerView where
-  save (RadioAnswerView (RadioAnswer questionTag answers) radio) =
+  save (RadioAnswerView (RadioAnswer questionTag answers) answered radio) =
     if getSelection radio == -1
     then clearAnswer questionTag 
     else setAnswer questionTag $ answers !! getSelection radio -- todo: unsafe
 
 
+--------- RadioTextAnswerView ------------------------------------------------------------
+
 -- Similar to Radio, but has a text field that is enabled when the last answer is selected (which will be "other:")
-data RadioTextAnswerView = RadioTextAnswerView RadioTextAnswer (Widget (RadioView Database)) (Widget (TextView Database))
+data RadioTextAnswerView = RadioTextAnswerView RadioTextAnswer Answered (Widget (RadioView Database)) (Widget (TextView Database))
    deriving (Eq, Show, Typeable, Data)
 
 deriveInitial ''RadioTextAnswerView
@@ -268,15 +275,14 @@ mkRadioTextAnswerView r@(RadioTextAnswer radioQuestionTag textQuestionTag answer
        ; radio <-  mkRadioView answers selection True 
        ; let isTextAnswerSelected = selection == length answers - 1
        ; text <- mkTextFieldEx (if isTextAnswerSelected then str else "") isTextAnswerSelected "" Nothing Nothing
-       ; return $ RadioTextAnswerView r radio text
+       ; return $ RadioTextAnswerView r (not $ selection == -1 || isTextAnswerSelected && str == "") radio text
        }
 
 instance Presentable RadioTextAnswerView where
-  present (RadioTextAnswerView _ radio text) =
-    present radio >> present text
+  present (RadioTextAnswerView _ answered radio text) = withAnswerClass answered $ present radio >> present text
 
 instance Storeable Database RadioTextAnswerView where
-  save (RadioTextAnswerView (RadioTextAnswer radioQuestionTag textQuestionTag answers) radio text) =
+  save (RadioTextAnswerView (RadioTextAnswer radioQuestionTag textQuestionTag answers) _ radio text) =
     if getSelection radio == -1 
     then clearAnswer radioQuestionTag . clearAnswer textQuestionTag
     else (setAnswer radioQuestionTag $ answers !! getSelection radio) . -- todo: unsafe
@@ -285,7 +291,10 @@ instance Storeable Database RadioTextAnswerView where
          else if getStrVal text == "" then clearAnswer textQuestionTag else setAnswer textQuestionTag $ getStrVal text 
 -- TODO: maybe cache answer?
 
-data ButtonAnswerView = ButtonAnswerView ButtonAnswer [WebView Database]
+
+--------- ButtonAnswerView ------------------------------------------------------------
+
+data ButtonAnswerView = ButtonAnswerView ButtonAnswer Answered [WebView Database]
    deriving (Eq, Show, Typeable, Data)
 
 
@@ -296,23 +305,24 @@ mkButtonAnswerView :: ButtonAnswer -> WebViewM Database (WebView Database)
 mkButtonAnswerView b@(ButtonAnswer questionTag answers) = mkWebView $
   \vid _ ->
     do { db <- getDb
-       ; selectedStrs <- case unsafeLookup "mkButtonAnswerView" questionTag db of
-                  Nothing    -> return []
-                  (Just str) -> return [str]
+       ; let mSelectedStr :: Maybe String = unsafeLookup "mkButtonAnswerView" questionTag db
        
-       ; buttons <- mkSelectableViews answers selectedStrs $ \(_,str) -> modifyDb $ setAnswer questionTag str
+       ; buttons <- mkSelectableViews answers mSelectedStr $ \(_,str) -> modifyDb $ setAnswer questionTag str
        -- because we cannot access webview fields like widget values (because of existentials) we cannot
        -- query the webview in Storeable and put the setAnswer in an edit command instead.
-       ; return $ ButtonAnswerView b buttons
+       ; return $ ButtonAnswerView b (isJust mSelectedStr) buttons
        }
 
 instance Presentable ButtonAnswerView where
-  present (ButtonAnswerView _ buttons) =
-      hStretchList $ intersperse space $ map (E . present) buttons
+  present (ButtonAnswerView _ answered buttons) =
+    withAnswerClass answered $ hStretchList $ intersperse space $ map (E . present) buttons
 
 instance Storeable Database ButtonAnswerView
 
-data TextAnswerView = TextAnswerView TextAnswer (Widget (TextView Database))
+
+--------- TextAnswerView ------------------------------------------------------------
+
+data TextAnswerView = TextAnswerView TextAnswer Answered (Widget (TextView Database))
    deriving (Eq, Show, Typeable, Data)
 
 
@@ -329,17 +339,21 @@ mkTextAnswerView t@(TextAnswer questionTag) = mkWebView $
        
        ; text <-  mkTextField str 
 
-       ; return $ TextAnswerView t text
+       ; return $ TextAnswerView t (not . null $ str) text
        }
 
 instance Presentable TextAnswerView where
-  present (TextAnswerView _ radio) =
-      present radio
+  present (TextAnswerView _ answered radio) = withAnswerClass answered $ present radio
 
 instance Storeable Database TextAnswerView where
-  save (TextAnswerView (TextAnswer questionTag) text) =
+  save (TextAnswerView (TextAnswer questionTag) _ text) =
     let str = getStrVal text
     in  if str == "" then clearAnswer questionTag else setAnswer questionTag str
+
+
+
+
+--------- Non-answer views ------------------------------------------------------------
 
 
 data StyleView = StyleView String (WebView Database)
