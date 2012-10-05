@@ -96,8 +96,8 @@ type SessionCounter = Int
 type Sessions db = IntMap (User, WebView db, Maybe (EditCommand db), HashArgs)
 
 server :: (Data db, Typeable db, Show db, Read db, Eq db) =>
-          String -> RootViews db -> String -> String -> IO (db) -> Map String (String, String) -> IO ()
-server title rootViews cssFilename dbFilename mkInitialDatabase users =
+          String -> RootViews db -> [String] -> String -> IO (db) -> Map String (String, String) -> IO ()
+server title rootViews scriptFilenames dbFilename mkInitialDatabase users =
  do { hSetBuffering stdout NoBuffering -- necessary to run server in Eclipse
     ; time <- getClockTime
     ; putStrLn $ "\n\n### Started WebViews server (port "++show webViewsPort++"): "++show time ++"\n"
@@ -126,7 +126,7 @@ server title rootViews cssFilename dbFilename mkInitialDatabase users =
     ; globalStateRef <- newIORef $ initGlobalState theDatabase
 
     ; simpleHTTP nullConf { port = webViewsPort, logAccess = Nothing {-Just logWebViewAccess-} } $
-        msum (handlers title rootViews cssFilename dbFilename theDatabase users serverSessionId globalStateRef)
+        msum (handlers title rootViews scriptFilenames dbFilename theDatabase users serverSessionId globalStateRef)
     }
 {-
 handle:
@@ -155,8 +155,8 @@ instance FromData Int where
 
 readInt s = fromMaybe (-1) (readMaybe s)
 
-handlers :: (Data db, Show db, Eq db) => String -> RootViews db -> String -> String -> db -> Map String (String, String) -> ServerInstanceId -> GlobalStateRef db -> [ServerPart Response]
-handlers title rootViews cssFilename dbFilename theDatabase users serverSessionId globalStateRef = 
+handlers :: (Data db, Show db, Eq db) => String -> RootViews db -> [String] -> String -> db -> Map String (String, String) -> ServerInstanceId -> GlobalStateRef db -> [ServerPart Response]
+handlers title rootViews scriptFilenames dbFilename theDatabase users serverSessionId globalStateRef = 
   (do { neverExpires
       ; msum [ dir "favicon.ico" $  serveDirectory DisableBrowsing [] "favicon.ico"
              , dir "scr" $  serveDirectory DisableBrowsing [] "scr"
@@ -179,12 +179,14 @@ handlers title rootViews cssFilename dbFilename theDatabase users serverSessionI
        serveRootPage =
         do { io $ putStrLn $ "Root requested"
            ; templateStr <- io $ readUTFFile $ "htmlTemplates/WebViews.html"
-           ; let linksAndScripts = if null cssFilename then "" -- don't add css link if css file is empty string
-                                   else "  <link href=\"/scr/css/"++cssFilename++"\" rel=\"stylesheet\" type=\"text/css\" />"
+           ; let linksAndScripts = concatMap mkScriptLink scriptFilenames
            ; let htmlStr = substitute [("TITLE",title),("LINKSANDSCRIPTS",linksAndScripts)] templateStr
            ; ok $ setHeader "Content-Type" "text/html; charset=utf-8" $ toResponse htmlStr
            } 
-    
+       mkScriptLink filename = case reverse . takeWhile (/='.') . reverse $ filename of
+                                 "js"  -> "  <script type=\"text/javascript\" src=\"/scr/js/"++filename++"\"></script>"
+                                 "css" -> "  <link href=\"/scr/css/"++filename++"\" rel=\"stylesheet\" type=\"text/css\" />"
+                                 ext   -> error $ "Unhandled script extension: "++ext
 {-
 This stuff may not hold for HappStack 6
  TODO: why does exactdir "/handle" not work?
