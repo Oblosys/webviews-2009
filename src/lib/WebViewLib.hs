@@ -275,9 +275,10 @@ instance Presentable (SelectableView db) where
 instance Storeable db (SelectableView db)
   
 -- TODO: can make this more general by providing a list of (EditM db ()) for each button
-mkSelectableViews :: Data db => [String] -> [String] -> ((Int,String) -> EditM db ()) -> WebViewM db [WebView db]
-mkSelectableViews strs selectedStrs clickActionF =
- do { rec { wvs <- sequence [ mkSelectableView vids str (str `elem` selectedStrs) $ clickActionF (i,str)  
+-- TODO: allow multiple selection buttons
+mkSelectableViews :: Data db => [String] -> Maybe String -> ((Int,String) -> EditM db ()) -> WebViewM db [WebView db]
+mkSelectableViews strs mSelectedStr clickActionF =
+ do { rec { wvs <- sequence [ mkSelectableView vids str (Just str == mSelectedStr) $ clickActionF (i,str)  
                             | (i,str) <- zip [0..] strs
                             ]
           ; let vids = map getViewId wvs
