@@ -287,6 +287,8 @@ function state_Change() {
       }
 
    		processPendingMoves(moves);
+      removeChildrenById("parking"); // clean any parked webnodes
+
    		processPendingScripts(scripts); // execute scripts only after the dom tree is correct
    		// TODO: we could optimize this a bit by separating the scripts from the updates in the server communication
    		
@@ -299,7 +301,6 @@ function state_Change() {
    		if (drawingViewTree)
         drawViewTree();
 
-      removeChildrenById("parking"); // clean any parked webnodes
 
       // restore focus
       dlog("restoring focus to "+focusedElementId);
