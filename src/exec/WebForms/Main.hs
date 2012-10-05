@@ -476,7 +476,8 @@ mkFormView form@(Form pages) = mkWebView $
              }
        ; clearButton <- mkButton "Alles wissen" True $ ConfirmEdit "Weet u zeker dat u alle antwoorden wilt wissen?" 
                                                      $ Edit $ modifyDb $ \db -> Map.empty
-       ; prevButton <- mkButtonWithClick "Vorige" (currentPage/=0)                   $ \_ -> gotoPageNr (currentPage - 1) 
+       ; prevButton <- mkButtonWithClick "Vorige" (currentPage/=0)                   $ \_ -> --  gotoPageNr (currentPage - 1)
+                                "initProgressMarkers();" 
        ; nextButton <- mkButtonWithClick "Volgende" (currentPage < length pages - 1) $ \_ -> gotoPageNr (currentPage + 1) 
        ; return $ FormView isComplete currentPage (length pages) prevButton nextButton sendButton clearButton pageView
        }
@@ -532,7 +533,7 @@ initializeDbQuestion questionTag db = case Map.lookup questionTag db of
 ---- Main (needs to be below all webviews that use deriveInitial)
 
 main :: IO ()
-main = server "Blij van IT" rootViews "BlijVanIT.css" "WebFormDB.txt" mkInitialDatabase $ Map.empty
+main = server "Blij van IT" rootViews ["BlijVanIT.js", "BlijVanIT.css"] "WebFormDB.txt" mkInitialDatabase $ Map.empty
 
 rootViews :: RootViews Database
 rootViews = [ ("",  mkFormView testForm), ("form",  mkFormView testForm)

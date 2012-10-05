@@ -7,6 +7,46 @@
   .FormPage { width:728px; margin: 0px; padding: 10px 20px 100px 20px; }
 }
 
+.FormPage {
+  position: relative; /* necessary to have absolute children be relative to this div */
+}
+
+.ProgressMarker {
+  width: 14px;
+  height: 14px;
+  border: solid 1px;
+  -webkit-border-radius: 14px; /* radius seems to be diameter */
+  -moz-border-radius: 14px;
+  border-radius: 14px; 
+  position: absolute;
+  top: 0px;
+  right: 20px;
+  z-index: 100;
+}
+.ProgressMarker.Answered {
+  color: blue;
+  background-color: lightblue;
+}
+.ProgressMarker.Unanswered {
+  color: #bbb;
+  background-color: white;
+}
+
+.ProgressLine {
+  width: 2px;
+  height: 40px;
+  border: solid: 1px;
+  position: absolute;
+  top: 0px;
+  right: 27px;
+}
+.ProgressLine.Connected {
+  background-color: blue;
+}
+.ProgressLine.Disconnected {
+  background-color: #bbb;
+}
+
 .FormTable {
   border-collapse: collapse;
 }
