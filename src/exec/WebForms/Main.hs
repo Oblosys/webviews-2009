@@ -83,8 +83,11 @@ instance MapWebView Database TextAnswer
 
 -- Form instance declaration
 
-testForm = Form $ [ introductie, persoonsgegevens, stellingen, deelDrie ] ++ vignettes
+testForm = Form $ testPages ++ [ introductie, persoonsgegevens, stellingen, deelDrie ] ++ vignettes
 
+testPages = [ Page[ HtmlElt "Wat is uw leeftijd?", StyleElt "width: 50px" $ TextAnswerElt $ TextAnswer "testAge"]
+            , Page[ HtmlElt "Bla?", StyleElt "width: 50px" $ ButtonAnswerElt $ ButtonAnswer "bla" ["Ja", "Nee"]]
+            ]
 introductie = Page [ HtmlFileElt "Introductie.html" ]
 
 persoonsgegevens = Page
@@ -430,25 +433,31 @@ mkViewFormElt (TableElt classTag border topHeader leftHeader rows) =
 --       representing the page. Also maybe we don't want to generate all pages but only the current one.
 
 data FormPageView = 
-  FormPageView [WebView Database]
+  FormPageView [WebView Database] String
     deriving (Eq, Show, Typeable, Data)
 
 deriveInitial ''FormPageView
 
 deriveMapWebViewDb ''Database ''FormPageView
 
-mkFormPageView :: FormPage -> WebViewM Database (WebView Database)
-mkFormPageView (Page elts) = mkWebView $
+mkFormPageView :: Int -> FormPage -> WebViewM Database (WebView Database)
+mkFormPageView nr (Page elts) = mkWebView $
   \vid _ ->
     do { pageViews <- mapM mkViewFormElt elts
-       ; return $ FormPageView pageViews
+       ; return $ FormPageView pageViews $ jsScript
+           [ "initProgressMarkers();"
+           , "console.log('"++show nr++"');" ] -- todo: need to put the nr in the script because otherwise
+                                               -- the incrementality prevents the script from being executed.
+                                               -- The current script model is not okay! 
        }
 
 instance Presentable FormPageView where
-  present (FormPageView wvs) =
-    vList $ map present wvs
+  present (FormPageView wvs script) =
+    (vList $ map present wvs) +++ mkScript script
 
 instance Storeable Database FormPageView
+
+
 
 data FormView = 
   FormView Bool Int Int (Widget (Button Database)) (Widget (Button Database)) (Widget (Button Database)) (Widget (Button Database)) (WebView Database)
@@ -466,7 +475,7 @@ mkFormView form@(Form pages) = mkWebView $
        ; let currentPage = case args of
                              ("p", nrStr):_ | Just nr <- readMaybe nrStr  -> nr - 1
                              _                                            -> 0 
-       ; pageView <- mkFormPageView $ pages!!currentPage
+       ; pageView <- mkFormPageView currentPage $ pages!!currentPage
        ; db <- getDb
        ; liftIO $ putStrLn $ "Db is "++show db
        ; let isComplete = all isJust $ Map.elems db
@@ -476,8 +485,8 @@ mkFormView form@(Form pages) = mkWebView $
              }
        ; clearButton <- mkButton "Alles wissen" True $ ConfirmEdit "Weet u zeker dat u alle antwoorden wilt wissen?" 
                                                      $ Edit $ modifyDb $ \db -> Map.empty
-       ; prevButton <- mkButtonWithClick "Vorige" (currentPage/=0)                   $ \_ -> --  gotoPageNr (currentPage - 1)
-                                "initProgressMarkers();" 
+       ; prevButton <- mkButtonWithClick "Vorige" (currentPage/=0)                   $ \_ -> gotoPageNr (currentPage - 1)
+--                                "initProgressMarkers();" 
        ; nextButton <- mkButtonWithClick "Volgende" (currentPage < length pages - 1) $ \_ -> gotoPageNr (currentPage + 1) 
        ; return $ FormView isComplete currentPage (length pages) prevButton nextButton sendButton clearButton pageView
        }
