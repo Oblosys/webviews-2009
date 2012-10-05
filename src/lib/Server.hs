@@ -186,7 +186,7 @@ handlers title rootViews scriptFilenames dbFilename theDatabase users serverSess
        mkScriptLink filename = case reverse . takeWhile (/='.') . reverse $ filename of
                                  "js"  -> "  <script type=\"text/javascript\" src=\"/scr/js/"++filename++"\"></script>"
                                  "css" -> "  <link href=\"/scr/css/"++filename++"\" rel=\"stylesheet\" type=\"text/css\" />"
-                                 ext   -> error $ "Unhandled script extension: "++ext
+                                 ext   -> error $ "Unhandled script extension: "++filename
 {-
 This stuff may not hold for HappStack 6
  TODO: why does exactdir "/handle" not work?
