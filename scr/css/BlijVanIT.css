@@ -23,13 +23,17 @@
   right: 20px;
   z-index: 100;
 }
+.ProgressMarker[AnswerProgress="Unanswered"] {
+  color: #bbb;
+  background-color: white;
+}
 .ProgressMarker[AnswerProgress="Answered"] {
   color: blue;
   background-color: lightblue;
 }
-.ProgressMarker[AnswerProgress="Unanswered"] {
-  color: #bbb;
-  background-color: white;
+.ProgressMarker[AnswerProgress="Incorrect"] {
+  color: red;
+  background-color: #fdd;
 }
 
 .ProgressLine {
