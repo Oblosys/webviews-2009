@@ -85,7 +85,7 @@ isNumber = all isDigit
 
 -- Form instance declaration
 
-testForm = Form $ testPages ++ [ introductie, persoonsgegevens, stellingen, deelDrie ] ++ vignettes
+testForm = Form $ testPages ++ [ introductie ] {-, persoonsgegevens, stellingen, deelDrie ] ++ vignettes -}
 
 testPages = [ Page[ HtmlElt "Wat is uw leeftijd?", StyleElt "width: 50px" $ TextAnswerElt $ TextAnswer "testAge" isNumber ]
             , Page[ HtmlElt "Bla?", StyleElt "width: 50px" $ ButtonAnswerElt $ ButtonAnswer "bla" ["Ja", "Nee"]]
@@ -277,13 +277,13 @@ mkRadioAnswerView :: RadioAnswer -> WebViewM Database (WebView Database)
 mkRadioAnswerView r@(RadioAnswer questionTag answers) = mkWebView $
   \vid _ ->
     do { db <- getDb
-       ; selection <- case unsafeLookup "mkRadioAnswerView" questionTag db of
+       ; selection <- case getAnswer questionTag db of
                         Nothing    -> return $ -1
-                        (Just str) -> return $ fromMaybe (-1) $ elemIndex str answers
+                        Just str -> return $ fromMaybe (-1) $ elemIndex str answers
 
        ; radio <-  mkRadioView answers selection True 
     
-       ; return $ RadioAnswerView r (if selection /= -1 then Answered else Unanswered) radio
+       ; return $ RadioAnswerView r (if selection /= -1 then Answered else Unanswered) undefined -- radio
        }
 
 instance Presentable RadioAnswerView where
@@ -293,7 +293,7 @@ instance Storeable Database RadioAnswerView where
   save (RadioAnswerView (RadioAnswer questionTag answers) answered radio) =
     if getSelection radio == -1
     then clearAnswer questionTag 
-    else setAnswer questionTag $ answers !! getSelection radio -- todo: unsafe
+    else setAnswer questionTag Nothing $ answers !! getSelection radio -- todo: unsafe
 
 
 --------- RadioTextAnswerView ------------------------------------------------------------
@@ -310,11 +310,11 @@ mkRadioTextAnswerView :: RadioTextAnswer -> WebViewM Database (WebView Database)
 mkRadioTextAnswerView r@(RadioTextAnswer radioQuestionTag textQuestionTag answers) = mkWebView $
   \vid _ ->
     do { db <- getDb
-       ; selection <- case unsafeLookup "mkRadioTextAnswerView.1" radioQuestionTag db of
+       ; selection <- case getAnswer radioQuestionTag db of
                         Nothing    -> return $ -1
                         (Just str) -> return $ fromMaybe (-1) $ elemIndex str answers
 
-       ; str <- case unsafeLookup "mkRadioTextAnswerView.2" textQuestionTag db of
+       ; str <- case getAnswer textQuestionTag db of
                   Nothing    -> return ""
                   (Just str) -> return str  
 
@@ -332,10 +332,10 @@ instance Storeable Database RadioTextAnswerView where
   save (RadioTextAnswerView (RadioTextAnswer radioQuestionTag textQuestionTag answers) _ radio text) =
     if getSelection radio == -1 
     then clearAnswer radioQuestionTag . clearAnswer textQuestionTag
-    else (setAnswer radioQuestionTag $ answers !! getSelection radio) . -- todo: unsafe
+    else (setAnswer radioQuestionTag Nothing $ answers !! getSelection radio) . -- todo: unsafe
          if getSelection radio < length answers - 1
-         then (setAnswer textQuestionTag "") -- don't clear, because then it counts as not completed 
-         else if getStrVal text == "" then clearAnswer textQuestionTag else setAnswer textQuestionTag $ getStrVal text 
+         then (setAnswer textQuestionTag Nothing "") -- don't clear, because then it counts as not completed 
+         else if getStrVal text == "" then clearAnswer textQuestionTag else setAnswer textQuestionTag Nothing $ getStrVal text 
 -- TODO: maybe cache answer?
 
 
@@ -352,9 +352,9 @@ mkButtonAnswerView :: ButtonAnswer -> WebViewM Database (WebView Database)
 mkButtonAnswerView b@(ButtonAnswer questionTag answers) = mkWebView $
   \vid _ ->
     do { db <- getDb
-       ; let mSelectedStr :: Maybe String = unsafeLookup "mkButtonAnswerView" questionTag db
+       ; let mSelectedStr :: Maybe String = getAnswer questionTag db
        
-       ; buttons <- mkSelectableViews answers mSelectedStr $ \(_,str) -> modifyDb $ setAnswer questionTag str
+       ; buttons <- mkSelectableViews answers mSelectedStr $ \(_,str) -> modifyDb $ setAnswer questionTag Nothing str
        -- because we cannot access webview fields like widget values (because of existentials) we cannot
        -- query the webview in Storeable and put the setAnswer in an edit command instead.
        ; return $ ButtonAnswerView b (if isJust mSelectedStr then Answered else Unanswered) buttons
@@ -380,7 +380,7 @@ mkTextAnswerView :: TextAnswer -> WebViewM Database (WebView Database)
 mkTextAnswerView t@(TextAnswer questionTag validate) = mkWebView $
   \vid _ ->
     do { db <- getDb
-       ; str <- case unsafeLookup "mkTextAnswerView" questionTag db of
+       ; str <- case getAnswer questionTag db of
                   Nothing    -> return ""
                   (Just str) -> return str  
        
@@ -398,7 +398,7 @@ instance Presentable TextAnswerView where
 instance Storeable Database TextAnswerView where
   save (TextAnswerView questionTag _ text (NoPresent validate)) =
     let str = getStrVal text
-    in  if str == "" then clearAnswer questionTag else setAnswer questionTag str
+    in  if str == "" then clearAnswer questionTag else setAnswer questionTag (Just validate) str
 
 
 
@@ -525,7 +525,7 @@ mkFormView form@(Form pages) = mkWebView $
        ; pageView <- mkFormPageView currentPage $ pages!!currentPage
        ; db <- getDb
        ; liftIO $ putStrLn $ "Db is "++show db
-       ; let isComplete = all isJust $ Map.elems db
+       ; let isComplete = all isQuestionAnswered $ Map.elems db
        ; sendButton <- mkButton "Opsturen" isComplete $ Edit $
           do { db <- getDb
              ; liftIO $ putStrLn $ "Sending answers:\n"++show db
