@@ -10,7 +10,7 @@ type QuestionTag = String
 type Answer = String
 
 type Database = Map QuestionTag (Maybe (Bool, Answer))
--- TODO: use Answered here? Then maybe we need a version of answered with the strings in it, so we don't have a string for Unanswered
+-- TODO: use Answered here. We need a version of answered with the strings in it, so we don't have a string for Unanswered
 
 mkInitialDatabase :: IO Database
 mkInitialDatabase = return $ Map.empty

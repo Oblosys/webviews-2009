@@ -35,7 +35,8 @@ import WebFormUtils
 -- WebForm data types
 
 -- TODO: the question tags are more answer tags
--- TODO: how about using css for table decorations? (add classes for top row, left column, etc.)
+-- TODO: update script on edit (tricky, needs event model on all widgets and also on ButtonAnswerVIew)
+
 
 data WebForm = Form [FormPage]
 
@@ -55,8 +56,10 @@ data FormElt = HtmlElt String
 data RadioAnswer = RadioAnswer { getRadioQuestionTag :: QuestionTag, getRadioAnswers :: [String] }
    deriving (Eq, Show, Typeable, Data)
 
-data RadioTextAnswer = RadioTextAnswer { getRadioTextRadioQuestionTag :: QuestionTag, getRadioTextTextQuestionTag :: QuestionTag, getRadioTextAnswers :: [String] }
-   deriving (Eq, Show, Typeable, Data)
+data RadioTextAnswer = RadioTextAnswer { getRadioTextRadioQuestionTag :: QuestionTag, getRadioTextTextQuestionTag :: QuestionTag, getRadioTextAnswers :: [String] 
+                                       , getRadioTextValidate :: String -> Bool -- TODO: maybe use data Correct / Incorrect String to provide hints/error messages 
+                                       }
+   deriving (Show, Typeable, Data)
 
 data ButtonAnswer = ButtonAnswer { getButtonQuestionTag :: QuestionTag, getButtonAnswers :: [String] }
    deriving (Eq, Show, Typeable, Data)
@@ -72,12 +75,10 @@ instance MapWebView Database FormElt
 deriveInitial ''RadioAnswer
 instance MapWebView Database RadioAnswer
 
-deriveInitial ''RadioTextAnswer
-instance MapWebView Database RadioTextAnswer
-
 deriveInitial ''ButtonAnswer
 instance MapWebView Database ButtonAnswer
 
+radioTextAnswer rtag ttag answers = RadioTextAnswer rtag ttag answers $ const True -- any input is correct
 
 textAnswer tag = TextAnswer tag $ const True -- any input is correct
 
@@ -85,7 +86,7 @@ isNumber = all isDigit
 
 -- Form instance declaration
 
-testForm = Form $ testPages ++ [ introductie ] {-, persoonsgegevens, stellingen, deelDrie ] ++ vignettes -}
+testForm = Form $ testPages ++ [ introductie, persoonsgegevens ] {-, stellingen, deelDrie ] ++ vignettes -}
 
 testPages = [ Page[ HtmlElt "Wat is uw leeftijd?", StyleElt "width: 50px" $ TextAnswerElt $ TextAnswer "testAge" isNumber ]
             , Page[ HtmlElt "Bla?", StyleElt "width: 50px" $ ButtonAnswerElt $ ButtonAnswer "bla" ["Ja", "Nee"]]
@@ -100,7 +101,7 @@ persoonsgegevens = Page
       , [ medSkip ]
       , [ HtmlElt "Wat is uw geslacht?", StyleElt "width: 100px" $ ButtonAnswerElt $ ButtonAnswer "gender" ["Man", "Vrouw"]]
       , [ medSkip ]
-      , [ HtmlElt "In welke functie bent u momenteel werkzaam?", RadioTextAnswerElt $ RadioTextAnswer "functie" "functieAnders" 
+      , [ HtmlElt "In welke functie bent u momenteel werkzaam?", RadioTextAnswerElt $ radioTextAnswer "functie" "functieAnders" 
                                                                                     [ "Activiteitenbegeleider"
                                                                                     , "Groepsbegeleider"
                                                                                     , "Helpende gezondheidszorg"
@@ -109,7 +110,7 @@ persoonsgegevens = Page
                                                                                     , "Verzorgende"
                                                                                     , "Anders, nl. :" ] ]
       , [ medSkip ]
-      , [ HtmlElt "Wat is uw hoogst afgeronde opleiding?", RadioTextAnswerElt $ RadioTextAnswer "opleiding" "opleidingAnders" 
+      , [ HtmlElt "Wat is uw hoogst afgeronde opleiding?", RadioTextAnswerElt $ radioTextAnswer "opleiding" "opleidingAnders" 
                                                                                     [ "Lager algemeen onderwijs (basisonderwijs)"
                                                                                     , "Lager beroepsonderwijs (LTS, LEAO)"
                                                                                     , "Middelbaar algemeen onderwijs (MAVO, MULO, VMBO)"
@@ -283,7 +284,7 @@ mkRadioAnswerView r@(RadioAnswer questionTag answers) = mkWebView $
 
        ; radio <-  mkRadioView answers selection True 
     
-       ; return $ RadioAnswerView r (if selection /= -1 then Answered else Unanswered) undefined -- radio
+       ; return $ RadioAnswerView r (if selection /= -1 then Answered else Unanswered) radio
        }
 
 instance Presentable RadioAnswerView where
@@ -299,7 +300,9 @@ instance Storeable Database RadioAnswerView where
 --------- RadioTextAnswerView ------------------------------------------------------------
 
 -- Similar to Radio, but has a text field that is enabled when the last answer is selected (which will be "other:")
-data RadioTextAnswerView = RadioTextAnswerView RadioTextAnswer Answered (Widget (RadioView Database)) (Widget (TextView Database))
+data RadioTextAnswerView = 
+       RadioTextAnswerView String String [String] Answered (Widget (RadioView Database)) (Widget (TextView Database))
+                           (NoPresent (String -> Bool))               
    deriving (Eq, Show, Typeable, Data)
 
 deriveInitial ''RadioTextAnswerView
@@ -307,35 +310,42 @@ deriveMapWebViewDb ''Database ''RadioTextAnswerView
 
 
 mkRadioTextAnswerView :: RadioTextAnswer -> WebViewM Database (WebView Database)
-mkRadioTextAnswerView r@(RadioTextAnswer radioQuestionTag textQuestionTag answers) = mkWebView $
+mkRadioTextAnswerView r@(RadioTextAnswer radioQuestionTag textQuestionTag answers validate) = mkWebView $
   \vid _ ->
     do { db <- getDb
        ; selection <- case getAnswer radioQuestionTag db of
-                        Nothing    -> return $ -1
-                        (Just str) -> return $ fromMaybe (-1) $ elemIndex str answers
+                        Nothing  -> return $ -1
+                        Just str -> return $ fromMaybe (-1) $ elemIndex str answers
 
        ; str <- case getAnswer textQuestionTag db of
                   Nothing    -> return ""
-                  (Just str) -> return str  
+                  Just str -> return str  
 
        ; radio <-  mkRadioView answers selection True 
        ; let isTextAnswerSelected = selection == length answers - 1
-       ; text <- mkTextFieldEx (if isTextAnswerSelected then str else "") isTextAnswerSelected "" Nothing Nothing
-       ; return $ RadioTextAnswerView r (if not $ selection == -1 || isTextAnswerSelected && str == "" then Answered else Unanswered)
-                                      radio text
+       ; textField <- mkTextFieldEx (if isTextAnswerSelected then str else "") isTextAnswerSelected "" Nothing Nothing
+       ; return $ RadioTextAnswerView radioQuestionTag textQuestionTag answers
+                                      (answered selection str)
+                                      radio textField
+                                      (NoPresent validate)
        }
-
+ where answered (-1) _                             = Unanswered
+       answered sel str | sel < length answers - 1 = Answered
+                        | validate str             = Answered -- last answer
+                        | otherwise                = Invalid  -- is selected
+                    
+                    --(if not $ selection == -1 || isTextAnswerSelected && str == "" then Answered else Unanswered)
 instance Presentable RadioTextAnswerView where
-  present (RadioTextAnswerView _ answered radio text) = withAnswerClass answered $ present radio >> present text
+  present (RadioTextAnswerView _ _ _ answered radio textField _) = withAnswerClass answered $ present radio >> present textField
 
 instance Storeable Database RadioTextAnswerView where
-  save (RadioTextAnswerView (RadioTextAnswer radioQuestionTag textQuestionTag answers) _ radio text) =
+  save (RadioTextAnswerView radioQuestionTag textQuestionTag answers valid radio textField (NoPresent validate)) =
     if getSelection radio == -1 
     then clearAnswer radioQuestionTag . clearAnswer textQuestionTag
-    else (setAnswer radioQuestionTag Nothing $ answers !! getSelection radio) . -- todo: unsafe
+    else (setAnswer radioQuestionTag (Just validate) $ answers !! getSelection radio) . -- todo: unsafe
          if getSelection radio < length answers - 1
-         then (setAnswer textQuestionTag Nothing "") -- don't clear, because then it counts as not completed 
-         else if getStrVal text == "" then clearAnswer textQuestionTag else setAnswer textQuestionTag Nothing $ getStrVal text 
+         then (setAnswer textQuestionTag (Just validate) "") -- don't clear, because then it counts as not completed 
+         else if getStrVal textField == "" then clearAnswer textQuestionTag else setAnswer textQuestionTag (Just validate) $ getStrVal textField 
 -- TODO: maybe cache answer?
 
 
@@ -384,20 +394,20 @@ mkTextAnswerView t@(TextAnswer questionTag validate) = mkWebView $
                   Nothing    -> return ""
                   (Just str) -> return str  
        
-       ; text <-  mkTextField str 
+       ; textField <-  mkTextField str 
 
-       ; return $ TextAnswerView questionTag (answered str) text (NoPresent validate)
+       ; return $ TextAnswerView questionTag (answered str) textField (NoPresent validate)
        }
  where answered ""                 = Unanswered
        answered str | validate str = Answered
                     | otherwise    = Invalid
                     
 instance Presentable TextAnswerView where
-  present (TextAnswerView _ answered radio _) = withAnswerClass answered $ present radio
+  present (TextAnswerView _ answered textField _) = withAnswerClass answered $ present textField
 
 instance Storeable Database TextAnswerView where
-  save (TextAnswerView questionTag _ text (NoPresent validate)) =
-    let str = getStrVal text
+  save (TextAnswerView questionTag _ textField (NoPresent validate)) =
+    let str = getStrVal textField
     in  if str == "" then clearAnswer questionTag else setAnswer questionTag (Just validate) str
 
 
