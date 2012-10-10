@@ -97,7 +97,7 @@ persoonsgegevens = Page
   [ HtmlElt "<em>Eerst wil ik u enkele algemene vragen stellen, klik op het antwoord dat voor u van toepassing is of vul de betreffende informatie in.</em>"
   , medSkip
   , TableElt "Algemeen" False False False $
-      [ [ HtmlElt "Wat is uw leeftijd?", StyleElt "width: 50px" $ TextAnswerElt $ textAnswer "age"]
+      [ [ HtmlElt "Wat is uw leeftijd?", StyleElt "width: 50px" $ TextAnswerElt $ TextAnswer "age" isNumber ]
       , [ medSkip ]
       , [ HtmlElt "Wat is uw geslacht?", StyleElt "width: 100px" $ ButtonAnswerElt $ ButtonAnswer "gender" ["Man", "Vrouw"]]
       , [ medSkip ]
@@ -335,10 +335,10 @@ mkRadioTextAnswerView r@(RadioTextAnswer radioQuestionTag textQuestionTag answer
            , "initProgressMarkers()"
            ]
        }
- where answered (-1) _                             = Unanswered
-       answered sel str | sel < length answers - 1 = Answered
-                        | validate str             = Answered -- last answer
-                        | otherwise                = Invalid  -- is selected
+ where answered (-1) _                              = Unanswered
+       answered sel str | sel < length answers - 1  = Answered
+                        | str /= "" && validate str = Answered -- last answer
+                        | otherwise                 = Invalid  -- is selected
                     
                     --(if not $ selection == -1 || isTextAnswerSelected && str == "" then Answered else Unanswered)
 instance Presentable RadioTextAnswerView where
