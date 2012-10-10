@@ -33,7 +33,7 @@ import WebFormUtils
 
 
 -- WebForm data types
-
+-- TODO: figure out how to execute js without problem with incrementality (we now show state in a comment to force evaluation)
 -- TODO: the question tags are more answer tags
 -- TODO: update script on edit (tricky, needs event model on all widgets and also on ButtonAnswerVIew)
 
@@ -120,7 +120,7 @@ persoonsgegevens = Page
                                                                                     , "Wetenschappelijk onderwijs"
                                                                                     , "Anders, nl. :" ] ]
       ]
-       ]
+  ]
        
 stellingen = Page
   [ HtmlElt "<em>Het tweede deel van de vragenlijst bevat twaalf stellingen die betrekking hebben op uw persoonlijke situatie in uw huidige werk. Wilt u aangeven in hoeverre u het eens bent met de stellingen hieronder door het cijfer aan te klikken. Hoe hoger het cijfer, des te beter u zich kunt vinden in de stelling.</em>"
@@ -268,7 +268,7 @@ withAnswerClass answered = with [strAttr "Answer" $ attrVal answered ]
        
 --------- RadioAnswerView ------------------------------------------------------------
 
-data RadioAnswerView = RadioAnswerView RadioAnswer Answered (Widget (RadioView Database))
+data RadioAnswerView = RadioAnswerView RadioAnswer Answered (Widget (RadioView Database)) String
    deriving (Eq, Show, Typeable, Data)
 
 deriveInitial ''RadioAnswerView
@@ -278,20 +278,23 @@ mkRadioAnswerView :: RadioAnswer -> WebViewM Database (WebView Database)
 mkRadioAnswerView r@(RadioAnswer questionTag answers) = mkWebView $
   \vid _ ->
     do { db <- getDb
-       ; selection <- case getAnswer questionTag db of
+       ; selection <- case getStringAnswer questionTag db of
                         Nothing    -> return $ -1
                         Just str -> return $ fromMaybe (-1) $ elemIndex str answers
 
        ; radio <-  mkRadioView answers selection True 
     
-       ; return $ RadioAnswerView r (if selection /= -1 then Answered else Unanswered) radio
+       ; return $ RadioAnswerView r (if selection /= -1 then Answered else Unanswered) radio $ jsScript 
+           [ "// selection is "++show selection
+           , "initProgressMarkers()"
+           ]
        }
 
 instance Presentable RadioAnswerView where
-  present (RadioAnswerView _ answered radio) = withAnswerClass answered $ present radio
+  present (RadioAnswerView _ answered radio script) = (withAnswerClass answered $ present radio) +++ mkScript script
 
 instance Storeable Database RadioAnswerView where
-  save (RadioAnswerView (RadioAnswer questionTag answers) answered radio) =
+  save (RadioAnswerView (RadioAnswer questionTag answers) answered radio _) =
     if getSelection radio == -1
     then clearAnswer questionTag 
     else setAnswer questionTag Nothing $ answers !! getSelection radio -- todo: unsafe
@@ -302,7 +305,7 @@ instance Storeable Database RadioAnswerView where
 -- Similar to Radio, but has a text field that is enabled when the last answer is selected (which will be "other:")
 data RadioTextAnswerView = 
        RadioTextAnswerView String String [String] Answered (Widget (RadioView Database)) (Widget (TextView Database))
-                           (NoPresent (String -> Bool))               
+                           (NoPresent (String -> Bool)) String         
    deriving (Eq, Show, Typeable, Data)
 
 deriveInitial ''RadioTextAnswerView
@@ -313,11 +316,11 @@ mkRadioTextAnswerView :: RadioTextAnswer -> WebViewM Database (WebView Database)
 mkRadioTextAnswerView r@(RadioTextAnswer radioQuestionTag textQuestionTag answers validate) = mkWebView $
   \vid _ ->
     do { db <- getDb
-       ; selection <- case getAnswer radioQuestionTag db of
+       ; selection <- case getStringAnswer radioQuestionTag db of
                         Nothing  -> return $ -1
                         Just str -> return $ fromMaybe (-1) $ elemIndex str answers
 
-       ; str <- case getAnswer textQuestionTag db of
+       ; str <- case getStringAnswer textQuestionTag db of
                   Nothing    -> return ""
                   Just str -> return str  
 
@@ -327,7 +330,10 @@ mkRadioTextAnswerView r@(RadioTextAnswer radioQuestionTag textQuestionTag answer
        ; return $ RadioTextAnswerView radioQuestionTag textQuestionTag answers
                                       (answered selection str)
                                       radio textField
-                                      (NoPresent validate)
+                                      (NoPresent validate) $ jsScript 
+           [ "// selection is "++show selection ++", str is "++show str -- TODO: hack: prevent incrementality from not executing script
+           , "initProgressMarkers()"
+           ]
        }
  where answered (-1) _                             = Unanswered
        answered sel str | sel < length answers - 1 = Answered
@@ -336,10 +342,11 @@ mkRadioTextAnswerView r@(RadioTextAnswer radioQuestionTag textQuestionTag answer
                     
                     --(if not $ selection == -1 || isTextAnswerSelected && str == "" then Answered else Unanswered)
 instance Presentable RadioTextAnswerView where
-  present (RadioTextAnswerView _ _ _ answered radio textField _) = withAnswerClass answered $ present radio >> present textField
+  present (RadioTextAnswerView _ _ _ answered radio textField _ script) =
+    (withAnswerClass answered $ present radio >> present textField) +++ mkScript script
 
 instance Storeable Database RadioTextAnswerView where
-  save (RadioTextAnswerView radioQuestionTag textQuestionTag answers valid radio textField (NoPresent validate)) =
+  save (RadioTextAnswerView radioQuestionTag textQuestionTag answers valid radio textField (NoPresent validate) _) =
     if getSelection radio == -1 
     then clearAnswer radioQuestionTag . clearAnswer textQuestionTag
     else (setAnswer radioQuestionTag (Just validate) $ answers !! getSelection radio) . -- todo: unsafe
@@ -351,7 +358,7 @@ instance Storeable Database RadioTextAnswerView where
 
 --------- ButtonAnswerView ------------------------------------------------------------
 
-data ButtonAnswerView = ButtonAnswerView ButtonAnswer Answered [WebView Database]
+data ButtonAnswerView = ButtonAnswerView ButtonAnswer Answered [WebView Database] String
    deriving (Eq, Show, Typeable, Data)
 
 
@@ -362,24 +369,27 @@ mkButtonAnswerView :: ButtonAnswer -> WebViewM Database (WebView Database)
 mkButtonAnswerView b@(ButtonAnswer questionTag answers) = mkWebView $
   \vid _ ->
     do { db <- getDb
-       ; let mSelectedStr :: Maybe String = getAnswer questionTag db
+       ; let mSelectedStr :: Maybe String = getStringAnswer questionTag db
        
        ; buttons <- mkSelectableViews answers mSelectedStr $ \(_,str) -> modifyDb $ setAnswer questionTag Nothing str
        -- because we cannot access webview fields like widget values (because of existentials) we cannot
        -- query the webview in Storeable and put the setAnswer in an edit command instead.
-       ; return $ ButtonAnswerView b (if isJust mSelectedStr then Answered else Unanswered) buttons
+       ; return $ ButtonAnswerView b (if isJust mSelectedStr then Answered else Unanswered) buttons $ jsScript 
+           [ "// selection is "++show mSelectedStr -- TODO: hack: prevent incrementality from not executing script
+           , "initProgressMarkers()"
+           ]
        }
 
 instance Presentable ButtonAnswerView where
-  present (ButtonAnswerView _ answered buttons) =
-    withAnswerClass answered $ hStretchList $ intersperse space $ map (E . present) buttons
+  present (ButtonAnswerView _ answered buttons script) =
+    (withAnswerClass answered $ hStretchList $ intersperse space $ map (E . present) buttons) +++ mkScript script
 
 instance Storeable Database ButtonAnswerView
 
 
 --------- TextAnswerView ------------------------------------------------------------
 
-data TextAnswerView = TextAnswerView String Answered (Widget (TextView Database)) (NoPresent (String -> Bool))
+data TextAnswerView = TextAnswerView String Answered (Widget (TextView Database)) (NoPresent (String -> Bool)) String
    deriving (Eq, Show, Typeable, Data)
 
 
@@ -390,23 +400,26 @@ mkTextAnswerView :: TextAnswer -> WebViewM Database (WebView Database)
 mkTextAnswerView t@(TextAnswer questionTag validate) = mkWebView $
   \vid _ ->
     do { db <- getDb
-       ; str <- case getAnswer questionTag db of
+       ; str <- case getStringAnswer questionTag db of
                   Nothing    -> return ""
                   (Just str) -> return str  
        
        ; textField <-  mkTextField str 
 
-       ; return $ TextAnswerView questionTag (answered str) textField (NoPresent validate)
+       ; return $ TextAnswerView questionTag (answered str) textField (NoPresent validate) $ jsScript 
+           [ "// str is "++show str -- TODO: hack: prevent incrementality from not executing script
+           , "initProgressMarkers()"
+           ]
        }
  where answered ""                 = Unanswered
        answered str | validate str = Answered
                     | otherwise    = Invalid
                     
 instance Presentable TextAnswerView where
-  present (TextAnswerView _ answered textField _) = withAnswerClass answered $ present textField
+  present (TextAnswerView _ answered textField _ script) = (withAnswerClass answered $ present textField) +++ mkScript script
 
 instance Storeable Database TextAnswerView where
-  save (TextAnswerView questionTag _ textField (NoPresent validate)) =
+  save (TextAnswerView questionTag _ textField (NoPresent validate) _) =
     let str = getStrVal textField
     in  if str == "" then clearAnswer questionTag else setAnswer questionTag (Just validate) str
 
@@ -529,10 +542,12 @@ mkFormView form@(Form pages) = mkWebView $
   \vid (FormView _ _ _ _ _ _ _ _) ->
     do { modifyDb $ initializeDb form
        ; args <- getHashArgs
-       ; let currentPage = case args of
-                             ("p", nrStr):_ | Just nr <- readMaybe nrStr  -> nr - 1
+       ; let currentPageNr = case args of
+                             ("p", nrStr):_ | Just nr <- readMaybe nrStr  -> if nr < length pages then nr - 1 else length pages - 1
                              _                                            -> 0 
-       ; pageView <- mkFormPageView currentPage $ pages!!currentPage
+             currentPage = pages!!currentPageNr
+             
+       ; pageView <- mkFormPageView currentPageNr currentPage
        ; db <- getDb
        ; liftIO $ putStrLn $ "Db is "++show db
        ; let isComplete = all isQuestionAnswered $ Map.elems db
@@ -542,15 +557,16 @@ mkFormView form@(Form pages) = mkWebView $
              }
        ; clearButton <- mkButton "Alles wissen" True $ ConfirmEdit "Weet u zeker dat u alle antwoorden wilt wissen?" 
                                                      $ Edit $ modifyDb $ \db -> Map.empty
-       ; prevButton <- mkButtonWithClick "Vorige" (currentPage/=0)                   $ \_ -> gotoPageNr (currentPage - 1)
+       ; prevButton <- mkButtonWithClick "Vorige" (currentPageNr/=0)                   $ \_ -> gotoPageNr (currentPageNr - 1)
 --                                "initProgressMarkers();" 
-       ; nextButton <- mkButtonWithClick "Volgende" (currentPage < length pages - 1) $ \_ -> gotoPageNr (currentPage + 1) 
-       ; return $ FormView isComplete currentPage (length pages) prevButton nextButton sendButton clearButton pageView
+       ; nextButton <- mkButtonWithClick "Volgende" (currentPageNr < length pages - 1 && getQuestionsAnsweredFormPage currentPage db)
+                         $ \_ -> gotoPageNr (currentPageNr + 1) 
+       ; return $ FormView isComplete currentPageNr (length pages) prevButton nextButton sendButton clearButton pageView
        }
  where gotoPageNr nr = jsNavigateTo $ "'#form&p="++show (1+ nr)++"'" -- nr is 0-based
 
 instance Presentable FormView where
-  present (FormView isComplete currentPage nrOfPages prevButton nextButton sendButton clearButton wv) =
+  present (FormView isComplete currentPageNr nrOfPages prevButton nextButton sendButton clearButton wv) =
     mkPage [thestyle "background: url('img/noise.png') repeat scroll center top transparent; min-height: 100%; font-family: Geneva"] $
       with [theclass "FormPage", thestyle "background: white;", align "left"] $
                                  -- dimensions are specified in css to allow iPad specific style                                                              
@@ -562,7 +578,7 @@ instance Presentable FormView where
    where mkPageHeader = with [ align "right", style "margin-bottom:40px"] $
                           hListCenter 
                                 [ present prevButton
-                                , with [style "font-size: 80%"] $ nbsp >> (toHtml $ "Pagina "++show (currentPage+1) ++"/"++show nrOfPages) >> nbsp
+                                , with [style "font-size: 80%"] $ nbsp >> (toHtml $ "Pagina "++show (currentPageNr+1) ++"/"++show nrOfPages) >> nbsp
                                 , present nextButton ] 
       --  +++
           
@@ -594,6 +610,22 @@ initializeDbQuestion :: QuestionTag -> Database -> Database
 initializeDbQuestion questionTag db = case Map.lookup questionTag db of
                                         Nothing  -> Map.insert questionTag Nothing db
                                         Just _   -> db
+
+getQuestionsAnsweredFormPage :: FormPage -> Database -> Bool
+getQuestionsAnsweredFormPage (Page elts) db = and [ getQuestionsAnsweredFormElt e db | e <- elts ]
+
+getQuestionsAnsweredFormElt :: FormElt -> Database -> Bool
+getQuestionsAnsweredFormElt (RadioAnswerElt r)      db = isQuestionTagAnswered (getRadioQuestionTag r) db
+getQuestionsAnsweredFormElt (RadioTextAnswerElt r)  db = isQuestionTagAnswered (getRadioTextRadioQuestionTag r) db && 
+                                                         isQuestionTagAnswered (getRadioTextTextQuestionTag r) db
+getQuestionsAnsweredFormElt (ButtonAnswerElt b)     db = isQuestionTagAnswered (getButtonQuestionTag b) db
+getQuestionsAnsweredFormElt (TextAnswerElt t)       db = isQuestionTagAnswered (getTextQuestionTag t) db
+getQuestionsAnsweredFormElt (HtmlElt html)          db = True
+getQuestionsAnsweredFormElt (HtmlFileElt path)      db = True
+getQuestionsAnsweredFormElt (StyleElt _ elt)        db = getQuestionsAnsweredFormElt elt db
+getQuestionsAnsweredFormElt (TableElt _ _ _ _ rows) db = and [ getQuestionsAnsweredFormElt elt db 
+                                                             | row <- rows, elt <- row ]
+                       --compose $ concatMap (map getQuestionsAnsweredFormElt) rows
 
 
 ---- Main (needs to be below all webviews that use deriveInitial)

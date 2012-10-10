@@ -19,14 +19,20 @@ setAnswer :: QuestionTag -> (Maybe (Answer -> Bool)) -> Answer -> Database -> Da
 setAnswer questionTag mValidate answer = Map.insert questionTag $ Just (valid, answer) 
  where valid = maybe True (\validate -> validate answer) mValidate
 
-getAnswer :: QuestionTag -> Database -> Maybe String
-getAnswer questionTag db =
-  case unsafeLookup "getAnswer" questionTag db of -- don't need to do unsafe lookup, but it will help us find bugs
+getAnswer :: QuestionTag -> Database -> Maybe (Bool, Answer)
+getAnswer = unsafeLookup "getAnswer"
+
+getStringAnswer :: QuestionTag -> Database -> Maybe String
+getStringAnswer questionTag db =
+  case getAnswer questionTag db of -- don't need to do unsafe lookup, but it will help us find bugs
     Nothing      -> Nothing
     Just (_,str) -> Just str
 
 clearAnswer :: QuestionTag -> Database -> Database
 clearAnswer questionTag = Map.insert questionTag Nothing 
+
+isQuestionTagAnswered :: String -> Database -> Bool
+isQuestionTagAnswered questionTag db = isQuestionAnswered $ getAnswer questionTag db 
 
 isQuestionAnswered :: (Maybe (Bool, Answer)) -> Bool
 isQuestionAnswered Nothing          = False
