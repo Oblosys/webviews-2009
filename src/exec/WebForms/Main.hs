@@ -252,12 +252,19 @@ instance Data (NoPresent a) where
 
 ------- WebViews form
 
---data Answered = Unanswered | Invalid | Answered derivign (Eq, Show, Typeable, Data)
-type Answered = Bool
+data Answered = Unanswered | Invalid | Answered deriving (Eq, Show, Typeable, Data)
 
+instance Initial Answered where
+  initial = Unanswered
+
+instance MapWebView db Answered
+ 
 withAnswerClass :: Answered -> Html -> Html
-withAnswerClass answered = with [strAttr "Answer" $ if answered then "Answered" else "Unanswered"]
-
+withAnswerClass answered = with [strAttr "Answer" $ attrVal answered ]
+ where attrVal Unanswered = "Unanswered"
+       attrVal Invalid    = "Invalid"
+       attrVal Answered   = "Answered"
+       
 --------- RadioAnswerView ------------------------------------------------------------
 
 data RadioAnswerView = RadioAnswerView RadioAnswer Answered (Widget (RadioView Database))
@@ -276,7 +283,7 @@ mkRadioAnswerView r@(RadioAnswer questionTag answers) = mkWebView $
 
        ; radio <-  mkRadioView answers selection True 
     
-       ; return $ RadioAnswerView r (selection /= -1) radio
+       ; return $ RadioAnswerView r (if selection /= -1 then Answered else Unanswered) radio
        }
 
 instance Presentable RadioAnswerView where
@@ -314,7 +321,8 @@ mkRadioTextAnswerView r@(RadioTextAnswer radioQuestionTag textQuestionTag answer
        ; radio <-  mkRadioView answers selection True 
        ; let isTextAnswerSelected = selection == length answers - 1
        ; text <- mkTextFieldEx (if isTextAnswerSelected then str else "") isTextAnswerSelected "" Nothing Nothing
-       ; return $ RadioTextAnswerView r (not $ selection == -1 || isTextAnswerSelected && str == "") radio text
+       ; return $ RadioTextAnswerView r (if not $ selection == -1 || isTextAnswerSelected && str == "" then Answered else Unanswered)
+                                      radio text
        }
 
 instance Presentable RadioTextAnswerView where
@@ -349,7 +357,7 @@ mkButtonAnswerView b@(ButtonAnswer questionTag answers) = mkWebView $
        ; buttons <- mkSelectableViews answers mSelectedStr $ \(_,str) -> modifyDb $ setAnswer questionTag str
        -- because we cannot access webview fields like widget values (because of existentials) we cannot
        -- query the webview in Storeable and put the setAnswer in an edit command instead.
-       ; return $ ButtonAnswerView b (isJust mSelectedStr) buttons
+       ; return $ ButtonAnswerView b (if isJust mSelectedStr then Answered else Unanswered) buttons
        }
 
 instance Presentable ButtonAnswerView where
@@ -378,12 +386,12 @@ mkTextAnswerView t@(TextAnswer questionTag validate) = mkWebView $
        
        ; text <-  mkTextField str 
 
-       ; return $ TextAnswerView questionTag (not . null $ str) text (NoPresent validate)
-       } {-
- where answered ""                 = Unanwered
+       ; return $ TextAnswerView questionTag (answered str) text (NoPresent validate)
+       }
+ where answered ""                 = Unanswered
        answered str | validate str = Answered
                     | otherwise    = Invalid
- -}
+                    
 instance Presentable TextAnswerView where
   present (TextAnswerView _ answered radio _) = withAnswerClass answered $ present radio
 

@@ -31,7 +31,7 @@
   color: blue;
   background-color: lightblue;
 }
-.ProgressMarker[AnswerProgress="Incorrect"] {
+.ProgressMarker[AnswerProgress="Invalid"] {
   color: red;
   background-color: #fdd;
 }
