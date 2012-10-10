@@ -5,7 +5,7 @@ module Main where
 import Data.List
 import BlazeHtml
 import Data.Generics
-import Data.Char hiding (Space)
+import Data.Char hiding (Space, isNumber)
 import Data.Function (on)
 import Data.Maybe
 import Data.List
@@ -50,7 +50,7 @@ data FormElt = HtmlElt String
              | StyleElt String FormElt
              | TableElt String Bool Bool Bool [[FormElt]] -- because elts are in other web view, they cannot set the table cell's
                                                    -- background color, so we need to specify headers explicitly.
-   deriving (Eq, Show, Typeable, Data)
+   deriving (Show, Typeable, Data)
 
 data RadioAnswer = RadioAnswer { getRadioQuestionTag :: QuestionTag, getRadioAnswers :: [String] }
    deriving (Eq, Show, Typeable, Data)
@@ -61,8 +61,10 @@ data RadioTextAnswer = RadioTextAnswer { getRadioTextRadioQuestionTag :: Questio
 data ButtonAnswer = ButtonAnswer { getButtonQuestionTag :: QuestionTag, getButtonAnswers :: [String] }
    deriving (Eq, Show, Typeable, Data)
 
-data TextAnswer = TextAnswer { getTextQuestionTag :: QuestionTag }
-   deriving (Eq, Show, Typeable, Data)
+data TextAnswer = TextAnswer { getTextQuestionTag :: QuestionTag
+                             , getTextValidate :: String -> Bool -- TODO: maybe use data Correct / Incorrect String to provide hints/error messages 
+                             } 
+   deriving (Show, Typeable, Data)
 
 deriveInitial ''FormElt
 instance MapWebView Database FormElt
@@ -76,16 +78,16 @@ instance MapWebView Database RadioTextAnswer
 deriveInitial ''ButtonAnswer
 instance MapWebView Database ButtonAnswer
 
-deriveInitial ''TextAnswer
-instance MapWebView Database TextAnswer
 
+textAnswer tag = TextAnswer tag $ const True -- any input is correct
 
+isNumber = all isDigit
 
 -- Form instance declaration
 
 testForm = Form $ testPages ++ [ introductie, persoonsgegevens, stellingen, deelDrie ] ++ vignettes
 
-testPages = [ Page[ HtmlElt "Wat is uw leeftijd?", StyleElt "width: 50px" $ TextAnswerElt $ TextAnswer "testAge"]
+testPages = [ Page[ HtmlElt "Wat is uw leeftijd?", StyleElt "width: 50px" $ TextAnswerElt $ TextAnswer "testAge" isNumber ]
             , Page[ HtmlElt "Bla?", StyleElt "width: 50px" $ ButtonAnswerElt $ ButtonAnswer "bla" ["Ja", "Nee"]]
             ]
 introductie = Page [ HtmlFileElt "Introductie.html" ]
@@ -94,7 +96,7 @@ persoonsgegevens = Page
   [ HtmlElt "<em>Eerst wil ik u enkele algemene vragen stellen, klik op het antwoord dat voor u van toepassing is of vul de betreffende informatie in.</em>"
   , medSkip
   , TableElt "Algemeen" False False False $
-      [ [ HtmlElt "Wat is uw leeftijd?", StyleElt "width: 50px" $ TextAnswerElt $ TextAnswer "age"]
+      [ [ HtmlElt "Wat is uw leeftijd?", StyleElt "width: 50px" $ TextAnswerElt $ textAnswer "age"]
       , [ medSkip ]
       , [ HtmlElt "Wat is uw geslacht?", StyleElt "width: 100px" $ ButtonAnswerElt $ ButtonAnswer "gender" ["Man", "Vrouw"]]
       , [ medSkip ]
@@ -215,12 +217,46 @@ mkVignette vt =
   ]
 
 
+------- WebViews lib
+
+
+newtype NoPresent a = NoPresent a
+{- Wraps a type to provide Eq,Show, Initial, MapWebView, Typeable, and Data instances (which should not be evaluated).
+   We can use it to put state in webviews.
+    
+-}
+
+instance Eq (NoPresent a) where
+  x == y = True
+
+instance Show (NoPresent a) where
+  show _ = "(NoPresent a)" -- TODO: why do we need show? For seq'ing?
+
+instance Initial (NoPresent a) where
+  initial = error "no initial for Wrapped"
+
+instance MapWebView db (NoPresent a)
+
+instance Typeable (NoPresent a) where
+  typeOf _ = mkTyConApp (mkTyCon3 "WebViews" "Main" "Wrapped") []
+  
+instance Data (NoPresent a) where
+  gfoldl k z x@(NoPresent a) = error "NoPresent used in presentation (gfoldl)"
+  gunfold k z c = error "NoPresent used in presentation (gunfold)"
+     
+  toConstr (NoPresent _) = error "NoPresent used in presentation (toConstr)"
+ 
+  dataTypeOf _ = error "NoPresent used in presentation (dataTypeOf)"
+  
+
 
 ------- WebViews form
+
+--data Answered = Unanswered | Invalid | Answered derivign (Eq, Show, Typeable, Data)
 type Answered = Bool
 
 withAnswerClass :: Answered -> Html -> Html
-withAnswerClass answered = with [theclass $ "Answer " ++ if answered then "Answered" else "Unanswered" ]
+withAnswerClass answered = with [strAttr "Answer" $ if answered then "Answered" else "Unanswered"]
 
 --------- RadioAnswerView ------------------------------------------------------------
 
@@ -325,7 +361,7 @@ instance Storeable Database ButtonAnswerView
 
 --------- TextAnswerView ------------------------------------------------------------
 
-data TextAnswerView = TextAnswerView TextAnswer Answered (Widget (TextView Database))
+data TextAnswerView = TextAnswerView String Answered (Widget (TextView Database)) (NoPresent (String -> Bool))
    deriving (Eq, Show, Typeable, Data)
 
 
@@ -333,7 +369,7 @@ deriveInitial ''TextAnswerView
 deriveMapWebViewDb ''Database ''TextAnswerView
 
 mkTextAnswerView :: TextAnswer -> WebViewM Database (WebView Database)
-mkTextAnswerView t@(TextAnswer questionTag) = mkWebView $
+mkTextAnswerView t@(TextAnswer questionTag validate) = mkWebView $
   \vid _ ->
     do { db <- getDb
        ; str <- case unsafeLookup "mkTextAnswerView" questionTag db of
@@ -342,14 +378,17 @@ mkTextAnswerView t@(TextAnswer questionTag) = mkWebView $
        
        ; text <-  mkTextField str 
 
-       ; return $ TextAnswerView t (not . null $ str) text
-       }
-
+       ; return $ TextAnswerView questionTag (not . null $ str) text (NoPresent validate)
+       } {-
+ where answered ""                 = Unanwered
+       answered str | validate str = Answered
+                    | otherwise    = Invalid
+ -}
 instance Presentable TextAnswerView where
-  present (TextAnswerView _ answered radio) = withAnswerClass answered $ present radio
+  present (TextAnswerView _ answered radio _) = withAnswerClass answered $ present radio
 
 instance Storeable Database TextAnswerView where
-  save (TextAnswerView (TextAnswer questionTag) _ text) =
+  save (TextAnswerView questionTag _ text (NoPresent validate)) =
     let str = getStrVal text
     in  if str == "" then clearAnswer questionTag else setAnswer questionTag str
 
