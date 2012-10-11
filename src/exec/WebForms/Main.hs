@@ -568,18 +568,18 @@ mkFormView form@(Form pages) = mkWebView $
 instance Presentable FormView where
   present (FormView isComplete currentPageNr nrOfPages prevButton nextButton sendButton clearButton wv) =
     mkPage [thestyle "background: url('img/noise.png') repeat scroll center top transparent; min-height: 100%; font-family: Geneva"] $
-      with [theclass "FormPage", thestyle "background: white;", align "left"] $
+      with [theclass $ "FormPage" ++ if currentPageNr == nrOfPages-1 then " LastPage" else "", thestyle "background: white;", align "left"] $
                                  -- dimensions are specified in css to allow iPad specific style                                                              
         mkPageHeader +++
         vList [ present wv
               , vSpace 40
-              , hStretchList [ E $ present clearButton, space, E $ present sendButton ]
+              , hStretchList [ E $ present clearButton, space, E $ with [theclass "SendButton"] $ present sendButton ]
               ]
    where mkPageHeader = with [ align "right", style "margin-bottom:40px"] $
                           hListCenter 
                                 [ present prevButton
                                 , with [style "font-size: 80%"] $ nbsp >> (toHtml $ "Pagina "++show (currentPageNr+1) ++"/"++show nrOfPages) >> nbsp
-                                , present nextButton ] 
+                                , with [theclass "NextButton"] $ present nextButton ] 
       --  +++
           
 
