@@ -585,7 +585,7 @@ mkFormView form@(Form pages) = mkWebView $
        ; db <- getDb
        ; liftIO $ putStrLn $ "Db is "++show db
        ; let isComplete = all isQuestionAnswered $ Map.elems db
-       ; sendButton <- mkButton "Opsturen" isComplete $ ConfirmEdit "Weet u zeker dat u de resultaten wilt versturen?"
+       ; sendButton <- mkButton "Opsturen" isComplete $ ConfirmEdit "Weet u zeker dat u de antwoorden wilt versturen?"
                                                       $ Edit $ sendForm
        
        ; clearButton <- mkButton "Alles wissen" True $ ConfirmEdit "Weet u zeker dat u alle antwoorden wilt wissen?" 
