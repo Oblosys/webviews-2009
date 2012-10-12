@@ -15,8 +15,10 @@ import Data.IntMap (IntMap)
 import qualified Data.IntMap as IntMap 
 import Debug.Trace
 import System.Time
+import System.Directory
 import Types
 import ObloUtils
+import Utils
 import Generics
 import WebViewPrim
 import WebViewLib
@@ -37,6 +39,7 @@ import WebFormUtils
 -- TODO: the question tags are more answer tags
 -- TODO: update script on edit (tricky, needs event model on all widgets and also on ButtonAnswerVIew)
 
+resultsFilepath = "scr/BlijVanIT.csv"
 
 data WebForm = Form [FormPage]
 
@@ -551,10 +554,8 @@ mkFormView form@(Form pages) = mkWebView $
        ; db <- getDb
        ; liftIO $ putStrLn $ "Db is "++show db
        ; let isComplete = all isQuestionAnswered $ Map.elems db
-       ; sendButton <- mkButton "Opsturen" isComplete $ Edit $
-          do { db <- getDb
-             ; liftIO $ putStrLn $ "Sending answers:\n"++show db
-             }
+       ; sendButton <- mkButton "Opsturen" isComplete $ Edit $ sendForm
+       
        ; clearButton <- mkButton "Alles wissen" True $ ConfirmEdit "Weet u zeker dat u alle antwoorden wilt wissen?" 
                                                      $ Edit $ modifyDb $ \db -> Map.empty
        ; prevButton <- mkButtonWithClick "Vorige" (currentPageNr/=0)                   $ \_ -> gotoPageNr (currentPageNr - 1)
@@ -565,6 +566,17 @@ mkFormView form@(Form pages) = mkWebView $
        }
  where gotoPageNr nr = jsNavigateTo $ "'#form&p="++show (1+ nr)++"'" -- nr is 0-based
 
+       sendForm :: EditM Database ()
+       sendForm = -- very very basic save to csv (no check for column validity, column order based on sort, no escaping, etc.)
+        do { db <- getDb
+           ; fileExists <- io $ doesFileExist resultsFilepath
+           
+           ; when (not fileExists) $
+                  io $ writeFile resultsFilepath $ intercalate "," $ Map.keys db
+           ; io $ appendFile resultsFilepath $ "\n" ++
+                    intercalate "," [ answer | Just (_, answer) <- Map.elems db ]
+           }
+       
 instance Presentable FormView where
   present (FormView isComplete currentPageNr nrOfPages prevButton nextButton sendButton clearButton wv) =
     mkPage [thestyle "background: url('img/noise.png') repeat scroll center top transparent; min-height: 100%; font-family: Geneva"] $

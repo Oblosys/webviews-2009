@@ -112,7 +112,8 @@ Executable reservations
 
 Executable webforms
   Main-is:    Main.hs 
-  Build-Depends:  WebViews,
+  Build-Depends:  
+                  WebViews,
                   base >=4.5 && <4.6,
                   containers >=0.4 && <0.5,
                   syb >=0.3 && <0.4,
@@ -120,9 +121,11 @@ Executable webforms
                   old-time >=1.1 && <1.2,
                   html >=1.0 && <1.1,
                   template-haskell >=2.7 && <2.8,
+                  fclabels >=1.1,
 --                  download-curl >=0.1 && <0.2,
-                  fclabels >=1.1
---                  gps >= 1.0 && <1.1
+--                  gps >= 1.0 && <1.1,
+                  directory
+
 
   GHC-Options: 
   Extensions: 
