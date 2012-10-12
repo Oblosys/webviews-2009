@@ -3,7 +3,7 @@
 module Main where
 
 import Data.List
-import BlazeHtml
+import BlazeHtml hiding (form)
 import Data.Generics
 import Data.Char hiding (Space, isNumber)
 import Data.Function (on)
@@ -52,9 +52,11 @@ data FormElt = HtmlElt String
              | ButtonAnswerElt ButtonAnswer
              | TextAnswerElt   TextAnswer
              | StyleElt String FormElt
-             | TableElt String Bool Bool Bool [[FormElt]] -- because elts are in other web view, they cannot set the table cell's
+             | TableElt String Bool Bool Bool [TableRow] -- because elts are in other web view, they cannot set the table cell's
                                                    -- background color, so we need to specify headers explicitly.
    deriving (Show, Typeable, Data)
+
+type TableRow = [FormElt]
 
 data RadioAnswer = RadioAnswer { getRadioQuestionTag :: QuestionTag, getRadioAnswers :: [String] }
    deriving (Eq, Show, Typeable, Data)
@@ -81,55 +83,86 @@ instance MapWebView Database RadioAnswer
 deriveInitial ''ButtonAnswer
 instance MapWebView Database ButtonAnswer
 
-radioTextAnswer rtag ttag answers = RadioTextAnswer rtag ttag answers $ const True -- any input is correct
+form pages = Form pages
 
-textAnswer tag = TextAnswer tag $ const True -- any input is correct
+page elts = Page elts
+
+htmlElt str = HtmlElt str
+
+htmlFileElt str = HtmlFileElt str
+
+styleElt style elt = StyleElt style elt
+
+tableElt tag rows = TableElt tag False False False rows
+ 
+textAnswerValidateElt tag validate = TextAnswerElt $ TextAnswer tag validate
+
+textAnswerElt tag = TextAnswerElt $ TextAnswer tag $ const True -- any input is correct
+
+buttonAnswerElt tag answers = ButtonAnswerElt $ ButtonAnswer tag answers
+
+radioAnswerElt rtag ttag answers = RadioTextAnswerElt $ RadioTextAnswer rtag ttag answers $ const True -- any input is correct
+
+radioAnswerValidateElt rtag ttag validate answers = RadioTextAnswerElt $ RadioTextAnswer rtag ttag validate answers
+
+medSkip = vSkip 10
+bigSkip = vSkip 20
+
+vSkip :: Int -> FormElt
+vSkip height = htmlElt $ "<div style='height: " ++ show height ++ "px'></div>"
 
 isNumber = all isDigit
 
+
+
 -- Form instance declaration
 
-testForm = Form $ testPages ++ [ introductie, persoonsgegevens ] -- ++ [ stellingen, deelDrie ] ++ vignettes 
-
-testPages = [ Page[ HtmlElt "Wat is uw leeftijd?", StyleElt "width: 50px" $ TextAnswerElt $ TextAnswer "testAge" isNumber ]
-            , Page[ HtmlElt "Bla?", StyleElt "width: 50px" $ ButtonAnswerElt $ ButtonAnswer "bla" ["Ja", "Nee"]]
+testPages = [ page [ htmlElt "Wat is uw leeftijd?", styleElt "width: 50px" $ textAnswerValidateElt "testAge" isNumber ]
+            , page [ htmlElt "Bla?", styleElt "width: 50px" $ buttonAnswerElt "bla" ["Ja", "Nee"]]
             ]
-introductie = Page [ HtmlFileElt "Introductie.html" ]
 
-persoonsgegevens = Page
-  [ HtmlElt "<em>Eerst wil ik u enkele algemene vragen stellen, klik op het antwoord dat voor u van toepassing is of vul de betreffende informatie in.</em>"
+--testForm = form $ testPages ++ [ introductie, persoonsgegevens ]
+
+-- Blij van IT onderzoek
+
+testForm = form $ [ introductie, persoonsgegevens, stellingen, deelDrie ] ++ vignettes 
+
+introductie = page [ htmlFileElt "Introductie.html" ]
+
+persoonsgegevens = page
+  [ htmlElt "<em>Eerst wil ik u enkele algemene vragen stellen, klik op het antwoord dat voor u van toepassing is of vul de betreffende informatie in.</em>"
   , medSkip
-  , TableElt "Algemeen" False False False $
-      [ [ HtmlElt "Wat is uw leeftijd?", StyleElt "width: 50px" $ TextAnswerElt $ TextAnswer "age" isNumber ]
+  , tableElt "Algemeen"
+      [ [ htmlElt "Wat is uw leeftijd?", styleElt "width: 50px" $ textAnswerValidateElt "age" isNumber ]
       , [ medSkip ]
-      , [ HtmlElt "Wat is uw geslacht?", StyleElt "width: 100px" $ ButtonAnswerElt $ ButtonAnswer "gender" ["Man", "Vrouw"]]
+      , [ htmlElt "Wat is uw geslacht?", styleElt "width: 100px" $ buttonAnswerElt "gender" ["Man", "Vrouw"]]
       , [ medSkip ]
-      , [ HtmlElt "In welke functie bent u momenteel werkzaam?", RadioTextAnswerElt $ radioTextAnswer "functie" "functieAnders" 
-                                                                                    [ "Activiteitenbegeleider"
-                                                                                    , "Groepsbegeleider"
-                                                                                    , "Helpende gezondheidszorg"
-                                                                                    , "Verpleeghulp"
-                                                                                    , "Verpleegkundige"
-                                                                                    , "Verzorgende"
-                                                                                    , "Anders, nl. :" ] ]
+      , [ htmlElt "In welke functie bent u momenteel werkzaam?", radioAnswerElt "functie" "functieAnders" 
+                                                                   [ "Activiteitenbegeleider"
+                                                                   , "Groepsbegeleider"
+                                                                   , "Helpende gezondheidszorg"
+                                                                   , "Verpleeghulp"
+                                                                   , "Verpleegkundige"
+                                                                   , "Verzorgende"
+                                                                   , "Anders, nl. :" ] ]
       , [ medSkip ]
-      , [ HtmlElt "Wat is uw hoogst afgeronde opleiding?", RadioTextAnswerElt $ radioTextAnswer "opleiding" "opleidingAnders" 
-                                                                                    [ "Lager algemeen onderwijs (basisonderwijs)"
-                                                                                    , "Lager beroepsonderwijs (LTS, LEAO)"
-                                                                                    , "Middelbaar algemeen onderwijs (MAVO, MULO, VMBO)"
-                                                                                    , "Middelbaar beroepsonderwijs (MTS, MEAO, MBO)"
-                                                                                    , "Voortgezet algemeen onderwijs (HAVO,VWO, Atheneum, Gymnasium)"
-                                                                                    , "Hoger beroepsonderwijs (HBO, HEAO, HTS)"
-                                                                                    , "Wetenschappelijk onderwijs"
-                                                                                    , "Anders, nl. :" ] ]
+      , [ htmlElt "Wat is uw hoogst afgeronde opleiding?", radioAnswerElt "opleiding" "opleidingAnders" 
+                                                             [ "Lager algemeen onderwijs (basisonderwijs)"
+                                                             , "Lager beroepsonderwijs (LTS, LEAO)"
+                                                             , "Middelbaar algemeen onderwijs (MAVO, MULO, VMBO)"
+                                                             , "Middelbaar beroepsonderwijs (MTS, MEAO, MBO)"
+                                                             , "Voortgezet algemeen onderwijs (HAVO,VWO, Atheneum, Gymnasium)"
+                                                             , "Hoger beroepsonderwijs (HBO, HEAO, HTS)"
+                                                             , "Wetenschappelijk onderwijs"
+                                                             , "Anders, nl. :" ] ]
       ]
   ]
        
-stellingen = Page
-  [ HtmlElt "<em>Het tweede deel van de vragenlijst bevat twaalf stellingen die betrekking hebben op uw persoonlijke situatie in uw huidige werk. Wilt u aangeven in hoeverre u het eens bent met de stellingen hieronder door het cijfer aan te klikken. Hoe hoger het cijfer, des te beter u zich kunt vinden in de stelling.</em>"
+stellingen = page
+  [ htmlElt "<em>Het tweede deel van de vragenlijst bevat twaalf stellingen die betrekking hebben op uw persoonlijke situatie in uw huidige werk. Wilt u aangeven in hoeverre u het eens bent met de stellingen hieronder door het cijfer aan te klikken. Hoe hoger het cijfer, des te beter u zich kunt vinden in de stelling.</em>"
   , bigSkip
-  , TableElt "Stellingen" False False False $
-      [ [ HtmlElt "", HtmlElt "Mee&nbsp;eens<span style='margin-left:50px'></span>Mee&nbsponeens" ]
+  , tableElt "Stellingen"
+      [ [ htmlElt "", htmlElt "Mee&nbsp;eens<span style='margin-left:50px'></span>Mee&nbsponeens" ]
       , mkScaleQuestion 7 "presteren" "Ik vind het belangrijk om beter te presteren dan mijn collega's"
       , mkScaleQuestion 7 "angst" "Mijn angst om op mijn werk onder te presteren is vaak wat mij motiveert"
       , mkScaleQuestion 7 "vermijden" "Ik wil vooral vermijden dat onderpresteer op mijn werk"
@@ -145,10 +178,10 @@ stellingen = Page
       ] 
   ]
 
-deelDrie = Page [ HtmlFileElt "DeelDrie.html" ]
+deelDrie = page [ htmlFileElt "DeelDrie.html" ]
 
 vignettes = 
-  [ Page $
+  [ page $
       mkVignette Vignette { nummer = 1
                           , omschr1 = "Een app waarmee u rapporten mondeling kunt inspreken, die achteraf door andere medewerkers schriftelijk kunnen worden vastgelegd"
                           , omschr2 = "Een app waarmee u snel kunt zien welke medicijnen met elkaar interacteren"
@@ -163,7 +196,7 @@ vignettes =
                           , beloning1 = "Tijdbesparing"
                           , beloning2 = "Minder kans op fouten"
                           } 
-  , Page $
+  , page $
       mkVignette Vignette { nummer = 2
                           , omschr1 = "Een app waarmee u snel kunt zien welke medicijnen met elkaar interacteren"
                           , omschr2 = "Een app waarmee u pati&euml;ntgegevens als een zakkaartje op uw iPhone meedraagt"
@@ -180,43 +213,41 @@ vignettes =
                           }
   ]
   
-medSkip = vSkip 10
-bigSkip = vSkip 20
 
-vSkip :: Int -> FormElt
-vSkip height = HtmlElt $ "<div style='height: " ++ show height ++ "px'></div>"
+mkScaleQuestion :: Int -> String -> String -> TableRow
+mkScaleQuestion scaleMax tag question = [ htmlElt question, buttonAnswerElt tag $ map show [1..scaleMax]]
 
-mkScaleQuestion scaleMax tag question = [ HtmlElt question, ButtonAnswerElt $ ButtonAnswer tag $ map show [1..scaleMax]]
 data Vignette = Vignette { nummer :: Int
                          , omschr1, omschr2, uitproberen1, uitproberen2, klaar1, klaar2, succes1, succes2
                          , collegas1, collegas2, beloning1, beloning2 :: String
                          }
-
+                         
+mkVignette :: Vignette -> TableRow
 mkVignette vt = 
-  [ TableElt "VignetteOmschr" False False False $
-    [ [ HtmlElt $ "Vignette "++show (nummer vt), HtmlElt "Situatie 1", HtmlElt "Situatie 2"]
-    , [ HtmlElt "<div >Omschrijving van de app</div>", HtmlElt $ "<div >"++omschr1 vt++"</div>"
-                                         , HtmlElt $ "<div >"++omschr2 vt++"</div>"]
-    , [ HtmlElt "Uitproberen", HtmlElt $ uitproberen1 vt, HtmlElt $ uitproberen2 vt]
-    , [ HtmlElt "De mate waarin de organisatie technisch klaar is om de app in te voeren", HtmlElt $ klaar1 vt, HtmlElt $ klaar2 vt]
-    , [ HtmlElt "De mate waarin de organisatie in het verleden succesvol technische innovaties heeft ingevoerd", HtmlElt $ succes1 vt, HtmlElt $ succes2 vt]
-    , [ HtmlElt "Mening van uw collega's", HtmlElt $ collegas1 vt, HtmlElt $ collegas2 vt]
-    , [ HtmlElt "Beloning", HtmlElt $ beloning1 vt, HtmlElt $ beloning2 vt] ]
+  [ tableElt "VignetteOmschr"
+    [ [ htmlElt $ "Vignette "++show (nummer vt), htmlElt "Situatie 1", htmlElt "Situatie 2"]
+    , [ htmlElt "<div >Omschrijving van de app</div>", htmlElt $ "<div >"++omschr1 vt++"</div>"
+                                                     , htmlElt $ "<div >"++omschr2 vt++"</div>"]
+    , [ htmlElt "Uitproberen", htmlElt $ uitproberen1 vt, htmlElt $ uitproberen2 vt]
+    , [ htmlElt "De mate waarin de organisatie technisch klaar is om de app in te voeren", htmlElt $ klaar1 vt, htmlElt $ klaar2 vt]
+    , [ htmlElt "De mate waarin de organisatie in het verleden succesvol technische innovaties heeft ingevoerd", htmlElt $ succes1 vt, htmlElt $ succes2 vt]
+    , [ htmlElt "Mening van uw collega's", htmlElt $ collegas1 vt, htmlElt $ collegas2 vt]
+    , [ htmlElt "Beloning", htmlElt $ beloning1 vt, htmlElt $ beloning2 vt] ]
   , bigSkip
-  , HtmlElt $ "<br/><em>Vragen (kruis de situatie aan die het beste bij u past):</em><br/><br/>"
-  , TableElt "VignetteVragen" False False False $
-    [ [ HtmlElt "De app die het meest gemakkelijk te gebruiken voor mij als persoon is"
-      , ButtonAnswerElt $ ButtonAnswer ("vignette"++show (nummer vt)++".gemak") ["App 1", "App 2"]]
-    , [ HtmlElt "De app die het meest nuttig ter ondersteuning van mijn dagelijkse werkzaamheden"
-      , ButtonAnswerElt $ ButtonAnswer ("vignette"++show (nummer vt)++".nut") ["App 1", "App 2"]]
-    , [ HtmlElt "De app die ik zou gebruiken is"
-      , ButtonAnswerElt $ ButtonAnswer ("vignette"++show (nummer vt)++".voorkeur") ["App 1", "App 2"]]
+  , htmlElt $ "<br/><em>Vragen (kruis de situatie aan die het beste bij u past):</em><br/><br/>"
+  , tableElt "VignetteVragen"
+    [ [ htmlElt "De app die het meest gemakkelijk te gebruiken voor mij als persoon is"
+      , buttonAnswerElt ("vignette"++show (nummer vt)++".gemak") ["App 1", "App 2"]]
+    , [ htmlElt "De app die het meest nuttig ter ondersteuning van mijn dagelijkse werkzaamheden"
+      , buttonAnswerElt ("vignette"++show (nummer vt)++".nut") ["App 1", "App 2"]]
+    , [ htmlElt "De app die ik zou gebruiken is"
+      , buttonAnswerElt ("vignette"++show (nummer vt)++".voorkeur") ["App 1", "App 2"]]
     ]
   , bigSkip
-  , HtmlElt $ "<br/><em>Klik op het cijfer dat aangeeft in hoeverre u het eens bent met onderstaande stelling:</em><br/><br/>" 
-  , TableElt "VignetteKiezen" False False False $
-     [[ HtmlElt "Ik vond het moeilijk om te kiezen"
-      , ButtonAnswerElt $ ButtonAnswer ("vignette"++show (nummer vt)++".moeilijkKiezen") $ map show [1..10]]
+  , htmlElt $ "<br/><em>Klik op het cijfer dat aangeeft in hoeverre u het eens bent met onderstaande stelling:</em><br/><br/>" 
+  , tableElt "VignetteKiezen"
+     [[ htmlElt "Ik vond het moeilijk om te kiezen"
+      , buttonAnswerElt ("vignette"++show (nummer vt)++".moeilijkKiezen") $ map show [1..10]]
     ]
   ]
 
