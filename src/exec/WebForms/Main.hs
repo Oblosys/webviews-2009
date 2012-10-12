@@ -133,9 +133,9 @@ persoonsgegevens = page
   [ htmlElt "<em>Eerst wil ik u enkele algemene vragen stellen, klik op het antwoord dat voor u van toepassing is of vul de betreffende informatie in.</em>"
   , medSkip
   , tableElt "Algemeen"
-      [ [ htmlElt "Wat is uw leeftijd?", styleElt "width: 50px" $ textAnswerValidateElt "age" isNumber ]
+      [ [ htmlElt "Wat is uw leeftijd?", styleElt "width: 50px" $ textAnswerValidateElt "leeftijd" isNumber ]
       , [ medSkip ]
-      , [ htmlElt "Wat is uw geslacht?", styleElt "width: 100px" $ buttonAnswerElt "gender" ["Man", "Vrouw"]]
+      , [ htmlElt "Wat is uw geslacht?", styleElt "width: 100px" $ buttonAnswerElt "geslacht" ["Man", "Vrouw"]]
       , [ medSkip ]
       , [ htmlElt "In welke functie bent u momenteel werkzaam?", radioAnswerElt "functie" "functieAnders" 
                                                                    [ "Activiteitenbegeleider"
