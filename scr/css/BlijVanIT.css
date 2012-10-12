@@ -4,7 +4,9 @@
 
 /* On an iPad, the rule below takes precedence over the one above (order is important) */
 @media only screen and (device-width: 768px) {
-  .FormPage { width:728px; margin: 0px; padding: 10px 20px 100px 20px; }
+  .FormPage { width:708px; margin: 0px; padding: 10px 40px 100px 20px; }
+  div.ProgressMarker { right: 12px; } /* div to make rule more specific */
+  div.ProgressLine[Orientation="Vertical"] { right: 19px; }
 }
 
 .FormPage {
