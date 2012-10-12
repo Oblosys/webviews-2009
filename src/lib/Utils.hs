@@ -57,6 +57,7 @@ drawWebNodes webnode = drawTree $ treeFromView webnode
               showAnyWidget (SelectViewWidget (SelectView id is i e _ _)) = "SelectView " ++ show id ++" " ++ show i ++(if e then "enabled" else "disabled") ++ ": "++ show is
               showAnyWidget (ButtonWidget (Button id t _ _ _ _)) = "Button " ++ show id ++ show t
               showAnyWidget (JSVarWidget (JSVar id n v)) = "JSVar "++ show id ++" "++ show n ++ " " ++ show v
+              showAnyWidget (EditActionWidget (EditAction id _)) = "EditAction "++ show id
 
 
 getTopLevelWebNodesForWebNode :: (Data db) => WebNode db -> [WebNode db]
