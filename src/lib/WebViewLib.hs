@@ -264,12 +264,12 @@ instance Presentable (SelectableView db) where
   present (SelectableView vid allVids selected str clickAction script) =
     with [ id_ . toValue $ mkId vid
          , theclass $ "SelectableView " ++ if selected then "Selected" else "Deselected"
-         ] $
-      with [strAttr "onClick" $ concat -- use js to select/deselect views immediately (while waiting for server response)
-                                  [ "selectSelectableView("++show (mkId vid)++",["++ intercalate "," [ show $ mkId vi |vi <- allVids] ++ "]);"
-                                  , callServerEditAction clickAction []
-                                  ]
-           ] $ thediv $ primHtml str +++ mkScript script
+         , thestyle "cursor: pointer"
+         , strAttr "onClick" $ concat -- use js to select/deselect views immediately (while waiting for server response)
+                                 [ "selectSelectableView("++show (mkId vid)++",["++ intercalate "," [ show $ mkId vi |vi <- allVids] ++ "]);"
+                                 , callServerEditAction clickAction []
+                                 ]
+         ] $ thediv $ primHtml str +++ mkScript script
    where mkId viewId = "SelectableView_"++show viewId
 
 instance Storeable db (SelectableView db)
