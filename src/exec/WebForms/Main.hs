@@ -89,7 +89,7 @@ isNumber = all isDigit
 
 -- Form instance declaration
 
-testForm = Form $ testPages ++ [ introductie, persoonsgegevens ] {-, stellingen, deelDrie ] ++ vignettes -}
+testForm = Form $ testPages ++ [ introductie, persoonsgegevens ] -- ++ [ stellingen, deelDrie ] ++ vignettes 
 
 testPages = [ Page[ HtmlElt "Wat is uw leeftijd?", StyleElt "width: 50px" $ TextAnswerElt $ TextAnswer "testAge" isNumber ]
             , Page[ HtmlElt "Bla?", StyleElt "width: 50px" $ ButtonAnswerElt $ ButtonAnswer "bla" ["Ja", "Nee"]]
@@ -206,11 +206,11 @@ mkVignette vt =
   , HtmlElt $ "<br/><em>Vragen (kruis de situatie aan die het beste bij u past):</em><br/><br/>"
   , TableElt "VignetteVragen" False False False $
     [ [ HtmlElt "De app die het meest gemakkelijk te gebruiken voor mij als persoon is"
-      , ButtonAnswerElt $ ButtonAnswer ("vignette"++show (nummer vt)++".gemak") ["App&nbsp;1", "App&nbsp;2"]]
+      , ButtonAnswerElt $ ButtonAnswer ("vignette"++show (nummer vt)++".gemak") ["App 1", "App 2"]]
     , [ HtmlElt "De app die het meest nuttig ter ondersteuning van mijn dagelijkse werkzaamheden"
-      , ButtonAnswerElt $ ButtonAnswer ("vignette"++show (nummer vt)++".nut") ["App&nbsp;1", "App&nbsp;2"]]
+      , ButtonAnswerElt $ ButtonAnswer ("vignette"++show (nummer vt)++".nut") ["App 1", "App 2"]]
     , [ HtmlElt "De app die ik zou gebruiken is"
-      , ButtonAnswerElt $ ButtonAnswer ("vignette"++show (nummer vt)++".voorkeur") ["App&nbsp;1", "App&nbsp;2"]]
+      , ButtonAnswerElt $ ButtonAnswer ("vignette"++show (nummer vt)++".voorkeur") ["App 1", "App 2"]]
     ]
   , bigSkip
   , HtmlElt $ "<br/><em>Klik op het cijfer dat aangeeft in hoeverre u het eens bent met onderstaande stelling:</em><br/><br/>" 
@@ -567,14 +567,14 @@ mkFormView form@(Form pages) = mkWebView $
  where gotoPageNr nr = jsNavigateTo $ "'#form&p="++show (1+ nr)++"'" -- nr is 0-based
 
        sendForm :: EditM Database ()
-       sendForm = -- very very basic save to csv (no check for column validity, column order based on sort, no escaping, etc.)
+       sendForm = -- very very basic save to csv (no check for column validity, column order based on sort, etc.)
         do { db <- getDb
            ; fileExists <- io $ doesFileExist resultsFilepath
            
            ; when (not fileExists) $
-                  io $ writeFile resultsFilepath $ intercalate "," $ Map.keys db
+                  io $ writeFile resultsFilepath $ intercalate "," $ map show $ Map.keys db
            ; io $ appendFile resultsFilepath $ "\n" ++
-                    intercalate "," [ answer | Just (_, answer) <- Map.elems db ]
+                    intercalate "," [ show answer | Just (_, answer) <- Map.elems db ]
            }
        
 instance Presentable FormView where
