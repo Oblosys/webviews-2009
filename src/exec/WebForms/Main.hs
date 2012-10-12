@@ -585,7 +585,11 @@ instance Presentable FormView where
         mkPageHeader +++
         vList [ present wv
               , vSpace 40
-              , hStretchList [ E $ present clearButton, space, E $ with [theclass "SendButton"] $ present sendButton ]
+              , hStretchList [ E $ present clearButton, space
+                             , E $ with [ onclick (toValue $ jsNavigateTo $ "'"++resultsFilepath++"'") -- use onclick to avoid problem with getting <a> underlined.
+                                        , thestyle "font-size: 80%; color: blue; text-decoration: underline; cursor: pointer"] $  "Resultaten downloaden"
+                             , space
+                             , E $ with [theclass "SendButton"] $ present sendButton ]
               ]
    where mkPageHeader = with [ align "right", style "margin-bottom:40px"] $
                           hListCenter 
