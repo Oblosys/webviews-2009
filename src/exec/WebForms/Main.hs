@@ -585,10 +585,11 @@ mkFormView form@(Form pages) = mkWebView $
        ; db <- getDb
        ; liftIO $ putStrLn $ "Db is "++show db
        ; let isComplete = all isQuestionAnswered $ Map.elems db
-       ; sendButton <- mkButton "Opsturen" isComplete $ Edit $ sendForm
+       ; sendButton <- mkButton "Opsturen" isComplete $ ConfirmEdit "Weet u zeker dat u de resultaten wilt versturen?"
+                                                      $ Edit $ sendForm
        
        ; clearButton <- mkButton "Alles wissen" True $ ConfirmEdit "Weet u zeker dat u alle antwoorden wilt wissen?" 
-                                                     $ Edit $ modifyDb $ \db -> Map.empty
+                                                     $ Edit $ clearForm
        ; prevButton <- mkButtonWithClick "Vorige" (currentPageNr/=0)                   $ \_ -> gotoPageNr (currentPageNr - 1)
 --                                "initProgressMarkers();" 
        ; nextButton <- mkButtonWithClick "Volgende" (currentPageNr < length pages - 1 && getQuestionsAnsweredFormPage currentPage db)
@@ -597,6 +598,9 @@ mkFormView form@(Form pages) = mkWebView $
        }
  where gotoPageNr nr = jsNavigateTo $ "'#form&p="++show (1+ nr)++"'" -- nr is 0-based
 
+       clearForm :: EditM Database ()
+       clearForm =  modifyDb $ \db -> Map.empty
+       
        sendForm :: EditM Database ()
        sendForm = -- very very basic save to csv (no check for column validity, column order based on sort, etc.)
         do { db <- getDb
@@ -606,6 +610,8 @@ mkFormView form@(Form pages) = mkWebView $
                   io $ writeFile resultsFilepath $ intercalate "," $ map show $ Map.keys db
            ; io $ appendFile resultsFilepath $ "\n" ++
                     intercalate "," [ show answer | Just (_, answer) <- Map.elems db ]
+           
+           ; clearForm
            }
        
 instance Presentable FormView where
