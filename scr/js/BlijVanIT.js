@@ -14,25 +14,36 @@ function initProgressMarkers() {
   if ($progressMarkers.length>0) {
     if ($formPage.hasClass('LastPage')) {
       var $sendButton = $('.SendButton button');
-      var sendButtonY = $sendButton.position().top + $sendButton.height()/2;
+
+      // Safari and firefox use different methods of rendering buttons (Safari with padding and margin, Firefox with border)
+      // this computation works for both methods and also looks okay in Chrome.
+      
       var lastMarkerY = $progressMarkers[$progressMarkers.length-1].position().top;
       var isConnected = !$sendButton.is(':disabled');
-    
-      var $verticalLn = mkVerticalProgressLine(lastMarkerY, sendButtonY+2, isConnected);
+      
+      var $verticalLn = mkVerticalProgressLine(lastMarkerY, buttonMiddleY($sendButton)+2, isConnected);
+      // can't be bothered to figure out why this +2 is necessary, but otherwise the line is too high
       $formPage.append($verticalLn);
-      $formPage.append(mkHorizontalProgressLine( $sendButton.position().left + $sendButton.width()/2
+      
+      // progress line must connect exactly to button because disabled button is transparent.
+      // We subtract 1 because Firefox shows a gap otherwise, and a 1 pixel overlap on Safari & Chrome is hardly visible.
+      $formPage.append(mkHorizontalProgressLine( $sendButton.position().left + parseInt( $sendButton.css('margin-left')) + $sendButton.outerWidth()
+                                                 - 1
                                                , $verticalLn.position().left
-                                               , $verticalLn.position().top + $verticalLn.height()-3
+                                               , $verticalLn.position().top + $verticalLn.outerHeight()-2
                                                , isConnected) );
     } else {
       var $nextButton = $('.NextButton button');
-      var nextButtonY = $nextButton.position().top + $nextButton.height()/2;
+
+                         
       var firstMarkerY = $progressMarkers[0].position().top;
       var isConnected = !$nextButton.is(':disabled');
     
-      var $verticalLn = mkVerticalProgressLine(nextButtonY, firstMarkerY, isConnected);
+      console.log($nextButton.outerWidth() + ' ' + (100+ parseInt( $nextButton.css('margin-top'))));
+      var $verticalLn = mkVerticalProgressLine(buttonMiddleY($nextButton), firstMarkerY, isConnected);
       $formPage.append($verticalLn);
-      $formPage.append(mkHorizontalProgressLine( $nextButton.position().left + $nextButton.outerWidth()-1
+      $formPage.append(mkHorizontalProgressLine( $nextButton.position().left + parseInt( $nextButton.css('margin-left')) + $nextButton.outerWidth()
+                                                 - 1
                                                , $verticalLn.position().left
                                                , $verticalLn.position().top
                                                , isConnected) );
@@ -64,4 +75,12 @@ function mkHorizontalProgressLine(leftX, rightX, y, isConnected) {
   $progressLine.css('width', rightX-leftX);    
   $progressLine.css('top', y);    
   return $progressLine;
+}
+
+function buttonMiddleY($button) {
+  return $button.position().top +
+         parseInt( $button.css('margin-top')) +
+         parseInt( $button.css('border-top-width')) + 
+         (parseInt( $button.css('padding-top')) + $button.height() + parseInt( $button.css('padding-bottom')))/2
+         - 1; // -1 because of the width 2 of the line
 }

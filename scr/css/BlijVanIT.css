@@ -37,7 +37,6 @@
 }
 
 .ProgressLine {
-  border: solid: 1px;
   position: absolute;
 }
 .ProgressLine[Orientation="Vertical"] {
@@ -55,6 +54,7 @@
 }
 
 .NextButton Button {
+  position: relative;
   z-index: 100; /* need position:relative for z-index to have effect */
 }
 .SendButton Button {
