@@ -34,8 +34,6 @@ import HtmlLib
 import ObloUtils
 import Utils
 
-webViewsPort = 8090
-
 
 {-
 TODO: why are there so many theDatabase refs? when is this thing initialized and when is it read from disk?
@@ -96,11 +94,11 @@ type SessionCounter = Int
 type Sessions db = IntMap (User, WebView db, Maybe (EditCommand db), HashArgs)
 
 server :: (Data db, Typeable db, Show db, Read db, Eq db) =>
-          String -> RootViews db -> [String] -> String -> IO (db) -> Map String (String, String) -> IO ()
-server title rootViews scriptFilenames dbFilename mkInitialDatabase users =
+          Int -> String -> RootViews db -> [String] -> String -> IO (db) -> Map String (String, String) -> IO ()
+server portNr title rootViews scriptFilenames dbFilename mkInitialDatabase users =
  do { hSetBuffering stdout NoBuffering -- necessary to run server in Eclipse
     ; time <- getClockTime
-    ; putStrLn $ "\n\n### Started WebViews server (port "++show webViewsPort++"): "++show time ++"\n"
+    ; putStrLn $ "\n\n### Started WebViews server (port "++show portNr++"): "++show time ++"\n"
     ; serverSessionId <- epochTime
 
     ; mDatabase <-
@@ -125,7 +123,7 @@ server title rootViews scriptFilenames dbFilename mkInitialDatabase users =
 
     ; globalStateRef <- newIORef $ initGlobalState theDatabase
 
-    ; simpleHTTP nullConf { port = webViewsPort, logAccess = Nothing {-Just logWebViewAccess-} } $
+    ; simpleHTTP nullConf { port = portNr, logAccess = Nothing {-Just logWebViewAccess-} } $
         msum (handlers title rootViews scriptFilenames dbFilename theDatabase users serverSessionId globalStateRef)
     }
 {-
