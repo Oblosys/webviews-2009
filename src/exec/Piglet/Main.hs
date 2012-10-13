@@ -361,7 +361,7 @@ instance Storeable Database VisitsView
 -- Main -------------------------------------------------------------------------  
               
 main :: IO ()
-main = server 8090 "Piglet" rootViews "" "PigletDB.txt" mkInitialDatabase users
+main = server 8090 "Piglet" rootViews [] "PigletDB.txt" mkInitialDatabase users
 
 rootViews :: RootViews Database
 rootViews = [ ("", mkVisitsView) ] 
