@@ -1,6 +1,8 @@
-# update and restart server on MacMini server
+# update and restart servers on MacMini server
 # path are absolute, so we can execute remotely with ssh
 
+# We don't call updateRestartServer to prevent multiple updates and cabal cleans 
+echo Updating, rebuilding, and restarting all WebViews servers.
 cd ~/svn/Oblomov/WebViews
 svn update
 cabal clean

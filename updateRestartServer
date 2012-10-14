@@ -1,0 +1,8 @@
+# update and restart server on MacMini server
+# path are absolute, so we can execute remotely with ssh
+
+echo Updating, building, and restarting WebViews server for $1.
+cd ~/svn/Oblomov/WebViews
+svn update
+cabal clean
+buildRestartServer $1
