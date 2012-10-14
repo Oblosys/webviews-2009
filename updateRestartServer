@@ -4,5 +4,4 @@
 echo Updating, building, and restarting WebViews server for $1.
 cd ~/svn/Oblomov/WebViews
 svn update
-cabal clean
 buildRestartServer $1
