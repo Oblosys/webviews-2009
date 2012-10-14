@@ -3,4 +3,6 @@
 
 cd ~/svn/Oblomov/WebViews
 svn update
-/Users/martijn/Library/Haskell/bin/cabal build && ./startServer
+cabal clean
+buildRestartServer webforms
+buildRestartServer leenclub

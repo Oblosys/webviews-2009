@@ -1,12 +1,13 @@
+echo Restarting WebViews server for $1.
 cd ~/svn/Oblomov/WebViews
-killall webforms
-dist/build/webforms/webforms > serverOutput.txt 2>&1 &
+killall $1
+dist/build/$1/$1 > serverOutput$1.txt 2>&1 &
 
 # Wait a bit and show initial output to see if the server actually started
 # (cannot use $? because background shell command always exits succesfully)
 sleep 0.1
-cat serverOutput.txt
+cat serverOutput$1.txt
 
 
 # when put in crontab, use:
-#    @reboot ~/svn/Oblomov/WebViews/startServer >/dev/null 2>&1
+#    @reboot ~/svn/Oblomov/WebViews/startServer <Executable>  >/dev/null 2>&1
