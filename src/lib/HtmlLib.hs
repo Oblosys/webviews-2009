@@ -98,7 +98,7 @@ vStretchList listElts = table ! height "100%" ! style "background-color: red" $ 
        spaceWidth = if nrOfSpaces == 0 then 0 else 100 `div` nrOfSpaces 
 
 hDistribute e1 e2 =
-  mkTableEx [width "100%", border "0", cellpadding "0", thestyle "border-collapse: collapse;"] [] [valign "top"]
+  mkTableEx [width "100%"] [] [valign "top"]
        [[ ([],e1), ([align "right"],e2) ]]
 
 hCenter elt = with [thestyle "text-align:center"] elt
@@ -108,16 +108,16 @@ hList' elts = ul!!![theclass "hList"] $ sequence_ [ li << elt | elt <- elts ] --
 hList elts = hListEx [] elts
 
 hListEx attrs [] = noHtml
-hListEx attrs  elts = simpleTable ([cellpadding "0", cellspacing "0"] ++ attrs) [theclass "draggable"] [ elts ]
+hListEx attrs  elts = simpleTable ([] ++ attrs) [theclass "draggable"] [ elts ]
 
-hListCenter elts = mkTableEx [cellpadding "0", cellspacing "0"] [] [style "vertical-align: middle"] [[ ([],elt) |elt <- elts ]] 
+hListCenter elts = mkTableEx [] [] [style "vertical-align: middle"] [[ ([],elt) |elt <- elts ]] 
 
-vListCenter elts = mkTableEx [cellpadding "0", cellspacing "0"] [] [style "text-align: center"] [ [([],elt)] |elt <- elts ] 
+vListCenter elts = mkTableEx [] [] [style "text-align: center"] [ [([],elt)] |elt <- elts ] 
 
 vList elts = vListEx [] elts
 
 vListEx attrs  [] = noHtml
-vListEx attrs  elts = simpleTable ([cellpadding "0", cellspacing "0"] ++ attrs) [] [ [e] | e <- elts ]
+vListEx attrs  elts = simpleTable attrs [] [ [e] | e <- elts ]
 
 -- todo: to be removed
 simpleTable :: [HtmlAttr] -> [HtmlAttr] -> [[Html]] -> Html
@@ -126,12 +126,11 @@ simpleTable tableAttrs allCellAttrs rows = mkTable tableAttrs [] allCellAttrs ro
 
 mkTable :: [HtmlAttr] -> [[HtmlAttr]] -> [HtmlAttr] -> [[Html]] -> Html
 mkTable tableAttrs rowAttrss allCellAttrs rows =
-  table!!!([cellpadding "0", cellspacing "0"]++tableAttrs) $ tbody ! valign "top" $ concatHtml
+  table!!!tableAttrs $ tbody ! valign "top" $ concatHtml
     [ tr !!! rowAttrs $ mapM_ (td!!!allCellAttrs) row 
     | (rowAttrs, row) <- zip (rowAttrss++repeat []) rows
     ] -- if no row attrss are given (or not enough), just assume no attrs ([])
 
--- NOTE: doesn't set cellspacing and cellpadding to 0
 mkTableEx :: [HtmlAttr] -> [[HtmlAttr]] -> [HtmlAttr] -> [[([HtmlAttr],Html)]] -> Html
 mkTableEx tableAttrs rowAttrss allCellAttrs rows =
   table!!!tableAttrs $ tbody ! valign "top" $ concatHtml
@@ -141,7 +140,7 @@ mkTableEx tableAttrs rowAttrss allCellAttrs rows =
 
 -- make a stretching page with the contents aligned at the top
 mkPage :: [HtmlAttr] -> Html -> Html
-mkPage attrs elt = table !* ([height "100%", width "100%", cellpadding "0", cellspacing "0"]++attrs) $ 
+mkPage attrs elt = table !* ([height "100%", width "100%"]++attrs) $ 
                       tr $ sequence_ [td ! width "50%" $ noHtml, td !* [valign "top", align "center"] $ elt, td ! width "50%" $ noHtml] --[valign "top", align "center"] 
                             --[[div_ ! width "50%" $ noHtml, elt, div_ ! width "50%" $ noHtml]]
                             -- this way the centered div gets minimal size
