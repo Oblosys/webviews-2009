@@ -184,7 +184,9 @@ handlers debug title rootViews scriptFilenames dbFilename theDatabase users serv
   ] 
  where serveRootPage :: ServerPart Response
        serveRootPage =
-        do { Request{rqPeer = (hostIp,_)} <- askRq
+        do { Request{rqHeaders=hdrs,rqPeer = (hostIp,_)} <- askRq
+           ; io $ putStrLn $ "Host IP: " ++ getHeaderValue "x-forwarded-for" "<no IP header>" hdrs
+           ; io $ putStrLn $ "User agent: " ++ getHeaderValue "user-agent" "<no user-agent header>" hdrs
            ; io $ putStrLn $ "Root requested (" ++ hostIp ++ ")"
            ; templateStr <- io $ readUTFFile $ "htmlTemplates/WebViews.html"
            ; let linksAndScripts = concatMap mkScriptLink scriptFilenames
@@ -192,6 +194,9 @@ handlers debug title rootViews scriptFilenames dbFilename theDatabase users serv
            ; let htmlStr = substitute [("TITLE",title),("LINKSANDSCRIPTS",linksAndScripts),("DEBUG", debugVal)] templateStr
            ; ok $ setHeader "Content-Type" "text/html; charset=utf-8" $ toResponse htmlStr
            } 
+       getHeaderValue key def headers = show $ case getHeader key headers of
+                                                 Nothing -> def
+                                                 Just valueBs -> valueBs
        mkScriptLink filename = case reverse . takeWhile (/='.') . reverse $ filename of
                                  "js"  -> "  <script type=\"text/javascript\" src=\"/scr/js/"++filename++"\"></script>\n"
                                  "css" -> "  <link href=\"/scr/css/"++filename++"\" rel=\"stylesheet\" type=\"text/css\" />\n"
