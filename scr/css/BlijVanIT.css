@@ -1,5 +1,5 @@
-.FormTable td {
-  padding: 3px;
+.FormTable > tbody > tr > td {
+  padding: 3px 5px 3px 5px;
 }
 .TableAlgemeen {
 }
@@ -19,6 +19,7 @@
 }
 .TableStellingen .RightCol {
   border-width: 1px;
+  vertical-align: middle;
   border-right-style: solid;
   border-right-color: black;
 }
@@ -89,6 +90,7 @@
 }
 .TableVignetteVragen .RightCol {
   width: 200px;
+  vertical-align: middle;
 }
 .TableVignetteVragen .MiddleRow {
   border-width: 1px;
