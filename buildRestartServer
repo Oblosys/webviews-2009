@@ -3,4 +3,9 @@ cd ~/svn/Oblomov/WebViews
 cabal configure -f$1 --disable-library-profiling --disable-executable-profiling
 # --disable-executable-profiling seems to help with a ghc linker bug (http://hackage.haskell.org/trac/ghc/ticket/7040)
 cabal build
+if [ "$?" -eq "0" ]; then
 ./restartServer $1
+else
+echo
+echo "*** Error during build, server has not been started. ***"
+fi
