@@ -684,7 +684,7 @@ getQuestionsAnsweredFormElt (TableElt _ _ _ _ rows) db = and [ getQuestionsAnswe
 ---- Main (needs to be below all webviews that use deriveInitial)
 
 main :: IO ()
-main = server 8100 "Blij van IT" rootViews ["BlijVanIT.js", "BlijVanIT.css"] "WebFormDB.txt" mkInitialDatabase $ Map.empty
+main = server 8100 "Blij van IT" rootViews ["WebForms.js", "WebForms.css", "BlijVanIT.css"] "WebFormDB.txt" mkInitialDatabase $ Map.empty
 
 rootViews :: RootViews Database
 rootViews = [ ("",  mkFormView testForm), ("form",  mkFormView testForm)
