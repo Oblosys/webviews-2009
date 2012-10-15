@@ -80,8 +80,10 @@ function mkHorizontalProgressLine(leftX, rightX, y, isConnected) {
 function getAnswerPosition($answer) {
   if ($answer.attr('AnswerType')!='ButtonAnswer')
     return $answer.position().top;
-  else // For a ButtonAnswer, we take the position of the text in the first button
-    return $answer.find('div>div').position().top;
+  else { // For a ButtonAnswer, we take the position of the text in the first button
+    $button = $answer.find('div');
+    return $button.position().top + $button.outerHeight() / 2 - 8; // 8 is half of marker height (14/2) + border (1)
+  }
 }
 function buttonMiddleY($button) {
   return $button.position().top +
