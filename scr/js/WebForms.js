@@ -6,7 +6,7 @@ function initProgressMarkers() {
   var $progressMarkers = $('[Answer]').map(function() {
     var $progressMarker = $("<div class='ProgressMarker'/>");
     $progressMarker.attr('AnswerProgress', $(this).attr('Answer'));
-    $progressMarker.css('top', $(this).position().top);
+    $progressMarker.css('top', getAnswerPosition($(this)));
     $formPage.append($progressMarker);
     return $progressMarker;
   });
@@ -77,6 +77,12 @@ function mkHorizontalProgressLine(leftX, rightX, y, isConnected) {
   return $progressLine;
 }
 
+function getAnswerPosition($answer) {
+  if ($answer.attr('AnswerType')!='ButtonAnswer')
+    return $answer.position().top;
+  else // For a ButtonAnswer, we take the position of the text in the first button
+    return $answer.find('div>div').position().top;
+}
 function buttonMiddleY($button) {
   return $button.position().top +
          parseInt( $button.css('margin-top')) +
