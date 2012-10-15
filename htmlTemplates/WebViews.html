@@ -387,7 +387,7 @@ function updateTree(update, moves, scripts) {
 	  var text = update.getAttribute('text');
     sendingRandomCommands = false;
     autoRefresh = false;
-    wverror(text);
+    wvError(text);
     init();
   }
   else if (op === 'alert') {
@@ -430,7 +430,7 @@ function updateTree(update, moves, scripts) {
     else
     	console.error("move source or destination is null. src("+srcId+"):"+srcElt+", dst("+dstId+"):"+dstElt)
   }
-  else wverror ('Unknown command: '+op); 
+  else wvError ('Unknown command: '+op); 
 }
 
 /*
@@ -477,7 +477,7 @@ function processPendingScripts(scripts_X_) {
       }
     }
     catch (e) {
-      wverror("Error in dynamic script:\n\n"+e+"\n\nSee console log for more information."); // important, so alert (doesn't seem to work)
+      wvError("Error in dynamic script:\n\n"+e+"\n\nSee console log for more information."); // important, so alert (doesn't seem to work)
       console.error("Error in script: "+e); // log error, so we can see when the problem occurs
                                             // Firebug output may be a bit confusing, stating that scripts_X_ is undefined
     }
