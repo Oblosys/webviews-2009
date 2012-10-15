@@ -294,8 +294,8 @@ instance Initial Answered where
 
 instance MapWebView db Answered
  
-withAnswerClass :: Answered -> Html -> Html
-withAnswerClass answered = with [strAttr "Answer" $ attrVal answered ]
+withAnswerClass :: String -> Answered -> Html -> Html
+withAnswerClass answerType answered = with [strAttr "AnswerType" answerType, strAttr "Answer" $ attrVal answered ]
  where attrVal Unanswered = "Unanswered"
        attrVal Invalid    = "Invalid"
        attrVal Answered   = "Answered"
@@ -325,7 +325,7 @@ mkRadioAnswerView r@(RadioAnswer questionTag answers) = mkWebView $
        }
 
 instance Presentable RadioAnswerView where
-  present (RadioAnswerView _ answered radio script) = (withAnswerClass answered $ present radio) +++ mkScript script
+  present (RadioAnswerView _ answered radio script) = (withAnswerClass "RadioAnswer" answered $ present radio) +++ mkScript script
 
 instance Storeable Database RadioAnswerView where
   save (RadioAnswerView (RadioAnswer questionTag answers) answered radio _) =
@@ -377,7 +377,7 @@ mkRadioTextAnswerView r@(RadioTextAnswer radioQuestionTag textQuestionTag answer
                     --(if not $ selection == -1 || isTextAnswerSelected && str == "" then Answered else Unanswered)
 instance Presentable RadioTextAnswerView where
   present (RadioTextAnswerView _ _ _ answered radio textField _ script) =
-    (withAnswerClass answered $ present radio >> present textField) +++ mkScript script
+    (withAnswerClass "RadioTextAnswer" answered $ present radio >> present textField) +++ mkScript script
 
 instance Storeable Database RadioTextAnswerView where
   save (RadioTextAnswerView radioQuestionTag textQuestionTag answers valid radio textField (NoPresent validate) _) =
@@ -416,7 +416,7 @@ mkButtonAnswerView b@(ButtonAnswer questionTag answers) = mkWebView $
 
 instance Presentable ButtonAnswerView where
   present (ButtonAnswerView _ answered buttons script) =
-    (withAnswerClass answered $ hStretchList $ intercalate [E $ mkClassDiv "ButtonAnswerSep" $ noHtml, space] $ [[E $ present b] | b <-  buttons]) +++
+    (withAnswerClass "ButtonAnswer" answered $ hStretchList $ intercalate [E $ mkClassDiv "ButtonAnswerSep" $ noHtml, space] $ [[E $ present b] | b <-  buttons]) +++
     mkScript script
 
 instance Storeable Database ButtonAnswerView
@@ -451,7 +451,7 @@ mkTextAnswerView t@(TextAnswer questionTag validate) = mkWebView $
                     | otherwise    = Invalid
                     
 instance Presentable TextAnswerView where
-  present (TextAnswerView _ answered textField _ script) = (withAnswerClass answered $ present textField) +++ mkScript script
+  present (TextAnswerView _ answered textField _ script) = (withAnswerClass "TextAnswer" answered $ present textField) +++ mkScript script
 
 instance Storeable Database TextAnswerView where
   save (TextAnswerView questionTag _ textField (NoPresent validate) _) =
