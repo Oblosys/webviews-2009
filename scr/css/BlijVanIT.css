@@ -80,13 +80,13 @@
   border-style: solid;
 }
 
-
 .TableVignetteVragen {
   border-width: 1px;
   border-color: black;
   border-style: solid;
 }
 .TableVignetteVragen .LeftCol {
+  vertical-align: middle;
 }
 .TableVignetteVragen .RightCol {
   width: 200px;
