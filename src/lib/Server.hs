@@ -98,7 +98,7 @@ server :: (Data db, Typeable db, Show db, Read db, Eq db) =>
 server portNr title rootViews scriptFilenames dbFilename mkInitialDatabase users =
  do { hSetBuffering stdout NoBuffering -- necessary to run server in Eclipse
     ; time <- getClockTime
-    ; putStrLn $ "\n\n### Started WebViews server (port "++show portNr++"): "++show time ++"\n"
+    ; putStrLn $ "\n\n### Started WebViews server "++show title++" (port "++show portNr++"): "++show time ++"\n"
     ; serverSessionId <- epochTime
 
     ; mDatabase <-
