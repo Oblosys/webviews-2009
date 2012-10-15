@@ -628,6 +628,9 @@ instance Presentable FormView where
                                         , thestyle "font-size: 80%; color: blue; text-decoration: underline; cursor: pointer"] $  "Resultaten downloaden"
                              , space
                              , E $ with [theclass "SendButton"] $ present sendButton ]
+              -- Decrease FormPage bottom-padding to 20px when enabling this.
+              --, vSpace 70
+              --, hStretchList [ space, E $ with [style "font-size: 11px; font-style: italic"] "Powered by WebViews" ]
               ]
    where mkPageHeader = with [ align "right", style "margin-bottom:40px"] $
                           hListCenter 
