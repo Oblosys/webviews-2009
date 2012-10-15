@@ -21,6 +21,7 @@ import System.Time (getClockTime)
 import System.Posix.Time
 import System.Posix.Types
 import System.Exit
+import System.Environment (getArgs)
 import BlazeHtml hiding (dir, method)
 import Control.Exception
 import qualified Data.ByteString.Char8 as Bytestring
@@ -98,7 +99,14 @@ server :: (Data db, Typeable db, Show db, Read db, Eq db) =>
 server portNr title rootViews scriptFilenames dbFilename mkInitialDatabase users =
  do { hSetBuffering stdout NoBuffering -- necessary to run server in Eclipse
     ; time <- getClockTime
-    ; putStrLn $ "\n\n### Started WebViews server "++show title++" (port "++show portNr++"): "++show time ++"\n"
+    ; args <- getArgs
+    ; let debug = case args of
+                    []          -> True
+                    ["nodebug"] -> False
+                    _           -> error "Incorrect parameters: only 'nodebug' is allowed"
+        
+    ; putStrLn $ "\n\n### Started WebViews server "++show title++" (port "++show portNr++")\n"++show time ++"\n"++
+                 "Debugging: "++if debug then "ON" else "OFF"
     ; serverSessionId <- epochTime
 
     ; mDatabase <-
@@ -124,7 +132,7 @@ server portNr title rootViews scriptFilenames dbFilename mkInitialDatabase users
     ; globalStateRef <- newIORef $ initGlobalState theDatabase
 
     ; simpleHTTP nullConf { port = portNr, logAccess = Nothing {-Just logWebViewAccess-} } $
-        msum (handlers title rootViews scriptFilenames dbFilename theDatabase users serverSessionId globalStateRef)
+        msum (handlers debug title rootViews scriptFilenames dbFilename theDatabase users serverSessionId globalStateRef)
     }
 {-
 handle:
@@ -153,8 +161,8 @@ instance FromData Int where
 
 readInt s = fromMaybe (-1) (readMaybe s)
 
-handlers :: (Data db, Show db, Eq db) => String -> RootViews db -> [String] -> String -> db -> Map String (String, String) -> ServerInstanceId -> GlobalStateRef db -> [ServerPart Response]
-handlers title rootViews scriptFilenames dbFilename theDatabase users serverSessionId globalStateRef = 
+handlers :: (Data db, Show db, Eq db) => Bool -> String -> RootViews db -> [String] -> String -> db -> Map String (String, String) -> ServerInstanceId -> GlobalStateRef db -> [ServerPart Response]
+handlers debug title rootViews scriptFilenames dbFilename theDatabase users serverSessionId globalStateRef = 
   (do { neverExpires
       ; msum [ dir "favicon.ico" $  serveDirectory DisableBrowsing [] "favicon.ico"
              , dir "scr" $  serveDirectory DisableBrowsing [] "scr"
@@ -178,7 +186,8 @@ handlers title rootViews scriptFilenames dbFilename theDatabase users serverSess
         do { io $ putStrLn $ "Root requested"
            ; templateStr <- io $ readUTFFile $ "htmlTemplates/WebViews.html"
            ; let linksAndScripts = concatMap mkScriptLink scriptFilenames
-           ; let htmlStr = substitute [("TITLE",title),("LINKSANDSCRIPTS",linksAndScripts)] templateStr
+           ; let debugVal = if debug then "true" else "false"
+           ; let htmlStr = substitute [("TITLE",title),("LINKSANDSCRIPTS",linksAndScripts),("DEBUG", debugVal)] templateStr
            ; ok $ setHeader "Content-Type" "text/html; charset=utf-8" $ toResponse htmlStr
            } 
        mkScriptLink filename = case reverse . takeWhile (/='.') . reverse $ filename of
