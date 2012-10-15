@@ -59,3 +59,7 @@
   position: relative;
   z-index: 100; /* need position:relative for z-index to have effect */
 }
+
+.ButtonAnswerSep { /* Minimum distance between answer buttons */
+  width: 8px;
+}

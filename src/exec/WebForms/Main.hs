@@ -416,7 +416,8 @@ mkButtonAnswerView b@(ButtonAnswer questionTag answers) = mkWebView $
 
 instance Presentable ButtonAnswerView where
   present (ButtonAnswerView _ answered buttons script) =
-    (withAnswerClass answered $ hStretchList $ intersperse space $ map (E . present) buttons) +++ mkScript script
+    (withAnswerClass answered $ hStretchList $ intercalate [E $ mkClassDiv "ButtonAnswerSep" $ noHtml, space] $ [[E $ present b] | b <-  buttons]) +++
+    mkScript script
 
 instance Storeable Database ButtonAnswerView
 
