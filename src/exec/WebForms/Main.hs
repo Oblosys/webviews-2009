@@ -105,8 +105,8 @@ radioAnswerElt rtag ttag answers = RadioTextAnswerElt $ RadioTextAnswer rtag tta
 
 radioAnswerValidateElt rtag ttag validate answers = RadioTextAnswerElt $ RadioTextAnswer rtag ttag validate answers
 
-medSkip = vSkip 10
-bigSkip = vSkip 20
+medSkip = vSkip 30
+bigSkip = vSkip 45
 
 vSkip :: Int -> FormElt
 vSkip height = htmlElt $ "<div style='height: " ++ show height ++ "px'></div>"
@@ -233,7 +233,7 @@ mkVignette vt =
     , [ htmlElt "De mate waarin de organisatie in het verleden succesvol technische innovaties heeft ingevoerd", htmlElt $ succes1 vt, htmlElt $ succes2 vt]
     , [ htmlElt "Mening van uw collega's", htmlElt $ collegas1 vt, htmlElt $ collegas2 vt]
     , [ htmlElt "Beloning", htmlElt $ beloning1 vt, htmlElt $ beloning2 vt] ]
-  , bigSkip
+  , medSkip
   , htmlElt $ "<br/><em>Vragen (kruis de situatie aan die het beste bij u past):</em><br/><br/>"
   , tableElt "VignetteVragen"
     [ [ htmlElt "De app die het meest gemakkelijk te gebruiken voor mij als persoon is"
@@ -243,7 +243,7 @@ mkVignette vt =
     , [ htmlElt "De app die ik zou gebruiken is"
       , buttonAnswerElt ("vignette"++show (nummer vt)++".voorkeur") ["App 1", "App 2"]]
     ]
-  , bigSkip
+  , medSkip
   , htmlElt $ "<br/><em>Klik op het cijfer dat aangeeft in hoeverre u het eens bent met onderstaande stelling:</em><br/><br/>" 
   , tableElt "VignetteKiezen"
      [[ htmlElt "Ik vond het moeilijk om te kiezen"
@@ -497,7 +497,7 @@ mkTableView classTag border topHeader leftHeader rows = mkWebView $
 
 instance Presentable TableView where
   present (TableView classTag hasBorder topHeader leftHeader rows) =
-    mkTableEx [border $ if hasBorder then "1" else "0", cellpadding "5", theclass $ "FormTable Table"++classTag ] [] [] $ 
+    mkTableEx [border $ if hasBorder then "1" else "0", theclass $ "FormTable Table"++classTag ] [] [] $ 
       [ [ ([ theclass $ "TableCell " ++ (if rowNr == 1 then " TopRow" else "") ++
                                         (if rowNr > 1 && rowNr < nrOfRows then " MiddleRow" else "") ++
                                         (if rowNr == nrOfRows then " BottomRow" else "") ++
