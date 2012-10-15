@@ -191,8 +191,8 @@ handlers debug title rootViews scriptFilenames dbFilename theDatabase users serv
            ; ok $ setHeader "Content-Type" "text/html; charset=utf-8" $ toResponse htmlStr
            } 
        mkScriptLink filename = case reverse . takeWhile (/='.') . reverse $ filename of
-                                 "js"  -> "  <script type=\"text/javascript\" src=\"/scr/js/"++filename++"\"></script>"
-                                 "css" -> "  <link href=\"/scr/css/"++filename++"\" rel=\"stylesheet\" type=\"text/css\" />"
+                                 "js"  -> "  <script type=\"text/javascript\" src=\"/scr/js/"++filename++"\"></script>\n"
+                                 "css" -> "  <link href=\"/scr/css/"++filename++"\" rel=\"stylesheet\" type=\"text/css\" />\n"
                                  ext   -> error $ "Unhandled script extension: "++filename
 {-
 This stuff may not hold for HappStack 6
