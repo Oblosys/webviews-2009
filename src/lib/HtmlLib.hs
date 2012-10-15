@@ -16,6 +16,8 @@ Abstraction for attributes, so multiple style attrs don't replace each other but
 
 mkDiv str elt = div_ ! id_ (fromString str) $ elt
 
+mkClassDiv classStr elt = div_ ! class_ (fromString classStr) $ elt
+
 mkSpan str elt = span_ ! id_ (fromString str) $ elt
 
 decrease x = x - 1
