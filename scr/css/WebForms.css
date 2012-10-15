@@ -55,16 +55,7 @@
   background-color: #ddd;
 }
 
-.NextButton Button {
+.NextButton Button, .SendButton Button {
   position: relative;
   z-index: 100; /* need position:relative for z-index to have effect */
-}
-.SendButton Button {
-  position: relative;
-  z-index: 100; /* need position:relative for z-index to have effect */
-}
-
-
-.FormTable {
-  border-collapse: collapse;
 }
