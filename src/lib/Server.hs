@@ -106,7 +106,7 @@ server portNr title rootViews scriptFilenames dbFilename mkInitialDatabase users
                     _           -> error "Incorrect parameters: only 'nodebug' is allowed"
         
     ; putStrLn $ "\n\n### Started WebViews server "++show title++" (port "++show portNr++")\n"++show time ++"\n"++
-                 "Debugging: "++if debug then "ON" else "OFF"
+                 "Debugging: "++(if debug then "ON" else "OFF")++"\n\n"
     ; serverSessionId <- epochTime
 
     ; mDatabase <-
@@ -170,20 +170,22 @@ handlers debug title rootViews scriptFilenames dbFilename theDatabase users serv
              ]
       }) :
   [ dir "handle" $ 
-      withData (\cmds -> do { requestIdData <- getData
+      withData (\cmds -> do { Request{rqPeer = (hostIp,_)} <- askRq
+                            ; requestIdData <- getData
                             ; requestId <- case requestIdData of
                                             Right i |  i/=(-1)  -> return i
-                                            Right i | otherwise -> do { io $ putStrLn "Unreadable requestId";    mzero }
-                                            Left err            -> do { io $ putStrLn "No requestId in request"; mzero }
+                                            Right i | otherwise -> do { io $ putStrLn $ "Unreadable requestId from " ++ hostIp;    mzero }
+                                            Left err            -> do { io $ putStrLn $ "No requestId in request from " ++ hostIp; mzero }
                                 
-                            ; io $ putStrLn $ "RequestId: "++show (requestId :: Int)
+                            ; io $ putStrLn $ "RequestId " ++ show (requestId :: Int) ++ " ("++hostIp++")"
                             ; method GET >> nullDir >> session rootViews dbFilename theDatabase users serverSessionId globalStateRef requestId cmds
                             })
   , serveRootPage -- this generates an init event, which will handle hash arguments
   ] 
  where serveRootPage :: ServerPart Response
        serveRootPage =
-        do { io $ putStrLn $ "Root requested"
+        do { Request{rqPeer = (hostIp,_)} <- askRq
+           ; io $ putStrLn $ "Root requested (" ++ hostIp ++ ")"
            ; templateStr <- io $ readUTFFile $ "htmlTemplates/WebViews.html"
            ; let linksAndScripts = concatMap mkScriptLink scriptFilenames
            ; let debugVal = if debug then "true" else "false"
