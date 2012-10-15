@@ -109,11 +109,10 @@ getWebViewById i wv =
     (WebViewNode wv) -> wv
     _                -> error $ "internal error: webnode with id " ++ show i ++ " is not a WebViewNode"
 
+
 getAnyWidgetById :: ViewId -> WebView db -> AnyWidget db
-getAnyWidgetById i wv = 
-  case getWebNodeById "getWebViewById" i wv of
-    (WidgetNode _ _ _ wd) -> wd
-    _                -> error $ "internal error: webnode with id " ++ show i ++ " is not a WidgetNode"
+getAnyWidgetById i wv = fromMaybe (error $ "internal error: webnode with id " ++ show i ++ " is not a WidgetNode") $
+                          mGetAnyWidgetById i wv
 
 getWebNodeById :: String -> ViewId -> WebView db -> WebNode db
 getWebNodeById callerTag i wv = 
@@ -121,6 +120,20 @@ getWebNodeById callerTag i wv =
     [b] -> b
     []  -> error $ "internal error: getWebNodeById (called by "++callerTag++"): no webnode with id " ++ show i
     _   -> error $ "internal error: getWebNodeById (called by "++callerTag++"): multiple webnode with id " ++ show i
+
+-- workaround for problem with events that arrive after the target widget has been removed. (especially on iPad/iPhone)
+mGetAnyWidgetById :: ViewId -> WebView db -> Maybe (AnyWidget db)
+mGetAnyWidgetById i wv = 
+  case mGetWebNodeById "getAnyWidgetById" i wv of
+    Just (WidgetNode _ _ _ wd) -> Just wd
+    _                          -> Nothing
+
+mGetWebNodeById :: String -> ViewId -> WebView db -> Maybe (WebNode db)
+mGetWebNodeById callerTag i wv = 
+  case [ wn | (vid, wn) <- getWebNodesAndViewIds True wv, vid == i ] of
+    [b] -> Just b
+    []  -> Nothing
+    _   -> Nothing
 
 getWebNodesAndViewIds :: forall db v . MapWebView db v => Bool -> v -> [(ViewId, WebNode db)]
 getWebNodesAndViewIds recursive v = snd $ mapWebView v (getWebNodesAndViewIdsWV, getWebNodesAndViewIdsWd, noWidgetUpdates, recursive) []

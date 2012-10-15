@@ -13,10 +13,8 @@ import GenericsSYB (
                 , mkWebNodeMap
                 , mkViewMap
                 
-
                 , getWebViewById
                 , getAnyWidgetById
-
                 
                 , getButtonByViewId
                 , getTextViewByViewId
@@ -41,6 +39,7 @@ import GenericsMap (
   
                 , getWebViewById
                 , getAnyWidgetById  
+                , mGetAnyWidgetById
 
                 , getLabelViewByViewId
                 , getTextViewByViewId

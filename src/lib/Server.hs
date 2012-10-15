@@ -463,13 +463,12 @@ handleCommand _ users sessionStateRef (SetC viewId value) =
     ; writeIORef sessionStateRef $ SessionState sessionId user db' rootView' pendingEdit hashArgs
     ; reloadRootView sessionStateRef
 
-
     --; putStrLn $ "Updated rootView:\n" ++ show rootView'
-    ; response <- case  getAnyWidgetById viewId rootView' :: AnyWidget db of
-        TextWidget (TextView _ _ _ _ _ (Just fChangeAction) _)         -> performEditCommand users sessionStateRef (fChangeAction value) 
-        RadioViewWidget (RadioView _ _ _ _ _ (Just fChangeAction))   -> performEditCommand users sessionStateRef (fChangeAction $ unsafeRead "Server.handle: radio selection" value) 
-        SelectViewWidget (SelectView _ _ _ _ _ (Just fChangeAction)) -> performEditCommand users sessionStateRef (fChangeAction $ unsafeRead "Server.handle: select selection" value) 
-        _                                                  -> return ViewUpdate -- Not a widget with an change action
+    ; response <- case  mGetAnyWidgetById viewId rootView' :: Maybe (AnyWidget db) of
+        Just (TextWidget (TextView _ _ _ _ _ (Just fChangeAction) _))       -> performEditCommand users sessionStateRef (fChangeAction value) 
+        Just (RadioViewWidget (RadioView _ _ _ _ _ (Just fChangeAction)))   -> performEditCommand users sessionStateRef (fChangeAction $ unsafeRead "Server.handle: radio selection" value) 
+        Just (SelectViewWidget (SelectView _ _ _ _ _ (Just fChangeAction))) -> performEditCommand users sessionStateRef (fChangeAction $ unsafeRead "Server.handle: select selection" value) 
+        _                                                                   -> return ViewUpdate -- Not a widget with a change action
       -- TODO: check if mkViewMap has correct arg
     -- TODO: instead of updating all, just update the one that was changed
     ; return response
