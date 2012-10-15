@@ -7,6 +7,7 @@ import Data.List
 import Data.List.Split
 import Data.Maybe
 import Data.IORef
+import Data.ByteString.Char8 (unpack)
 import Control.Concurrent
 import Control.Monad
 import Control.Monad.Trans
@@ -187,7 +188,7 @@ handlers debug title rootViews scriptFilenames dbFilename theDatabase users serv
         do { clientIp <- getClientIp 
            ; Request{rqHeaders=hdrs} <- askRq
            ; io $ putStrLn $ "Root requested (" ++ clientIp ++ ")"
-           ; io $ putStrLn $ "User agent: " ++ maybe "<no user agent header>" show (getHeader "user-agent" hdrs) ++ "\n\n"
+           ; io $ putStrLn $ "User agent: " ++ maybe "<no user agent header>" unpack (getHeader "user-agent" hdrs) ++ "\n\n"
            ; templateStr <- io $ readUTFFile $ "htmlTemplates/WebViews.html"
            ; let linksAndScripts = concatMap mkScriptLink scriptFilenames
            ; let debugVal = if debug then "true" else "false"
@@ -200,7 +201,7 @@ handlers debug title rootViews scriptFilenames dbFilename theDatabase users serv
         do { Request{rqHeaders=hdrs,rqPeer = (actualClientIp,_)} <- askRq
            ; return $ case getHeader "x-forwarded-for" hdrs of
                         Nothing                -> actualClientIp
-                        Just forwardedClientIp -> show forwardedClientIp
+                        Just forwardedClientIp -> unpack forwardedClientIp
            }
        mkScriptLink filename = case reverse . takeWhile (/='.') . reverse $ filename of
                                  "js"  -> "  <script type=\"text/javascript\" src=\"/scr/js/"++filename++"\"></script>\n"
