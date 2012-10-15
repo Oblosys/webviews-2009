@@ -170,33 +170,38 @@ handlers debug title rootViews scriptFilenames dbFilename theDatabase users serv
              ]
       }) :
   [ dir "handle" $ 
-      withData (\cmds -> do { Request{rqPeer = (hostIp,_)} <- askRq
+      withData (\cmds -> do { clientIp <- getClientIp 
                             ; requestIdData <- getData
                             ; requestId <- case requestIdData of
                                             Right i |  i/=(-1)  -> return i
-                                            Right i | otherwise -> do { io $ putStrLn $ "Unreadable requestId from " ++ hostIp;    mzero }
-                                            Left err            -> do { io $ putStrLn $ "No requestId in request from " ++ hostIp; mzero }
+                                            Right i | otherwise -> do { io $ putStrLn $ "Unreadable requestId from " ++ clientIp;    mzero }
+                                            Left err            -> do { io $ putStrLn $ "No requestId in request from " ++ clientIp; mzero }
                                 
-                            ; io $ putStrLn $ "RequestId " ++ show (requestId :: Int) ++ " ("++hostIp++")"
+                            ; io $ putStrLn $ "RequestId " ++ show (requestId :: Int) ++ " (" ++ clientIp ++ ")"
                             ; method GET >> nullDir >> session rootViews dbFilename theDatabase users serverSessionId globalStateRef requestId cmds
                             })
   , serveRootPage -- this generates an init event, which will handle hash arguments
   ] 
  where serveRootPage :: ServerPart Response
        serveRootPage =
-        do { Request{rqHeaders=hdrs,rqPeer = (hostIp,_)} <- askRq
-           ; io $ putStrLn $ "Host IP: " ++ getHeaderValue "x-forwarded-for" "<no IP header>" hdrs
-           ; io $ putStrLn $ "User agent: " ++ getHeaderValue "user-agent" "<no user-agent header>" hdrs
-           ; io $ putStrLn $ "Root requested (" ++ hostIp ++ ")"
+        do { clientIp <- getClientIp 
+           ; Request{rqHeaders=hdrs} <- askRq
+           ; io $ putStrLn $ "Root requested (" ++ clientIp ++ ")"
+           ; io $ putStrLn $ "User agent: " ++ maybe "<no user agent header>" show (getHeader "user-agent" hdrs) ++ "\n\n"
            ; templateStr <- io $ readUTFFile $ "htmlTemplates/WebViews.html"
            ; let linksAndScripts = concatMap mkScriptLink scriptFilenames
            ; let debugVal = if debug then "true" else "false"
            ; let htmlStr = substitute [("TITLE",title),("LINKSANDSCRIPTS",linksAndScripts),("DEBUG", debugVal)] templateStr
            ; ok $ setHeader "Content-Type" "text/html; charset=utf-8" $ toResponse htmlStr
            } 
-       getHeaderValue key def headers = show $ case getHeader key headers of
-                                                 Nothing -> def
-                                                 Just valueBs -> valueBs
+           
+       getClientIp :: ServerPart String
+       getClientIp =
+        do { Request{rqHeaders=hdrs,rqPeer = (actualClientIp,_)} <- askRq
+           ; return $ case getHeader "x-forwarded-for" hdrs of
+                        Nothing                -> actualClientIp
+                        Just forwardedClientIp -> show forwardedClientIp
+           }
        mkScriptLink filename = case reverse . takeWhile (/='.') . reverse $ filename of
                                  "js"  -> "  <script type=\"text/javascript\" src=\"/scr/js/"++filename++"\"></script>\n"
                                  "css" -> "  <link href=\"/scr/css/"++filename++"\" rel=\"stylesheet\" type=\"text/css\" />\n"
