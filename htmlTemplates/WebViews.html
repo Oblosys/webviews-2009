@@ -415,7 +415,9 @@ function updateTree(update, moves, scripts) {
     newElts.appendChild(newChild);
   }
   else if (op === 'eval') {
-    var scriptTxt = update.textContent; // don't use childNodes[0].data, since on Windows Firefox, the text is split in 1024 sized blocks
+    var scriptTxt = $(update).text() 
+    // don't use childNodes[0].data, since on Windows Firefox, the text is split in 1024 sized blocks
+    // also .textContent doesn't work on IE and .innerText not on Firefox, so we use jQuery's .text()
     scripts.push(scriptTxt);
   }
   else if (op === 'move') {
