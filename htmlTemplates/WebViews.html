@@ -476,14 +476,16 @@ function processPendingMoves(moves) {
 function processPendingScripts(scripts_X_) {
 	for (var i_X_=0; i_X_<scripts_X_.length; i_X_++) {    
     var scriptLines_X_ = scripts_X_[i_X_].split('\n');
+    var scriptLine_X_;
     try {
       for (var j_X_=0; j_X_<scriptLines_X_.length; j_X_++) {
-        dlog('Eval ('+i_X_+'.'+j_X_+'/'+scripts_X_.length+'): ',scriptLines_X_[j_X_]);
-        eval(scriptLines_X_[j_X_]);
+        scriptLine_X_ = scriptLines_X_[j_X_];
+        dlog('Eval ('+i_X_+'.'+j_X_+'/'+scripts_X_.length+'): ',scriptLine_X_);
+        eval(scriptLine_X_);
       }
     }
     catch (e) {
-      wvError("Error in dynamic script:\n\n"+e+"\n\nSee console log for more information."); // important, so alert (doesn't seem to work)
+      wvError("Error in dynamic script.\nLine: "+scriptLine_X_+"\n\n"+e+"\n\nSee console log for more information."); // important, so alert (doesn't seem to work)
       console.error("Error in script: "+e); // log error, so we can see when the problem occurs
                                             // Firebug output may be a bit confusing, stating that scripts_X_ is undefined
     }
