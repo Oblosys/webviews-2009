@@ -1,0 +1,24 @@
+Javascript errors:
+dst null
+These are called by editActions that are not presented
+Harmless, but annoying.
+
+------------------------------------------------------------------
+Problem with Leenclub login
+maybe related to
+
+
+------------------------------------------------------------------
+Events on viewIds that no longer exist or worse, have been replaced by something new
+This is related to the declarative presentation model.
+
+
+
+
+
+
+
+
+
+
+EditActions are Widget to make generics easier. However, in incrementality they are treated differently, since they have no presentation.

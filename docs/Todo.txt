@@ -1,6 +1,8 @@
 TODO short term
 CLEANUP!!
 
+Maybe log script errors at server, so we see when applications are failing.
+
 Double select action?
 
 replace scripts in onclick tags by calls to functions (selectHour, etc.)
