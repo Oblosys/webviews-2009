@@ -1,6 +1,4 @@
-@media only screen {
-  .FormPage { width:800px; margin: 10px; padding: 10px 50px 100px 50px; }
-}
+.FormPage { width:800px; margin: 10px; padding: 10px 50px 100px 50px; }
 
 /* On an iPad, the rule below takes precedence over the one above (order is important) */
 @media only screen and (device-width: 768px) {
