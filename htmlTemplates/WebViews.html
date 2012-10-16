@@ -19,7 +19,8 @@ __LINKSANDSCRIPTS__
 var console; // on IE, console is undefined, so we define it to ignore any logs (which otherwise cause an error)
 if (typeof console == 'undefined') {
   console = { log: function () {}
-            };
+            , error: function () {} // ignore error. We could also replace body with the message, stopping
+            }                       // webviews, but that might be a bit drastic.
 }
 
 var debugging = __DEBUG__;
