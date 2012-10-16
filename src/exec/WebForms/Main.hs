@@ -554,9 +554,9 @@ mkFormPageView nr (Page elts) = mkWebView $
     do { pageViews <- mapM mkViewFormElt elts
        ; return $ FormPageView pageViews $ jsScript
            [ "initProgressMarkers();"
-           , "console.log('"++show nr++"');" ] -- todo: need to put the nr in the script because otherwise
-                                               -- the incrementality prevents the script from being executed.
-                                               -- The current script model is not okay! 
+           , "dlog('"++show nr++"');" ] -- todo: need to put the nr in the script because otherwise
+                                        -- the incrementality prevents the script from being executed.
+                                        -- The current script model is not okay! 
        }
 
 instance Presentable FormPageView where

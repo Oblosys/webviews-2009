@@ -39,7 +39,7 @@ function initProgressMarkers() {
       var firstMarkerY = $progressMarkers[0].position().top;
       var isConnected = !$nextButton.is(':disabled');
     
-      console.log($nextButton.outerWidth() + ' ' + (100+ parseInt( $nextButton.css('margin-top'))));
+      dlog($nextButton.outerWidth() + ' ' + (100+ parseInt( $nextButton.css('margin-top'))));
       var $verticalLn = mkVerticalProgressLine(buttonMiddleY($nextButton), firstMarkerY, isConnected);
       $formPage.append($verticalLn);
       $formPage.append(mkHorizontalProgressLine( $nextButton.position().left + parseInt( $nextButton.css('margin-left')) + $nextButton.outerWidth()
@@ -66,7 +66,7 @@ function mkVerticalProgressLine(topY, bottomY, isConnected) {
   $progressLine.css('top', topY);    
   $progressLine.css('height', bottomY-topY);    
   return $progressLine;
-  console.log('\n\n\nposition is '+$progressLine.position().left);
+  dlog('\n\n\nposition is '+$progressLine.position().left);
 }
 function mkHorizontalProgressLine(leftX, rightX, y, isConnected) {
   var $progressLine = $("<div class='ProgressLine' orientation='Horizontal'></div>");

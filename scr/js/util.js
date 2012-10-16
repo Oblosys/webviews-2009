@@ -17,7 +17,7 @@ function addSpinner(id) {
   var spinner = new Spinner(opts).spin(targetElt);
 
   $targetElt = $('#'+id);
-  console.log(id, targetElt, $targetElt.height());
+  dlog(id, targetElt, $targetElt.height());
   var divWidth = $targetElt.width();
   var divHeight = $targetElt.height();
   var overlay = $('<div style="z-index: 100; position:absolute; width:'+divWidth+'px; height:'+divHeight+'px; background-color:grey; opacity:0.1; filter:alpha(opacity=10); /* For IE8 and earlier */"></div>');
@@ -27,7 +27,7 @@ function addSpinner(id) {
 
 function clearSpinners() {
 	while (spinner = spinners.pop()) {
-		console.log('Clearing spinner '+spinner);
+		dlog('Clearing spinner '+spinner);
 		spinner.spinner.stop();
 		spinner.overlay.remove();
 	}
