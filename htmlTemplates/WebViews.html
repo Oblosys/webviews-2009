@@ -273,7 +273,6 @@ function state_ChangeWithErrorHandler() {
 		  console.error("Javascript error (not reported by firebug)"+
 				            (typeof e.lineNumber=='undefined'?", no linenumber available:":" on line "+e.lineNumber)+"\n"+
 				            e.message);
-	  	console.error(); // may not always work
 		}
 }
 
@@ -440,7 +439,7 @@ function updateTree(update, moves, scripts) {
       dlog('Queue move '+srcId+' '+dstId);
     }
     else
-    	console.error("move source or destination is null. src("+srcId+"):"+srcElt+", dst("+dstId+"):"+dstElt)
+    	wvError("move source or destination is null. src("+srcId+"):"+srcElt+", dst("+dstId+"):"+dstElt)
   }
   else wvError ('Unknown command: '+op); 
 }
