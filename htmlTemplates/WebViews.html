@@ -135,9 +135,10 @@ function setArg(args, name, value) {
 }
 
 function showHaskellArgs(args) {
-	var haskellStrs = args.map(function(arg){ return '("'+arg.name+'","'+arg.value+'")';
-	}); 
-
+	var haskellStrs = new Array();
+	for (var i=0; i<args.length; i++)
+	   haskellStrs.push('("'+args[i].name+'","'+args[i].value+'")');
+	
 	return '['+haskellStrs.join(',')+']';
 }
 
@@ -469,7 +470,7 @@ function processPendingMoves(moves) {
 // Because eval may change local parameters, we put _X_ after the identifiers.
 function processPendingScripts(scripts_X_) {
 	for (var i_X_=0; i_X_<scripts_X_.length; i_X_++) {    
-    var scriptLines_X_ = scripts_X_[i_X_].split('\n')
+    var scriptLines_X_ = scripts_X_[i_X_].split('\n');
     try {
       for (var j_X_=0; j_X_<scriptLines_X_.length; j_X_++) {
         console.log('Eval ('+i_X_+'.'+j_X_+'/'+scripts_X_.length+'): ',scriptLines_X_[j_X_]);
