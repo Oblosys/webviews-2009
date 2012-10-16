@@ -153,8 +153,11 @@ function wvError(message) {
   if (debugging)
     alert(message);
   else
-    console.error(message);
+  if (typeof console != 'undefined') // on IE, without debug on, console is undefined
+    console.error(message);          // so we ignore the error altogether
 }
+
+// TODO: what do we do with fatal errors when there is no console?
 
 function dlog(message) {
   if (debugging && typeof console != 'undefined') // on IE, without debug on, console is undefined
