@@ -16,6 +16,11 @@ __LINKSANDSCRIPTS__
  </head>
 
 <script type="text/javascript"> <!--
+var console; // on IE, console is undefined, so we define it to ignore any logs (which otherwise cause an error)
+if (typeof console == 'undefined') {
+  console = { log: function () {}
+            };
+}
 
 var debugging = __DEBUG__;
 //var debugging = true;
