@@ -39,6 +39,9 @@ import WebFormUtils
 -- TODO: the question tags are more answer tags
 -- TODO: update script on edit (tricky, needs event model on all widgets and also on ButtonAnswerVIew)
 
+-- TODO: dynamic updates on progress markers and button disenable. Requires validation in both Haskell and Javascript.
+-- TODO: show reason for validation fail.
+
 resultsFilepath = "scr/BlijVanIT.csv"
 
 data WebForm = Form [FormPage]
