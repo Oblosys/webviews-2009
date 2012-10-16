@@ -171,23 +171,25 @@ handlers debug title rootViews scriptFilenames dbFilename theDatabase users serv
              ]
       }) :
   [ dir "handle" $ 
-      withData (\cmds -> do { clientIp <- getClientIp 
+      withData (\cmds -> do { time <- io getClockTime
+           ; clientIp <- getClientIp 
                             ; requestIdData <- getData
                             ; requestId <- case requestIdData of
                                             Right i |  i/=(-1)  -> return i
-                                            Right i | otherwise -> do { io $ putStrLn $ "Unreadable requestId from " ++ clientIp;    mzero }
-                                            Left err            -> do { io $ putStrLn $ "No requestId in request from " ++ clientIp; mzero }
+                                            Right i | otherwise -> do { io $ putStrLn $ "Unreadable requestId from " ++ clientIp ++ ", "++show time;    mzero }
+                                            Left err            -> do { io $ putStrLn $ "No requestId in request from " ++ clientIp ++ ", "++show time; mzero }
                                 
-                            ; io $ putStrLn $ "RequestId " ++ show (requestId :: Int) ++ " (" ++ clientIp ++ ")"
+                            ; io $ putStrLn $ "RequestId " ++ show (requestId :: Int) ++ " (" ++ clientIp ++ "), "++show time
                             ; method GET >> nullDir >> session rootViews dbFilename theDatabase users serverSessionId globalStateRef requestId cmds
                             })
   , serveRootPage -- this generates an init event, which will handle hash arguments
   ] 
  where serveRootPage :: ServerPart Response
        serveRootPage =
-        do { clientIp <- getClientIp 
+        do { time <- io getClockTime
+           ; clientIp <- getClientIp 
            ; Request{rqHeaders=hdrs} <- askRq
-           ; io $ putStrLn $ "Root requested (" ++ clientIp ++ ")"
+           ; io $ putStrLn $ "Root requested (" ++ clientIp ++ "), "++show time
            ; io $ putStrLn $ "User agent: " ++ maybe "<no user agent header>" unpack (getHeader "user-agent" hdrs) ++ "\n\n"
            ; templateStr <- io $ readUTFFile $ "htmlTemplates/WebViews.html"
            ; let linksAndScripts = concatMap mkScriptLink scriptFilenames
