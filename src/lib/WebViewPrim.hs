@@ -609,7 +609,8 @@ callServerEditAction (Widget _ _ ea) args =
       intercalate "," ["\"'+"++arg++"+'\"" | arg <- args] 
       ++"]');"
 
-
+jsAlert :: String -> String
+jsAlert msg = "alert("++show msg++")" -- 
 
 -- Hacky stuff
 

@@ -252,7 +252,7 @@ editActionWidget viewId cmd = Widget noId noId $ EditAction viewId cmd
 --- EditCommand
 
 data EditCommand db = Edit (EditM db ())
-                 | AlertEdit String 
+                 | EvalJSEdit String 
                  | ConfirmEdit String (EditCommand db)
                  | AuthenticateEdit ViewIdRef ViewIdRef
                  | LogoutEdit

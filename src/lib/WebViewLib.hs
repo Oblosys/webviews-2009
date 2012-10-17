@@ -12,6 +12,14 @@ import Generics
 import HtmlLib
 import WebViewPrim
 
+
+-- Utils -----------------------------------------------------------------------
+-- TODO: where to put these?
+
+alertEdit :: String -> EditCommand db
+alertEdit str = EvalJSEdit $ jsAlert str
+
+
 -- Login -----------------------------------------------------------------------  
 
 data LoginView db = LoginView (Widget (TextView db)) (Widget (TextView db)) (Widget (Button db)) 

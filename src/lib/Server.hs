@@ -376,10 +376,8 @@ sessionHandler rootViews dbFilename theDatabase users sessionStateRef requestId 
             --; putStrLn "end session handler"
             ; return $ responseHtml
             }
-        Alert str -> 
-          return $ [ div_ ! strAttr "op" "alert"
-                          ! strAttr "text" str
-                          $ noHtml ] 
+        EvalJS script -> 
+          return $ [ div_ ! strAttr "op" "eval" $ toHtml script ] 
         Confirm str  -> 
           return $ [ div_ ! strAttr "op" "confirm"
                           ! strAttr "text" str
@@ -404,7 +402,7 @@ sessionHandler rootViews dbFilename theDatabase users sessionStateRef requestId 
            }
 
  
-data ServerResponse = ViewUpdate | Alert String | Confirm String deriving (Show, Eq)
+data ServerResponse = ViewUpdate | EvalJS String | Confirm String deriving (Show, Eq)
 
 -- handle each command in commands and send the updates back
 handleCommands rootViews users sessionStateRef (SyntaxError cmdStr) =
@@ -525,7 +523,7 @@ reloadRootView sessionStateRef =
 performEditCommand users  sessionStateRef command =
  do { SessionState sessionId user db rootView pendingEdit hashArgs <- readIORef sessionStateRef
     ; case command of  
-            AlertEdit str -> return $ Alert str
+            EvalJSEdit str -> return $ EvalJS str
             ConfirmEdit str ec -> 
              do { writeIORef sessionStateRef $ SessionState sessionId user db rootView (Just ec) hashArgs
                 ; return $ Confirm str
@@ -559,10 +557,10 @@ authenticate users sessionStateRef userEStringViewId passwordEStringViewId =
                                          }
                                      else
                                       do { putStrLn $ "User \""++userName++"\" entered a wrong password"
-                                         ; return $ Alert $ "Incorect password for '"++userName++"'"
+                                         ; return $ EvalJS $ jsAlert $ "Incorect password for '"++userName++"'"
                                          }
         Nothing -> do { putStrLn $ "User "++userName++" entered a wrong password"
-                      ; return $ Alert $ "Unknown username: "++userName
+                      ; return $ EvalJS $ jsAlert $ "Unknown username: "++userName
                       }
     }
 logout sessionStateRef =
