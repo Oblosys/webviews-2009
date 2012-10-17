@@ -17,7 +17,7 @@
   border: solid 1px;
   -webkit-border-radius: 14px; /* radius seems to be diameter */
   -moz-border-radius: 14px;
-  border-radius: 14px; 
+  border-radius: 28px; /* and for IE it seems to be 2*diameter! (28px yields a circle in 14x14 box)
   position: absolute;
   top: 0px;
   right: 20px;
