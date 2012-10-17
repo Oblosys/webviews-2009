@@ -199,12 +199,12 @@ function refresh() {
 function escape(arg) {
 	var result = '';
   for (var i = 0; i < arg.length; i++) {
-	  if (arg[i] == '"')
+	  if (arg.charAt(i) == '"')
       result += '\\"';
-    else if (arg[i] == '\n')
+    else if (arg.charAt(i) == '\n')
       result += '\\n';
     else
-      result += arg[i];
+      result += arg.charAt(i);
   }
   return result;
 }
