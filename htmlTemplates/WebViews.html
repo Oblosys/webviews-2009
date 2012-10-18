@@ -321,13 +321,7 @@ function state_Change() {
         drawViewTree();
 
 
-      // restore focus
-      dlog("restoring focus to "+focusedElementId);
-      var focusedElement = document.getElementById(focusedElementId);
-      if (focusedElement != null)
-        focusedElement.focus();
-      else
-        dlog("failed");
+      restoreFocus();
 
 //    $("[class='tabbed']").tabs(); // register tabbed views
 //    $("[class='draggable']").draggable({refreshPositions: true});
@@ -555,6 +549,47 @@ function sendRandomCommand() {
   //queueCommand(randomCommand);
 }
 
+/* restore focus to element with id focusedElementId
+   NOTE: because focus() scrolls to the focused element, we save and restore scrollbar
+   positions of all elements up to the the html element. This also fixes a bug, where after
+   a focus() call, all other UI events (such as a button click) disappear.
+*/
+function restoreFocus() {
+  if (!focusedElementId) 
+    dlog("No previously focused element");
+  else 
+    dlog("restoring focus to "+focusedElementId);
+    var focusedElement = document.getElementById(focusedElementId);
+    if (focusedElement == null)
+      dlog("Element no longer exists");
+    else {
+      var scrollXPositions = new Array();
+      var scrollYPositions = new Array();
+     
+      var $elt = $(focusedElement);
+      while (!$elt.is('html')) { // save all scrollbar positions
+//       dlog($elt.prop('tagName')+' '+ $elt.scrollTop());
+        scrollXPositions.push($elt.scrollLeft());
+        scrollYPositions.push($elt.scrollTop());
+        $elt = $elt.parent();
+      }
+  
+      // set focus to focusedElement, but temporarily disable its onfocus handler, since
+      // the focus is not new. 
+      var focusHandler =focusedElement.onfocus;
+      focusedElement.onfocus = null;
+      focusedElement.focus();
+      focusedElement.onfocus = focusHandler;
+  
+      $elt = $(focusedElement);
+      while (!$elt.is('html')) { // restore all scrollbar positions
+        $elt.scrollLeft( scrollXPositions.shift() );
+        $elt.scrollTop( scrollYPositions.shift() );
+//        dlog($elt.prop('tagName')+' '+ $elt.scrollTop());
+        $elt = $elt.parent();
+      }
+    }
+}
 
 // Dynamic scripting
 
