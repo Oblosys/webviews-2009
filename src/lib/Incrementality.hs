@@ -46,7 +46,7 @@ mkIncrementalUpdates oldRootView rootView =
     
     ; let (newCommands, mEvalCommands) = unzip $ mapMaybe newWebNodeHtml newWebNodes
     ; let evalCommands = catMaybes mEvalCommands 
-    ; let htmlUpdates =newCommands  ++ map updateHtml updates ++ evalCommands
+    ; let htmlUpdates =newCommands  ++ mapMaybe mkUpdateHtml updates ++ evalCommands
     -- TODO: we could separate the evalCommands from the rest, so we don't have to do it at client level.
     --; mapM (putStrLn . show) evalCommands
     ; let subs = concat [ case upd of  -- TODO: fix something here
@@ -194,10 +194,12 @@ newWebNodeHtml (WebViewNode (WebView _ _ (Id i) _ v)) =
       scriptResponse = div_ ! strAttr "op" "eval" $ (toHtml $ concat scripts)
   in  Just (updateResponse, if null scripts then Nothing else Just scriptResponse)  
 
-updateHtml :: Update -> Html
-updateHtml (Move _ (IdRef src) (IdRef dst)) = if src == dst then error $ "Source is destination: "++show src else
-    div_ ! strAttr "op" "move" ! strAttr "src" (show src) ! strAttr "dst" (show dst) $ noHtml
-updateHtml _ = noHtml -- restoreId is not for producing html, but for adapting the rootView  
+mkUpdateHtml :: Update -> Maybe Html
+mkUpdateHtml (Move _ (IdRef src) (IdRef dst)) =
+  Just $ if src == dst 
+         then error $ "Source is destination: "++show src 
+         else div_ ! strAttr "op" "move" ! strAttr "src" (show src) ! strAttr "dst" (show dst) $ noHtml
+mkUpdateHtml _ = Nothing -- restoreId is not for producing html, but for adapting the rootView  
 
                  
 data T = T Char [T]
