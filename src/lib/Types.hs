@@ -626,9 +626,12 @@ data SessionState db = SessionState { getSStateSessionId :: SessionId
                      
 type SessionStateRef db = IORef (SessionState db)
 
-type EditM db = StateT (SessionState db) IO 
--- TODO: maybe call this one SessionM or something like that?
---       it seems like we could use it in most of the functions in Server as well.
+-- a subset of the session state that can be used in the EditM monad. 
+data EditState db = EditState { getEStateDb :: db
+                              , getEStateRootView :: WebView db
+                              } deriving (Typeable, Data)
+                              
+type EditM db = StateT (EditState db) IO 
 
 instance Show (EditM db a) where
   show _ = "{EditM _}"
@@ -648,6 +651,11 @@ instance HasDb SessionState db where
   getStateDb sessionState = getSStateDb sessionState
   setStateDb db sessionState = sessionState{ getSStateDb = db }
   modifyStateDb f sessionState = sessionState{ getSStateDb = f $ getSStateDb sessionState }
+
+instance HasDb EditState db where
+  getStateDb editState = getEStateDb editState
+  setStateDb db editState = editState{ getEStateDb = db }
+  modifyStateDb f editState = editState{ getEStateDb = f $ getEStateDb editState }
 
 instance HasDb WebViewState db where
   getStateDb wvState = getWVStateDb wvState

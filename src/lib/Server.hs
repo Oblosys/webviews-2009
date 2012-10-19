@@ -538,9 +538,10 @@ performEditCommand users  sessionStateRef command =
  
 performEdit :: Data db => SessionStateRef db -> EditM db () -> IO ServerResponse
 performEdit sessionStateRef edit  =
- do { state <- readIORef sessionStateRef
-    ; state' <- execStateT edit state
-    ; writeIORef sessionStateRef state'
+ do { sessionState <- readIORef sessionStateRef
+    ; let editState = EditState (getSStateDb sessionState) (getSStateRootView sessionState)
+    ; EditState db' rootView' <- execStateT edit editState
+    ; writeIORef sessionStateRef sessionState{ getSStateDb = db', getSStateRootView = rootView' }
     ; reloadRootView sessionStateRef
     ; return $ ViewUpdate
     }

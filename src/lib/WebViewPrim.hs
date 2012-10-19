@@ -244,16 +244,16 @@ mkTestView v = mkView $
 
 viewEdit :: (Typeable db, Data db, Data v) => ViewId -> (v -> v) -> EditM db ()
 viewEdit vid viewUpdate =
-  do{ sessionState <- get
+  do{ editState <- get
     ; let webViewUpdate = \(WebView vi si i lv v) ->
                             WebView vi si i lv $ applyIfCorrectType viewUpdate v
-          wv = getWebViewById vid $ getSStateRootView sessionState
+          wv = getWebViewById vid $ getEStateRootView editState
           wv' = webViewUpdate wv
-          rootView' = replaceWebViewById vid wv' $ getSStateRootView sessionState 
+          rootView' = replaceWebViewById vid wv' $ getEStateRootView editState 
                           
-    ; put sessionState{ getSStateDb = save rootView' (getSStateDb sessionState)
-                      , getSStateRootView = rootView'
-                      }
+    ; put editState{ getEStateDb = save rootView' (getEStateDb editState)
+                   , getEStateRootView = rootView'
+                   }
     }
 
 -- TODO save automatically, or maybe require explicit save? (after several view updates)
@@ -267,11 +267,11 @@ applyIfCorrectType f x = case cast f of
 -- Experimental, not sure if we need this one and if it works correctly
 withView :: forall db v a . (Typeable db, Data db, Data v, Typeable a) => ViewId -> (v->a) -> EditM db (Maybe a)
 withView vid f =
-  do{ sessionState <- get
+  do{ editState <- get
     ; let wf = \(WebView vi si i lv v) -> case cast f of
                                             Nothing -> Nothing
                                             Just castf -> Just $ castf v
-          wv = getWebViewById vid  $ getSStateRootView sessionState :: WebView db
+          wv = getWebViewById vid  $ getEStateRootView editState :: WebView db
           
     ; return $ wf wv
     }
@@ -616,23 +616,23 @@ jsAlert msg = "alert("++show msg++")" --
 
 getTextViewContents ::Data db => Widget (TextView db) -> EditM db String
 getTextViewContents text =
- do { sessionState <- get
-    ; return $ getTextViewStrByViewIdRef (widgetGetViewRef text) $ getSStateRootView sessionState
+ do { editState <- get
+    ; return $ getTextViewStrByViewIdRef (widgetGetViewRef text) $ getEStateRootView editState
     } 
 
 -- probably to be deleted, labels do not need to be accessed    
 getLabelContents :: Data db => Widget (LabelView db) -> EditM db String
 getLabelContents text =
- do { sessionState <- get
-    ; return $ getLabelStrByViewIdRef (widgetGetViewRef text) $ getSStateRootView sessionState
+ do { editState <- get
+    ; return $ getLabelStrByViewIdRef (widgetGetViewRef text) $ getEStateRootView editState
     } 
     
 
 -- not sure if we'll need these, passing vars as arguments works for submit actions.
 getJSVarContents :: Data db => Widget (JSVar db) -> EditM db String
 getJSVarContents text =
- do { sessionState <- get
-    ; return $ getJSVarValueByViewIdRef (widgetGetViewRef text) $ getSStateRootView sessionState
+ do { editState <- get
+    ; return $ getJSVarValueByViewIdRef (widgetGetViewRef text) $ getEStateRootView editState
     } 
 
 
