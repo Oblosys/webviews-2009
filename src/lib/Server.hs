@@ -164,10 +164,13 @@ readInt s = fromMaybe (-1) (readMaybe s)
 
 handlers :: (Data db, Show db, Eq db) => Bool -> String -> RootViews db -> [String] -> String -> db -> Map String (String, String) -> ServerInstanceId -> GlobalStateRef db -> [ServerPart Response]
 handlers debug title rootViews scriptFilenames dbFilename theDatabase users serverSessionId globalStateRef = 
-  (do { neverExpires
-      ; msum [ dir "favicon.ico" $  serveDirectory DisableBrowsing [] "favicon.ico"
-             , dir "scr" $  serveDirectory DisableBrowsing [] "scr"
-             , dir "img" $ serveDirectory DisableBrowsing [] "img"
+  (do { msum [ dir "favicon.ico" $  serveDirectory DisableBrowsing [] "favicon.ico"
+             , dir "scr" $ msum [ serveDirectory DisableBrowsing [] "scr"
+                                , uriRest $ \pth -> notFound $ toResponse $ "File not found: scr/"++pth
+                                ]
+             , dir "img" $ do { neverExpires
+                              ; serveDirectory DisableBrowsing [] "img"
+                              }
              ]
       }) :
   [ dir "handle" $ 
