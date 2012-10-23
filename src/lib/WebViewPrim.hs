@@ -255,9 +255,14 @@ viewEdit vid viewUpdate =
                    , getEStateRootView = rootView'
                    }
     }
-
 -- TODO save automatically, or maybe require explicit save? (after several view updates)
 -- for now, just after every viewEdit
+
+-- Specify script lines to be executed after the view update.
+evalJSEdit :: [String] -> EditM db ()
+evalJSEdit scriptLines =
+ do { modify $ \(es@EditState{ getEStateScriptLines = allScr }) -> es{ getEStateScriptLines = allScr ++ scriptLines }  
+    }
 
 applyIfCorrectType :: (Typeable y, Typeable x) => (y -> y) -> x -> x
 applyIfCorrectType f x = case cast f of 
