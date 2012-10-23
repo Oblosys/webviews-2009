@@ -38,8 +38,7 @@ import Utils
 
 
 {-
-TODO: why are there so many theDatabase refs? when is this thing initialized and when is it read from disk?
-see if passing down mkRootView, dbFilename, theDatabase and users can be improved (maybe in state?)
+see if passing down mkRootView, dbFilename, db and users can be improved (maybe in state?)
              
 
 maybe use type class?
@@ -85,7 +84,7 @@ TODO: make confirmDialog more robust
 -}
 type GlobalState db = (db, Sessions db, SessionCounter)
 
-initGlobalState theDatabase = (theDatabase, IntMap.empty, 0)
+initGlobalState db = (db, IntMap.empty, 0)
 
 type GlobalStateRef db = IORef (GlobalState db)
 
@@ -110,7 +109,7 @@ server portNr title rootViews scriptFilenames dbFilename mkInitialDatabase users
                  "Debugging: "++(if debug then "ON" else "OFF")++"\n\n"
     ; serverSessionId <- epochTime
 
-    ; mDatabase <-
+    ; mDb <-
        do { fh <- openFile dbFilename ReadMode
           ; dbStr <- hGetContents fh
           ; seq (length dbStr) $ return ()
@@ -124,16 +123,16 @@ server portNr title rootViews scriptFilenames dbFilename mkInitialDatabase users
           ; return $ Just db
           }
 
-    ; theDatabase <- case mDatabase of -- if the database exists but cannot be read, something is wrong and we exit to prevent overwriting it
+    ; db <- case mDb of -- if the database exists but cannot be read, something is wrong and we exit to prevent overwriting it
                        Just db -> return db
                        Nothing -> do { putStrLn $ "Database file "++dbFilename++" cannot be read, exiting server.\n"
                                      ; exitWith $ ExitFailure 1
                                      }
 
-    ; globalStateRef <- newIORef $ initGlobalState theDatabase
+    ; globalStateRef <- newIORef $ initGlobalState db
 
     ; simpleHTTP nullConf { port = portNr, logAccess = Nothing {-Just logWebViewAccess-} } $
-        msum (handlers debug title rootViews scriptFilenames dbFilename theDatabase users serverSessionId globalStateRef)
+        msum (handlers debug title rootViews scriptFilenames dbFilename db users serverSessionId globalStateRef)
     }
 {-
 handle:
@@ -163,7 +162,7 @@ instance FromData Int where
 readInt s = fromMaybe (-1) (readMaybe s)
 
 handlers :: (Data db, Show db, Eq db) => Bool -> String -> RootViews db -> [String] -> String -> db -> Map String (String, String) -> ServerInstanceId -> GlobalStateRef db -> [ServerPart Response]
-handlers debug title rootViews scriptFilenames dbFilename theDatabase users serverSessionId globalStateRef = 
+handlers debug title rootViews scriptFilenames dbFilename db users serverSessionId globalStateRef = 
   (do { msum [ dir "favicon.ico" $  serveDirectory DisableBrowsing [] "favicon.ico"
              , dir "scr" $ msum [ serveDirectory DisableBrowsing [] "scr"
                                 , uriRest $ \pth -> notFound $ toResponse $ "File not found: scr/"++pth
@@ -183,7 +182,7 @@ handlers debug title rootViews scriptFilenames dbFilename theDatabase users serv
                                             Left err            -> do { io $ putStrLn $ "No requestId in request from " ++ clientIp ++ ", "++show time; mzero }
                                 
                             ; io $ putStrLn $ "RequestId " ++ show (requestId :: Int) ++ " (" ++ clientIp ++ "), "++show time
-                            ; method GET >> nullDir >> session rootViews dbFilename theDatabase users serverSessionId globalStateRef requestId cmds
+                            ; method GET >> nullDir >> session rootViews dbFilename db users serverSessionId globalStateRef requestId cmds
                             })
   , serveRootPage -- this generates an init event, which will handle hash arguments
   ] 
@@ -237,19 +236,19 @@ Set-Cookie: webviews="(1242497513,2)";Max-Age=3600;Path=/;Version="1"
 type SessionCookie = (String, String)
 
 session :: (Data db, Show db, Eq db) => RootViews db -> String -> db -> Map String (String, String) -> ServerInstanceId -> GlobalStateRef db -> Int -> Commands -> ServerPart Response
-session rootViews dbFilename theDatabase users serverInstanceId globalStateRef requestId cmds =
+session rootViews dbFilename db users serverInstanceId globalStateRef requestId cmds =
  do { mCookieSessionId <- parseCookieSessionId serverInstanceId
       
 --        ; lputStrLn $ show rq
         ; sessionId <- case mCookieSessionId of 
-            Nothing  -> createNewSessionState theDatabase globalStateRef serverInstanceId
+            Nothing  -> createNewSessionState db globalStateRef serverInstanceId
             Just key -> do { --lputStrLn $ "Existing session "++show key
                            ; return key
                            }
              
         ; sessionStateRef <- retrieveSessionState globalStateRef sessionId 
                                   
-        ; responseHtml <- sessionHandler rootViews dbFilename theDatabase users sessionStateRef requestId cmds              
+        ; responseHtml <- sessionHandler rootViews dbFilename db users sessionStateRef requestId cmds              
         
         ; storeSessionState globalStateRef sessionId sessionStateRef
         
@@ -274,7 +273,7 @@ parseCookieSessionId serverInstanceId =
     }
 
 mkInitialRootView :: (Data db, Typeable db) => db -> IO (WebView db)
-mkInitialRootView theDatabase = runWebView Nothing theDatabase Map.empty [] 0 (-1) [] $ mkWebView (\_ _ -> return ()) 
+mkInitialRootView db = runWebView Nothing db Map.empty [] 0 (-1) [] $ mkWebView (\_ _ -> return ()) 
 
 -- this creates a WebView with stubid 0 and id 1
 -- for now, we count on that in the client
@@ -282,14 +281,14 @@ mkInitialRootView theDatabase = runWebView Nothing theDatabase Map.empty [] 0 (-
 -- todo: use different id
 
 createNewSessionState :: Data db => db -> GlobalStateRef db -> ServerInstanceId -> ServerPart SessionId
-createNewSessionState theDatabase globalStateRef serverInstanceId = 
+createNewSessionState db globalStateRef serverInstanceId = 
  do { (database, sessions,sessionCounter) <- io $ readIORef globalStateRef
     ; let sessionId = sessionCounter
     ; io $ putStrLn $ "New session: "++show sessionId
     ; addCookie Session (mkCookie "webviews" $ show (serverInstanceId, sessionId))
     -- cookie lasts for one hour
  
-    ; initialRootView <- io $ mkInitialRootView theDatabase
+    ; initialRootView <- io $ mkInitialRootView db
                         
                        -- for debugging, begin with user martijn  
     ; let newSession = (Just ("martijn", "Martijn Schrage") {- Nothing -}, initialRootView, Nothing, [])
@@ -322,26 +321,90 @@ storeSessionState globalStateRef sessionId sessionStateRef =
     }
  
 sessionHandler :: (Data db, Show db, Eq db) => RootViews db -> String -> db -> Map String (String, String) -> SessionStateRef db -> Int -> Commands -> ServerPart Html
-sessionHandler rootViews dbFilename theDatabase users sessionStateRef requestId cmds = io $  
+sessionHandler rootViews dbFilename db users sessionStateRef requestId (SyntaxError cmdStr) =
+  error $ "Syntax error in commands from client: "++cmdStr 
+sessionHandler rootViews dbFilename db users sessionStateRef requestId (Commands allCmds) = io $  
  do { --putStrLn $ "Received commands" ++ show cmds
-    
-    ; SessionState _ _ db oldRootView' _ _ <- readIORef sessionStateRef
     
     ; let isInitCommand (Init _ _) = True
           isInitCommand _          = False
+          isConfirmCommand (Confirm _) = True
+          isConfirmCommand _           = False
+    
+    -- If one of the commands is Init, we remove the commands in front of the last Init and start with a new initial root view 
+    ; cmds <- 
+        case break isInitCommand $ reverse $ allCmds of
+          (nonInitCmds, []) -> return $ reverse nonInitCmds
+          (nonInitCmds, initCmd:_) ->
+           do { initialRootView <- mkInitialRootView db
+              ; setRootView sessionStateRef initialRootView
+              ; return $ initCmd : reverse nonInitCmds
+              }
+
+    ; SessionState _ _ oldDb oldRootView _ _ <- readIORef sessionStateRef
+    
+    ; responseHtml <- handleCommands rootViews dbFilename db users sessionStateRef oldRootView cmds
+    ; putStrLn $ show responseHtml
+    
+    ; return $ div_ ! id_ "updates" ! strAttr "responseId" (show requestId) $ concatHtml responseHtml
+    } `Control.Exception.catch` \exc ->
+       do { let exceptionText = 
+                  "\n\n\n\n###########################################\n\n\n" ++
+                  "Exception: " ++ show (exc :: SomeException) ++ "\n\n\n" ++
+                  "###########################################" 
           
-    -- TODO: this may cause problems Init is part of multiple commands
-    ; oldRootView <- if any isInitCommand $ getCommands cmds 
-                     then mkInitialRootView theDatabase 
-                     else return oldRootView' 
- 
-          
-    ; response <- handleCommands rootViews users sessionStateRef cmds
-    -- handleCommands modifies the state              
+          ; putStrLn exceptionText
+          ; return $ div_ ! id_ "updates" ! strAttr "responseId" (show requestId) $
+                      (div_ ! strAttr "op" "exception"
+                            ! strAttr "text" exceptionText
+                            $ noHtml)                       
+          }
+
+
+data ServerResponse = ViewUpdate | EvalJS String | Confirm String deriving (Show, Eq)
                   
-    ; responseHtml <- case response of
-        ViewUpdate ->
-         do { rootViewWithoutIds <- getRootView sessionStateRef
+{-
+After processing the commands, a view update response is sent back, followed by the concatenated scripts from all commands.
+A Confirm command produces a modal dialog, so we ignore all commands following it. Since handle command modifies the root webview
+as well as the database, we need to end traversing the list on a Confirm command.
+
+Note that EvalJS and Confirm also cause a view update.
+-}    
+
+handleCommands :: forall db . (Eq db, Show db, Data db) =>
+                  RootViews db -> String -> db -> Map String (String, String) -> SessionStateRef db -> WebView db -> [Command] ->
+                  IO [Html]
+handleCommands rootViews dbFilename db users sessionStateRef oldRootView cmds = handleCommands' [] cmds
+ where handleCommands' allScripts [] = 
+        do { let evalHtml = if null allScripts then [] else mkEvalJSResponseHtml allScripts
+           ; viewUpdateHtml <- mkViewUpdateResponseHtml sessionStateRef dbFilename db oldRootView
+           ; return $ viewUpdateHtml ++ evalHtml -- update the view and evaluate the collected scripts
+           }
+       handleCommands' allScripts (command:commands) = 
+        do { response <- handleCommand rootViews users sessionStateRef command
+           ; case response of
+               EvalJS scriptLines -> handleCommands' (allScripts ++ scriptLines) commands
+               ViewUpdate         -> handleCommands' allScripts commands
+               Confirm message    ->
+                do { updateAndEvalHtml <- handleCommands' allScripts [] -- No recursive call: we ignore rest of commands but
+                                                                        -- do create html for update + eval with a [] call 
+                   ; return $ mkConfirmDialogResponseHtml message
+                   }
+           }
+
+
+mkEvalJSResponseHtml :: String -> [Html]
+mkEvalJSResponseHtml script = [ div_ ! strAttr "op" "eval" $ toHtml script ] 
+
+mkConfirmDialogResponseHtml :: String -> [Html]
+mkConfirmDialogResponseHtml messageStr = [ div_ ! strAttr "op" "confirm" ! strAttr "text" messageStr $ noHtml ] 
+
+
+mkViewUpdateResponseHtml :: (Eq db, Show db, Data db) => SessionStateRef db -> String -> db -> WebView db -> IO [Html]
+mkViewUpdateResponseHtml sessionStateRef dbFilename db oldRootView =
+         do { 
+ 
+            ; rootViewWithoutIds <- getRootView sessionStateRef
               -- this is the modified rootView                      
                                     
             -- save the database if there was a change
@@ -366,11 +429,11 @@ sessionHandler rootViews dbFilename theDatabase users sessionStateRef requestId 
             -- rootView' has different id's (the ones that were not updated and hence are
             -- restored to their previous values)
                                            
-            --; putStrLn $ "View tree:\n" ++ drawWebNodes (WebViewNode rootView') 
-            --; putStrLn $ "rootView:\n" ++ show rootView'
+            ; putStrLn $ "View tree:\n" ++ drawWebNodes (WebViewNode rootView') 
+            --; putStrLn $ "rootView':\n" ++ show rootView'
             ; setRootView sessionStateRef rootView'
             --; putStrLn $ "database:\n" ++ show db
-            --; putStrLn $ "\n\n\nresponse = \n" ++ show responseHtml
+            ; putStrLn $ "\n\n\nresponse = \n" ++ show responseHtml
             --; putStrLn $ "View tree':\n" ++ drawWebNodes (WebViewNode rootView') 
             --; putStrLn $ "Sending response sent to client: " ++
             --              take 10 responseHTML ++ "..."
@@ -379,48 +442,6 @@ sessionHandler rootViews dbFilename theDatabase users sessionStateRef requestId 
             --; putStrLn "end session handler"
             ; return $ responseHtml
             }
-        EvalJS script -> 
-          return $ [ div_ ! strAttr "op" "eval" $ toHtml script ] 
-        Confirm str  -> 
-          return $ [ div_ ! strAttr "op" "confirm"
-                          ! strAttr "text" str
-                          $ noHtml ] 
-    
-    ; return $ div_ ! id_ "updates" ! strAttr "responseId" (show requestId) $ toHtml responseHtml
-    } `Control.Exception.catch` \exc ->
-       do { let exceptionText = 
-                  "\n\n\n\n###########################################\n\n\n" ++
-                  "Exception: " ++ show (exc :: SomeException) ++ "\n\n\n" ++
-                  "###########################################" 
-          
-          ; putStrLn exceptionText
-          ; return $ div_ ! id_ "updates" ! strAttr "responseId" (show requestId) $
-                      (div_ ! strAttr "op" "exception"
-                            ! strAttr "text" exceptionText
-                            $ noHtml)                       
-          }
- where evaluateDbAndRootView sessionStateRef =
-        do { dbRootView <- io $ readIORef sessionStateRef
-           ; seq (length $ show dbRootView) $ return ()
-           }
-
- 
-data ServerResponse = ViewUpdate | EvalJS String | Confirm String deriving (Show, Eq)
-
--- handle each command in commands and send the updates back
-handleCommands rootViews users sessionStateRef (SyntaxError cmdStr) =
-  error $ "Syntax error in commands from client: "++cmdStr 
-handleCommands rootViews users sessionStateRef (Commands [command]) = handleCommand rootViews users sessionStateRef command
-handleCommands rootViews users sessionStateRef (Commands commands) = 
- do { responses <- mapM (handleCommand rootViews users sessionStateRef) commands
-    ;  case dropWhile (== ViewUpdate) responses of
-         []         -> return ViewUpdate
-         [response] -> return response
-         _          -> error "Non View update commmand followed by other commands"
-                    -- probably okay if they are all ViewUpdates
-    } -- TODO: think of a way to handle multiple commands and dialogs etc.
-      --       make sure that id's are not generated between commands
-
 
 mkRootView ::Data db => RootViews db -> String -> HashArgs -> User -> db -> SessionId -> ViewMap db -> IO (WebView db)
 mkRootView rootViews rootViewName args user db sessionId viewMap =
@@ -467,7 +488,7 @@ handleCommand _ users sessionStateRef (SetC viewId value) =
     ; reloadRootView sessionStateRef
 
     --; putStrLn $ "Updated rootView:\n" ++ show rootView'
-    ; response <- case  mGetAnyWidgetById viewId rootView' :: Maybe (AnyWidget db) of
+    ; response <- case mGetAnyWidgetById viewId rootView' :: Maybe (AnyWidget db) of
         Just (TextWidget (TextView _ _ _ _ _ (Just fChangeAction) _))       -> performEditCommand users sessionStateRef (fChangeAction value) 
         Just (RadioViewWidget (RadioView _ _ _ _ _ (Just fChangeAction)))   -> performEditCommand users sessionStateRef (fChangeAction $ unsafeRead "Server.handle: radio selection" value) 
         Just (SelectViewWidget (SelectView _ _ _ _ _ (Just fChangeAction))) -> performEditCommand users sessionStateRef (fChangeAction $ unsafeRead "Server.handle: select selection" value) 
@@ -539,11 +560,12 @@ performEditCommand users  sessionStateRef command =
 performEdit :: Data db => SessionStateRef db -> EditM db () -> IO ServerResponse
 performEdit sessionStateRef edit  =
  do { sessionState <- readIORef sessionStateRef
-    ; let editState = EditState (getSStateDb sessionState) (getSStateRootView sessionState)
-    ; EditState db' rootView' <- execStateT edit editState
+    ; let editState = EditState (getSStateDb sessionState) (getSStateRootView sessionState) []
+    ; EditState db' rootView' scriptLines <- execStateT edit editState
     ; writeIORef sessionStateRef sessionState{ getSStateDb = db', getSStateRootView = rootView' }
     ; reloadRootView sessionStateRef
-    ; return $ ViewUpdate
+    ; io $ putStrLn $ "javascript:\n" ++ concat scriptLines
+    ; return $ EvalJS $ concat scriptLines
     }
 
 authenticate users sessionStateRef userEStringViewId passwordEStringViewId =
@@ -567,6 +589,7 @@ authenticate users sessionStateRef userEStringViewId passwordEStringViewId =
                       ; return $ EvalJS $ jsAlert $ "Unknown username: "++userName
                       }
     }
+    
 logout sessionStateRef =
  do { sState <- readIORef sessionStateRef
     ; writeIORef sessionStateRef sState{ getSStateUser = Nothing }
