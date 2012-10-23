@@ -629,6 +629,7 @@ type SessionStateRef db = IORef (SessionState db)
 -- a subset of the session state that can be used in the EditM monad. 
 data EditState db = EditState { getEStateDb :: db
                               , getEStateRootView :: WebView db
+                              , getEStateScriptLines :: [String]
                               } deriving (Typeable, Data)
                               
 type EditM db = StateT (EditState db) IO 
