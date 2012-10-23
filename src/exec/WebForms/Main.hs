@@ -603,8 +603,12 @@ mkFormView form@(Form pages) = mkWebView $
  where gotoPageNr nr = jsNavigateTo $ "'#form&p="++show (1+ nr)++"'" -- nr is 0-based
 
        clearForm :: EditM Database ()
-       clearForm =  modifyDb $ \db -> Map.empty
-       
+       clearForm = 
+        do { modifyDb $ \db -> Map.empty
+           ; 
+           ; evalJSEdit [gotoPageNr 0]
+           }
+                             
        sendForm :: EditM Database ()
        sendForm = -- very very basic save to csv (no check for column validity, column order based on sort, etc.)
         do { db <- getDb
@@ -616,11 +620,12 @@ mkFormView form@(Form pages) = mkWebView $
                     intercalate "," [ show answer | Just (_, answer) <- Map.elems db ]
            
            ; clearForm
+           ; evalJSEdit [gotoPageNr 0]
            }
        
 instance Presentable FormView where
   present (FormView isComplete currentPageNr nrOfPages prevButton nextButton sendButton clearButton wv) =
-    mkPage [thestyle "background: url('img/noise.png') repeat scroll center top transparent; min-height: 100%; font-family: Geneva"] $
+    mkPage [thestyle "background: url('img/background_linen.png') repeat scroll center top transparent; min-height: 100%; font-family: Geneva"] $
       with [theclass $ "FormPage" ++ if currentPageNr == nrOfPages-1 then " LastPage" else "", thestyle "background: white;", align "left"] $
                                  -- dimensions are specified in css to allow iPad specific style                                                              
         mkPageHeader +++
