@@ -40,7 +40,7 @@ data Command = Init       String [(String,String)] -- rootView args    http://we
              | ButtonC ViewId -- ViewId
              | SubmitC ViewId -- ViewId
              | PerformEditActionC ViewId [String] 
-             | ConfirmDialogOk 
+             | DialogButtonPressed Int
                deriving (Eq, Show, Read) 
 
 
@@ -253,11 +253,18 @@ editActionWidget viewId cmd = Widget noId noId $ EditAction viewId cmd
 
 data EditCommand db = Edit (EditM db ())
                  | EvalJSEdit String 
-                 | ConfirmEdit String (EditCommand db)
+                 | ShowDialogEdit Html [(String, EditCommand db)]
                  | AuthenticateEdit ViewIdRef ViewIdRef
                  | LogoutEdit
                  deriving (Show, Typeable, Data)
-                 
+
+instance Data Html -- TODO: can be removed once we completely discard old SYB generics
+
+instance Initial Html where
+  initial = noHtml
+
+instance MapWebView db Html
+
 instance Eq (EditCommand db) where -- only changing the edit command does not
   c1 == c2 = True
   -- note that we don't need to look at the edit actions, since these live only in the Haskell world and have no effect on the html representation.
@@ -620,7 +627,7 @@ data SessionState db = SessionState { getSStateSessionId :: SessionId
                                     , getSStateUser :: User
                                     , getSStateDb :: db
                                     , getSStateRootView :: WebView db
-                                    , getSStatePendingEdit :: Maybe (EditCommand db)
+                                    , getSStateDialogCommands :: Maybe [EditCommand db]
                                     , getSStateHashArgs :: HashArgs
                                     } deriving (Typeable, Data) 
                      

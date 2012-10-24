@@ -92,7 +92,7 @@ type ServerInstanceId = EpochTime
 
 type SessionCounter = Int
 
-type Sessions db = IntMap (User, WebView db, Maybe (EditCommand db), HashArgs)
+type Sessions db = IntMap (User, WebView db, Maybe [EditCommand db], HashArgs)
 
 server :: (Data db, Typeable db, Show db, Read db, Eq db) =>
           Int -> String -> RootViews db -> [String] -> String -> IO (db) -> Map String (String, String) -> IO ()
@@ -307,16 +307,16 @@ retrieveSessionState globalStateRef sessionId =
                              Nothing                      -> do { io $ putStrLn "\n\n\n\nInternal error: Session not found\n\n\n\n\n"
                                                                 ; error "Internal error: Session not found"
                                                                 }
-                             Just (user, rootView, pendingEdit, hashArgs) -> 
-                               return $ SessionState sessionId user database rootView pendingEdit hashArgs
+                             Just (user, rootView, dialogCommands, hashArgs) -> 
+                               return $ SessionState sessionId user database rootView dialogCommands hashArgs
     ; io $ newIORef sessionState
     }      
  
 storeSessionState :: GlobalStateRef db -> SessionId -> SessionStateRef db -> ServerPart ()
 storeSessionState globalStateRef sessionId sessionStateRef =
  do { (_, sessions, sessionCounter) <- io $ readIORef globalStateRef
-    ; SessionState _ user' database' rootView' pendingEdit' hashArgs <- io $ readIORef sessionStateRef
-    ; let sessions' = IntMap.insert sessionId (user', rootView', pendingEdit', hashArgs) sessions                                          
+    ; SessionState _ user' database' rootView' dialogCommands' hashArgs <- io $ readIORef sessionStateRef
+    ; let sessions' = IntMap.insert sessionId (user', rootView', dialogCommands', hashArgs) sessions                                          
     ; io $ writeIORef globalStateRef (database', sessions', sessionCounter)
     }
  
@@ -328,7 +328,7 @@ sessionHandler rootViews dbFilename db users sessionStateRef requestId (Commands
     
     ; let isInitCommand (Init _ _) = True
           isInitCommand _          = False
-          isConfirmCommand (Confirm _) = True
+          isConfirmCommand (Confirm _ _) = True
           isConfirmCommand _           = False
     
     -- If one of the commands is Init, we remove the commands in front of the last Init and start with a new initial root view 
@@ -361,7 +361,7 @@ sessionHandler rootViews dbFilename db users sessionStateRef requestId (Commands
           }
 
 
-data ServerResponse = ViewUpdate | EvalJS String | Confirm String deriving (Show, Eq)
+data ServerResponse = ViewUpdate | EvalJS String | Confirm Html [String] deriving (Show, Eq)
                   
 {-
 After processing the commands, a view update response is sent back, followed by the concatenated scripts from all commands.
@@ -385,10 +385,10 @@ handleCommands rootViews dbFilename db users sessionStateRef oldRootView cmds = 
            ; case response of
                EvalJS scriptLines -> handleCommands' (allScripts ++ scriptLines) commands
                ViewUpdate         -> handleCommands' allScripts commands
-               Confirm message    ->
+               Confirm message buttonNames ->
                 do { updateAndEvalHtml <- handleCommands' allScripts [] -- No recursive call: we ignore rest of commands but
                                                                         -- do create html for update + eval with a [] call 
-                   ; return $ mkConfirmDialogResponseHtml message
+                   ; return $ mkConfirmDialogResponseHtml message buttonNames
                    }
            }
 
@@ -396,8 +396,14 @@ handleCommands rootViews dbFilename db users sessionStateRef oldRootView cmds = 
 mkEvalJSResponseHtml :: String -> [Html]
 mkEvalJSResponseHtml script = [ div_ ! strAttr "op" "eval" $ toHtml script ] 
 
-mkConfirmDialogResponseHtml :: String -> [Html]
-mkConfirmDialogResponseHtml messageStr = [ div_ ! strAttr "op" "confirm" ! strAttr "text" messageStr $ noHtml ] 
+
+-- <div op=dialog><div class=contents> ..dialog html..</div><div class=button name=buttonName0/> ... </div>
+mkConfirmDialogResponseHtml :: Html -> [String] -> [Html]
+mkConfirmDialogResponseHtml dialogHtml buttonNames = 
+  [ div_ ! strAttr "op" "dialog" $ (div_ ! theclass "contents" $ dialogHtml) +++ 
+                                   concatHtml [ div_ ! theclass "button" ! strAttr "name" name $ noHtml 
+                                              | name <- buttonNames ]
+  ] 
 
 
 mkViewUpdateResponseHtml :: (Eq db, Show db, Data db) => SessionStateRef db -> String -> db -> WebView db -> IO [Html]
@@ -479,12 +485,12 @@ handleCommand _ _ sessionStateRef Test =
     ; return ViewUpdate
     }
 handleCommand _ users sessionStateRef (SetC viewId value) =
- do { SessionState sessionId user db rootView pendingEdit hashArgs <- readIORef sessionStateRef      
+ do { SessionState sessionId user db rootView dialogCommands hashArgs <- readIORef sessionStateRef      
     ; putStrLn $ "Performing: "++show (SetC viewId value)
     --; putStrLn $ "RootView:\n" ++ show rootView ++"\n\n\n\n\n"
     ; let rootView' = applyUpdates (Map.fromList [(viewId, value)]) (assignIds rootView)
     ; let db' = save rootView' db
-    ; writeIORef sessionStateRef $ SessionState sessionId user db' rootView' pendingEdit hashArgs
+    ; writeIORef sessionStateRef $ SessionState sessionId user db' rootView' dialogCommands hashArgs
     ; reloadRootView sessionStateRef
 
     --; putStrLn $ "Updated rootView:\n" ++ show rootView'
@@ -498,7 +504,7 @@ handleCommand _ users sessionStateRef (SetC viewId value) =
     ; return response
     }
 handleCommand _  users sessionStateRef (ButtonC viewId) =
- do { SessionState _ user db rootView pendingEdit hashArgs <- readIORef sessionStateRef
+ do { SessionState _ user db rootView dialogCommands hashArgs <- readIORef sessionStateRef
     ; let (Button _ txt _ _ _ act) = getButtonByViewId viewId rootView
     ; putStrLn $ "Button #" ++ show viewId ++ ":" ++ txt ++ " was clicked"
 
@@ -507,7 +513,7 @@ handleCommand _  users sessionStateRef (ButtonC viewId) =
     ; return response
     }
 handleCommand _ users sessionStateRef (SubmitC viewId) =
- do { SessionState _ user db rootView pendingEdit hashArgs <- readIORef sessionStateRef
+ do { SessionState _ user db rootView dialogCommandst hashArgs <- readIORef sessionStateRef
     ; let TextView _ _ txt _ _ _ mAct = getTextViewByViewId viewId rootView
     ; putStrLn $ "TextView #" ++ show viewId ++ ":" ++ txt ++ " was submitted"
 
@@ -518,7 +524,7 @@ handleCommand _ users sessionStateRef (SubmitC viewId) =
     ; return response
     }
 handleCommand _ users sessionStateRef (PerformEditActionC viewId args) =
- do { SessionState _ user db rootView pendingEdit hashArgs <- readIORef sessionStateRef
+ do { SessionState _ user db rootView dialogCommands hashArgs <- readIORef sessionStateRef
     ; let EditAction _ act = getEditActionByViewId viewId rootView
     ; putStrLn $ "EditAction with ViewId "++show viewId ++ " was executed"
 
@@ -526,31 +532,34 @@ handleCommand _ users sessionStateRef (PerformEditActionC viewId args) =
           
     ; return response
     }
-handleCommand _ users sessionStateRef ConfirmDialogOk =
+handleCommand _ users sessionStateRef (DialogButtonPressed nr) = -- TODO
  do { sState <- readIORef sessionStateRef
-    ; writeIORef sessionStateRef sState{getSStatePendingEdit = Nothing} -- clear it, also in case of error
-    ; response <- case getSStatePendingEdit sState of
-                    Nothing -> return ViewUpdate -- error "ConfirmDialogOk event without active dialog"
-                    Just ec -> performEditCommand users sessionStateRef ec
+    ; writeIORef sessionStateRef sState{getSStateDialogCommands = Nothing} -- clear it, also in case of error
+    ; response <- case getSStateDialogCommands sState of
+                    Nothing -> error "DialogButtonPressed event without active dialog"
+                    Just dcs -> if nr < length dcs 
+                                then performEditCommand users sessionStateRef (dcs!!nr)
+                                else error "Index of pressed button exceeds number of buttons"
     ; return response
     }
  
 reloadRootView :: Data db => SessionStateRef db -> IO ()
 reloadRootView sessionStateRef =
- do { SessionState sessionId user db rootView pendingEdit hashArgs <- readIORef sessionStateRef
+ do { SessionState sessionId user db rootView dialogCommands hashArgs <- readIORef sessionStateRef
     ; 
     ; rootView' <- evalStateT (loadView rootView) (WebViewState user db (mkViewMap rootView) [] 0 sessionId hashArgs)
  -- TODO this 0 does not seem right BUG
-    ; writeIORef sessionStateRef $ SessionState sessionId user db rootView' pendingEdit hashArgs
+    ; writeIORef sessionStateRef $ SessionState sessionId user db rootView' dialogCommands hashArgs
     } 
  
 performEditCommand users  sessionStateRef command =
- do { SessionState sessionId user db rootView pendingEdit hashArgs <- readIORef sessionStateRef
+ do { SessionState sessionId user db rootView dialogCommands hashArgs <- readIORef sessionStateRef
     ; case command of  
             EvalJSEdit str -> return $ EvalJS str
-            ConfirmEdit str ec -> 
-             do { writeIORef sessionStateRef $ SessionState sessionId user db rootView (Just ec) hashArgs
-                ; return $ Confirm str
+            ShowDialogEdit dialogHtml buttonNamesCommands -> 
+             do { let (buttonNames, buttonCommands) = unzip buttonNamesCommands
+                ; writeIORef sessionStateRef $ SessionState sessionId user db rootView (Just buttonCommands) hashArgs
+                ; return $ Confirm dialogHtml buttonNames
                 }
             AuthenticateEdit userViewId passwordViewId -> authenticate users  sessionStateRef userViewId passwordViewId
             LogoutEdit -> logout sessionStateRef
