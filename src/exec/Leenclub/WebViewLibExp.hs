@@ -158,12 +158,6 @@ data Property db a = EditableProperty (Either Html (PropertyWidget db))
 data PropertyWidget db = PropertyTextView (Widget (TextView db))
                        | PropertySelectView (Widget (SelectView db)) deriving (Eq, Show, Typeable, Data)
                     
-instance Data Html -- TODO: can be removed once we completely discard old SYB generics
-
-instance Initial Html where
-  initial = noHtml
-
-instance MapWebView db Html
   
 instance Initial (Property db a) where
   initial = StaticProperty initial
