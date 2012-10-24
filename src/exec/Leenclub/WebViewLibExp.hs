@@ -194,7 +194,7 @@ mkEditableProperty vid editing objectLens valueLens presStr parseStr pres orgObj
                            Just o  -> case parseStr str of
                                         Nothing -> trace ("Parse error for " ++ show str) v
                                         Just p' -> let v' = set objectLens (Just $ set valueLens p' o) v
-                                                   in  trace ("Setting "++show vid++" to " ++ show v') $ v'
+                                                   in {- trace ("Setting "++show vid++" to " ++ show v') $ -} v'
                 else return $ Left $ pres $ get valueLens orgObj 
     ; return $ EditableProperty eValue
     }

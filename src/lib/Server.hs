@@ -344,7 +344,7 @@ sessionHandler rootViews dbFilename db users sessionStateRef requestId (Commands
     ; SessionState _ _ oldDb oldRootView _ _ <- readIORef sessionStateRef
     
     ; responseHtml <- handleCommands rootViews dbFilename db users sessionStateRef oldRootView cmds
-    ; putStrLn $ show responseHtml
+    --; putStrLn $ show responseHtml
     
     ; return $ div_ ! id_ "updates" ! strAttr "responseId" (show requestId) $ concatHtml responseHtml
     } `Control.Exception.catch` \exc ->
@@ -429,11 +429,11 @@ mkViewUpdateResponseHtml sessionStateRef dbFilename db oldRootView =
             -- rootView' has different id's (the ones that were not updated and hence are
             -- restored to their previous values)
                                            
-            ; putStrLn $ "View tree:\n" ++ drawWebNodes (WebViewNode rootView') 
+            --; putStrLn $ "View tree:\n" ++ drawWebNodes (WebViewNode rootView') 
             --; putStrLn $ "rootView':\n" ++ show rootView'
             ; setRootView sessionStateRef rootView'
             --; putStrLn $ "database:\n" ++ show db
-            ; putStrLn $ "\n\n\nresponse = \n" ++ show responseHtml
+            --; putStrLn $ "\n\n\nresponse = \n" ++ show responseHtml
             --; putStrLn $ "View tree':\n" ++ drawWebNodes (WebViewNode rootView') 
             --; putStrLn $ "Sending response sent to client: " ++
             --              take 10 responseHTML ++ "..."
