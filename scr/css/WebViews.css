@@ -38,6 +38,34 @@ table td, table th {
   -moz-border-radius-topright: 6px;       /* for older Firefox (<13) */
 }
 
+.dialogBackground {
+  position: absolute;
+  top:0;
+  left:0;
+  width:100%;
+  height: 100%;
+  background-color:black;
+  opacity:0.1;
+  filter:alpha(opacity=40);
+}
+
+.dialogContainer {
+  position: absolute;
+  margin: auto;
+  top: 100px;
+  left: 50%;
+  width: 512px; /* is dialog max-width + 2*border + 2*padding */
+  margin-left: -250; /* width / 2 */
+}
+.dialog {
+  display:table;
+  max-width: 500px;
+  background-color: #ddd;
+  border: solid 2px;
+  padding: 10px;
+  margin: auto;
+}
+
 .ellipsis {
         white-space: nowrap;
         overflow: hidden;

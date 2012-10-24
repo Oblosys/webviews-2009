@@ -1,4 +1,18 @@
 // make sure that jQuery is loaded before this file is loaded
+
+function showDialog(dialogContent, buttonNames) {
+  dlog(dialogContent);
+  dlog(buttonNames);
+  $dialog = $('<div class="dialog"></div>');
+  $dialog.html(dialogContent);
+  $dialog.append($('<br></br><input type=button value=ha></input>'));
+  $dialogContainer = $('<div class="dialogContainer"></div>');
+  $dialogContainer.append($dialog);
+  $('#root').append('<div class="dialogBackground">');
+  $('#root').append( $dialogContainer );
+}
+
+
 var spinners = new Array();
 
 function addSpinner(id) {    
