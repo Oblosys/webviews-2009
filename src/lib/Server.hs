@@ -557,14 +557,9 @@ reloadRootView sessionStateRef =
 performEditCommand users  sessionStateRef command =
  do { SessionState sessionId user db rootView dialogCommands hashArgs <- readIORef sessionStateRef
     ; case command of  
-            ShowDialogEdit dialogHtml buttonNamesCommands -> 
-             do { let (buttonNames, buttonCommands) = unzip buttonNamesCommands
-                ; writeIORef sessionStateRef $ SessionState sessionId user db rootView (Just buttonCommands) hashArgs
-                ; return $ ServerResponse [] $ Just (dialogHtml, zip buttonNames (map isJust buttonCommands))
-                }
-            AuthenticateEdit userViewId passwordViewId -> authenticate users  sessionStateRef userViewId passwordViewId
-            LogoutEdit -> logout sessionStateRef
-            Edit edit -> performEdit sessionStateRef edit
+        AuthenticateEdit userViewId passwordViewId -> authenticate users  sessionStateRef userViewId passwordViewId
+        LogoutEdit -> logout sessionStateRef
+        Edit edit -> performEdit sessionStateRef edit
     }
  
 performEdit :: Data db => SessionStateRef db -> EditM db () -> IO ServerResponse

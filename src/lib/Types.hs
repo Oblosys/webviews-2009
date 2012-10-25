@@ -630,7 +630,6 @@ instance Show (EditM db a) where
 --- EditCommand
 
 data EditCommand db = Edit (EditM db ())
-                    | ShowDialogEdit Html [(String, Maybe (EditCommand db))]
                     | AuthenticateEdit ViewIdRef ViewIdRef
                     | LogoutEdit
                       deriving (Show, Typeable, Data)
