@@ -409,16 +409,19 @@ mkLenderView inline lender = mkWebView $
                           Just updatedLender -> Edit $ 
                                                   if lender /= updatedLender
                                                   then 
-                                                   showDialogEdit ("bla" +++ div_ "Dialogue text") 
-                                                     [ ("OK", Just $ Edit $ 
-                                                      do { modifyDb $ updateLender (get lenderId updatedLender) $ \lender -> updatedLender
-                                                         ; viewEdit vid $ set mEditedLender Nothing
-                                                         ; liftIO $ putStrLn $ "updating lender\n" ++ show updatedLender
-                                                         })
+                                                   showDialogEdit ("Wijzigingen opslaan?") 
+                                                     [ ("Opslaan", Just $ Edit $ 
+                                                        do { modifyDb $ updateLender (get lenderId updatedLender) $ \lender -> updatedLender
+                                                           ; viewEdit vid $ set mEditedLender Nothing
+                                                           ; liftIO $ putStrLn $ "updating lender\n" ++ show updatedLender
+                                                           })
+                                                     , ("Niet opslaan", Just $ Edit $ 
+                                                        do { viewEdit vid $ set mEditedLender Nothing
+                                                           })
                                                      , ("Cancel", Nothing )
                                                      ]
                                                    else
-                                                     return ()
+                                                     viewEdit vid $ set mEditedLender Nothing
              ; buttons <- if not $ isJust mEdited then return [] else
                     fmap singleton $ mkButton "Annuleren" True $ Edit $ viewEdit vid $ set mEditedLender Nothing
              ; addButtons <- sequence [ mkAddButton (someEmptyItem $ get lenderId lender) 
