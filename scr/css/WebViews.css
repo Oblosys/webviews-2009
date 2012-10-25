@@ -45,7 +45,7 @@ table td, table th {
   width:100%;
   height: 100%;
   background-color:black;
-  opacity:0.1;
+  opacity:0.4;
   filter:alpha(opacity=40);
 }
 
@@ -54,16 +54,26 @@ table td, table th {
   margin: auto;
   top: 100px;
   left: 50%;
-  width: 512px; /* is dialog max-width + 2*border + 2*padding */
+  width: 522px; /* is dialog max-width + 2*border + 2*padding */
   margin-left: -250; /* width / 2 */
 }
 .dialog {
   display:table;
   max-width: 500px;
-  background-color: #ddd;
-  border: solid 2px;
-  padding: 10px;
+  background-color: #eee;
+  font-family: verdana;
+  font-size: 12px;
+  border: solid 1px;
+  padding: 10 20 10 20;
   margin: auto;
+  text-align: center;
+}
+.dialogButtons {
+  margin-top:20px;
+  text-align: Right;
+}
+.dialogButtons>input {
+  margin-left:5px;
 }
 
 .ellipsis {

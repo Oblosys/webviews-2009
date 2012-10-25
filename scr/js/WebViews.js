@@ -5,7 +5,12 @@ function showDialog(dialogContent, buttonNames) {
   dlog(buttonNames);
   $dialog = $('<div class="dialog"></div>');
   $dialog.html(dialogContent);
-  $dialog.append($('<br></br><input type=button value=ha></input>'));
+  $buttonRow = $('<div class="dialogButtons"></div>');
+  for (var i=0; i<buttonNames.length; i++) {
+    $buttonRow.append($('<input type=button value="'+buttonNames[i]+'"></input>'));
+  }
+  $dialog.append($('<br></br>'));
+  $dialog.append($buttonRow);
   $dialogContainer = $('<div class="dialogContainer"></div>');
   $dialogContainer.append($dialog);
   $('#root').append('<div class="dialogBackground">');
