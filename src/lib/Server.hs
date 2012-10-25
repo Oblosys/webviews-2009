@@ -575,7 +575,7 @@ performEdit sessionStateRef edit  =
     ; writeIORef sessionStateRef sessionState{ getSStateDb = db', getSStateRootView = rootView' }
     ; reloadRootView sessionStateRef
     --; io $ putStrLn $ "javascript:\n" ++ concat scriptLines
-    ; io $ putStrLn $ if (isJust mDialog) then "Dialog" else "No dialog"
+    --; io $ putStrLn $ if (isJust mDialog) then "Dialog" else "No dialog"
     ; mDialogResponse <- case mDialog of
         Just (contents, buttons) ->
          do { let (buttonNames, buttonCommands) = unzip buttons
