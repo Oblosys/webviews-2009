@@ -336,7 +336,6 @@ $(".hList").sortable({connectWith: '.vList, .hList'});
 $(".vList").sortable({connectWith: '.vList, .hList'});
 });
 */
-      showDialog('This is a nice <em>dialog</em>',['OK','Cancel']);
       $(".ellipsis").ellipsis(); // need to do this after dom is built, so we can't do it in the jsScripts
                                  // but since ellipsis only executes when necessary, this is no big deal.
       
@@ -397,8 +396,8 @@ function updateTree(update, moves, scripts) {
   }
   else if (op === 'dialog') {
 	  dialogContent = $(update).find('.contents').html();
-	  buttonNames = $.map( $(update).find('.button'), function(b) {return $(b).attr('name')} );
-	  showDialog(dialogContent, buttonNames);
+	  buttons = $.map( $(update).find('.button'), function(b) {return {name: $(b).attr('name'), command: $(b).attr('command')} } );
+	  showDialog(dialogContent, buttons);
   } 
   else if (op === 'authenticate') {
 	  authenticate();

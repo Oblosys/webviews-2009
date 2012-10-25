@@ -2,14 +2,14 @@
 
 function showDialog(dialogContent, buttonNames) {
   dlog(dialogContent);
-  dlog(buttonNames);
+  dlog(buttons);
   $dialog = $('<div class="dialog"></div>');
   $dialog.html(dialogContent);
   $buttonRow = $('<div class="dialogButtons"></div>');
-  for (var i=0; i<buttonNames.length; i++) {
-    $buttonRow.append($('<input type=button value="'+buttonNames[i]+'"></input>'));
+  var commandNr = 0;
+  for (var i=0; i<buttons.length; i++) {
+    $buttonRow.append($('<input type=button value="'+buttonNames[i].name+'" onClick="dialogButtonClicked('+ i + ',' + buttons[i].command +')"></input>'));
   }
-  $dialog.append($('<br></br>'));
   $dialog.append($buttonRow);
   $dialogContainer = $('<div class="dialogContainer"></div>');
   $dialogContainer.append($dialog);
@@ -17,6 +17,13 @@ function showDialog(dialogContent, buttonNames) {
   $('#root').append( $dialogContainer );
 }
 
+function dialogButtonClicked(nr,command) {
+  $('.dialogContainer').remove();
+  $('.dialogBackground').remove();
+  if (command) {
+    queueCommand("DialogButtonPressed "+nr);
+  }
+}
 
 var spinners = new Array();
 
