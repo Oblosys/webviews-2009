@@ -102,7 +102,7 @@ mkSearchView label argName resultsf = mkWebView $
        ; let searchTerm = case lookup argName args of 
                             Nothing    -> ""
                             Just term -> term 
-       ; searchField <- mkTextField searchTerm `withTextViewSubmit` (Edit $ return ()) 
+       ; searchField <- mkTextField searchTerm `withTextViewSubmit` (return ()) 
        ; searchButton <- mkButtonWithClick "Zoek" True $ const ""
        ; results <- resultsf searchTerm
        ; return $ SearchView label searchField searchButton results $
@@ -182,7 +182,7 @@ mkEditableProperty :: (Data db, Show v, Data v, Data a) =>
 mkEditableProperty vid editing objectLens valueLens presStr parseStr pres orgObj =
  do { eValue <- if editing
                 then fmap (Right . PropertyTextView) $ mkTextFieldWithChange (presStr $ get valueLens orgObj) $ \str ->
-                       Edit $ viewEdit vid $ \v ->
+                       viewEdit vid $ \v ->
                          case get objectLens v of
                            Nothing -> v
                            Just o  -> case parseStr str of
@@ -206,7 +206,7 @@ mkEditableSelectProperty vid editing objectLens valueLens presStr pres propVals 
                                          Nothing -> 0 -- if the property is not in the list, we select the first one 
                                                       -- (this can happen if the list does not contain all values)
                      in  fmap (Right . PropertySelectView) $ mkSelectViewWithChange propValStrs selectionIx True $ \sel -> 
-                           Edit $ viewEdit vid $ \v ->
+                           viewEdit vid $ \v ->
                              case get objectLens v of
                                Nothing -> v
                                Just o  -> if (sel >= 0 && sel < length propVals) 

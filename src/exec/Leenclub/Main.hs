@@ -154,14 +154,14 @@ mkItemView inline item = mkWebView $
        
        ; user <- getUser
        ; button <- case (get itemBorrowed item, user) of
-           (Nothing, Nothing)         -> mkButton "Leen" False $ Edit $ return () 
-           (Nothing, Just (userId,_)) | get itemOwner item == LenderId userId -> mkButton "Lenen" False $ Edit $ return ()
+           (Nothing, Nothing)         -> mkButton "Leen" False $ return () 
+           (Nothing, Just (userId,_)) | get itemOwner item == LenderId userId -> mkButton "Lenen" False $ return ()
                                       | otherwise                         -> 
-             mkButton "Lenen" True  $ Edit $ modifyDb $ \db -> 
+             mkButton "Lenen" True  $ modifyDb $ \db -> 
                let items' = Map.update (\i -> Just $ set itemBorrowed (Just $ LenderId userId) item) (get itemId item) (get allItems db) 
                in  set allItems  items' db
            (Just borrowerId,_) -> 
-             mkButton "Terug ontvangen" True  $ Edit $ modifyDb $ \db -> 
+             mkButton "Terug ontvangen" True $ modifyDb $ \db -> 
                let items' = Map.update (\i -> Just $ set itemBorrowed Nothing item) (get itemId item) (get allItems db) 
                in  set allItems items' db
            
@@ -176,16 +176,16 @@ mkItemView inline item = mkWebView $
        ; props <- (if inline == Inline then getInlineCategoryProps else getFullCategoryProps) vid (isJust mEdited) item $ get itemCategory item
        
        ; buttons <- if False {- isInline inline -} then return [] else
-          do { deleteButton <- mkButton "Verwijderen" True $ Edit $ modifyDb $ deleteItem item
+          do { deleteButton <- mkButton "Verwijderen" True $ modifyDb $ deleteItem item
              ; editButton <- mkButton (maybe "Aanpassen" (const "Gereed") mEdited) True $
-                 Edit $ case mEdited of
-                          Nothing            -> viewEdit vid $ set mEditedItem (Just item)
-                          Just updatedItem -> do { modifyDb $ updateItem (get itemId updatedItem) $ \item -> updatedItem
-                                                 ; viewEdit vid $ set mEditedItem Nothing
-                                                 ; liftIO $ putStrLn $ "updating item \n" ++ show updatedItem
-                                                 }
+                 case mEdited of
+                   Nothing            -> viewEdit vid $ set mEditedItem (Just item)
+                   Just updatedItem -> do { modifyDb $ updateItem (get itemId updatedItem) $ \item -> updatedItem
+                                          ; viewEdit vid $ set mEditedItem Nothing
+                                          ; liftIO $ putStrLn $ "updating item \n" ++ show updatedItem
+                                          }
              ; buttons <- if not $ isJust mEdited then return [] else
-                    fmap singleton $ mkButton "Annuleren" True $ Edit $ viewEdit vid $ set mEditedItem Nothing
+                    fmap singleton $ mkButton "Annuleren" True $ viewEdit vid $ set mEditedItem Nothing
              ; return $ [ deleteButton, editButton ] ++ buttons
              }
        
@@ -405,25 +405,24 @@ mkLenderView inline lender = mkWebView $
           do { itemWebViews <-  mapM (mkItemView Inline) items
              ; editButton <- mkButton (maybe "Aanpassen" (const "Gereed") mEdited) (lenderIsUser lender mUser) $
                  case mEdited of
-                          Nothing            -> Edit $ viewEdit vid $ set mEditedLender (Just lender)
-                          Just updatedLender -> Edit $ 
-                                                  if lender /= updatedLender
-                                                  then 
-                                                   showDialogEdit ("Wijzigingen opslaan?") 
-                                                     [ ("Opslaan", Just $ Edit $ 
-                                                        do { modifyDb $ updateLender (get lenderId updatedLender) $ \lender -> updatedLender
-                                                           ; viewEdit vid $ set mEditedLender Nothing
-                                                           ; liftIO $ putStrLn $ "updating lender\n" ++ show updatedLender
-                                                           })
-                                                     , ("Niet opslaan", Just $ Edit $ 
-                                                        do { viewEdit vid $ set mEditedLender Nothing
-                                                           })
-                                                     , ("Cancel", Nothing )
-                                                     ]
-                                                   else
-                                                     viewEdit vid $ set mEditedLender Nothing
+                          Nothing            -> viewEdit vid $ set mEditedLender (Just lender)
+                          Just updatedLender -> if lender /= updatedLender
+                                                then 
+                                                 showDialogEdit ("Wijzigingen opslaan?") 
+                                                   [ ("Opslaan", Just $  
+                                                      do { modifyDb $ updateLender (get lenderId updatedLender) $ \lender -> updatedLender
+                                                         ; viewEdit vid $ set mEditedLender Nothing
+                                                         ; liftIO $ putStrLn $ "updating lender\n" ++ show updatedLender
+                                                         })
+                                                   , ("Niet opslaan", Just $ 
+                                                      do { viewEdit vid $ set mEditedLender Nothing
+                                                         })
+                                                   , ("Cancel", Nothing )
+                                                   ]
+                                                 else
+                                                   viewEdit vid $ set mEditedLender Nothing
              ; buttons <- if not $ isJust mEdited then return [] else
-                    fmap singleton $ mkButton "Annuleren" True $ Edit $ viewEdit vid $ set mEditedLender Nothing
+                    fmap singleton $ mkButton "Annuleren" True $ viewEdit vid $ set mEditedLender Nothing
              ; addButtons <- sequence [ mkAddButton (someEmptyItem $ get lenderId lender) 
                                       | someEmptyItem <- [emptyBook, emptyGame,emptyCD,emptyDVD,emptyTool] ]  
              ; return (itemWebViews, [ editButton ] ++ buttons,addButtons)
@@ -432,7 +431,7 @@ mkLenderView inline lender = mkWebView $
        }
 
 mkAddButton :: Item -> WebViewM Database (Widget (Button Database))
-mkAddButton item = mkButton (getItemCategoryName item) True $ Edit $ modifyDb $ insertAsNewItem item
+mkAddButton item = mkButton (getItemCategoryName item) True $ modifyDb $ insertAsNewItem item
   
 
 lenderIsUser lender Nothing          = False
@@ -534,7 +533,7 @@ mkItemsRootView = mkWebView $
              ; mkSortView namedSortFunctions (mkItemView Inline) results
              }
        ; dialogView <- mkDialogView $ mkHtmlView "dialog"
-       ; dialogButton <- mkButton "Dialog" True $ Edit $ viewShowDialog dialogView 
+       ; dialogButton <- mkButton "Dialog" True $ viewShowDialog dialogView 
        ; return $ ItemsRootView searchView dialogView dialogButton
        }
 -- TODO: don't like the getViewId for dialogView, can we make a webview and return a result somehow?
@@ -627,7 +626,7 @@ mkLeenclubPageView menuItemLabel mWebViewM = mkWebView $
   \vid oldItemView@LeenclubPageView{} ->
    do { user <- getUser
       ; wv <- mWebViewM
-      ; logoutAction <- mkEditAction $ Edit $ logoutEdit
+      ; logoutAction <- mkEditAction $ logoutEdit
       ; return $ LeenclubPageView user menuItemLabel logoutAction wv
       } 
 
@@ -679,9 +678,9 @@ deriveMapWebViewDb ''Database ''TestView
 mkTestView :: WebViewM Database (WebView Database)
 mkTestView = mkWebView $
   \vid oldTestView@(TestView _ radioOld _ _ _ _ _ oldTxtArea) ->
-    do { radio <-  mkRadioViewWithChange ["Naam", "Punten", "Drie"] (getSelection radioOld) True $ \sel -> Edit $ viewEdit vid $ \v -> trace ("selected"++show sel) v :: TestView
+    do { radio <-  mkRadioViewWithChange ["Naam", "Punten", "Drie"] (getSelection radioOld) True $ \sel -> viewEdit vid $ \v -> trace ("selected"++show sel) v :: TestView
        ; let radioSel = getSelection radioOld
-       ; b <- mkButton "Test button" True $ Edit $ viewEdit vid $ \(TestView a b c d e f g h) -> TestView 2 b c d e f g h
+       ; b <- mkButton "Test button" True $ viewEdit vid $ \(TestView a b c d e f g h) -> TestView 2 b c d e f g h
        ; tf <- mkTextField "bla"
        ; liftIO $ putStr $ show oldTestView
        ; (wv1, wv2) <- if True -- radioSel == 0
@@ -697,7 +696,7 @@ mkTestView = mkWebView $
        ; let (wv1',wv2') = if radioSel == 0 then (wv1,wv2) else (wv2,wv1)
        
        ; lbl <- mkLabelViewWithStyle "label" "color: blue"
-       ; txtArea <- mkTextAreaWithStyleChange (getStrVal oldTxtArea) ("background-color: "++if getStrVal oldTxtArea /= "" then "green" else "red") $ \str -> Edit $ viewEdit vid $ \v -> trace ("edited "++show str) v :: TestView
+       ; txtArea <- mkTextAreaWithStyleChange (getStrVal oldTxtArea) ("background-color: "++if getStrVal oldTxtArea /= "" then "green" else "red") $ \str -> viewEdit vid $ \v -> trace ("edited "++show str) v :: TestView
        ; let wv = TestView radioSel radio b tf wv1' wv2' lbl txtArea
        
        
@@ -730,10 +729,10 @@ deriveMapWebViewDb ''Database ''TestView2
 mkTestView2 :: WebViewM Database (WebView Database)
 mkTestView2 = mkWebView $
   \vid oldTestView@(TestView2 ea radioOld text str1 str2) ->
-    do { ea <- mkEditAction $ Edit $ viewEdit vid $ \(TestView2 a b c d e) -> TestView2 a b c "clicked" e
+    do { ea <- mkEditAction $ viewEdit vid $ \(TestView2 a b c d e) -> TestView2 a b c "clicked" e
        ; radio <-  mkRadioViewWithStyle ["Edit", "View"] (getSelection radioOld) True "background-color: red"
        ; let radioSel = getSelection radioOld
-       ; text <- mkTextFieldWithStyle "Test" "background-color: red" `withTextViewChange` (\str -> Edit $ viewEdit vid $ \(TestView2 a b c d e) -> TestView2 a b c d str)
+       ; text <- mkTextFieldWithStyle "Test" "background-color: red" `withTextViewChange` (\str -> viewEdit vid $ \(TestView2 a b c d e) -> TestView2 a b c d str)
        ; liftIO $ putStr $ show oldTestView
        ; liftIO $ putStrLn $ "radio value " ++ show radioSel
      --  ; propV2 <- mkPropertyView (radioSel == 0) "Straat" str2 $ \str -> viewEdit vid $ \(TestView2 a b c d) -> TestView2 a b  c str
@@ -788,10 +787,10 @@ testwv i = testmkwv $ HtmlTemplateView (show i)
  
 testwv0 :: WebView Database
 testwv0 =  WebView (ViewId []) (Id 1) (Id 2) undefined $ ItemsRootView (testwv 1) (testwv 1) $
-                   buttonWidget (ViewId []) "click me" True "" "" $ Edit logoutEdit
+                   buttonWidget (ViewId []) "click me" True "" "" logoutEdit
 
 testwd :: String -> Widget (Button Database)
-testwd str = buttonWidget (ViewId []) str True "" "" $ Edit logoutEdit
+testwd str = buttonWidget (ViewId []) str True "" "" logoutEdit
 testproplist :: [(String, Property Database Item)]
 testproplist =  [("LeenClub ID",StaticProperty "martijn"),("M/V",EditableProperty (Right (PropertySelectView (Widget {getWidgetStubId = Id {unId = -1}, getWidgetId = Id {unId = -1}, getWidgetWidget = SelectView {getSelectViewId = ViewId [], getSelectItems = ["M","F"], getSelectSelection = 0, getSelectEnabled = True, getSelectStyle = "", getSelectChange = Just undefined}}))))]
 deriveMapWebViewDb ''Database ''BorrowedRootView

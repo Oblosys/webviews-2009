@@ -82,10 +82,10 @@ liftS f = StateT (\(WebViewState user db viewMap path i sid has) ->
 assignViewId :: (ViewId -> v) -> WebViewM db v
 assignViewId viewConstr = liftS $ \path vidC -> (viewConstr (ViewId $ path ++ [vidC]), vidC +1)
 
-mkEditAction :: EditCommand db -> WebViewM db (Widget (EditAction db))
+mkEditAction :: EditM db () -> WebViewM db (Widget (EditAction db))
 mkEditAction ec = mkEditActionEx $ const ec
 
-mkEditActionEx :: ([String] -> EditCommand db) -> WebViewM db (Widget (EditAction db)) 
+mkEditActionEx :: ([String] -> EditM db ()) -> WebViewM db (Widget (EditAction db)) 
 mkEditActionEx fec = assignViewId $ \vid -> editActionWidget vid fec
 
 mkLabelView :: String -> WebViewM db (Widget (LabelView db))
@@ -101,30 +101,30 @@ mkTextField str = mkTextFieldEx str True "" Nothing Nothing
 mkTextFieldWithStyle :: String -> String -> WebViewM db (Widget (TextView db))
 mkTextFieldWithStyle str style = mkTextFieldEx str True style Nothing Nothing
 
-mkTextFieldAct :: String -> EditCommand db -> WebViewM db (Widget (TextView db))
+mkTextFieldAct :: String -> EditM db () -> WebViewM db (Widget (TextView db))
 mkTextFieldAct str submitAct = mkTextFieldEx str True "" Nothing $ Just submitAct
 
-mkTextFieldWithChange :: String -> (String -> EditCommand db) -> WebViewM db (Widget (TextView db))
+mkTextFieldWithChange :: String -> (String -> EditM db ()) -> WebViewM db (Widget (TextView db))
 mkTextFieldWithChange str changeAct = mkTextFieldEx str True "" (Just changeAct) Nothing
 
-mkTextFieldWithStyleChange :: String -> String -> (String -> EditCommand db) -> WebViewM db (Widget (TextView db))
+mkTextFieldWithStyleChange :: String -> String -> (String -> EditM db ()) -> WebViewM db (Widget (TextView db))
 mkTextFieldWithStyleChange str style changeAct = mkTextFieldEx str False style (Just changeAct) Nothing
 
-mkTextFieldEx :: String -> Bool -> String -> Maybe (String -> EditCommand db) -> Maybe (EditCommand db) -> WebViewM db (Widget (TextView db))
+mkTextFieldEx :: String -> Bool -> String -> Maybe (String -> EditM db ()) -> Maybe (EditM db ()) -> WebViewM db (Widget (TextView db))
 mkTextFieldEx str enabled style mChangeAction mEditAction = assignViewId $ \vid -> textFieldWidget vid str enabled style mChangeAction mEditAction
 
 infixl 0 `withTextViewSubmit`
 
 -- adds the submit action to the textview (use with mkTextView .. `withTextViewSubmit` .. )
 -- todo: make more generic mechanism (mkTextView `withProps` [ on submit := .. ])
-withTextViewSubmit :: WebViewM db (Widget (TextView db)) -> EditCommand db -> WebViewM db (Widget (TextView db))
+withTextViewSubmit :: WebViewM db (Widget (TextView db)) -> EditM db () -> WebViewM db (Widget (TextView db))
 withTextViewSubmit wm act = do { (Widget sid wid tv) <- wm
                                ; return $ Widget sid wid tv{getTextSubmit=Just act}
                                }
 
 infixl 0 `withTextViewChange`
 
-withTextViewChange :: WebViewM db (Widget (TextView db)) -> (String -> EditCommand db) -> WebViewM db (Widget (TextView db))
+withTextViewChange :: WebViewM db (Widget (TextView db)) -> (String -> EditM db ()) -> WebViewM db (Widget (TextView db))
 withTextViewChange wm fAct = do { (Widget sid wid tv) <- wm
                                 ; return $ Widget sid wid tv{getTextChange=Just fAct}
                                 }
@@ -132,10 +132,10 @@ withTextViewChange wm fAct = do { (Widget sid wid tv) <- wm
 mkPasswordField :: String -> WebViewM db (Widget (TextView db))
 mkPasswordField str = mkPasswordFieldEx str True "" Nothing Nothing
 
-mkPasswordFieldAct :: String -> EditCommand db -> WebViewM db (Widget (TextView db))
+mkPasswordFieldAct :: String -> EditM db () -> WebViewM db (Widget (TextView db))
 mkPasswordFieldAct str act = mkPasswordFieldEx str True "" Nothing $ Just act
 
-mkPasswordFieldEx :: String -> Bool -> String -> Maybe (String -> EditCommand db) -> Maybe (EditCommand db) -> WebViewM db (Widget (TextView db))
+mkPasswordFieldEx :: String -> Bool -> String -> Maybe (String -> EditM db ()) -> Maybe (EditM db ()) -> WebViewM db (Widget (TextView db))
 mkPasswordFieldEx str enabled style mChangeAction mEditAction = assignViewId $ \vid -> passwordFieldWidget vid str enabled style mChangeAction mEditAction
 
 mkTextArea :: String -> WebViewM db (Widget (TextView db))
@@ -144,10 +144,10 @@ mkTextArea str = mkTextAreaEx str True "" Nothing
 mkTextAreaWithStyle :: String -> String -> WebViewM db (Widget (TextView db))
 mkTextAreaWithStyle str stl = mkTextAreaEx str True stl Nothing
 
-mkTextAreaWithStyleChange :: String -> String -> (String -> EditCommand db) -> WebViewM db (Widget (TextView db))
+mkTextAreaWithStyleChange :: String -> String -> (String -> EditM db ()) -> WebViewM db (Widget (TextView db))
 mkTextAreaWithStyleChange str stl changeAct = mkTextAreaEx str True stl $ Just changeAct
 
-mkTextAreaEx :: String -> Bool -> String -> Maybe (String -> EditCommand db) -> WebViewM db (Widget (TextView db))
+mkTextAreaEx :: String -> Bool -> String -> Maybe (String -> EditM db ()) -> WebViewM db (Widget (TextView db))
 mkTextAreaEx str enabled stl mChangeAct = assignViewId $ \vid -> textAreaWidget vid str enabled stl mChangeAct
 
 mkRadioView :: [String] -> Int -> Bool -> WebViewM db (Widget (RadioView db))
@@ -157,13 +157,13 @@ mkRadioView items s enabled = mkRadioViewEx items s enabled "" Nothing
 mkRadioViewWithStyle :: [String] -> Int -> Bool -> String -> WebViewM db (Widget (RadioView db))
 mkRadioViewWithStyle items s enabled style = mkRadioViewEx items s enabled style Nothing
 
-mkRadioViewWithChange :: [String] -> Int -> Bool -> (Int -> EditCommand db) -> WebViewM db (Widget (RadioView db))
+mkRadioViewWithChange :: [String] -> Int -> Bool -> (Int -> EditM db ()) -> WebViewM db (Widget (RadioView db))
 mkRadioViewWithChange is s enabled act = mkRadioViewEx is s enabled "" $ Just act
 
-mkRadioViewWithStyleChange :: [String] -> Int -> Bool -> String -> (Int -> EditCommand db) -> WebViewM db (Widget (RadioView db))
+mkRadioViewWithStyleChange :: [String] -> Int -> Bool -> String -> (Int -> EditM db ()) -> WebViewM db (Widget (RadioView db))
 mkRadioViewWithStyleChange items s enabled style changeAct = mkRadioViewEx items s enabled style $ Just changeAct
 
-mkRadioViewEx :: [String] -> Int -> Bool -> String -> Maybe (Int -> EditCommand db) -> WebViewM db (Widget (RadioView db))
+mkRadioViewEx :: [String] -> Int -> Bool -> String -> Maybe (Int -> EditM db ()) -> WebViewM db (Widget (RadioView db))
 mkRadioViewEx is s enabled style mAct = assignViewId $ \vid -> radioViewWidget vid is s enabled style mAct
 
 mkSelectView :: [String] -> Int -> Bool -> WebViewM db (Widget (SelectView db))
@@ -173,30 +173,30 @@ mkSelectView is s enabled = assignViewId $ \vid -> selectViewWidget vid is s ena
 mkSelectViewWithStyle :: [String] -> Int -> Bool -> String -> WebViewM db (Widget (SelectView db))
 mkSelectViewWithStyle items s enabled style = mkSelectViewEx items s enabled style Nothing
 
-mkSelectViewWithChange :: [String] -> Int -> Bool -> (Int -> EditCommand db) -> WebViewM db (Widget (SelectView db))
+mkSelectViewWithChange :: [String] -> Int -> Bool -> (Int -> EditM db ()) -> WebViewM db (Widget (SelectView db))
 mkSelectViewWithChange is s enabled act = mkSelectViewEx is s enabled "" $ Just act
 
-mkSelectViewWithStyleChange :: [String] -> Int -> Bool -> String -> (Int -> EditCommand db) -> WebViewM db (Widget (SelectView db))
+mkSelectViewWithStyleChange :: [String] -> Int -> Bool -> String -> (Int -> EditM db ()) -> WebViewM db (Widget (SelectView db))
 mkSelectViewWithStyleChange items s enabled style changeAct = mkSelectViewEx items s enabled style $ Just changeAct
 
-mkSelectViewEx :: [String] -> Int -> Bool -> String -> Maybe (Int -> EditCommand db) -> WebViewM db (Widget (SelectView db))
+mkSelectViewEx :: [String] -> Int -> Bool -> String -> Maybe (Int -> EditM db ()) -> WebViewM db (Widget (SelectView db))
 mkSelectViewEx is s enabled style mAct = assignViewId $ \vid -> selectViewWidget vid is s enabled style mAct
 
-mkButton :: String -> Bool -> EditCommand db -> WebViewM db (Widget (Button db))
+mkButton :: String -> Bool -> EditM db () -> WebViewM db (Widget (Button db))
 mkButton str enabled ac = mkButtonEx str enabled "" (const "") ac
 
-mkButtonWithStyle :: String -> Bool -> String -> EditCommand db -> WebViewM db (Widget (Button db))
+mkButtonWithStyle :: String -> Bool -> String -> EditM db () -> WebViewM db (Widget (Button db))
 mkButtonWithStyle str enabled st ac = mkButtonEx str enabled st (const "") ac
 
 -- button with javascript click handler
 mkButtonWithClick :: String -> Bool -> (ViewId -> String) -> WebViewM db (Widget (Button db))
-mkButtonWithClick str enabled foc = mkButtonEx str enabled "" foc $ Edit $ return () -- because onclick currently disables server edit command
+mkButtonWithClick str enabled foc = mkButtonEx str enabled "" foc $ return () -- because onclick currently disables server edit command
 
 -- button with javascript click handler
 mkButtonWithStyleClick :: String -> Bool -> String -> (ViewId -> String) -> WebViewM db (Widget (Button db))
-mkButtonWithStyleClick str enabled st foc = mkButtonEx str enabled st foc $ Edit $ return () -- because onclick currently disables server edit command
+mkButtonWithStyleClick str enabled st foc = mkButtonEx str enabled st foc $ return () -- because onclick currently disables server edit command
 
-mkButtonEx :: String -> Bool -> String -> (ViewId -> String) -> EditCommand db -> WebViewM db (Widget (Button db))
+mkButtonEx :: String -> Bool -> String -> (ViewId -> String) -> EditM db () -> WebViewM db (Widget (Button db))
 mkButtonEx str enabled st foc ac = assignViewId $ \vid -> buttonWidget vid str enabled st (foc vid) ac
 
 mkJSVar name value = assignViewId $ \vid -> jsVarWidget vid name value
@@ -268,7 +268,7 @@ evalJSEdit scriptLines =
 alertEdit :: String -> EditM db ()
 alertEdit str = evalJSEdit [ jsAlert str ]
 
-showDialogEdit :: Html -> [(String, Maybe (EditCommand db))] -> EditM db ()
+showDialogEdit :: Html -> [(String, Maybe (EditM db ()))] -> EditM db ()
 showDialogEdit contents buttons =
  do { modify $ \(es@EditState{ getEStateDialog = mDialog }) ->
                  case mDialog of

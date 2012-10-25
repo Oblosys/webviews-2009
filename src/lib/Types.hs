@@ -131,7 +131,7 @@ labelViewWidget viewId txt style = Widget noId noId $ LabelView viewId txt style
 data TextType = TextField | PasswordField | TextArea deriving (Eq, Show, Typeable, Data)
 
 data TextView db = TextView { getTextViewId :: ViewId, getTextType :: TextType, getTextStrVal :: String
-                            , getTextEnabled :: Bool, getTextStyle :: String, getTextChange :: Maybe (String -> EditCommand db), getTextSubmit :: Maybe (EditCommand db) } deriving ( Show, Typeable, Data)
+                            , getTextEnabled :: Bool, getTextStyle :: String, getTextChange :: Maybe (String -> EditM db ()), getTextSubmit :: Maybe (EditM db ()) } deriving ( Show, Typeable, Data)
 
 instance Eq (TextView db) where
   TextView _ t1 str1 enabled1 style1 _ _ == TextView _ t2 str2 enabled2 style2 _ _ =
@@ -140,13 +140,13 @@ instance Eq (TextView db) where
   
 getStrVal (Widget _ _ (TextView vi h v _ _ _ _)) = v
 
-textFieldWidget :: ViewId -> String -> Bool -> String -> Maybe (String -> EditCommand db) -> Maybe (EditCommand db) -> Widget (TextView db)
+textFieldWidget :: ViewId -> String -> Bool -> String -> Maybe (String -> EditM db ()) -> Maybe (EditM db ()) -> Widget (TextView db)
 textFieldWidget viewId str enabled style mChangeAction mSubmitAction = Widget noId noId $ TextView viewId TextField str enabled style mChangeAction mSubmitAction
 
-passwordFieldWidget :: ViewId -> String -> Bool -> String -> Maybe (String -> EditCommand db) -> Maybe (EditCommand db) -> Widget (TextView db)
+passwordFieldWidget :: ViewId -> String -> Bool -> String -> Maybe (String -> EditM db ()) -> Maybe (EditM db ()) -> Widget (TextView db)
 passwordFieldWidget viewId str enabled style mChangeAction mSubmitAction = Widget noId noId $ TextView viewId PasswordField str enabled style mChangeAction mSubmitAction
 
-textAreaWidget :: ViewId -> String -> Bool -> String -> Maybe (String -> EditCommand db) -> Widget (TextView db)
+textAreaWidget :: ViewId -> String -> Bool -> String -> Maybe (String -> EditM db ()) -> Widget (TextView db)
 textAreaWidget viewId str enabled style mChangeAction = Widget noId noId $ TextView viewId TextArea str enabled style mChangeAction Nothing
 
 strRef (Widget _ _ (TextView (ViewId i) h _ _ _ _ _)) = ViewIdRef i
@@ -169,7 +169,7 @@ instance HasSelection v => HasSelection (Widget v) where
 -- RadioView
 
 data RadioView db = RadioView { getRadioViewId :: ViewId, getItems :: [String], getRadioSelection :: Int 
-                              , getRadioEnabled :: Bool, getRadioStyle :: String, getRadioChange :: Maybe (Int -> EditCommand db)
+                              , getRadioEnabled :: Bool, getRadioStyle :: String, getRadioChange :: Maybe (Int -> EditM db ())
                               } deriving (Show, Typeable, Data)
    
 instance Eq (RadioView db) where
@@ -181,13 +181,13 @@ instance HasSelection (RadioView db) where
   getSelection (RadioView i is sel _ _ _) = sel
   setSelection s (RadioView vi its _ en st ch) = RadioView vi its s en st ch
 
-radioViewWidget :: ViewId -> [String] -> Int -> Bool -> String -> Maybe (Int -> EditCommand db) -> Widget (RadioView db)
+radioViewWidget :: ViewId -> [String] -> Int -> Bool -> String -> Maybe (Int -> EditM db ()) -> Widget (RadioView db)
 radioViewWidget viewId its i enabled style mChangeAction = Widget noId noId $ RadioView viewId its i enabled style mChangeAction
 
 -- SelectView
 
 data SelectView db = SelectView { getSelectViewId :: ViewId, getSelectItems :: [String], getSelectSelection :: Int 
-                                , getSelectEnabled :: Bool, getSelectStyle :: String, getSelectChange :: Maybe (Int -> EditCommand db)
+                                , getSelectEnabled :: Bool, getSelectStyle :: String, getSelectChange :: Maybe (Int -> EditM db ())
                                 } deriving (Show, Typeable, Data)
 
 instance Eq (SelectView db) where
@@ -199,14 +199,14 @@ instance HasSelection (SelectView db) where
   getSelection (SelectView i is sel _ _ _) = sel
   setSelection s (SelectView vi its _ en st ch) = SelectView vi its s en st ch
 
-selectViewWidget :: ViewId -> [String] -> Int -> Bool -> String -> Maybe (Int -> EditCommand db) -> Widget (SelectView db)
+selectViewWidget :: ViewId -> [String] -> Int -> Bool -> String -> Maybe (Int -> EditM db ()) -> Widget (SelectView db)
 selectViewWidget viewId its i enabled style mChangeAction = Widget noId noId $ SelectView viewId its i enabled style mChangeAction
   
 -- Button
 
 data Button db = Button { getButtonViewId :: ViewId, buttonText :: String
                         , getButtonEnabled :: Bool, getButtonStyle :: String, getButtonOnClick :: String 
-                        , getButtonCommand :: EditCommand db 
+                        , getButtonCommand :: EditM db () 
                         } deriving (Show, Typeable, Data)
 
 instance Eq (Button db) where
@@ -214,7 +214,7 @@ instance Eq (Button db) where
     txt1 == txt2 && enabled1 == enabled2 && style1 == style2 && onclick1 == onclick2
     -- note that we don't need to look at the edit actions, since these live only in the Haskell world and have no effect on the html representation.
 
-buttonWidget :: ViewId -> String -> Bool -> String -> String -> EditCommand db -> Widget (Button db)
+buttonWidget :: ViewId -> String -> Bool -> String -> String -> EditM db () -> Widget (Button db)
 buttonWidget viewId txt enabled style onclick cmd = Widget noId noId $ Button viewId txt enabled style onclick cmd
 
 -- JSVar
@@ -235,7 +235,7 @@ getJSVarValue (Widget _ _ jsv) = getJSVarValue_ jsv
 -- EditAction
 
 data EditAction db = EditAction { getEditActionViewId :: ViewId
-                                , getEditActionCommand :: [String] -> EditCommand db -- edit actions can get parameters when executed from javascript 
+                                , getEditActionCommand :: [String] -> EditM db () -- edit actions can get parameters when executed from javascript 
                                 } deriving (Show, Typeable, Data)
 
 instance Eq (EditAction db) where
@@ -243,7 +243,7 @@ instance Eq (EditAction db) where
   -- note that we don't need to look at the edit actions, since these live only in the Haskell world and have no effect on the html representation.
 
 
-editActionWidget :: ViewId -> ([String] -> EditCommand db) -> Widget (EditAction db)
+editActionWidget :: ViewId -> ([String] -> EditM db ()) -> Widget (EditAction db)
 editActionWidget viewId cmd = Widget noId noId $ EditAction viewId cmd
 
 
@@ -456,13 +456,13 @@ instance Initial (SelectView db) where
   initial = SelectView noViewId [] 0 False "" Nothing
 
 instance Initial (Button db) where
-  initial = Button noViewId "" False "" "" (Edit $ return ())
+  initial = Button noViewId "" False "" "" $ return ()
 
 instance Initial (JSVar db) where
   initial = JSVar noViewId "" ""
 
 instance Initial (EditAction db) where
-  initial = EditAction noViewId (const $ Edit $ return ())  
+  initial = EditAction noViewId (const $ return ())  
 
 instance Data db => Initial (WebView db) where
   initial = WebView (ViewId []) noId noId (\_ _ -> return ()) ()
@@ -608,7 +608,7 @@ data SessionState db = SessionState { getSStateSessionId :: SessionId
                                     , getSStateUser :: User
                                     , getSStateDb :: db
                                     , getSStateRootView :: WebView db
-                                    , getSStateDialogCommands :: Maybe [Maybe (EditCommand db)]
+                                    , getSStateDialogCommands :: Maybe [Maybe (EditM db ())]
                                     , getSStateHashArgs :: HashArgs
                                     } deriving (Typeable, Data) 
                      
@@ -621,19 +621,9 @@ data EditState db = EditState { getEStateAllUsers :: Map String (String, String)
                               , getEStateDb :: db
                               , getEStateRootView :: WebView db
                               , getEStateScriptLines :: [String]
-                              , getEStateDialog :: Maybe (Html ,[(String, Maybe (EditCommand db))])
+                              , getEStateDialog :: Maybe (Html ,[(String, Maybe (EditM db ()))])
                               } deriving (Typeable, Data)
                               
-type EditM db = StateT (EditState db) IO 
-
-instance Show (EditM db a) where
-  show _ = "{EditM _}"
-
---- EditCommand
-
-data EditCommand db = Edit (EditM db ())
-                      deriving (Show, Typeable, Data)
-
 instance Data Html -- TODO: can be removed once we completely discard old SYB generics
 
 instance Initial Html where
@@ -641,7 +631,13 @@ instance Initial Html where
 
 instance MapWebView db Html
 
-instance Eq (EditCommand db) where -- only changing the edit command does not
+
+type EditM db = StateT (EditState db) IO 
+
+instance Show (EditM db a) where
+  show _ = "{EditM _}"
+
+instance Eq (EditM db ()) where
   c1 == c2 = True
   -- note that we don't need to look at the edit actions, since these live only in the Haskell world and have no effect on the html representation.
 

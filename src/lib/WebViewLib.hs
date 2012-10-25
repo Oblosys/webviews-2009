@@ -29,12 +29,12 @@ mkLoginView = mkWebView $
 #if __GLASGOW_HASKELL__ >= 612
     do { rec { nameT <- mkTextFieldAct (getStrVal name) authenticate 
              ; passwordT <- mkPasswordFieldAct (getStrVal password) authenticate 
-             ; let authenticate = Edit $ authenticateEdit (widgetGetViewRef nameT) (widgetGetViewRef passwordT)
+             ; let authenticate = authenticateEdit (widgetGetViewRef nameT) (widgetGetViewRef passwordT)
              }
 #else
     mdo { nameT <- mkTextFieldAct (getStrVal name) authenticate 
         ; passwordT <- mkPasswordFieldAct (getStrVal password) authenticate 
-        ; let authenticate = Edit $ authenticateEdit (widgetGetViewRef nameT) (widgetGetViewRef passwordT)
+        ; let authenticate = authenticateEdit (widgetGetViewRef nameT) (widgetGetViewRef passwordT)
 #endif
 
        ; loginB <- mkButton "Login" True authenticate                   
@@ -65,7 +65,7 @@ mkLogoutView :: Data db => WebViewM db (WebView db)
 mkLogoutView = mkWebView $
   \vid _ -> 
    do { (Just (l,_)) <- getUser
-      ; logoutB <- mkButton ("Logout " ++  l) True $ Edit logoutEdit
+      ; logoutB <- mkButton ("Logout " ++  l) True logoutEdit
       ; return $ LogoutView logoutB
       }
 instance Storeable db (LogoutView db) where save _ = id
@@ -115,7 +115,7 @@ mkTabbedView labelsEditActionsTabViews = mkWebView $
  \vid (TabbedView selectedTab _ _) ->
   do { let (labels, mEditActions,tabViews) = unzip3 labelsEditActionsTabViews
            
-     ; selectionViews <- sequence [ mkLinkView label $ Edit $ 
+     ; selectionViews <- sequence [ mkLinkView label $ 
                                      do { viewEdit vid $
                                             \((TabbedView _ sas twvs) :: TabbedView db) -> TabbedView i sas twvs
                                         ; case mEditAction of
@@ -252,12 +252,12 @@ instance MapWebView db (SelectableView db) where
 mkSelectableView :: forall db . Data db => [ViewId] -> String -> Bool -> EditM db () -> WebViewM db (WebView db)
 mkSelectableView allSelectableVids str selected clickCommand = mkWebView $
   \vid _ ->
-    do { clickAction <- mkEditAction $ Edit $ do { sequence_ [ viewEdit v $ \(SelectableView vi vis _ str ca scr :: SelectableView db) ->
-                                                                              SelectableView vi vis (vid == v) str ca scr
-                                                             | v <- allSelectableVids
-                                                             ]
-                                                 ; clickCommand
-                                                 }
+    do { clickAction <- mkEditAction $  do { sequence_ [ viewEdit v $ \(SelectableView vi vis _ str ca scr :: SelectableView db) ->
+                                                                        SelectableView vi vis (vid == v) str ca scr
+                                                       | v <- allSelectableVids
+                                                       ]
+                                           ; clickCommand
+                                           }
        ; return $ SelectableView vid allSelectableVids selected str clickAction $ jsScript []
        }
 
@@ -319,7 +319,7 @@ viewShowDialog dialogView = viewEdit (getViewId dialogView) $ \(DialogView _ a v
 mkDialogView :: forall db . Data db => WebViewM db (WebView db) -> WebViewM db (WebView db)
 mkDialogView contentsViewM = mkWebView $
   \vid oldView@(DialogView isShowing _ _) ->
-    do { cancelAction <- mkEditAction $ Edit $ viewEdit vid $ \(DialogView _ a v :: DialogView db) -> (DialogView False a v)
+    do { cancelAction <- mkEditAction $ viewEdit vid $ \(DialogView _ a v :: DialogView db) -> (DialogView False a v)
        ; mContentsView <- 
            if isShowing
            then fmap Just contentsViewM

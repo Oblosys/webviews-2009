@@ -92,7 +92,7 @@ type ServerInstanceId = EpochTime
 
 type SessionCounter = Int
 
-type Sessions db = IntMap (User, WebView db, Maybe [Maybe (EditCommand db)], HashArgs)
+type Sessions db = IntMap (User, WebView db, Maybe [Maybe (EditM db ())], HashArgs)
 
 server :: (Data db, Typeable db, Show db, Read db, Eq db) =>
           Int -> String -> RootViews db -> [String] -> String -> IO (db) -> Map String (String, String) -> IO ()
@@ -494,9 +494,9 @@ handleCommand _ users sessionStateRef (SetC viewId value) =
 
     --; putStrLn $ "Updated rootView:\n" ++ show rootView'
     ; response <- case mGetAnyWidgetById viewId rootView' :: Maybe (AnyWidget db) of
-        Just (TextWidget (TextView _ _ _ _ _ (Just fChangeAction) _))       -> performEditCommand users sessionStateRef (fChangeAction value) 
-        Just (RadioViewWidget (RadioView _ _ _ _ _ (Just fChangeAction)))   -> performEditCommand users sessionStateRef (fChangeAction $ unsafeRead "Server.handle: radio selection" value) 
-        Just (SelectViewWidget (SelectView _ _ _ _ _ (Just fChangeAction))) -> performEditCommand users sessionStateRef (fChangeAction $ unsafeRead "Server.handle: select selection" value) 
+        Just (TextWidget (TextView _ _ _ _ _ (Just fChangeAction) _))       -> performEdit users sessionStateRef (fChangeAction value) 
+        Just (RadioViewWidget (RadioView _ _ _ _ _ (Just fChangeAction)))   -> performEdit users sessionStateRef (fChangeAction $ unsafeRead "Server.handle: radio selection" value) 
+        Just (SelectViewWidget (SelectView _ _ _ _ _ (Just fChangeAction))) -> performEdit users sessionStateRef (fChangeAction $ unsafeRead "Server.handle: select selection" value) 
         _                                                                   -> return $ ServerResponse [] Nothing -- Not a widget with a change action
       -- TODO: check if mkViewMap has correct arg
     -- TODO: instead of updating all, just update the one that was changed
@@ -507,7 +507,7 @@ handleCommand _  users sessionStateRef (ButtonC viewId) =
     ; let (Button _ txt _ _ _ act) = getButtonByViewId viewId rootView
     ; putStrLn $ "Button #" ++ show viewId ++ ":" ++ txt ++ " was clicked"
 
-    ; response <- performEditCommand users  sessionStateRef act
+    ; response <- performEdit users  sessionStateRef act
           
     ; return response
     }
@@ -518,7 +518,7 @@ handleCommand _ users sessionStateRef (SubmitC viewId) =
 
     ; response <- case mAct of 
         Nothing  -> error "Internal error: text field with submission action has no associated action."
-        Just act -> performEditCommand users sessionStateRef act
+        Just act -> performEdit users sessionStateRef act
           
     ; return response
     }
@@ -527,7 +527,7 @@ handleCommand _ users sessionStateRef (PerformEditActionC viewId args) =
     ; let EditAction _ act = getEditActionByViewId viewId rootView
     ; putStrLn $ "EditAction with ViewId "++show viewId ++ " was executed"
 
-    ; response <- performEditCommand users sessionStateRef $ act args
+    ; response <- performEdit users sessionStateRef $ act args
           
     ; return response
     }
@@ -539,7 +539,7 @@ handleCommand _ users sessionStateRef (DialogButtonPressed nr) = -- TODO
                     Nothing -> error "DialogButtonPressed event without active dialog"
                     Just dcs -> if nr < length dcs 
                                 then case dcs!!nr of
-                                       Just dc -> performEditCommand users sessionStateRef dc
+                                       Just dc -> performEdit users sessionStateRef dc
                                        Nothing -> error $ "DialogButtonPressed for button without edit command: "++show nr 
                                 else error "Index of pressed button exceeds number of buttons"
     ; return response
@@ -553,12 +553,6 @@ reloadRootView sessionStateRef =
  -- TODO this 0 does not seem right BUG
     ; writeIORef sessionStateRef $ SessionState sessionId user db rootView' dialogCommands hashArgs
     } 
- 
-performEditCommand users  sessionStateRef command =
- do { SessionState sessionId user db rootView dialogCommands hashArgs <- readIORef sessionStateRef
-    ; case command of  
-        Edit edit -> performEdit users sessionStateRef edit
-    }
  
 performEdit :: Data db => Map String (String, String) -> SessionStateRef db -> EditM db () -> IO ServerResponse
 performEdit users sessionStateRef edit  =
