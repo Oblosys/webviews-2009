@@ -615,6 +615,18 @@ data SessionState db = SessionState { getSStateSessionId :: SessionId
 type SessionStateRef db = IORef (SessionState db)
 
 
+-- a subset of the session state that can be used in the EditM monad. 
+data EditState db = EditState { getEStateDb :: db
+                              , getEStateRootView :: WebView db
+                              , getEStateScriptLines :: [String]
+                              , getEStateDialog :: Maybe (Html ,[(String, Maybe (EditCommand db))])
+                              } deriving (Typeable, Data)
+                              
+type EditM db = StateT (EditState db) IO 
+
+instance Show (EditM db a) where
+  show _ = "{EditM _}"
+
 --- EditCommand
 
 data EditCommand db = Edit (EditM db ())
@@ -634,16 +646,6 @@ instance Eq (EditCommand db) where -- only changing the edit command does not
   c1 == c2 = True
   -- note that we don't need to look at the edit actions, since these live only in the Haskell world and have no effect on the html representation.
 
--- a subset of the session state that can be used in the EditM monad. 
-data EditState db = EditState { getEStateDb :: db
-                              , getEStateRootView :: WebView db
-                              , getEStateScriptLines :: [String]
-                              } deriving (Typeable, Data)
-                              
-type EditM db = StateT (EditState db) IO 
-
-instance Show (EditM db a) where
-  show _ = "{EditM _}"
   
 
 

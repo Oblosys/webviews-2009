@@ -570,11 +570,12 @@ performEditCommand users  sessionStateRef command =
 performEdit :: Data db => SessionStateRef db -> EditM db () -> IO ServerResponse
 performEdit sessionStateRef edit  =
  do { sessionState <- readIORef sessionStateRef
-    ; let editState = EditState (getSStateDb sessionState) (getSStateRootView sessionState) []
-    ; EditState db' rootView' scriptLines <- execStateT edit editState
+    ; let editState = EditState (getSStateDb sessionState) (getSStateRootView sessionState) [] Nothing
+    ; EditState db' rootView' scriptLines mDialog <- execStateT edit editState
     ; writeIORef sessionStateRef sessionState{ getSStateDb = db', getSStateRootView = rootView' }
     ; reloadRootView sessionStateRef
-    ; io $ putStrLn $ "javascript:\n" ++ concat scriptLines
+    --; io $ putStrLn $ "javascript:\n" ++ concat scriptLines
+    ; io $ putStrLn $ if (isJust mDialog) then "Dialog" else "No dialog"
     ; return $ EvalJS $ concat scriptLines
     }
 

@@ -264,6 +264,15 @@ evalJSEdit scriptLines =
  do { modify $ \(es@EditState{ getEStateScriptLines = allScr }) -> es{ getEStateScriptLines = allScr ++ scriptLines }  
     }
 
+showDialogEdit :: Html -> [(String, Maybe (EditCommand db))] -> EditM db ()
+showDialogEdit contents buttons =
+ do { modify $ \(es@EditState{ getEStateDialog = mDialog }) ->
+                 case mDialog of
+                   Nothing -> es{ getEStateDialog = Just (contents, buttons) }
+                   Just _  -> error "showDialog called while dialog is already showing" -- will disappear when we have a better EditM monad  
+    }
+
+
 applyIfCorrectType :: (Typeable y, Typeable x) => (y -> y) -> x -> x
 applyIfCorrectType f x = case cast f of 
                            Just fx -> fx x
