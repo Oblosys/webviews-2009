@@ -328,8 +328,6 @@ sessionHandler rootViews dbFilename db users sessionStateRef requestId (Commands
     
     ; let isInitCommand (Init _ _) = True
           isInitCommand _          = False
-          isConfirmCommand (Confirm _ _) = True
-          isConfirmCommand _           = False
     
     -- If one of the commands is Init, we remove the commands in front of the last Init and start with a new initial root view 
     ; cmds <- 
@@ -361,7 +359,7 @@ sessionHandler rootViews dbFilename db users sessionStateRef requestId (Commands
           }
 
 
-data ServerResponse = ViewUpdate | EvalJS String | Confirm Html [(String,Bool)] deriving (Show, Eq)
+data ServerResponse = ViewUpdate | EvalJS String | ShowDialog Html [(String,Bool)] deriving (Show, Eq)
                   
 {-
 After processing the commands, a view update response is sent back, followed by the concatenated scripts from all commands.
@@ -385,7 +383,7 @@ handleCommands rootViews dbFilename db users sessionStateRef oldRootView cmds = 
            ; case response of
                EvalJS scriptLines -> handleCommands' (allScripts ++ scriptLines) commands
                ViewUpdate         -> handleCommands' allScripts commands
-               Confirm message buttonNames ->
+               ShowDialog message buttonNames ->
                 do { updateAndEvalHtml <- handleCommands' allScripts [] -- No recursive call: we ignore rest of commands but
                                                                         -- do create html for update + eval with a [] call 
                    ; return $ mkConfirmDialogResponseHtml message buttonNames
@@ -563,7 +561,7 @@ performEditCommand users  sessionStateRef command =
             ShowDialogEdit dialogHtml buttonNamesCommands -> 
              do { let (buttonNames, buttonCommands) = unzip buttonNamesCommands
                 ; writeIORef sessionStateRef $ SessionState sessionId user db rootView (Just buttonCommands) hashArgs
-                ; return $ Confirm dialogHtml $ zip buttonNames (map isJust buttonCommands)
+                ; return $ ShowDialog dialogHtml $ zip buttonNames (map isJust buttonCommands)
                 }
             AuthenticateEdit userViewId passwordViewId -> authenticate users  sessionStateRef userViewId passwordViewId
             LogoutEdit -> logout sessionStateRef
