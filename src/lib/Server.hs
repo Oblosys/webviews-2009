@@ -359,7 +359,7 @@ sessionHandler rootViews dbFilename db users sessionStateRef requestId (Commands
           }
 
 
-data ServerResponse = ViewUpdate | EvalJS String | ShowDialog Html [(String,Bool)] deriving (Show, Eq)
+data ServerResponse = ServerResponse [String] (Maybe (Html, [(String,Bool)])) deriving (Show, Eq)
                   
 {-
 After processing the commands, a view update response is sent back, followed by the concatenated scripts from all commands.
@@ -374,19 +374,19 @@ handleCommands :: forall db . (Eq db, Show db, Data db) =>
                   IO [Html]
 handleCommands rootViews dbFilename db users sessionStateRef oldRootView cmds = handleCommands' [] cmds
  where handleCommands' allScripts [] = 
-        do { let evalHtml = if null allScripts then [] else mkEvalJSResponseHtml allScripts
+        do { let evalHtml = if null allScripts then [] else mkEvalJSResponseHtml $ concat allScripts
            ; viewUpdateHtml <- mkViewUpdateResponseHtml sessionStateRef dbFilename db oldRootView
            ; return $ viewUpdateHtml ++ evalHtml -- update the view and evaluate the collected scripts
            }
        handleCommands' allScripts (command:commands) = 
-        do { response <- handleCommand rootViews users sessionStateRef command
-           ; case response of
-               EvalJS scriptLines -> handleCommands' (allScripts ++ scriptLines) commands
-               ViewUpdate         -> handleCommands' allScripts commands
-               ShowDialog message buttonNames ->
-                do { updateAndEvalHtml <- handleCommands' allScripts [] -- No recursive call: we ignore rest of commands but
-                                                                        -- do create html for update + eval with a [] call 
-                   ; return $ mkConfirmDialogResponseHtml message buttonNames
+        do { ServerResponse scriptLines mDialog <- handleCommand rootViews users sessionStateRef command
+           ; let allScripts' = allScripts ++ scriptLines
+           ; case mDialog of
+               Nothing -> handleCommands' allScripts' commands
+               Just (contents, buttonNames) ->
+                do { updateAndEvalHtml <- handleCommands' allScripts' [] -- No recursive call: we ignore rest of commands but
+                                                                         -- do create html for update + eval with a [] call 
+                   ; return $ mkConfirmDialogResponseHtml contents buttonNames
                    }
            }
 
@@ -463,7 +463,7 @@ handleCommand rootViews _ sessionStateRef (Init rootViewName hashArgs) =
     ; rootView <- io $ mkRootView rootViews rootViewName hashArgs user db sessionId (mkViewMap oldRootView)
     ; setRootView sessionStateRef rootView
      
-    ; return ViewUpdate
+    ; return $ ServerResponse [] Nothing
     }
 handleCommand rootViews _ sessionStateRef (HashUpdate rootViewName hashArgs) = -- fired when hash hash changed in client
  do { putStrLn $ "HashUpdate " ++ show rootViewName ++ " " ++ show hashArgs
@@ -472,16 +472,16 @@ handleCommand rootViews _ sessionStateRef (HashUpdate rootViewName hashArgs) = -
     ; rootView <- io $ mkRootView rootViews rootViewName hashArgs user db sessionId (mkViewMap oldRootView)
     ; setRootView sessionStateRef rootView
      
-    ; return ViewUpdate
+    ; return $ ServerResponse [] Nothing
     }
 handleCommand _ _ sessionStateRef Refresh =
  do { -- putStrLn "Refresh"
     ; reloadRootView sessionStateRef
-    ; return ViewUpdate
+    ; return $ ServerResponse [] Nothing
     }
 handleCommand _ _ sessionStateRef Test =
  do { sState <- readIORef sessionStateRef
-    ; return ViewUpdate
+    ; return $ ServerResponse [] Nothing
     }
 handleCommand _ users sessionStateRef (SetC viewId value) =
  do { SessionState sessionId user db rootView dialogCommands hashArgs <- readIORef sessionStateRef      
@@ -497,7 +497,7 @@ handleCommand _ users sessionStateRef (SetC viewId value) =
         Just (TextWidget (TextView _ _ _ _ _ (Just fChangeAction) _))       -> performEditCommand users sessionStateRef (fChangeAction value) 
         Just (RadioViewWidget (RadioView _ _ _ _ _ (Just fChangeAction)))   -> performEditCommand users sessionStateRef (fChangeAction $ unsafeRead "Server.handle: radio selection" value) 
         Just (SelectViewWidget (SelectView _ _ _ _ _ (Just fChangeAction))) -> performEditCommand users sessionStateRef (fChangeAction $ unsafeRead "Server.handle: select selection" value) 
-        _                                                                   -> return ViewUpdate -- Not a widget with a change action
+        _                                                                   -> return $ ServerResponse [] Nothing -- Not a widget with a change action
       -- TODO: check if mkViewMap has correct arg
     -- TODO: instead of updating all, just update the one that was changed
     ; return response
@@ -560,7 +560,7 @@ performEditCommand users  sessionStateRef command =
             ShowDialogEdit dialogHtml buttonNamesCommands -> 
              do { let (buttonNames, buttonCommands) = unzip buttonNamesCommands
                 ; writeIORef sessionStateRef $ SessionState sessionId user db rootView (Just buttonCommands) hashArgs
-                ; return $ ShowDialog dialogHtml $ zip buttonNames (map isJust buttonCommands)
+                ; return $ ServerResponse [] $ Just (dialogHtml, zip buttonNames (map isJust buttonCommands))
                 }
             AuthenticateEdit userViewId passwordViewId -> authenticate users  sessionStateRef userViewId passwordViewId
             LogoutEdit -> logout sessionStateRef
@@ -576,7 +576,14 @@ performEdit sessionStateRef edit  =
     ; reloadRootView sessionStateRef
     --; io $ putStrLn $ "javascript:\n" ++ concat scriptLines
     ; io $ putStrLn $ if (isJust mDialog) then "Dialog" else "No dialog"
-    ; return $ EvalJS $ concat scriptLines
+    ; mDialogResponse <- case mDialog of
+        Just (contents, buttons) ->
+         do { let (buttonNames, buttonCommands) = unzip buttons
+            ; modifyIORef sessionStateRef $ \sstate -> sstate{getSStateDialogCommands = Just buttonCommands}
+            ; return $ Just (contents, zip buttonNames (map isJust buttonCommands))
+            }
+        Nothing -> return Nothing
+    ; return $ ServerResponse scriptLines mDialogResponse 
     }
 
 authenticate users sessionStateRef userEStringViewId passwordEStringViewId =
@@ -590,14 +597,14 @@ authenticate users sessionStateRef userEStringViewId passwordEStringViewId =
                                          ; writeIORef sessionStateRef 
                                              sState{ getSStateUser = Just (userName, fullName) }
                                          ; reloadRootView sessionStateRef
-                                         ; return ViewUpdate
+                                         ; return $ ServerResponse [] Nothing
                                          }
                                      else
                                       do { putStrLn $ "User \""++userName++"\" entered a wrong password"
-                                         ; return $ EvalJS $ jsAlert $ "Incorect password for '"++userName++"'"
+                                         ; return $ ServerResponse [jsAlert $ "Incorect password for '"++userName++"'"] Nothing
                                          }
         Nothing -> do { putStrLn $ "User "++userName++" entered a wrong password"
-                      ; return $ EvalJS $ jsAlert $ "Unknown username: "++userName
+                      ; return $ ServerResponse [jsAlert $ "Unknown username: "++userName] Nothing
                       }
     }
     
@@ -605,5 +612,5 @@ logout sessionStateRef =
  do { sState <- readIORef sessionStateRef
     ; writeIORef sessionStateRef sState{ getSStateUser = Nothing }
     ; reloadRootView sessionStateRef
-    ; return ViewUpdate
+    ; return $ ServerResponse [] Nothing
     }  
