@@ -598,7 +598,7 @@ authenticate users sessionStateRef userEStringViewId passwordEStringViewId =
                                       do { putStrLn $ "User \""++userName++"\" entered a wrong password"
                                          ; return $ ServerResponse [jsAlert $ "Incorect password for '"++userName++"'"] Nothing
                                          }
-        Nothing -> do { putStrLn $ "User "++userName++" entered a wrong password"
+        Nothing -> do { putStrLn $ "Unknown username: "++userName
                       ; return $ ServerResponse [jsAlert $ "Unknown username: "++userName] Nothing
                       }
     }
