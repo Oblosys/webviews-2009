@@ -289,7 +289,7 @@ authenticateEdit userEStringViewId passwordEStringViewId =
                                          }
                                      else
                                       do { liftIO $ putStrLn $ "User \""++userName++"\" entered a wrong password"
-                                        -- ; alertEdit $ "Incorect password for '"++userName++"'"
+                                         ; alertEdit $ "Incorect password for '"++userName++"'"
                                          }
         Nothing -> do { liftIO $ putStrLn $ "Unknown username: "++userName
                       ; alertEdit $ "Unknown username: "++userName 
