@@ -407,12 +407,12 @@ mkLenderView inline lender = mkWebView $
                  case mEdited of
                           Nothing            -> Edit $ viewEdit vid $ set mEditedLender (Just lender)
                           Just updatedLender -> ShowDialogEdit ("bla" +++ div_ "Dialogue text") 
-                                                 [ ("OK", Edit $ 
+                                                 [ ("OK", Just $ Edit $ 
                                                       do { modifyDb $ updateLender (get lenderId updatedLender) $ \lender -> updatedLender
                                                          ; viewEdit vid $ set mEditedLender Nothing
                                                          ; liftIO $ putStrLn $ "updating lender\n" ++ show updatedLender
                                                          })
-                                                 , ("Cancel", Edit $ return () )
+                                                 , ("Cancel", Nothing )
                                                  ]
              ; buttons <- if not $ isJust mEdited then return [] else
                     fmap singleton $ mkButton "Annuleren" True $ Edit $ viewEdit vid $ set mEditedLender Nothing

@@ -92,7 +92,7 @@ type ServerInstanceId = EpochTime
 
 type SessionCounter = Int
 
-type Sessions db = IntMap (User, WebView db, Maybe [EditCommand db], HashArgs)
+type Sessions db = IntMap (User, WebView db, Maybe [Maybe (EditCommand db)], HashArgs)
 
 server :: (Data db, Typeable db, Show db, Read db, Eq db) =>
           Int -> String -> RootViews db -> [String] -> String -> IO (db) -> Map String (String, String) -> IO ()
@@ -361,7 +361,7 @@ sessionHandler rootViews dbFilename db users sessionStateRef requestId (Commands
           }
 
 
-data ServerResponse = ViewUpdate | EvalJS String | Confirm Html [String] deriving (Show, Eq)
+data ServerResponse = ViewUpdate | EvalJS String | Confirm Html [(String,Bool)] deriving (Show, Eq)
                   
 {-
 After processing the commands, a view update response is sent back, followed by the concatenated scripts from all commands.
@@ -397,12 +397,13 @@ mkEvalJSResponseHtml :: String -> [Html]
 mkEvalJSResponseHtml script = [ div_ ! strAttr "op" "eval" $ toHtml script ] 
 
 
--- <div op=dialog><div class=contents> ..dialog html..</div><div class=button name=buttonName0/> ... </div>
-mkConfirmDialogResponseHtml :: Html -> [String] -> [Html]
-mkConfirmDialogResponseHtml dialogHtml buttonNames = 
-  [ div_ ! strAttr "op" "dialog" $ (div_ ! theclass "contents" $ dialogHtml) +++ 
-                                   concatHtml [ div_ ! theclass "button" ! strAttr "name" name $ noHtml 
-                                              | name <- buttonNames ]
+-- <div op=dialog><div class=contents> ..dialog html..</div><div class=button name=buttonName0 command=true/false /> ... </div>
+mkConfirmDialogResponseHtml :: Html -> [(String,Bool)] -> [Html]
+mkConfirmDialogResponseHtml dialogHtml buttonNames = -- the Bool specifies whether the associated button has a server-side command 
+  [ div_ ! strAttr "op" "dialog" $                   -- (otherwise it's a cancel button that only hides the dialog)
+     (div_ ! theclass "contents" $ dialogHtml) +++ 
+     concatHtml [ div_ ! theclass "button" ! strAttr "name" name ! strAttr "command" (if command then "true" else "false") $ noHtml 
+                | (name,command) <- buttonNames ]
   ] 
 
 
@@ -533,12 +534,15 @@ handleCommand _ users sessionStateRef (PerformEditActionC viewId args) =
     ; return response
     }
 handleCommand _ users sessionStateRef (DialogButtonPressed nr) = -- TODO
- do { sState <- readIORef sessionStateRef
+ do { putStrLn $ "Dialog button " ++ show nr ++ " was clicked"
+    ; sState <- readIORef sessionStateRef
     ; writeIORef sessionStateRef sState{getSStateDialogCommands = Nothing} -- clear it, also in case of error
     ; response <- case getSStateDialogCommands sState of
                     Nothing -> error "DialogButtonPressed event without active dialog"
                     Just dcs -> if nr < length dcs 
-                                then performEditCommand users sessionStateRef (dcs!!nr)
+                                then case dcs!!nr of
+                                       Just dc -> performEditCommand users sessionStateRef dc
+                                       Nothing -> error $ "DialogButtonPressed for button without edit command: "++show nr 
                                 else error "Index of pressed button exceeds number of buttons"
     ; return response
     }
@@ -559,7 +563,7 @@ performEditCommand users  sessionStateRef command =
             ShowDialogEdit dialogHtml buttonNamesCommands -> 
              do { let (buttonNames, buttonCommands) = unzip buttonNamesCommands
                 ; writeIORef sessionStateRef $ SessionState sessionId user db rootView (Just buttonCommands) hashArgs
-                ; return $ Confirm dialogHtml buttonNames
+                ; return $ Confirm dialogHtml $ zip buttonNames (map isJust buttonCommands)
                 }
             AuthenticateEdit userViewId passwordViewId -> authenticate users  sessionStateRef userViewId passwordViewId
             LogoutEdit -> logout sessionStateRef

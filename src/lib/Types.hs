@@ -253,7 +253,7 @@ editActionWidget viewId cmd = Widget noId noId $ EditAction viewId cmd
 
 data EditCommand db = Edit (EditM db ())
                  | EvalJSEdit String 
-                 | ShowDialogEdit Html [(String, EditCommand db)]
+                 | ShowDialogEdit Html [(String, Maybe (EditCommand db))]
                  | AuthenticateEdit ViewIdRef ViewIdRef
                  | LogoutEdit
                  deriving (Show, Typeable, Data)
@@ -627,7 +627,7 @@ data SessionState db = SessionState { getSStateSessionId :: SessionId
                                     , getSStateUser :: User
                                     , getSStateDb :: db
                                     , getSStateRootView :: WebView db
-                                    , getSStateDialogCommands :: Maybe [EditCommand db]
+                                    , getSStateDialogCommands :: Maybe [Maybe (EditCommand db)]
                                     , getSStateHashArgs :: HashArgs
                                     } deriving (Typeable, Data) 
                      
