@@ -557,7 +557,6 @@ reloadRootView sessionStateRef =
 performEditCommand users  sessionStateRef command =
  do { SessionState sessionId user db rootView dialogCommands hashArgs <- readIORef sessionStateRef
     ; case command of  
-            EvalJSEdit str -> return $ EvalJS str
             ShowDialogEdit dialogHtml buttonNamesCommands -> 
              do { let (buttonNames, buttonCommands) = unzip buttonNamesCommands
                 ; writeIORef sessionStateRef $ SessionState sessionId user db rootView (Just buttonCommands) hashArgs

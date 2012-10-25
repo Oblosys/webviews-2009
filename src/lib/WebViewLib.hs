@@ -17,7 +17,7 @@ import WebViewPrim
 -- TODO: where to put these?
 
 alertEdit :: String -> EditCommand db
-alertEdit str = EvalJSEdit $ jsAlert str
+alertEdit str = Edit $ evalJSEdit [ jsAlert str ]
 
 
 -- Login -----------------------------------------------------------------------  

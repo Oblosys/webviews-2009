@@ -248,26 +248,7 @@ editActionWidget viewId cmd = Widget noId noId $ EditAction viewId cmd
 
 
 
-
---- EditCommand
-
-data EditCommand db = Edit (EditM db ())
-                 | EvalJSEdit String 
-                 | ShowDialogEdit Html [(String, Maybe (EditCommand db))]
-                 | AuthenticateEdit ViewIdRef ViewIdRef
-                 | LogoutEdit
-                 deriving (Show, Typeable, Data)
-
-instance Data Html -- TODO: can be removed once we completely discard old SYB generics
-
-instance Initial Html where
-  initial = noHtml
-
-instance MapWebView db Html
-
-instance Eq (EditCommand db) where -- only changing the edit command does not
-  c1 == c2 = True
-  -- note that we don't need to look at the edit actions, since these live only in the Haskell world and have no effect on the html representation.
+-- HasViewId
   
 class HasViewId v where
   getViewId :: v -> ViewId
@@ -633,6 +614,26 @@ data SessionState db = SessionState { getSStateSessionId :: SessionId
                      
 type SessionStateRef db = IORef (SessionState db)
 
+
+--- EditCommand
+
+data EditCommand db = Edit (EditM db ())
+                    | ShowDialogEdit Html [(String, Maybe (EditCommand db))]
+                    | AuthenticateEdit ViewIdRef ViewIdRef
+                    | LogoutEdit
+                      deriving (Show, Typeable, Data)
+
+instance Data Html -- TODO: can be removed once we completely discard old SYB generics
+
+instance Initial Html where
+  initial = noHtml
+
+instance MapWebView db Html
+
+instance Eq (EditCommand db) where -- only changing the edit command does not
+  c1 == c2 = True
+  -- note that we don't need to look at the edit actions, since these live only in the Haskell world and have no effect on the html representation.
+
 -- a subset of the session state that can be used in the EditM monad. 
 data EditState db = EditState { getEStateDb :: db
                               , getEStateRootView :: WebView db
@@ -644,10 +645,7 @@ type EditM db = StateT (EditState db) IO
 instance Show (EditM db a) where
   show _ = "{EditM _}"
   
-type HashArgs = [(String,String)]
-  
-type RootViews db = [ (String, WebViewM db (WebView db)) ]
--- for keeping track of the root webviews
+
 
 -- A class for state types that contain the database. Allows us to use the same functions in the WebViewM and EditM monads.
 class HasDb state db where
@@ -686,4 +684,11 @@ withDb f = fmap (f . getStateDb) $ get
 modifyDb :: (HasDb state db, Functor m, Monad m) => (db -> db) -> StateT (state db) m ()
 modifyDb f = modify (modifyStateDb f)
 
+ 
+ 
+ 
+type HashArgs = [(String,String)]
+  
+type RootViews db = [ (String, WebViewM db (WebView db)) ]
+-- for keeping track of the root webviews
  
