@@ -6,7 +6,8 @@ import BlazeHtml
 import Data.List
 import Data.Generics
 import Debug.Trace
-
+import Data.Map (Map)
+import qualified Data.Map as Map
 import Types
 import Generics
 import HtmlLib
@@ -264,6 +265,9 @@ evalJSEdit scriptLines =
  do { modify $ \(es@EditState{ getEStateScriptLines = allScr }) -> es{ getEStateScriptLines = allScr ++ scriptLines }  
     }
 
+alertEdit :: String -> EditM db ()
+alertEdit str = evalJSEdit [ jsAlert str ]
+
 showDialogEdit :: Html -> [(String, Maybe (EditCommand db))] -> EditM db ()
 showDialogEdit contents buttons =
  do { modify $ \(es@EditState{ getEStateDialog = mDialog }) ->
@@ -272,6 +276,28 @@ showDialogEdit contents buttons =
                    Just _  -> error "showDialog called while dialog is already showing" -- will disappear when we have a better EditM monad  
     }
 
+authenticateEdit :: Data db => ViewIdRef -> ViewIdRef -> EditM db ()
+authenticateEdit userEStringViewId passwordEStringViewId =
+ do { eState@EditState{ getEStateAllUsers = users, getEStateRootView = rootView } <- get
+    ; let userName = getTextViewStrByViewIdRef userEStringViewId rootView
+          enteredPassword = getTextViewStrByViewIdRef passwordEStringViewId rootView
+    ; case Map.lookup userName users of
+        Just (password, fullName) -> if password == enteredPassword  
+                                     then 
+                                      do { liftIO $ putStrLn $ "User "++userName++" authenticated"
+                                         ; put eState{ getEStateUser = Just (userName, fullName) }
+                                         }
+                                     else
+                                      do { liftIO $ putStrLn $ "User \""++userName++"\" entered a wrong password"
+                                        -- ; alertEdit $ "Incorect password for '"++userName++"'"
+                                         }
+        Nothing -> do { liftIO $ putStrLn $ "Unknown username: "++userName
+                      ; alertEdit $ "Unknown username: "++userName 
+                      }
+    }
+
+logoutEdit :: EditM db ()
+logoutEdit = modify $ \es -> es{getEStateUser = Nothing}
 
 applyIfCorrectType :: (Typeable y, Typeable x) => (y -> y) -> x -> x
 applyIfCorrectType f x = case cast f of 

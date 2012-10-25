@@ -13,13 +13,6 @@ import HtmlLib
 import WebViewPrim
 
 
--- Utils -----------------------------------------------------------------------
--- TODO: where to put these?
-
-alertEdit :: String -> EditCommand db
-alertEdit str = Edit $ evalJSEdit [ jsAlert str ]
-
-
 -- Login -----------------------------------------------------------------------  
 
 data LoginView db = LoginView (Widget (TextView db)) (Widget (TextView db)) (Widget (Button db)) 
@@ -36,12 +29,12 @@ mkLoginView = mkWebView $
 #if __GLASGOW_HASKELL__ >= 612
     do { rec { nameT <- mkTextFieldAct (getStrVal name) authenticate 
              ; passwordT <- mkPasswordFieldAct (getStrVal password) authenticate 
-             ; let authenticate = AuthenticateEdit (widgetGetViewRef nameT) (widgetGetViewRef passwordT)
+             ; let authenticate = Edit $ authenticateEdit (widgetGetViewRef nameT) (widgetGetViewRef passwordT)
              }
 #else
     mdo { nameT <- mkTextFieldAct (getStrVal name) authenticate 
         ; passwordT <- mkPasswordFieldAct (getStrVal password) authenticate 
-        ; let authenticate = AuthenticateEdit (widgetGetViewRef nameT) (widgetGetViewRef passwordT)
+        ; let authenticate = Edit $ authenticateEdit (widgetGetViewRef nameT) (widgetGetViewRef passwordT)
 #endif
 
        ; loginB <- mkButton "Login" True authenticate                   
@@ -72,7 +65,7 @@ mkLogoutView :: Data db => WebViewM db (WebView db)
 mkLogoutView = mkWebView $
   \vid _ -> 
    do { (Just (l,_)) <- getUser
-      ; logoutB <- mkButton ("Logout " ++  l) True LogoutEdit
+      ; logoutB <- mkButton ("Logout " ++  l) True $ Edit logoutEdit
       ; return $ LogoutView logoutB
       }
 instance Storeable db (LogoutView db) where save _ = id

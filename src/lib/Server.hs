@@ -557,17 +557,15 @@ reloadRootView sessionStateRef =
 performEditCommand users  sessionStateRef command =
  do { SessionState sessionId user db rootView dialogCommands hashArgs <- readIORef sessionStateRef
     ; case command of  
-        AuthenticateEdit userViewId passwordViewId -> authenticate users  sessionStateRef userViewId passwordViewId
-        LogoutEdit -> logout sessionStateRef
-        Edit edit -> performEdit sessionStateRef edit
+        Edit edit -> performEdit users sessionStateRef edit
     }
  
-performEdit :: Data db => SessionStateRef db -> EditM db () -> IO ServerResponse
-performEdit sessionStateRef edit  =
+performEdit :: Data db => Map String (String, String) -> SessionStateRef db -> EditM db () -> IO ServerResponse
+performEdit users sessionStateRef edit  =
  do { sessionState <- readIORef sessionStateRef
-    ; let editState = EditState (getSStateDb sessionState) (getSStateRootView sessionState) [] Nothing
-    ; EditState db' rootView' scriptLines mDialog <- execStateT edit editState
-    ; writeIORef sessionStateRef sessionState{ getSStateDb = db', getSStateRootView = rootView' }
+    ; let editState = EditState users (getSStateUser sessionState) (getSStateDb sessionState) (getSStateRootView sessionState) [] Nothing
+    ; EditState _ user' db' rootView' scriptLines mDialog <- execStateT edit editState
+    ; writeIORef sessionStateRef sessionState{ getSStateUser = user', getSStateDb = db', getSStateRootView = rootView' }
     ; reloadRootView sessionStateRef
     --; io $ putStrLn $ "javascript:\n" ++ concat scriptLines
     --; io $ putStrLn $ if (isJust mDialog) then "Dialog" else "No dialog"
@@ -580,32 +578,3 @@ performEdit sessionStateRef edit  =
         Nothing -> return Nothing
     ; return $ ServerResponse scriptLines mDialogResponse 
     }
-
-authenticate users sessionStateRef userEStringViewId passwordEStringViewId =
- do { sState@SessionState{ getSStateRootView = rootView } <- readIORef sessionStateRef
-    ; let userName = getTextViewStrByViewIdRef userEStringViewId rootView
-          enteredPassword = getTextViewStrByViewIdRef passwordEStringViewId rootView
-    ; case Map.lookup userName users of
-        Just (password, fullName) -> if password == enteredPassword  
-                                     then 
-                                      do { putStrLn $ "User "++userName++" authenticated"
-                                         ; writeIORef sessionStateRef 
-                                             sState{ getSStateUser = Just (userName, fullName) }
-                                         ; reloadRootView sessionStateRef
-                                         ; return $ ServerResponse [] Nothing
-                                         }
-                                     else
-                                      do { putStrLn $ "User \""++userName++"\" entered a wrong password"
-                                         ; return $ ServerResponse [jsAlert $ "Incorect password for '"++userName++"'"] Nothing
-                                         }
-        Nothing -> do { putStrLn $ "Unknown username: "++userName
-                      ; return $ ServerResponse [jsAlert $ "Unknown username: "++userName] Nothing
-                      }
-    }
-    
-logout sessionStateRef =
- do { sState <- readIORef sessionStateRef
-    ; writeIORef sessionStateRef sState{ getSStateUser = Nothing }
-    ; reloadRootView sessionStateRef
-    ; return $ ServerResponse [] Nothing
-    }  

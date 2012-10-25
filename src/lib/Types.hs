@@ -616,7 +616,9 @@ type SessionStateRef db = IORef (SessionState db)
 
 
 -- a subset of the session state that can be used in the EditM monad. 
-data EditState db = EditState { getEStateDb :: db
+data EditState db = EditState { getEStateAllUsers :: Map String (String, String)
+                              , getEStateUser :: User
+                              , getEStateDb :: db
                               , getEStateRootView :: WebView db
                               , getEStateScriptLines :: [String]
                               , getEStateDialog :: Maybe (Html ,[(String, Maybe (EditCommand db))])
@@ -630,8 +632,6 @@ instance Show (EditM db a) where
 --- EditCommand
 
 data EditCommand db = Edit (EditM db ())
-                    | AuthenticateEdit ViewIdRef ViewIdRef
-                    | LogoutEdit
                       deriving (Show, Typeable, Data)
 
 instance Data Html -- TODO: can be removed once we completely discard old SYB generics

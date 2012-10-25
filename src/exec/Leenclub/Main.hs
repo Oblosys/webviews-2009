@@ -627,7 +627,7 @@ mkLeenclubPageView menuItemLabel mWebViewM = mkWebView $
   \vid oldItemView@LeenclubPageView{} ->
    do { user <- getUser
       ; wv <- mWebViewM
-      ; logoutAction <- mkEditAction LogoutEdit
+      ; logoutAction <- mkEditAction $ Edit $ logoutEdit
       ; return $ LeenclubPageView user menuItemLabel logoutAction wv
       } 
 
@@ -788,10 +788,10 @@ testwv i = testmkwv $ HtmlTemplateView (show i)
  
 testwv0 :: WebView Database
 testwv0 =  WebView (ViewId []) (Id 1) (Id 2) undefined $ ItemsRootView (testwv 1) (testwv 1) $
-                   buttonWidget (ViewId []) "click me" True "" "" LogoutEdit
+                   buttonWidget (ViewId []) "click me" True "" "" $ Edit logoutEdit
 
 testwd :: String -> Widget (Button Database)
-testwd str = buttonWidget (ViewId []) str True "" "" LogoutEdit
+testwd str = buttonWidget (ViewId []) str True "" "" $ Edit logoutEdit
 testproplist :: [(String, Property Database Item)]
 testproplist =  [("LeenClub ID",StaticProperty "martijn"),("M/V",EditableProperty (Right (PropertySelectView (Widget {getWidgetStubId = Id {unId = -1}, getWidgetId = Id {unId = -1}, getWidgetWidget = SelectView {getSelectViewId = ViewId [], getSelectItems = ["M","F"], getSelectSelection = 0, getSelectEnabled = True, getSelectStyle = "", getSelectChange = Just undefined}}))))]
 deriveMapWebViewDb ''Database ''BorrowedRootView
