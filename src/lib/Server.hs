@@ -182,7 +182,7 @@ handlers debug title rootViews scriptFilenames dbFilename db users serverSession
                                             Left err            -> do { io $ putStrLn $ "No requestId in request from " ++ clientIp ++ ", "++show time; mzero }
                                 
                             ; io $ putStrLn $ "RequestId " ++ show (requestId :: Int) ++ " (" ++ clientIp ++ "), "++show time
-                            ; method GET >> nullDir >> session rootViews dbFilename db users serverSessionId globalStateRef requestId cmds
+                            ; method GET >> nullDir >> session debug rootViews dbFilename db users serverSessionId globalStateRef requestId cmds
                             })
   , serveRootPage -- this generates an init event, which will handle hash arguments
   ] 
@@ -235,13 +235,13 @@ Set-Cookie: webviews="(1242497513,2)";Max-Age=3600;Path=/;Version="1"
 
 type SessionCookie = (String, String)
 
-session :: (Data db, Show db, Eq db) => RootViews db -> String -> db -> Map String (String, String) -> ServerInstanceId -> GlobalStateRef db -> Int -> Commands -> ServerPart Response
-session rootViews dbFilename db users serverInstanceId globalStateRef requestId cmds =
+session :: (Data db, Show db, Eq db) => Bool -> RootViews db -> String -> db -> Map String (String, String) -> ServerInstanceId -> GlobalStateRef db -> Int -> Commands -> ServerPart Response
+session debug rootViews dbFilename db users serverInstanceId globalStateRef requestId cmds =
  do { mCookieSessionId <- parseCookieSessionId serverInstanceId
       
 --        ; lputStrLn $ show rq
         ; sessionId <- case mCookieSessionId of 
-            Nothing  -> createNewSessionState db globalStateRef serverInstanceId
+            Nothing  -> createNewSessionState debug db globalStateRef serverInstanceId
             Just key -> do { --lputStrLn $ "Existing session "++show key
                            ; return key
                            }
@@ -280,8 +280,8 @@ mkInitialRootView db = runWebView Nothing db Map.empty [] 0 (-1) [] $ mkWebView 
 -- TODO: change this to something more robust
 -- todo: use different id
 
-createNewSessionState :: Data db => db -> GlobalStateRef db -> ServerInstanceId -> ServerPart SessionId
-createNewSessionState db globalStateRef serverInstanceId = 
+createNewSessionState :: Data db => Bool -> db -> GlobalStateRef db -> ServerInstanceId -> ServerPart SessionId
+createNewSessionState debug db globalStateRef serverInstanceId = 
  do { (database, sessions,sessionCounter) <- io $ readIORef globalStateRef
     ; let sessionId = sessionCounter
     ; io $ putStrLn $ "New session: "++show sessionId
@@ -291,7 +291,7 @@ createNewSessionState db globalStateRef serverInstanceId =
     ; initialRootView <- io $ mkInitialRootView db
                         
                        -- for debugging, begin with user martijn  
-    ; let newSession = (Just ("martijn", "Martijn Schrage") {- Nothing -}, initialRootView, Nothing, [])
+    ; let newSession = (if debug then Just ("martijn", "Martijn Schrage") else Nothing, initialRootView, Nothing, [])
     ; let sessions' = IntMap.insert sessionId newSession sessions
    
     ; io $ writeIORef globalStateRef (database, sessions', sessionCounter + 1)
