@@ -17,6 +17,7 @@ module Database ( module DatabaseTypes
 import Data.Generics
 import Data.List
 import Data.Maybe
+import Data.Char
 import Data.Map (Map)
 import qualified Data.Map as Map
 import ObloUtils
@@ -40,7 +41,8 @@ users = Map.fromList [ ("martijn", ("p", "Martijn"))
 
 searchLenders :: String -> Database -> [Lender]
 searchLenders term db = [ lender | lender <- Map.elems $ get allLenders db
-                        , any (isInfixOf term) [get lenderFirstName lender, get lenderLastName lender, get lenderZipCode lender, get (lenderIdLogin . lenderId) lender]
+                        , any (\str -> map toLower term `isInfixOf` map toLower str) 
+                              [get lenderFirstName lender, get lenderLastName lender, get lenderZipCode lender, get (lenderIdLogin . lenderId) lender]
                         ]
 
 updateLender :: LenderId -> (Lender -> Lender) -> Database -> Database
@@ -79,8 +81,9 @@ assignItems allItems allLenders = [ set lenderItems myItems lender
  
 searchItems :: String -> Database -> [Item]
 searchItems term db = [ item | item <- Map.elems $ get allItems db
-                      , any (isInfixOf term) $ [get (lenderIdLogin . itemOwner) item, show $ get itemPrice item, get itemName item, get itemDescr item ] ++
-                                               (categorySearchFields $ get itemCategory item)
+                      , any (\str -> map toLower term `isInfixOf` map toLower str) $ 
+                            [get (lenderIdLogin . itemOwner) item, show $ get itemPrice item, get itemName item, get itemDescr item ] ++
+                            (categorySearchFields $ get itemCategory item)
                       ]
  where categorySearchFields Book{ _bookAuthor=f1, _bookGenre=f2} = [f1, f2]
        categorySearchFields Game{ _gamePlatform=f1, _gameDeveloper=f2, _gameGenre=f3} = [f1,f2,f3]
