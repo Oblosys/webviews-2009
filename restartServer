@@ -1,7 +1,7 @@
 echo Restarting WebViews server for $1.
 cd ~/svn/Oblomov/WebViews
 killall $1
-dist/build/$1/$1 nodebug > serverOutput$1.txt 2>&1 &
+dist/build/$1/$1 --nodebug > serverOutput$1.txt 2>&1 &
 
 # Wait a bit and show initial output to see if the server actually started
 # (cannot use $? because background shell command always exits succesfully)
