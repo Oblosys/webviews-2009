@@ -93,25 +93,25 @@ mkClientView = mkWebViewT $
      ; dateLabel <- mkLabelView "dataLabel" 
      ; timeLabel <- mkLabelView "timeLabel" 
       
-     ; confirmButton <- mkButtonEx "Confirm" True {- (isJust mDate && isJust mTime)-} "width: 100%" (const "") $ Edit $ return ()
+     ; confirmButton <- mkButtonEx "Confirm" True {- (isJust mDate && isJust mTime)-} "width: 100%" (const "") $ return ()
      ; submitAction <- mkEditActionEx $ \args@[nameStr, nrOfPeopleStr, dateIndexStr, timeStr, commentStr] ->
-         Edit $ do { debugLn $ "submit action executed "++show args
-                   ;
-                   -- todo constructing date/time from indices duplicates work
-                   ; debugLn $ "Values are "++nameStr++" "++dateIndexStr++" "++timeStr
-                   ; let nrOfPeople = read nrOfPeopleStr
-                   ; debugLn $ "nrOfPeople "++show nrOfPeople
-                   ; let date = addToDate today (read dateIndexStr)
-                   ; debugLn $ "date "++show date
+        do { debugLn $ "submit action executed "++show args
+           ;
+           -- todo constructing date/time from indices duplicates work
+           ; debugLn $ "Values are "++nameStr++" "++dateIndexStr++" "++timeStr
+           ; let nrOfPeople = read nrOfPeopleStr
+           ; debugLn $ "nrOfPeople "++show nrOfPeople
+           ; let date = addToDate today (read dateIndexStr)
+           ; debugLn $ "date "++show date
 
-                   ; let time = read timeStr
-                   ; debugLn $ "time "++show time
-                   
-                   ; modifyDb $ \db -> 
-                        let (Reservation rid _ _ _ _ _, db') = newReservation db
-                            db'' = updateReservation rid (const $ Reservation rid date time nameStr nrOfPeople commentStr) db
-                        in  db''
-                   }
+           ; let time = read timeStr
+           ; debugLn $ "time "++show time
+           
+           ; modifyDb $ \db -> 
+                let (Reservation rid _ _ _ _ _, db') = newReservation db
+                    db'' = updateReservation rid (const $ Reservation rid date time nameStr nrOfPeople commentStr) db
+                in  db''
+           }
      ; let datesAndAvailabilityDecl = "availability = ["++ -- todo: should be declared with jsjsDeclareVar for safety
              intercalate "," [ "{date: \""++showDay (weekdayForDate  d)++", "++showShortDate d++"\","++
                                " availables: ["++intercalate "," [ show $ availableAtDateAndTime d (h,m)
