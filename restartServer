@@ -10,4 +10,4 @@ cat serverOutput$1.txt
 
 
 # when put in crontab, use:
-#    @reboot ~/svn/Oblomov/WebViews/startServer <Executable>  >/dev/null 2>&1
+#    @reboot ~/svn/Oblomov/WebViews/restartServer <Executable>  >/dev/null 2>&1
