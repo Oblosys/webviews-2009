@@ -511,7 +511,7 @@ getExtraProps vid isEdited lender = sequence
          , lenderRating :: Int, lenderItems :: [ItemId]
 -}
 data ItemsRootView = 
-  ItemsRootView (WebView Database) (WebView Database) (Widget (Button Database))
+  ItemsRootView (WebView Database)
     deriving (Eq, Show, Typeable, Data)
 
 deriveInitial ''ItemsRootView
@@ -522,7 +522,7 @@ instance Storeable Database ItemsRootView
 
 mkItemsRootView ::WebViewM Database (WebView Database)
 mkItemsRootView = mkWebView $
-  \vid oldLenderView@(ItemsRootView _ _ _) ->
+  \vid oldLenderView@(ItemsRootView _) ->
     do { let namedSortFunctions = [ ("Naam",     compare `on` get itemName) 
                                   , ("Prijs",    compare `on` get itemPrice)
                                   , ("Eigenaar", compare `on` get itemDescr)
@@ -532,16 +532,14 @@ mkItemsRootView = mkWebView $
           do { results :: [Item] <- withDb $ \db -> searchItems searchTerm db 
              ; mkSortView namedSortFunctions (mkItemView Inline) results
              }
-       ; dialogView <- mkDialogView $ mkHtmlView "dialog"
-       ; dialogButton <- mkButton "Dialog" True $ viewShowDialog dialogView 
-       ; return $ ItemsRootView searchView dialogView dialogButton
+       ; return $ ItemsRootView searchView
        }
 -- TODO: don't like the getViewId for dialogView, can we make a webview and return a result somehow?
 --       or will typed webviews make this safe enough?
 
 instance Presentable ItemsRootView where
-  present (ItemsRootView searchView dialog dialogButton) =
-        present searchView >> present dialogButton >> present dialog
+  present (ItemsRootView searchView) =
+        present searchView
 
 
     
@@ -786,8 +784,7 @@ testwv :: Int -> WebView Database
 testwv i = testmkwv $ HtmlTemplateView (show i)
  
 testwv0 :: WebView Database
-testwv0 =  WebView (ViewId []) (Id 1) (Id 2) undefined $ ItemsRootView (testwv 1) (testwv 1) $
-                   buttonWidget (ViewId []) "click me" True "" "" logoutEdit
+testwv0 =  WebView (ViewId []) (Id 1) (Id 2) undefined $ ItemsRootView (testwv 1)
 
 testwd :: String -> Widget (Button Database)
 testwd str = buttonWidget (ViewId []) str True "" "" logoutEdit
