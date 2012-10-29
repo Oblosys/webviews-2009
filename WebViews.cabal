@@ -31,19 +31,19 @@ Flag importer
     
 Library
   hs-source-dirs:   src/lib
-  build-depends:  base >=4.5 && <4.6,
+  build-depends:  base >=4.5 && <4.7,
                   containers >=0.4 && <0.5,
                   syb >=0.3 && <0.4,
-                  network >=2.3 && <2.4,
-                  mtl >=2.0 && <2.1,
+                  network >=2.3 && <2.5,
+                  mtl >=2.0 && <2.2,
                   base64-string >=0.2 && <0.3,
                   bytestring >=0.9 && <1.0,
                   html >=1.0 && <1.1,
                   blaze-html >=0.5 && <0.6,
                   blaze-markup >=0.5 && <0.6,
-                  happstack-server >=7.0 && <7.1,
+                  happstack-server >=7.0 && <7.2,
                   old-time >=1.1 && <1.2,
-                  unix >=2.5 && <2.6,
+                  unix >=2.5 && <2.7,
                   split >=0.1 && <0.2,
                   template-haskell >=2.7 && <2.8,
                   fclabels >=1.1
@@ -74,7 +74,7 @@ Library
 Executable piglet
   Main-is:    Main.hs 
   Build-Depends:  WebViews,
-                  base >=4.5 && <4.6,
+                  base >=4.5 && <4.7,
                   containers >=0.4 && <0.5,
                   syb >=0.3 && <0.4,
                   mtl >=2.0 && <2.1,
@@ -93,7 +93,7 @@ Executable piglet
 Executable reservations
   Main-is:    Main.hs 
   Build-Depends:  WebViews,
-                  base >=4.5 && <4.6,
+                  base >=4.5 && <4.7,
                   containers >=0.4 && <0.5,
                   syb >=0.3 && <0.4,
                   mtl >=2.0 && <2.1,
@@ -114,7 +114,7 @@ Executable webforms
   Main-is:    Main.hs 
   Build-Depends:  
                   WebViews,
-                  base >=4.5 && <4.6,
+                  base >=4.5 && <4.7,
                   containers >=0.4 && <0.5,
                   syb >=0.3 && <0.4,
                   mtl >=2.0 && <2.1,
@@ -148,7 +148,7 @@ Executable webforms
 Executable leenclub
   Main-is:    Main.hs 
   Build-Depends:  WebViews,
-                  base >=4.5 && <4.6,
+                  base >=4.5 && <4.7,
                   containers >=0.4 && <0.5,
                   syb >=0.3 && <0.4,
                   mtl >=2.0 && <2.1,
@@ -185,7 +185,7 @@ Executable importer
   Main-is:    Importer.hs 
   Build-Depends:  
                   WebViews,
-                  base >=4.5 && <4.6,
+                  base >=4.5 && <4.7,
                   containers >=0.4 && <0.5,
                   syb >=0.3 && <0.4,
                   utf8-string >=0.3 && <0.4,
