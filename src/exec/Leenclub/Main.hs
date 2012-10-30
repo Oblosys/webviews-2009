@@ -342,7 +342,8 @@ instance Storeable Database LeenclubLoginOutView
 mkLeenClubLoginOutView = mkWebView $
   \vid oldItemView@LeenclubLoginOutView{} ->
    do { user <- getUser
-      ; loginOutView <- if user == Nothing then mkLoginView 
+      ; loginOutView <- if user == Nothing then mkLoginView $ \(login, fullName) -> 
+                                                  evalJSEdit [ jsNavigateTo $ "'#lener&lener="++login++"'" ]
                                            else mkLogoutView
       ; return $ LeenclubLoginOutView loginOutView
       }
