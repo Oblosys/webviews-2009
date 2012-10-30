@@ -51,11 +51,11 @@ instance Initial TestView1 where
 -- seems easier than using JSVar's below
 mkTestView1 = mkWebViewT $
  \vid (TestView1 ea _ status _) ->
-  do { ea <- mkEditActionEx $ \args -> Edit $ do { debugLn $ "edit action executed "++show args
-                                                 ; viewEditT vid $ (\(TestView1 a b _ d) -> TestView1 a b (head args) d)
-                                                 }
+  do { ea <- mkEditActionEx $ \args -> do { debugLn $ "edit action executed "++show args
+                                          ; viewEditT vid $ (\(TestView1 a b _ d) -> TestView1 a b (head args) d)
+                                          }
   -- todo: need a way to enforce that ea is put in the webview
-     ; b <- mkButton "Test" True $ Edit $ return () 
+     ; b <- mkButton "Test" True $ return () 
      ; return $ TestView1 ea b status $
          "console.log('test script running');" ++
          jsDeclareVar vid "clientState" "2" ++
@@ -83,10 +83,10 @@ mkTestView2 = mkWebViewT $
      -- todo Even though the initial value is only assigned once to the client variable, it is also
      -- used to store the value at server side, so we need to check if it has a value and assign if not
      -- this is not okay. keep separate field for initializer?
-     ; b <- mkButton "Test" True $ Edit $ do { xval <- getJSVarContents x
-                                             ; debugLn $ "value of js var is "++xval
-                                             ; viewEditT vid $ (\(TestView2 a b _ d) -> TestView2 a b xval d)
-                                             } 
+     ; b <- mkButton "Test" True $ do { xval <- getJSVarContents x
+                                      ; debugLn $ "value of js var is "++xval
+                                      ; viewEditT vid $ (\(TestView2 a b _ d) -> TestView2 a b xval d)
+                                      } 
      ; return $ TestView2 x b status $
          "console.log('test script running');" ++
          onClick b (refJSVar x++"++;console.log("++refJSVar x++");" ++
@@ -233,7 +233,7 @@ mkRestaurantView = mkWebViewT $
          , jsCallFunction vid "load" []
          ]
      }
- where selectDateEdit vid d = mkEditAction . Edit $ viewEditT vid $ 
+ where selectDateEdit vid d = mkEditAction $ viewEditT vid $ 
               \(RestaurantView _ my weeks dayView hourView reservationView script) ->
                 RestaurantView (Just d)my weeks dayView hourView reservationView script
           
@@ -488,8 +488,8 @@ instance Initial ReservationView where
 
 mkReservationView restaurantViewId = mkWebViewT $
  \vid (ReservationView _ _ _) ->
-  do { removeButton <- mkButton "x" True $ Edit $ return ()
-     ; removeAction <- mkEditActionEx $ \[reservationId] -> Edit $ modifyDb $ removeReservation $ read reservationId  
+  do { removeButton <- mkButton "x" True $ return ()
+     ; removeAction <- mkEditActionEx $ \[reservationId] -> modifyDb $ removeReservation $ read reservationId  
      ; return $ ReservationView removeButton removeAction $ jsScript 
          [ jsFunction vid "load" [] $ 
            let selRes = jsVar restaurantViewId "selectedReservationObj"

@@ -565,8 +565,6 @@ instance Presentable FormPageView where
 
 instance Storeable Database FormPageView
 
-
-
 data FormView = 
   FormView Bool Int Int (Widget (Button Database)) (Widget (Button Database)) (Widget (Button Database)) (Widget (Button Database)) (WebView Database)
     deriving (Eq, Show, Typeable, Data)
@@ -589,11 +587,11 @@ mkFormView form@(Form pages) = mkWebView $
        ; db <- getDb
        ; liftIO $ putStrLn $ "Db is "++show db
        ; let isComplete = all isQuestionAnswered $ Map.elems db
-       ; sendButton <- mkButton "Opsturen" isComplete $ ConfirmEdit "Weet u zeker dat u de antwoorden wilt versturen?"
-                                                      $ Edit $ sendForm
+       ; sendButton <- mkButton "Opsturen" isComplete $ confirmEdit "Weet u zeker dat u de antwoorden wilt versturen?"
+                                                        sendForm
        
-       ; clearButton <- mkButton "Alles wissen" True $ ConfirmEdit "Weet u zeker dat u alle antwoorden wilt wissen?" 
-                                                     $ Edit $ clearForm
+       ; clearButton <- mkButton "Alles wissen" True $ confirmEdit "Weet u zeker dat u alle antwoorden wilt wissen?" 
+                                                       clearForm
        ; prevButton <- mkButtonWithClick "Vorige" (currentPageNr/=0)                   $ \_ -> gotoPageNr (currentPageNr - 1)
 --                                "initProgressMarkers();" 
        ; nextButton <- mkButtonWithClick "Volgende" (currentPageNr < length pages - 1 && getQuestionsAnsweredFormPage currentPage db)

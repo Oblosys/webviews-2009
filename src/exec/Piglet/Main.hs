@@ -48,8 +48,8 @@ mkCommentView commentId new = mkWebView $ \vid (CommentView _ edited' _ _ _ _ _ 
           
           edited = if new then True else edited' 
     
-    ; submitButton <- mkLinkView "Submit" (Edit $ viewEdit vid $ modifyEdited (const False))
-    ; editButton   <- mkLinkView "Edit"   (Edit $ viewEdit vid $ modifyEdited (const True))
+    ; submitButton <- mkLinkView "Submit" (viewEdit vid $ modifyEdited (const False))
+    ; editButton   <- mkLinkView "Edit"   (viewEdit vid $ modifyEdited (const True))
     ; user <- getUser                
     ; let mEditAction = if edited
 --                    then fmap Just $ mkButton "Submit" True $ mkViewEdit vid $ modifyEdited (const False)
@@ -58,8 +58,8 @@ mkCommentView commentId new = mkWebView $ \vid (CommentView _ edited' _ _ _ _ _ 
                            then Just editButton
                            else Nothing
     ; removeAction <- mkLinkView "Remove" 
-                        (ConfirmEdit ("Are you sure you want to remove this comment?") $ 
-                          Edit $ modifyDb $ removeComment commentId)
+                        (confirmEdit ("Are you sure you want to remove this comment?") $ 
+                          modifyDb $ removeComment commentId)
     ; let mRemoveAction = if userIsAuthorized author user 
                           then Just removeAction
                           else Nothing
@@ -119,9 +119,9 @@ deriveMapWebViewDb ''Database ''PigView
 mkPigView parentViewId pignr pigId@(PigId pigInt) viewedPig = mkWebView $ 
   \vid (PigView _ _ _ _ _ _ oldViewStateT _ _ _) ->
    do { (Pig pid vid name [s0,s1,s2] diagnosis) <- withDb $ \db -> unsafeLookup (allPigs db) pigId
-      ; selectAction <- mkEditAction $ Edit $ viewEdit parentViewId $ modifyViewedPig (\_ -> pignr)
+      ; selectAction <- mkEditAction $ viewEdit parentViewId $ modifyViewedPig (\_ -> pignr)
       ; removeB <- mkButton "remove" True $ 
-                     ConfirmEdit ("Are you sure you want to remove pig "++show (pignr+1)++"?") $ 
+                     confirmEdit ("Are you sure you want to remove pig "++show (pignr+1)++"?") $ 
                        removePigAlsoFromVisit pid vid              
       ; nameT <- mkTextField name                             
       ; viewStateT <- mkTextField (getStrVal oldViewStateT)
@@ -133,7 +133,7 @@ mkPigView parentViewId pignr pigId@(PigId pigInt) viewedPig = mkWebView $
                          viewStateT nameT [rv1, rv2, rv3] diagnosis
       }
  where removePigAlsoFromVisit pid vid =
-         Edit $ modifyDb $ removePig pid . updateVisit vid (\v -> v { pigs = delete pid $ pigs v } )  
+         modifyDb $ removePig pid . updateVisit vid (\v -> v { pigs = delete pid $ pigs v } )  
        
        imageUrl s0 = "pig"++pigColor s0++pigDirection++".png" 
        pigColor s0 = if s0 == 1 then "Grey" else ""
@@ -200,9 +200,9 @@ mkVisitView i = mkWebView $
        ; return $ VisitView i zipT dateT viewedPig prevB  nextB addB pigIds pignames pigViews 
        }
  where -- next and previous may cause out of bounds, but on reload, this is constrained
-       previous vi = Edit $ viewEdit vi $ modifyViewedPig decrease
-       next vi = Edit $ viewEdit vi $ modifyViewedPig increase
-       addPig i = Edit $ modifyDb $ addNewPig i 
+       previous vi = viewEdit vi $ modifyViewedPig decrease
+       next vi     = viewEdit vi $ modifyViewedPig increase
+       addPig i    =  modifyDb $ addNewPig i 
       
 addNewPig vid db = let ((Pig newPigId _ _ _ _), db') = newPig vid db      
                    in  (updateVisit vid $ \v -> v { pigs = pigs v ++ [newPigId] }) db'
@@ -248,12 +248,12 @@ mkVisitsView = mkWebView $
      ; nextB   <- mkButton "Next"     (viewedVisit < (length visits - 1)) $ next vid 
      ; addB    <- mkButton "Add"      True                                $ addNewVisit today
      ; removeB <- mkButton "Remove" (not $ null visits) $
-                    ConfirmEdit ("Are you sure you want to remove this visit?") $ 
-                      Edit $ modifyDb $ removeVisit (visitIds !! viewedVisit)
+                    confirmEdit ("Are you sure you want to remove this visit?") $ 
+                      modifyDb $ removeVisit (visitIds !! viewedVisit)
                   
      ; let selectionEdits = [ selectVisit vid v | v <- [0..length visits - 1 ] ]
                                     
-     ; selectionActions <- mapM  (mkEditAction . Edit) selectionEdits
+     ; selectionActions <- mapM  mkEditAction selectionEdits
                            
      ; user <- getUser
                
@@ -288,10 +288,10 @@ mkVisitsView = mkWebView $
                  loginOutView selectionActions 
                  prevB nextB addB removeB  tabbedVisits commentIds commentViews mAddCommentButton
      }
- where prev vid = Edit $ viewEdit vid $ modifyViewedVisit decrease
-       next vid = Edit $ viewEdit vid $ modifyViewedVisit increase
+ where prev vid = viewEdit vid $ modifyViewedVisit decrease
+       next vid = viewEdit vid $ modifyViewedVisit increase
        
-       addNewVisit today = Edit $ modifyDb $ \db -> let ((Visit nvid _ _ _),db') = newVisit db 
+       addNewVisit today = modifyDb $ \db -> let ((Visit nvid _ _ _),db') = newVisit db 
                                                    in  updateVisit nvid (\v -> v {date = today}) db' 
        selectVisit vi v = viewEdit vi $ modifyViewedVisit (const v)
 
@@ -303,9 +303,9 @@ mkVisitsView = mkWebView $
             }
          
        addComment login today = 
-         Edit $ modifyDb $ \db -> let ((Comment ncid _ _ _), db') = newComment db
-                          in  updateComment ncid (\v -> v { commentAuthor = login
-                                                          , commentDate = today}) db'
+         modifyDb $ \db -> let ((Comment ncid _ _ _), db') = newComment db
+                           in  updateComment ncid (\v -> v { commentAuthor = login
+                                                           , commentDate = today}) db'
 
 instance Presentable VisitsView where
   present (VisitsView _ viewedVisit sessionId user visits loginoutView selectionActions  
