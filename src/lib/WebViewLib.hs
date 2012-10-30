@@ -27,21 +27,25 @@ mkLoginView :: Data db => WebViewM db (WebView db)
 mkLoginView = mkWebView $
   \vid (LoginView name password b) ->
 #if __GLASGOW_HASKELL__ >= 612
-    do { rec { nameT <- mkTextFieldEx (getStrVal name)  True " " Nothing (Just authenticate) 
+    do { rec { nameField <- mkTextFieldEx (getStrVal name)  True " " Nothing (Just authenticate) 
                -- nasty workaround to distinguish text field from previously used text fields (just for Leenclub)
              ; --nameT <- mkTextFieldAct (getStrVal name) authenticate 
-             ; passwordT <- mkPasswordFieldAct (getStrVal password) authenticate 
-             ; let authenticate = authenticateEdit (widgetGetViewRef nameT) (widgetGetViewRef passwordT)
+             ; passwordField <- mkPasswordFieldAct (getStrVal password) authenticate 
+             ; let authenticate = mkAuthenticateEdit nameField passwordField
              }
 #else
-    mdo { nameT <- mkTextFieldAct (getStrVal name) authenticate 
-        ; passwordT <- mkPasswordFieldAct (getStrVal password) authenticate 
-        ; let authenticate = authenticateEdit (widgetGetViewRef nameT) (widgetGetViewRef passwordT)
+    mdo { nameField <- mkTextFieldAct (getStrVal name) authenticate 
+        ; passwordField <- mkPasswordFieldAct (getStrVal password) authenticate 
+        ; let authenticate = mkAuthenticateEdit nameField passwordField
 #endif
 
        ; loginB <- mkButton "Login" True authenticate                   
-       ; return $ LoginView nameT passwordT loginB
+       ; return $ LoginView nameField passwordField loginB
        }
+ where mkAuthenticateEdit nameField passwordField =
+        do { success <- authenticateEdit (widgetGetViewRef nameField) (widgetGetViewRef passwordField)
+           ; when (not success) $ alertEdit "Incorrect username or password"
+           }
 
 instance Storeable db (LoginView db) where save _ = id
                                    

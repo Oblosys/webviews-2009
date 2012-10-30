@@ -279,7 +279,7 @@ showDialogEdit contents buttons =
 confirmEdit :: String -> EditM db () -> EditM db ()
 confirmEdit msg okAction = showDialogEdit (toHtml msg) [("Ok", Just okAction), ("Cancel", Nothing) ]
 
-authenticateEdit :: Data db => ViewIdRef -> ViewIdRef -> EditM db ()
+authenticateEdit :: Data db => ViewIdRef -> ViewIdRef -> EditM db Bool
 authenticateEdit userEStringViewId passwordEStringViewId =
  do { eState@EditState{ getEStateAllUsers = users, getEStateRootView = rootView } <- get
     ; let userName = getTextViewStrByViewIdRef userEStringViewId rootView
@@ -289,13 +289,14 @@ authenticateEdit userEStringViewId passwordEStringViewId =
                                      then 
                                       do { liftIO $ putStrLn $ "User "++userName++" authenticated"
                                          ; put eState{ getEStateUser = Just (userName, fullName) }
+                                         ; return True
                                          }
                                      else
                                       do { liftIO $ putStrLn $ "User \""++userName++"\" entered a wrong password"
-                                         ; alertEdit $ "Incorect password for '"++userName++"'"
+                                         ; return False
                                          }
         Nothing -> do { liftIO $ putStrLn $ "Unknown username: "++userName
-                      ; alertEdit $ "Unknown username: "++userName 
+                      ; return False 
                       }
     }
 
