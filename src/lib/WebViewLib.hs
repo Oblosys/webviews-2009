@@ -23,8 +23,8 @@ instance Initial (LoginView db) where initial = LoginView initial initial initia
 instance Data db => MapWebView db (LoginView db) where
   mapWebView (LoginView a b c) = LoginView <$> mapWebView a <*> mapWebView b <*> mapWebView c
 
-mkLoginView :: Data db => WebViewM db (WebView db)
-mkLoginView = mkWebView $
+mkLoginView :: Data db => ((String,String) -> EditM db ()) -> WebViewM db (WebView db)
+mkLoginView successAction = mkWebView $
   \vid (LoginView name password b) ->
 #if __GLASGOW_HASKELL__ >= 612
     do { rec { nameField <- mkTextFieldEx (getStrVal name)  True " " Nothing (Just authenticate) 
@@ -43,8 +43,10 @@ mkLoginView = mkWebView $
        ; return $ LoginView nameField passwordField loginB
        }
  where mkAuthenticateEdit nameField passwordField =
-        do { success <- authenticateEdit (widgetGetViewRef nameField) (widgetGetViewRef passwordField)
-           ; when (not success) $ alertEdit "Incorrect username or password"
+        do { mUser <- authenticateEdit (widgetGetViewRef nameField) (widgetGetViewRef passwordField)
+           ; case mUser of
+               Just user -> successAction user
+               Nothing   -> alertEdit "Incorrect username or password"
            }
 
 instance Storeable db (LoginView db) where save _ = id
