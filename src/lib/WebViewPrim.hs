@@ -1,4 +1,4 @@
-{-# LANGUAGE FlexibleInstances, MultiParamTypeClasses, ScopedTypeVariables, NoMonomorphismRestriction #-}
+{-# LANGUAGE FlexibleInstances, MultiParamTypeClasses, ScopedTypeVariables #-}
 module WebViewPrim where
 
 import Control.Monad.State
@@ -346,13 +346,6 @@ mkWebView mkView =
     ; return webView
     } 
 
-fuck  mkView =
- do { let initialWebView = WebView noViewId noId noId mkView initial
-    ; webView <- loadView initialWebView
-    ; return webView
-    } 
-
---f = fuck (undefined :: Eq v => ViewId -> v -> WebViewM db v)
 {-
 id that is unique in parent guarantees no errors. What about uniqueness for pigs when switching visits?
 what about space leaks there?
