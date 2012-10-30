@@ -1,0 +1,18 @@
+build WebView tree
+
+
+present
+
+
+
+--- client
+
+render tree
+
+catch edit events
+
+send as server update
+
+---
+
+
