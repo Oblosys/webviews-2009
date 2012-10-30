@@ -1,33 +1,6 @@
 {-# LANGUAGE FlexibleContexts #-}
-module Generics (module Generics, module GenericsSYB, module GenericsMap) where
+module Generics (module Generics, module GenericsMap) where
 
-import GenericsSYB (
-{-
-                  getAllIds
-                , clearIds
-
-
-                , assignIdsFromList
-                , getTopLevelWebNodes
-                , getTopLevelWebViews
-                , mkWebNodeMap
-                , mkViewMap
-                
-                , getWebViewById
-                , getAnyWidgetById
-                
-                , getButtonByViewId
-                , getTextViewByViewId
-                , getLabelViewByViewId
-                , getJSVarByViewId
-                , getEditActionByViewId
-
-                , replaceWebViewById
-                , substituteIds
-                , applyUpdates
-                , Updates
--}
-                )
 import GenericsMap (
                   getAllIds
                 , clearIds
