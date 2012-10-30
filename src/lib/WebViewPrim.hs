@@ -276,6 +276,9 @@ showDialogEdit contents buttons =
                    Just _  -> error "showDialog called while dialog is already showing" -- will disappear when we have a better EditM monad  
     }
 
+confirmEdit :: String -> EditM db () -> EditM db ()
+confirmEdit msg okAction = showDialogEdit (toHtml msg) [("Ok", Just okAction), ("Cancel", Nothing) ]
+
 authenticateEdit :: Data db => ViewIdRef -> ViewIdRef -> EditM db ()
 authenticateEdit userEStringViewId passwordEStringViewId =
  do { eState@EditState{ getEStateAllUsers = users, getEStateRootView = rootView } <- get
