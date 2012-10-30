@@ -123,7 +123,7 @@ instance Presentable (SearchView db) where
 ------ Editable Properties (will move to lib)
 {-      
 -- An encapsulated database update that can be part of a webview. 
-data Function a b = Function (a -> b) deriving (Data, Typeable)
+data Function a b = Function (a -> b)
 
 
 instance Initial (Function a b) where
@@ -136,27 +136,14 @@ instance Eq (Function a b) where
 instance Show (Function a b) where
   show _ = "Function"
 -}
-{-
--- Does this explicit instance prevent the need for (Data a, Data b)?
-instance Data (Function a b) where
-  gfoldl k z (Function f) = z Function `k` f
-     
-  gunfold k z c = error "gunfold not defined for Function"
-     
-  toConstr (Function _) = con_Function 
-  dataTypeOf _ = ty_Function
-
-ty_Function = mkDataType "Main.Function" [con_Function] -- todo: change according to module
-con_Function = mkConstr ty_WebView "Function" [] Prefix
--}
 -- non-optimal way to show editable properties. The problem is that the update specified is not a view update but a database update.
 data Property db a = EditableProperty (Either Html (PropertyWidget db))
-                   | StaticProperty Html deriving (Eq, Show, Typeable)
+                   | StaticProperty Html deriving (Eq, Show)
 
 -- We want to put properties in a list, so an extra parameter for the widget is not an option.
 -- We could use an existential, but then deriving instances won't work anymore, so for now we use an explicit sum type.
 data PropertyWidget db = PropertyTextView (Widget (TextView db))
-                       | PropertySelectView (Widget (SelectView db)) deriving (Eq, Show, Typeable)
+                       | PropertySelectView (Widget (SelectView db)) deriving (Eq, Show)
                     
   
 instance Initial (Property db a) where

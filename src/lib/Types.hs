@@ -1,4 +1,4 @@
-{-# LANGUAGE ExistentialQuantification, FlexibleContexts, TypeSynonymInstances, FlexibleInstances, DeriveDataTypeable #-}
+{-# LANGUAGE ExistentialQuantification, FlexibleContexts, TypeSynonymInstances, FlexibleInstances #-}
 {-# LANGUAGE MultiParamTypeClasses, RankNTypes, ImpredicativeTypes, OverlappingInstances #-}
 module Types where
 
@@ -17,13 +17,6 @@ import GHC.Read (parens, readPrec, lexP)
 import Text.Read.Lex (Lexeme(Ident))
 import Text.ParserCombinators.ReadPrec (pfail)
 
-
--- Typeable1 instance for StateT, which comes from happstack-state-6.1.4/src/Happstack/State/Types.hs 
--- (and has been updated to use mkTyCon3 instead of the deprecated mkTycon)
-instance (Typeable st, Typeable1 m) => Typeable1 (StateT st m) where
-    typeOf1 x = mkTyConApp (mkTyCon3 "mtl" "Control.Monad.State.Lazy" "StateT") [typeOf (undefined :: st), typeOf1 (m x)]
-        where m :: StateT st m a -> m a
-              m = undefined
 
 data Commands = Commands [Command] 
               | SyntaxError String -- for debugging post from client, replace read by Str in FromData instance
@@ -47,7 +40,7 @@ data Command = Init       String [(String,String)] -- rootView args    http://we
 -- view id's are for identifying views and widgets with regard to incrementality
 -- they remain constant over the view's/widget's life
 -- for now, we assign them at mkView
-newtype ViewId = ViewId [Int] deriving (Eq, Ord, Typeable)
+newtype ViewId = ViewId [Int] deriving (Eq, Ord)
 
 unViewId  (ViewId pth) = pth -- not defined as a field, since ViewId's are now simply showed to get javascript id's, and we don't
                              -- want them to look like ... id = "ViewID {unViewId = [..]}" 
@@ -79,16 +72,16 @@ mkHtmlViewIdVal :: ViewId -> AttributeValue
 mkHtmlViewIdVal vid = toValue $ show vid
 
 
-newtype Id = Id { unId :: Int } deriving (Show, Eq, Ord, Typeable)
+newtype Id = Id { unId :: Int } deriving (Show, Eq, Ord)
 
 noId = Id (-1)
 
 
 -- refs are different type, because they may be part of view tree, and SYB id assignment functions 
 -- should not affect them
-newtype ViewIdRef = ViewIdRef [Int] deriving (Show, Eq, Ord, Typeable)
+newtype ViewIdRef = ViewIdRef [Int] deriving (Show, Eq, Ord)
 
-newtype IdRef = IdRef Int deriving (Show, Eq, Ord, Typeable)
+newtype IdRef = IdRef Int deriving (Show, Eq, Ord)
 
 mkViewRef (ViewId i) = ViewIdRef i
 
@@ -97,7 +90,7 @@ mkRef (Id i) = IdRef i
 ----- Widgets
 
 data Widget w = Widget { getWidgetStubId :: Id, getWidgetId :: Id, getWidgetWidget :: w }
-              deriving (Show, Typeable)
+              deriving Show
                        
 instance Eq (Widget w) where
   w1 == w2 = True
@@ -110,7 +103,7 @@ data AnyWidget db = LabelWidget !(LabelView db)
                   | ButtonWidget !(Button db)
                   | JSVarWidget !(JSVar db) -- TODO: not really a widget, but until we know what it is, or what we should call widget, it is here 
                   | EditActionWidget !(EditAction db) -- TODO: not really a widget, but until we know what it is, or what we should call widget, it is here
-                    deriving (Eq, Show, Typeable)
+                    deriving (Eq, Show)
 
 hasPresentation :: AnyWidget db -> Bool
 hasPresentation (EditActionWidget _) = False -- EditActionWidgets have no presentation, so the incrementality algorithm won't create moves for them.
@@ -120,7 +113,7 @@ hasPresentation _                    = True
 -- Label
 
 -- does not have a html counterpart. It is just a div with a view id that contains a string element
-data LabelView db = LabelView { getLabelViewId :: ViewId, getLabelText :: String, getLabelStyle :: String } deriving (Show, Typeable)
+data LabelView db = LabelView { getLabelViewId :: ViewId, getLabelText :: String, getLabelStyle :: String } deriving Show
 -- the db is only so we can declare instances (w db) for all widget types
 
 instance Eq (LabelView db) where
@@ -133,10 +126,11 @@ labelViewWidget viewId txt style = Widget noId noId $ LabelView viewId txt style
 
 -- todo rename Str stuff in Text
 
-data TextType = TextField | PasswordField | TextArea deriving (Eq, Show, Typeable)
+data TextType = TextField | PasswordField | TextArea deriving (Eq, Show)
 
 data TextView db = TextView { getTextViewId :: ViewId, getTextType :: TextType, getTextStrVal :: String
-                            , getTextEnabled :: Bool, getTextStyle :: String, getTextChange :: Maybe (String -> EditM db ()), getTextSubmit :: Maybe (EditM db ()) } deriving ( Show, Typeable)
+                            , getTextEnabled :: Bool, getTextStyle :: String, getTextChange :: Maybe (String -> EditM db ())
+                            , getTextSubmit :: Maybe (EditM db ()) } deriving Show
 
 instance Eq (TextView db) where
   TextView _ t1 str1 enabled1 style1 _ _ == TextView _ t2 str2 enabled2 style2 _ _ =
@@ -175,7 +169,7 @@ instance HasSelection v => HasSelection (Widget v) where
 
 data RadioView db = RadioView { getRadioViewId :: ViewId, getItems :: [String], getRadioSelection :: Int 
                               , getRadioEnabled :: Bool, getRadioStyle :: String, getRadioChange :: Maybe (Int -> EditM db ())
-                              } deriving (Show, Typeable)
+                              } deriving Show
    
 instance Eq (RadioView db) where
   RadioView _ items1 int1 enabled1 style1 _ == RadioView _ items2 int2 enabled2 style2 _ =
@@ -193,7 +187,7 @@ radioViewWidget viewId its i enabled style mChangeAction = Widget noId noId $ Ra
 
 data SelectView db = SelectView { getSelectViewId :: ViewId, getSelectItems :: [String], getSelectSelection :: Int 
                                 , getSelectEnabled :: Bool, getSelectStyle :: String, getSelectChange :: Maybe (Int -> EditM db ())
-                                } deriving (Show, Typeable)
+                                } deriving Show
 
 instance Eq (SelectView db) where
   SelectView _ items1 int1 enabled1 style1 _ == SelectView _ items2 int2 enabled2 style2 _ =
@@ -212,7 +206,7 @@ selectViewWidget viewId its i enabled style mChangeAction = Widget noId noId $ S
 data Button db = Button { getButtonViewId :: ViewId, buttonText :: String
                         , getButtonEnabled :: Bool, getButtonStyle :: String, getButtonOnClick :: String 
                         , getButtonCommand :: EditM db () 
-                        } deriving (Show, Typeable)
+                        } deriving Show
 
 instance Eq (Button db) where
   Button _ txt1 enabled1 style1 onclick1 _ == Button _ txt2 enabled2 style2 onclick2 _ =
@@ -224,7 +218,7 @@ buttonWidget viewId txt enabled style onclick cmd = Widget noId noId $ Button vi
 
 -- JSVar
 
-data JSVar db = JSVar { getJSVarViewId :: ViewId, getJSVarName :: String, getJSVarValue_ :: String } deriving (Show, Typeable)
+data JSVar db = JSVar { getJSVarViewId :: ViewId, getJSVarName :: String, getJSVarValue_ :: String } deriving Show
 -- the db is only so we can declare instances (w db) for all widget types
 
 instance Eq (JSVar db) where
@@ -241,7 +235,7 @@ getJSVarValue (Widget _ _ jsv) = getJSVarValue_ jsv
 
 data EditAction db = EditAction { getEditActionViewId :: ViewId
                                 , getEditActionCommand :: [String] -> EditM db () -- edit actions can get parameters when executed from javascript 
-                                } deriving (Show, Typeable)
+                                } deriving Show
 
 instance Eq (EditAction db) where
   EditAction _ _ == EditAction _ _ = True
@@ -330,7 +324,7 @@ type WebNodeMap db = Map.Map ViewId (WebNode db)
 -- TODO: why are stub id and id inside WebView instead of in WebViewNode?
 data WebNode db = WebViewNode (WebView db)
                 | WidgetNode  ViewId Id Id (AnyWidget db) -- ViewId StubId Id 
-                  deriving (Show, Typeable)
+                  deriving Show
 
 
 instance Eq (WebNode db) where
@@ -350,7 +344,6 @@ data WebView db = forall view . ( Initial view, Presentable view, Storeable db v
                                 , Show view, Eq view, Typeable view, MapWebView db view) => 
                                 WebView !ViewId !Id !Id (ViewId -> view -> WebViewM db view) !view
                              
-               deriving Typeable
 -- (viewId -> view -> WebViewM view) is the load view function. the parameters are the id and the old view (or initial)
 -- view is the actual view (which is 'updated')
 -- viewid is to identify the view and it's extra state.
@@ -583,7 +576,7 @@ data WebViewState db =
                , getWVStatePath :: [Int], getWVStateViewIdCounter :: Int 
                , getWVStateSessionId :: SessionId -- not sure we really need the session ID here, but it doesn't do any harm
                , getWVStateHashArgs :: HashArgs
-               } deriving (Typeable)
+               }
 
 type WebViewM db a = StateT (WebViewState db) IO a
 
@@ -596,7 +589,7 @@ data SessionState db = SessionState { getSStateSessionId :: SessionId
                                     , getSStateRootView :: WebView db
                                     , getSStateDialogCommands :: Maybe [Maybe (EditM db ())]
                                     , getSStateHashArgs :: HashArgs
-                                    } deriving (Typeable) 
+                                    } 
                      
 type SessionStateRef db = IORef (SessionState db)
 
@@ -608,7 +601,7 @@ data EditState db = EditState { getEStateAllUsers :: Map String (String, String)
                               , getEStateRootView :: WebView db
                               , getEStateScriptLines :: [String]
                               , getEStateDialog :: Maybe (Html ,[(String, Maybe (EditM db ()))])
-                              } deriving (Typeable)
+                              }
 
 
 type EditM db = StateT (EditState db) IO 

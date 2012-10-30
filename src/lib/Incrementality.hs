@@ -4,7 +4,6 @@ module Incrementality (mkIncrementalUpdates) where
 import Control.Monad.Trans
 import Data.List
 import BlazeHtml
-import Data.Generics
 import Data.Char
 import Data.Maybe
 import Data.Map (Map)

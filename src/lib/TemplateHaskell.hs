@@ -1,4 +1,4 @@
-{-# LANGUAGE DeriveDataTypeable, MultiParamTypeClasses, FlexibleInstances, TemplateHaskell #-}
+{-# LANGUAGE MultiParamTypeClasses, FlexibleInstances, TemplateHaskell #-}
 module TemplateHaskell where
 
 import Language.Haskell.TH

@@ -1,4 +1,4 @@
-{-# LANGUAGE FlexibleInstances, MultiParamTypeClasses, ScopedTypeVariables, DeriveDataTypeable #-}
+{-# LANGUAGE FlexibleInstances, MultiParamTypeClasses, ScopedTypeVariables, NoMonomorphismRestriction #-}
 module WebViewPrim where
 
 import Control.Monad.State
@@ -346,7 +346,13 @@ mkWebView mkView =
     ; return webView
     } 
 
+fuck  mkView =
+ do { let initialWebView = WebView noViewId noId noId mkView initial
+    ; webView <- loadView initialWebView
+    ; return webView
+    } 
 
+--f = fuck (undefined :: Eq v => ViewId -> v -> WebViewM db v)
 {-
 id that is unique in parent guarantees no errors. What about uniqueness for pigs when switching visits?
 what about space leaks there?
@@ -546,7 +552,7 @@ instance Presentable (AnyWidget db) where
 
 newtype ViewIdT viewType = ViewIdT ViewId
 
-newtype WebViewT viewType db = WebViewT { unWebViewT :: WebView db } deriving (Eq, Show, Typeable)
+newtype WebViewT viewType db = WebViewT { unWebViewT :: WebView db } deriving (Eq, Show)
 
 instance Initial (WebViewT wv db)
   where initial = WebViewT initial

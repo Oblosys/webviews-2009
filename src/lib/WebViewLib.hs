@@ -23,6 +23,7 @@ instance Initial (LoginView db) where initial = LoginView initial initial initia
 instance MapWebView db (LoginView db) where
   mapWebView (LoginView a b c) = LoginView <$> mapWebView a <*> mapWebView b <*> mapWebView c
 
+-- Typeable db constraint is required because of derived Typeable on LoginView
 mkLoginView :: Typeable db => ((String,String) -> EditM db ()) -> WebViewM db (WebView db)
 mkLoginView successAction = mkWebView $
   \vid (LoginView name password b) ->
@@ -229,7 +230,7 @@ instance MapWebView db (MaybeView db) where
   mapWebView (MaybeView a b) = MaybeView <$> mapWebView a <*> mapWebView b
  
 -- TODO: do we want to offer the vid also to mWebViewM? (which will then have type ViewId -> WebViewM db (Maybe (WebView db)))
-mkMaybeView :: String -> Typeable db => WebViewM db (Maybe (WebView db)) -> WebViewM db (WebView db)
+mkMaybeView :: Typeable db => String -> WebViewM db (Maybe (WebView db)) -> WebViewM db (WebView db)
 mkMaybeView nothingStr mWebViewM = mkWebView $
  \vid (MaybeView _ _) ->
    do { mWebView <- mWebViewM
@@ -321,7 +322,7 @@ compare the latter with dummy arguments, and would have to compare the Html for 
 TODO: 
     -- don't use ByteString instead of show and string for comparing Html
 -}
-newtype Wrapped = Wrapped ([Html] -> Html)
+newtype Wrapped = Wrapped ([Html] -> Html) deriving Typeable
 
 instance Eq Wrapped where
   (==) = error "no == for Wrapped" -- todo: maybe just false?
@@ -333,9 +334,6 @@ instance Initial Wrapped where
   initial = error "no initial for Wrapped"
 
 instance MapWebView db Wrapped
-
-instance Typeable Wrapped where
-  typeOf _ = mkTyConApp (mkTyCon3 "WebViews" "WebViewLib" "Wrapped") []
   
 data PresentView db = PresentView Wrapped [WebView db] deriving (Show, Typeable)
 

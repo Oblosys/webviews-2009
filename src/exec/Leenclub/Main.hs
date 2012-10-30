@@ -105,7 +105,7 @@ showName lender = get lenderFirstName lender ++ " " ++ get lenderLastName lender
 
 
 
-data Inline = Inline | Full deriving (Eq, Show, Typeable)
+data Inline = Inline | Full deriving (Eq, Show)
 
 isInline Inline = True
 isInline Full   = False
