@@ -634,7 +634,10 @@ instance Presentable LeenclubPageView where
   present (LeenclubPageView user menuItemLabel logoutAction wv) =
     -- imdb: background-color: #E3E2DD; background-image: -moz-linear-gradient(50% 0%, #B3B3B0 0px, #E3E2DD 500px);  
     mkPage [thestyle $ gradientStyle (Just 500) "#444" {- "#B3B3B0" -} "#E3E2DD"  ++ " font-family: arial"] $ 
-      vList [ with [style "font-size: 50px; color: #ddd"] "Leenclub.nl"
+      vList [ (div_ ! style "float: left; font-size: 50px; color: #ddd" $ "Leenclub.nl") +++
+              case user of 
+                 Nothing        -> noHtml
+                 Just (login,_) -> div_ ! style "float: right; margin-top:35px; color: #ddd" $ "Ingelogd als "+++ (span_ ! style "color: white" $ toHtml login)
             --, present loginOutView
             , div_ ! thestyle "border: 1px solid black; background-color: #f0f0f0; box-shadow: 0 0 8px rgba(0, 0, 0, 0.7);" $ 
                 vList [ hStretchList (map (E . highlightItem) leftMenuItems ++ [space] ++ map (E . highlightItem) rightMenuItems)
