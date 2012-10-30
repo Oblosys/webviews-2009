@@ -57,25 +57,25 @@ data FormElt = HtmlElt String
              | StyleElt String FormElt
              | TableElt String Bool Bool Bool [TableRow] -- because elts are in other web view, they cannot set the table cell's
                                                    -- background color, so we need to specify headers explicitly.
-   deriving (Show, Typeable, Data)
+   deriving Show
 
 type TableRow = [FormElt]
 
 data RadioAnswer = RadioAnswer { getRadioQuestionTag :: QuestionTag, getRadioAnswers :: [String] }
-   deriving (Eq, Show, Typeable, Data)
+   deriving (Eq, Show)
 
 data RadioTextAnswer = RadioTextAnswer { getRadioTextRadioQuestionTag :: QuestionTag, getRadioTextTextQuestionTag :: QuestionTag, getRadioTextAnswers :: [String] 
                                        , getRadioTextValidate :: String -> Bool -- TODO: maybe use data Correct / Incorrect String to provide hints/error messages 
                                        }
-   deriving (Show, Typeable, Data)
+   deriving Show
 
 data ButtonAnswer = ButtonAnswer { getButtonQuestionTag :: QuestionTag, getButtonAnswers :: [String] }
-   deriving (Eq, Show, Typeable, Data)
+   deriving (Eq, Show)
 
 data TextAnswer = TextAnswer { getTextQuestionTag :: QuestionTag
                              , getTextValidate :: String -> Bool -- TODO: maybe use data Correct / Incorrect String to provide hints/error messages 
                              } 
-   deriving (Show, Typeable, Data)
+   deriving Show
 
 deriveInitial ''FormElt
 instance MapWebView Database FormElt
@@ -259,7 +259,7 @@ mkVignette vt =
 
 
 newtype NoPresent a = NoPresent a
-{- Wraps a type to provide Eq,Show, Initial, MapWebView, Typeable, and Data instances (which should not be evaluated).
+{- Wraps a type to provide Eq,Show, Initial, MapWebView instances (which should not be evaluated).
    We can use it to put state in webviews.
     
 -}
@@ -275,22 +275,10 @@ instance Initial (NoPresent a) where
 
 instance MapWebView db (NoPresent a)
 
-instance Typeable (NoPresent a) where
-  typeOf _ = mkTyConApp (mkTyCon3 "WebViews" "Main" "Wrapped") []
-  
-instance Data (NoPresent a) where
-  gfoldl k z x@(NoPresent a) = error "NoPresent used in presentation (gfoldl)"
-  gunfold k z c = error "NoPresent used in presentation (gunfold)"
-     
-  toConstr (NoPresent _) = error "NoPresent used in presentation (toConstr)"
- 
-  dataTypeOf _ = error "NoPresent used in presentation (dataTypeOf)"
-  
-
 
 ------- WebViews form
 
-data Answered = Unanswered | Invalid | Answered deriving (Eq, Show, Typeable, Data)
+data Answered = Unanswered | Invalid | Answered deriving (Eq, Show)
 
 instance Initial Answered where
   initial = Unanswered
@@ -306,7 +294,7 @@ withAnswerClass answerType answered = with [strAttr "AnswerType" answerType, str
 --------- RadioAnswerView ------------------------------------------------------------
 
 data RadioAnswerView = RadioAnswerView RadioAnswer Answered (Widget (RadioView Database)) String
-   deriving (Eq, Show, Typeable, Data)
+   deriving (Eq, Show, Typeable)
 
 deriveInitial ''RadioAnswerView
 deriveMapWebViewDb ''Database ''RadioAnswerView
@@ -343,7 +331,7 @@ instance Storeable Database RadioAnswerView where
 data RadioTextAnswerView = 
        RadioTextAnswerView String String [String] Answered (Widget (RadioView Database)) (Widget (TextView Database))
                            (NoPresent (String -> Bool)) String         
-   deriving (Eq, Show, Typeable, Data)
+   deriving (Eq, Show, Typeable)
 
 deriveInitial ''RadioTextAnswerView
 deriveMapWebViewDb ''Database ''RadioTextAnswerView
@@ -396,7 +384,7 @@ instance Storeable Database RadioTextAnswerView where
 --------- ButtonAnswerView ------------------------------------------------------------
 
 data ButtonAnswerView = ButtonAnswerView ButtonAnswer Answered [WebView Database] String
-   deriving (Eq, Show, Typeable, Data)
+   deriving (Eq, Show, Typeable)
 
 
 deriveInitial ''ButtonAnswerView
@@ -428,7 +416,7 @@ instance Storeable Database ButtonAnswerView
 --------- TextAnswerView ------------------------------------------------------------
 
 data TextAnswerView = TextAnswerView String Answered (Widget (TextView Database)) (NoPresent (String -> Bool)) String
-   deriving (Eq, Show, Typeable, Data)
+   deriving (Eq, Show, Typeable)
 
 
 deriveInitial ''TextAnswerView
@@ -468,7 +456,7 @@ instance Storeable Database TextAnswerView where
 
 
 data StyleView = StyleView String (WebView Database)
-   deriving (Eq, Show, Typeable, Data)
+   deriving (Eq, Show, Typeable)
 
 deriveInitial ''StyleView
 deriveMapWebViewDb ''Database ''StyleView
@@ -488,7 +476,7 @@ instance Storeable Database StyleView
 
 
 data TableView = TableView String Bool Bool Bool [[WebView Database]]
-   deriving (Eq, Show, Typeable, Data)
+   deriving (Eq, Show, Typeable)
 
 deriveInitial ''TableView
 deriveMapWebViewDb ''Database ''TableView
@@ -542,7 +530,7 @@ mkViewFormElt (TableElt classTag border topHeader leftHeader rows) =
 
 data FormPageView = 
   FormPageView [WebView Database] String
-    deriving (Eq, Show, Typeable, Data)
+    deriving (Eq, Show, Typeable)
 
 deriveInitial ''FormPageView
 
@@ -567,7 +555,7 @@ instance Storeable Database FormPageView
 
 data FormView = 
   FormView Bool Int Int (Widget (Button Database)) (Widget (Button Database)) (Widget (Button Database)) (Widget (Button Database)) (WebView Database)
-    deriving (Eq, Show, Typeable, Data)
+    deriving (Eq, Show, Typeable)
 
 deriveInitial ''FormView
 
