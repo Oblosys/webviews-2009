@@ -102,16 +102,17 @@ showWebNodeMap wnmap = unlines [ "<"++show k++":"++shallowShowWebNode wn++">"
 
 {- Unchanged nodes that keep the same viewId are efficiently reused, so we should try to keep viewIds
    as constant as possible. 
+   Note the difference between ViewId (identifies webnode in Haskell) and Id (identifies position in DOM)
 -}           
 computeMove :: forall db . Data db => WebNodeMap db -> [ViewId] -> WebNode db -> [Update]
 computeMove oldWebNodeMap changedOrNewWebNodes webNode =  
   if getWebNodeViewId webNode `notElem` changedOrNewWebNodes 
-  then -- parent has not changed, so we move to the oldChildWebNode in the old parent
+  then -- parent has not changed, so we restore the move to the oldChildWebNode in the old parent
        let Just oldWebNode = Map.lookup (getWebNodeViewId webNode) oldWebNodeMap 
        in  [RestoreId (mkRef $ getWebNodeId webNode) (mkRef $ getWebNodeId oldWebNode)] ++
            -- restore id's for parent
            concat
-           [ if childViewId `notElem` changedOrNewWebNodes 
+           [ if childViewId `notElem` changedOrNewWebNodes -- note that this child will have its id restored by a subsequent computeMove
              then if childViewId == oldChildViewId 
                   then [] -- same child, which hasn't changed, so do nothing
                   else -- different child, but it hasn't changed, so we move it from its old location to here
@@ -151,8 +152,12 @@ computeMove oldWebNodeMap changedOrNewWebNodes webNode =
            , childWebNode <- --trace ("\nchildren for "++(show $ getWebNodeViewId webNode) ++ 
                              --        ":" ++ show (map shallowShowWebNode childWebNodes)) $ 
                                childWebNodes
+           , isPresentedNode childWebNode -- don't generate moves for nodes that have no presentation
            , let childViewId = getWebNodeViewId childWebNode
            ]
+       
+isPresentedNode (WidgetNode _ _ _ w) = hasPresentation w
+isPresentedNode (WebViewNode _)      = True
        
 
 

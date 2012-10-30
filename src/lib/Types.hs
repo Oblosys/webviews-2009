@@ -112,6 +112,11 @@ data AnyWidget db = LabelWidget !(LabelView db)
                   | EditActionWidget !(EditAction db) -- TODO: not really a widget, but until we know what it is, or what we should call widget, it is here
                     deriving (Eq, Show, Typeable, Data)
 
+hasPresentation :: AnyWidget db -> Bool
+hasPresentation (EditActionWidget _) = False -- EditActionWidgets have no presentation, so the incrementality algorithm won't create moves for them.
+                                             -- They are also not instance of Present, so they cannot be presented. Instead, they stay completely in the Haskell world.
+hasPresentation _                    = True
+
 -- Label
 
 -- does not have a html counterpart. It is just a div with a view id that contains a string element
