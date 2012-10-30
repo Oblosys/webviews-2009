@@ -49,7 +49,6 @@ Library
                   fclabels >=1.1
   ghc-options: 
   extensions: 
-              DeriveDataTypeable, 
               ExistentialQuantification, 
               OverloadedStrings, 
               PatternGuards, 
@@ -128,7 +127,6 @@ Executable webforms
 
   GHC-Options: 
   Extensions: 
-              DeriveDataTypeable, 
               ExistentialQuantification, 
               OverloadedStrings, 
               PatternGuards, 
@@ -160,7 +158,6 @@ Executable leenclub
 
   GHC-Options: 
   Extensions: 
-              DeriveDataTypeable, 
               ExistentialQuantification, 
               OverloadedStrings, 
               PatternGuards, 

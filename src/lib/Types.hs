@@ -47,7 +47,7 @@ data Command = Init       String [(String,String)] -- rootView args    http://we
 -- view id's are for identifying views and widgets with regard to incrementality
 -- they remain constant over the view's/widget's life
 -- for now, we assign them at mkView
-newtype ViewId = ViewId [Int] deriving (Eq, Ord, Typeable, Data)
+newtype ViewId = ViewId [Int] deriving (Eq, Ord, Typeable)
 
 unViewId  (ViewId pth) = pth -- not defined as a field, since ViewId's are now simply showed to get javascript id's, and we don't
                              -- want them to look like ... id = "ViewID {unViewId = [..]}" 
@@ -79,16 +79,16 @@ mkHtmlViewIdVal :: ViewId -> AttributeValue
 mkHtmlViewIdVal vid = toValue $ show vid
 
 
-newtype Id = Id { unId :: Int } deriving (Show, Eq, Ord, Data, Typeable)
+newtype Id = Id { unId :: Int } deriving (Show, Eq, Ord, Typeable)
 
 noId = Id (-1)
 
 
 -- refs are different type, because they may be part of view tree, and SYB id assignment functions 
 -- should not affect them
-newtype ViewIdRef = ViewIdRef [Int] deriving (Show, Eq, Ord, Data, Typeable)
+newtype ViewIdRef = ViewIdRef [Int] deriving (Show, Eq, Ord, Typeable)
 
-newtype IdRef = IdRef Int deriving (Show, Eq, Ord, Data, Typeable)
+newtype IdRef = IdRef Int deriving (Show, Eq, Ord, Typeable)
 
 mkViewRef (ViewId i) = ViewIdRef i
 
@@ -97,7 +97,7 @@ mkRef (Id i) = IdRef i
 ----- Widgets
 
 data Widget w = Widget { getWidgetStubId :: Id, getWidgetId :: Id, getWidgetWidget :: w }
-              deriving (Show, Typeable, Data)
+              deriving (Show, Typeable)
                        
 instance Eq (Widget w) where
   w1 == w2 = True
@@ -110,7 +110,7 @@ data AnyWidget db = LabelWidget !(LabelView db)
                   | ButtonWidget !(Button db)
                   | JSVarWidget !(JSVar db) -- TODO: not really a widget, but until we know what it is, or what we should call widget, it is here 
                   | EditActionWidget !(EditAction db) -- TODO: not really a widget, but until we know what it is, or what we should call widget, it is here
-                    deriving (Eq, Show, Typeable, Data)
+                    deriving (Eq, Show, Typeable)
 
 hasPresentation :: AnyWidget db -> Bool
 hasPresentation (EditActionWidget _) = False -- EditActionWidgets have no presentation, so the incrementality algorithm won't create moves for them.
@@ -120,7 +120,7 @@ hasPresentation _                    = True
 -- Label
 
 -- does not have a html counterpart. It is just a div with a view id that contains a string element
-data LabelView db = LabelView { getLabelViewId :: ViewId, getLabelText :: String, getLabelStyle :: String } deriving (Show, Typeable, Data)
+data LabelView db = LabelView { getLabelViewId :: ViewId, getLabelText :: String, getLabelStyle :: String } deriving (Show, Typeable)
 -- the db is only so we can declare instances (w db) for all widget types
 
 instance Eq (LabelView db) where
@@ -133,10 +133,10 @@ labelViewWidget viewId txt style = Widget noId noId $ LabelView viewId txt style
 
 -- todo rename Str stuff in Text
 
-data TextType = TextField | PasswordField | TextArea deriving (Eq, Show, Typeable, Data)
+data TextType = TextField | PasswordField | TextArea deriving (Eq, Show, Typeable)
 
 data TextView db = TextView { getTextViewId :: ViewId, getTextType :: TextType, getTextStrVal :: String
-                            , getTextEnabled :: Bool, getTextStyle :: String, getTextChange :: Maybe (String -> EditM db ()), getTextSubmit :: Maybe (EditM db ()) } deriving ( Show, Typeable, Data)
+                            , getTextEnabled :: Bool, getTextStyle :: String, getTextChange :: Maybe (String -> EditM db ()), getTextSubmit :: Maybe (EditM db ()) } deriving ( Show, Typeable)
 
 instance Eq (TextView db) where
   TextView _ t1 str1 enabled1 style1 _ _ == TextView _ t2 str2 enabled2 style2 _ _ =
@@ -175,7 +175,7 @@ instance HasSelection v => HasSelection (Widget v) where
 
 data RadioView db = RadioView { getRadioViewId :: ViewId, getItems :: [String], getRadioSelection :: Int 
                               , getRadioEnabled :: Bool, getRadioStyle :: String, getRadioChange :: Maybe (Int -> EditM db ())
-                              } deriving (Show, Typeable, Data)
+                              } deriving (Show, Typeable)
    
 instance Eq (RadioView db) where
   RadioView _ items1 int1 enabled1 style1 _ == RadioView _ items2 int2 enabled2 style2 _ =
@@ -193,7 +193,7 @@ radioViewWidget viewId its i enabled style mChangeAction = Widget noId noId $ Ra
 
 data SelectView db = SelectView { getSelectViewId :: ViewId, getSelectItems :: [String], getSelectSelection :: Int 
                                 , getSelectEnabled :: Bool, getSelectStyle :: String, getSelectChange :: Maybe (Int -> EditM db ())
-                                } deriving (Show, Typeable, Data)
+                                } deriving (Show, Typeable)
 
 instance Eq (SelectView db) where
   SelectView _ items1 int1 enabled1 style1 _ == SelectView _ items2 int2 enabled2 style2 _ =
@@ -212,7 +212,7 @@ selectViewWidget viewId its i enabled style mChangeAction = Widget noId noId $ S
 data Button db = Button { getButtonViewId :: ViewId, buttonText :: String
                         , getButtonEnabled :: Bool, getButtonStyle :: String, getButtonOnClick :: String 
                         , getButtonCommand :: EditM db () 
-                        } deriving (Show, Typeable, Data)
+                        } deriving (Show, Typeable)
 
 instance Eq (Button db) where
   Button _ txt1 enabled1 style1 onclick1 _ == Button _ txt2 enabled2 style2 onclick2 _ =
@@ -224,7 +224,7 @@ buttonWidget viewId txt enabled style onclick cmd = Widget noId noId $ Button vi
 
 -- JSVar
 
-data JSVar db = JSVar { getJSVarViewId :: ViewId, getJSVarName :: String, getJSVarValue_ :: String } deriving (Show, Typeable, Data)
+data JSVar db = JSVar { getJSVarViewId :: ViewId, getJSVarName :: String, getJSVarValue_ :: String } deriving (Show, Typeable)
 -- the db is only so we can declare instances (w db) for all widget types
 
 instance Eq (JSVar db) where
@@ -241,7 +241,7 @@ getJSVarValue (Widget _ _ jsv) = getJSVarValue_ jsv
 
 data EditAction db = EditAction { getEditActionViewId :: ViewId
                                 , getEditActionCommand :: [String] -> EditM db () -- edit actions can get parameters when executed from javascript 
-                                } deriving (Show, Typeable, Data)
+                                } deriving (Show, Typeable)
 
 instance Eq (EditAction db) where
   EditAction _ _ == EditAction _ _ = True
@@ -330,7 +330,7 @@ type WebNodeMap db = Map.Map ViewId (WebNode db)
 -- TODO: why are stub id and id inside WebView instead of in WebViewNode?
 data WebNode db = WebViewNode (WebView db)
                 | WidgetNode  ViewId Id Id (AnyWidget db) -- ViewId StubId Id 
-                  deriving (Show, Typeable, Data)
+                  deriving (Show, Typeable)
 
 
 instance Eq (WebNode db) where
@@ -346,9 +346,8 @@ instance Eq (WebNode db) where
 type ViewMap db = Map.Map ViewId (WebView db)
 
 -- no class viewable, because mkView has parameters
-data WebView db = forall view . ( Data (StateT (WebViewState db) IO view) 
-                                , Initial view, Presentable view, Storeable db view
-                                , Show view, Eq view, Data view, MapWebView db view) => 
+data WebView db = forall view . ( Initial view, Presentable view, Storeable db view
+                                , Show view, Eq view, Typeable view, MapWebView db view) => 
                                 WebView !ViewId !Id !Id (ViewId -> view -> WebViewM db view) !view
                              
                deriving Typeable
@@ -359,30 +358,6 @@ data WebView db = forall view . ( Data (StateT (WebViewState db) IO view)
 -- id is there for manipulating the dhtml trees. id's will be assigned automatically
 -- why was this one existential again?
 
-
--- gunfold seems impossible! (maybe we don't need it)
--- recipe from this instance is from Data.Generics documentation
-instance (Data db, Typeable db) => Data (WebView db) where
-  gfoldl k z (WebView vi si i f v) = z WebView `k` vi `k` si `k` i `k` f `k` v
-     
-  gunfold k z c = error "gunfold not defined for WebView"
-     
-  toConstr (WebView _ _ _ _ _) = con_WebView 
-  dataTypeOf _ = ty_WebView
-
-ty_WebView = mkDataType "Types.WebView" [con_WebView] 
-con_WebView = mkConstr ty_WebView "WebView" [] Prefix
-
-instance (Data state, Typeable state, Typeable x) =>Data (StateT state IO x) where
-  gfoldl k z (StateT x) = z StateT `k` x
-  gunfold k z c = error "gunfold not defined for StateT"
-     
-  toConstr (StateT _) = con_StateT 
-  dataTypeOf _ = ty_StateT
-  
-  
-ty_StateT = mkDataType "Control.Monad.StateT" [con_StateT]
-con_StateT = mkConstr ty_StateT "StateT" [] Prefix
 
 instance Show (WebView db) where
   show (WebView (ViewId i) _ _ _ v) = "<" ++ show i ++ ":" ++ show v ++ ">"
@@ -445,6 +420,9 @@ instance Initial Float where
 instance Initial Double where
   initial = 0.0
 
+instance Initial Html where
+  initial = noHtml
+
 instance Initial w => Initial (Widget w) where
   initial = Widget noId noId initial
   
@@ -469,7 +447,7 @@ instance Initial (JSVar db) where
 instance Initial (EditAction db) where
   initial = EditAction noViewId (const $ return ())  
 
-instance Data db => Initial (WebView db) where
+instance Initial (WebView db) where
   initial = WebView (ViewId []) noId noId (\_ _ -> return ()) ()
 
 -- Alternative Generics method
@@ -580,6 +558,9 @@ instance MapWebView db Int
 
 instance MapWebView db Double
 
+instance MapWebView db Html
+
+
 
 -- We could make this an instance of Applicative, but there don't seem to be many advantages (yet).
 type F fns s a = fns -> s -> (a,s)
@@ -602,7 +583,7 @@ data WebViewState db =
                , getWVStatePath :: [Int], getWVStateViewIdCounter :: Int 
                , getWVStateSessionId :: SessionId -- not sure we really need the session ID here, but it doesn't do any harm
                , getWVStateHashArgs :: HashArgs
-               } deriving (Typeable, Data)
+               } deriving (Typeable)
 
 type WebViewM db a = StateT (WebViewState db) IO a
 
@@ -615,7 +596,7 @@ data SessionState db = SessionState { getSStateSessionId :: SessionId
                                     , getSStateRootView :: WebView db
                                     , getSStateDialogCommands :: Maybe [Maybe (EditM db ())]
                                     , getSStateHashArgs :: HashArgs
-                                    } deriving (Typeable, Data) 
+                                    } deriving (Typeable) 
                      
 type SessionStateRef db = IORef (SessionState db)
 
@@ -627,14 +608,7 @@ data EditState db = EditState { getEStateAllUsers :: Map String (String, String)
                               , getEStateRootView :: WebView db
                               , getEStateScriptLines :: [String]
                               , getEStateDialog :: Maybe (Html ,[(String, Maybe (EditM db ()))])
-                              } deriving (Typeable, Data)
-                              
-instance Data Html -- TODO: can be removed once we completely discard old SYB generics
-
-instance Initial Html where
-  initial = noHtml
-
-instance MapWebView db Html
+                              } deriving (Typeable)
 
 
 type EditM db = StateT (EditState db) IO 

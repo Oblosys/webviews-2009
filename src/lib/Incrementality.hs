@@ -38,7 +38,7 @@ isMove (Move _ _ _) = True
 isMove _          = False
 
 
-mkIncrementalUpdates :: forall db . Data db => WebView db -> WebView db -> IO ([Html], WebView db)
+mkIncrementalUpdates :: forall db . WebView db -> WebView db -> IO ([Html], WebView db)
 mkIncrementalUpdates oldRootView rootView =
  do { let (newWebNodes :: [WebNode db], updates) = diffViews oldRootView rootView
     --; putStrLn $ "\nChanged or new web nodes\n" ++ unlines (map shallowShowWebNode newWebNodes) 
@@ -68,7 +68,7 @@ mkIncrementalUpdates oldRootView rootView =
 
 -- TODO: no need to compute new or changed first, can be put in Update list
 --       do have to take into account addChangedViewChildren then
-diffViews :: Data db => WebView db -> WebView db -> ([WebNode db], [Update])
+diffViews :: WebView db -> WebView db -> ([WebNode db], [Update])
 diffViews oldRootView rootView = 
   let newWebNodeMap = mkWebNodeMap rootView
       oldWebNodeMap = mkWebNodeMap oldRootView
@@ -78,7 +78,7 @@ diffViews oldRootView rootView =
     ( newOrChangedWebNodes
     , computeMoves oldRootView oldWebNodeMap newOrChangedWebNodeIds rootView)
 
-getNewOrChangedIdsWebNodes :: Data db => WebNodeMap db -> WebNodeMap db -> [(ViewId, WebNode db)]
+getNewOrChangedIdsWebNodes :: WebNodeMap db -> WebNodeMap db -> [(ViewId, WebNode db)]
 getNewOrChangedIdsWebNodes oldWebNodeMap newWebNodeMap =
   --trace ("newWebNodeMap: "++ show (Map.keys newWebNodeMap))$
   filter isNewOrChanged $ Map.toList newWebNodeMap
@@ -87,7 +87,7 @@ getNewOrChangedIdsWebNodes oldWebNodeMap newWebNodeMap =
            Nothing -> True
            Just oldWebNode -> oldWebNode /= webNode
           
-computeMoves :: Data db => WebView db -> WebNodeMap db -> [ViewId] -> WebView db -> [Update]           
+computeMoves :: WebView db -> WebNodeMap db -> [ViewId] -> WebView db -> [Update]           
 computeMoves oldRootViewrootView@(WebView _ _ oldRootId _ _) 
              oldWebNodeMap changedOrNewWebNodes rootView@(WebView rootVid stubId rootId _ _) = 
   (if rootVid `elem` changedOrNewWebNodes 
@@ -104,7 +104,7 @@ showWebNodeMap wnmap = unlines [ "<"++show k++":"++shallowShowWebNode wn++">"
    as constant as possible. 
    Note the difference between ViewId (identifies webnode in Haskell) and Id (identifies position in DOM)
 -}           
-computeMove :: forall db . Data db => WebNodeMap db -> [ViewId] -> WebNode db -> [Update]
+computeMove :: forall db . WebNodeMap db -> [ViewId] -> WebNode db -> [Update]
 computeMove oldWebNodeMap changedOrNewWebNodes webNode =  
   if getWebNodeViewId webNode `notElem` changedOrNewWebNodes 
   then -- parent has not changed, so we restore the move to the oldChildWebNode in the old parent

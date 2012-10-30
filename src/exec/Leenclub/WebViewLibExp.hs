@@ -6,7 +6,7 @@ module WebViewLibExp where
    Keeping them here during development prevents having to recompile the library on every change. 
 -}
 
-import Data.Generics
+import Data.Generics hiding (Data)
 import Data.List
 import Data.Function (on)
 import Types
@@ -28,7 +28,7 @@ class TaggedPresent tag args where
   
   
 
-data SortDefaultPresent = SortDefaultPresent deriving (Show,Eq,Data,Typeable)
+data SortDefaultPresent = SortDefaultPresent deriving (Show,Eq,Typeable)
 
 instance MapWebView db SortDefaultPresent
 instance Initial SortDefaultPresent where
@@ -46,22 +46,22 @@ instance TaggedPresent SortDefaultPresent (Widget (SelectView db), Widget (Selec
 
 data SortView tag db = 
   SortView tag (Widget (SelectView db)) (Widget (SelectView db)) [WebView db]  
-    deriving (Eq, Show, Typeable, Data)
+    deriving (Eq, Show, Typeable)
 
 -- no derive Initial/MapWebView functions for parameterized types yet, so we specify manual instances
-instance (Initial tag, Data tag, Data db) => Initial (SortView tag db) where
+instance (Initial tag) => Initial (SortView tag db) where
   initial = SortView initial initial initial initial
 instance MapWebView db tag => MapWebView db (SortView tag db) where
   mapWebView (SortView tag wv1 wv2 wvs)  = SortView <$> mapWebView tag <*> mapWebView wv1 <*> mapWebView wv2 <*> mapWebView wvs 
 
-instance Data db => Storeable db (SortView tag db)
+instance Storeable db (SortView tag db)
 
-mkSortView :: (Data db) => [(String, a->a->Ordering)] -> (a-> WebViewM db (WebView db)) -> [a] -> WebViewM db (WebView db)
+mkSortView :: Typeable db => [(String, a->a->Ordering)] -> (a-> WebViewM db (WebView db)) -> [a] -> WebViewM db (WebView db)
 mkSortView = mkSortViewEx SortDefaultPresent
 
 -- [("sorteer oplopend", id), ("sorteer aflopend", reverse)]
 -- [("Sorteer op naam", 
-mkSortViewEx :: (TaggedPresent tag (Widget (SelectView db), Widget (SelectView db), [WebView db]), Eq tag, Data tag, Show tag, Initial tag, Data db, MapWebView db tag) =>
+mkSortViewEx :: (Typeable db, TaggedPresent tag (Widget (SelectView db), Widget (SelectView db), [WebView db]), Eq tag, Show tag, Typeable tag, Initial tag, MapWebView db tag) =>
               tag -> [(String, a->a->Ordering)] -> (a-> WebViewM db (WebView db)) -> [a] -> WebViewM db (WebView db)
 mkSortViewEx tag namedSortFunctions mkResultWV results = mkWebView $
   \vid oldView@(SortView _ sortFieldSelectOld sortOrderSelectOld _) ->
@@ -85,15 +85,15 @@ instance TaggedPresent tag (Widget (SelectView db), Widget (SelectView db), [Web
 
 data SearchView db = 
   SearchView String (Widget (TextView db)) (Widget (Button db)) (WebView db) String 
-    deriving (Eq, Show, Typeable, Data)
+    deriving (Eq, Show, Typeable)
 
-instance Data db => Initial (SearchView db) where
+instance Initial (SearchView db) where
   initial = SearchView initial initial initial initial initial
 
-instance Data db =>  MapWebView db (SearchView db) where
+instance  MapWebView db (SearchView db) where
   mapWebView (SearchView a b c d e) = SearchView <$> mapWebView a <*> mapWebView b <*> mapWebView c <*> mapWebView d <*> mapWebView e
 
-instance Data db => Storeable db (SearchView db)
+instance Storeable db (SearchView db)
 
 -- todo: different languages 
 mkSearchView label argName resultsf = mkWebView $
@@ -151,12 +151,12 @@ con_Function = mkConstr ty_WebView "Function" [] Prefix
 -}
 -- non-optimal way to show editable properties. The problem is that the update specified is not a view update but a database update.
 data Property db a = EditableProperty (Either Html (PropertyWidget db))
-                   | StaticProperty Html deriving (Eq, Show, Typeable, Data)
+                   | StaticProperty Html deriving (Eq, Show, Typeable)
 
 -- We want to put properties in a list, so an extra parameter for the widget is not an option.
 -- We could use an existential, but then deriving instances won't work anymore, so for now we use an explicit sum type.
 data PropertyWidget db = PropertyTextView (Widget (TextView db))
-                       | PropertySelectView (Widget (SelectView db)) deriving (Eq, Show, Typeable, Data)
+                       | PropertySelectView (Widget (SelectView db)) deriving (Eq, Show, Typeable)
                     
   
 instance Initial (Property db a) where
@@ -175,7 +175,7 @@ want to commit all textfields immediately to the database. Maybe save could be p
 to save again after performing the viewEdit in save?) or we could add an edit action to text fields (not the commit action, but
 a blur action) -}
 -- not a web view, but it is an instance of Presentable
-mkEditableProperty :: (Data db, Show v, Data v, Data a) => 
+mkEditableProperty :: (Show v, Typeable v) => 
                       ViewId -> Bool -> (v :-> Maybe a) -> (a :-> p) ->
                       (p -> String) -> (String -> Maybe p) -> (p -> Html) -> a -> 
                       WebViewM db (Property db a)
@@ -193,7 +193,7 @@ mkEditableProperty vid editing objectLens valueLens presStr parseStr pres orgObj
     ; return $ EditableProperty eValue
     }
 
-mkEditableSelectProperty :: (Data db, Show v, Data v, Data a) => ViewId -> Bool -> (v :-> Maybe a) -> (a :-> p) ->
+mkEditableSelectProperty :: (Show v, Typeable v) => ViewId -> Bool -> (v :-> Maybe a) -> (a :-> p) ->
                             (p -> String) -> (p -> Html) -> [p] -> a ->
                             WebViewM db (Property db a)
 mkEditableSelectProperty vid editing objectLens valueLens presStr pres propVals orgObj =

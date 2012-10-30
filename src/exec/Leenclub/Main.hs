@@ -4,7 +4,7 @@ module Main where
 
 import Data.List
 import BlazeHtml
-import Data.Generics
+import Data.Generics hiding (Data)
 import Data.Char hiding (Space)
 import Data.Function (on)
 import Data.Maybe
@@ -105,7 +105,7 @@ showName lender = get lenderFirstName lender ++ " " ++ get lenderLastName lender
 
 
 
-data Inline = Inline | Full deriving (Eq, Show, Typeable, Data)
+data Inline = Inline | Full deriving (Eq, Show, Typeable)
 
 isInline Inline = True
 isInline Full   = False
@@ -117,7 +117,7 @@ instance MapWebView Database Inline
 -- TODO: maybe distance
 data ItemView = 
   ItemView Inline Double Item (Maybe Item) Lender (Widget (Button Database)) (Maybe Lender) [(String,Property Database Item)] [Widget (Button Database)]
-    deriving (Eq, Show, Typeable, Data)
+    deriving (Eq, Show, Typeable)
 
 instance Initial LenderId where
   initial = LenderId "_uninitializedId_"
@@ -331,7 +331,7 @@ rootViewLink rootViewName html = a ! (href $ (toValue $ "/#" ++ rootViewName)) <
 
 
 
-data LeenclubLoginOutView = LeenclubLoginOutView (WebView Database) deriving (Eq, Show, Typeable, Data)
+data LeenclubLoginOutView = LeenclubLoginOutView (WebView Database) deriving (Eq, Show, Typeable)
 
 deriveInitial ''LeenclubLoginOutView
 
@@ -371,7 +371,7 @@ data LenderView =
   LenderView Inline User Lender (Maybe Lender) {- [Property Lender] -} [(String,Property Database Lender)]  [(String,Property Database Lender)]
              --(Maybe (Widget (TextView Database, TextView Database)))
              [WebView Database] [Widget (Button Database)] [Widget (Button Database)]
-    deriving (Eq, Show, Typeable, Data)
+    deriving (Eq, Show, Typeable)
 
  -- todo: edit button in Inline/Full datatype?                  
 
@@ -513,7 +513,7 @@ getExtraProps vid isEdited lender = sequence
 -}
 data ItemsRootView = 
   ItemsRootView (WebView Database)
-    deriving (Eq, Show, Typeable, Data)
+    deriving (Eq, Show, Typeable)
 
 deriveInitial ''ItemsRootView
 
@@ -545,7 +545,7 @@ instance Presentable ItemsRootView where
 
     
 data LendersRootView = LendersRootView (WebView Database)
-    deriving (Eq, Show, Typeable, Data)
+    deriving (Eq, Show, Typeable)
 
 deriveInitial ''LendersRootView
 
@@ -586,7 +586,7 @@ mkLenderRootView = mkMaybeView "Onbekende lener" $
 
 
 data BorrowedRootView = BorrowedRootView [WebView Database]  [WebView Database]
-    deriving (Eq, Show, Typeable, Data)
+    deriving (Eq, Show, Typeable)
 
 deriveInitial ''BorrowedRootView
 
@@ -611,7 +611,7 @@ instance Presentable BorrowedRootView where
     vList (map present lended)
 
 -- unnecessary at the moment, as the page has no controls of its own
-data LeenclubPageView = LeenclubPageView User String (Widget (EditAction Database)) (WebView Database) deriving (Eq, Show, Typeable, Data)
+data LeenclubPageView = LeenclubPageView User String (Widget (EditAction Database)) (WebView Database) deriving (Eq, Show, Typeable)
 
 deriveInitial ''LeenclubPageView
 
@@ -671,7 +671,7 @@ mkHomeView = mkHtmlTemplateView "LeenclubWelcome.html" []
 data TestView = 
   TestView Int (Widget (RadioView Database)) (Widget (Button Database)) (Widget (TextView Database)) (WebView Database) (WebView Database)
            (Widget (LabelView Database)) (Widget (TextView Database))
-    deriving (Eq, Show, Typeable, Data)
+    deriving (Eq, Show, Typeable)
 
 deriveInitial ''TestView
 
@@ -722,7 +722,7 @@ instance Storeable Database TestView
 data TestView2 = 
   TestView2 (Widget (EditAction Database)) (Widget (RadioView Database)) (Widget (TextView Database))
            String String 
-    deriving (Eq, Show, Typeable, Data)
+    deriving (Eq, Show, Typeable)
 
 deriveInitial ''TestView2
 

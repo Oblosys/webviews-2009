@@ -16,14 +16,14 @@ import WebViewPrim
 -- Login -----------------------------------------------------------------------  
 
 data LoginView db = LoginView (Widget (TextView db)) (Widget (TextView db)) (Widget (Button db)) 
-  deriving (Eq, Show, Typeable, Data)
+  deriving (Eq, Show, Typeable)
 
 instance Initial (LoginView db) where initial = LoginView initial initial initial
 
-instance Data db => MapWebView db (LoginView db) where
+instance MapWebView db (LoginView db) where
   mapWebView (LoginView a b c) = LoginView <$> mapWebView a <*> mapWebView b <*> mapWebView c
 
-mkLoginView :: Data db => ((String,String) -> EditM db ()) -> WebViewM db (WebView db)
+mkLoginView :: Typeable db => ((String,String) -> EditM db ()) -> WebViewM db (WebView db)
 mkLoginView successAction = mkWebView $
   \vid (LoginView name password b) ->
 #if __GLASGOW_HASKELL__ >= 612
@@ -62,14 +62,14 @@ instance Presentable (LoginView db) where
 
 -- Logout ----------------------------------------------------------------------  
 
-data LogoutView db = LogoutView (Widget (Button db)) deriving (Eq, Show, Typeable, Data)
+data LogoutView db = LogoutView (Widget (Button db)) deriving (Eq, Show, Typeable)
 
 instance Initial (LogoutView db) where initial = LogoutView initial
 
-instance Data db => MapWebView db (LogoutView db) where
+instance MapWebView db (LogoutView db) where
   mapWebView (LogoutView a) = LogoutView <$> mapWebView a
 
-mkLogoutView :: Data db => WebViewM db (WebView db)
+mkLogoutView :: Typeable db => WebViewM db (WebView db)
 mkLogoutView = mkWebView $
   \vid _ -> 
    do { (Just (l,_)) <- getUser
@@ -88,11 +88,11 @@ instance Presentable (LogoutView db) where
 
 -- This is a separate view for editActions. Putting edit actions inside a view that is changed
 -- may cause press events to get lost. This indirection solves the problem.
-data LinkView db = LinkView String (Widget (EditAction db)) deriving (Eq, Show, Typeable, Data)
+data LinkView db = LinkView String (Widget (EditAction db)) deriving (Eq, Show, Typeable)
 
 instance Initial (LinkView db) where initial = LinkView initial initial
 
-instance Data db => MapWebView db (LinkView db) where
+instance MapWebView db (LinkView db) where
   mapWebView (LinkView a b) = LinkView <$> mapWebView a <*> mapWebView b
 
 mkLinkView linkText action = mkWebView $
@@ -110,7 +110,7 @@ instance Presentable (LinkView db) where
 
 -- TabbedView ---------------------------------------------------------------------  
   
-data TabbedView db = TabbedView Int [WebView db] [WebView db] deriving (Eq, Show, Typeable, Data)
+data TabbedView db = TabbedView Int [WebView db] [WebView db] deriving (Eq, Show, Typeable)
 
 instance Initial (TabbedView db) where
   initial = TabbedView 0 initial initial
@@ -118,7 +118,7 @@ instance Initial (TabbedView db) where
 instance MapWebView db (TabbedView db) where
   mapWebView (TabbedView a b c) = TabbedView <$> mapWebView a <*> mapWebView b <*> mapWebView c
 
-mkTabbedView :: forall db . Data db => [(String, Maybe (EditM db ()), WebView db)] -> WebViewM db (WebView db)
+mkTabbedView :: forall db . Typeable db => [(String, Maybe (EditM db ()), WebView db)] -> WebViewM db (WebView db)
 mkTabbedView labelsEditActionsTabViews = mkWebView $
  \vid (TabbedView selectedTab _ _) ->
   do { let (labels, mEditActions,tabViews) = unzip3 labelsEditActionsTabViews
@@ -135,7 +135,7 @@ mkTabbedView labelsEditActionsTabViews = mkWebView $
      ; return $ TabbedView selectedTab selectionViews tabViews
      }
   
-instance Data db => Storeable db (TabbedView db) where
+instance Storeable db (TabbedView db) where
   save (TabbedView _ _ tabViews) = foldl (.) id $ map save tabViews
 
 -- TODO: may have been broken by new roundedBoxed implementation
@@ -169,7 +169,7 @@ instance Presentable TabbedView where
 --
 -- Simple inactive webview that presents its html contents
 
-data HtmlView = HtmlView String deriving (Eq, Show, Typeable, Data)
+data HtmlView = HtmlView String deriving (Eq, Show, Typeable)
 
 instance Initial HtmlView where
   initial = HtmlView "HtmlTemplateView not initialized"
@@ -177,7 +177,7 @@ instance Initial HtmlView where
 instance MapWebView db HtmlView where
   mapWebView (HtmlView a) = HtmlView <$> mapWebView a
 
-mkHtmlView ::  Data db => String -> WebViewM db (WebView db)
+mkHtmlView ::  String -> WebViewM db (WebView db)
 mkHtmlView html = mkWebView $
  \vid (HtmlView _) ->
    do { return $ HtmlView html
@@ -186,7 +186,7 @@ mkHtmlView html = mkWebView $
 instance Presentable HtmlView where
   present (HtmlView htmlStr) = primHtml htmlStr
 
-instance Data db => Storeable db HtmlView
+instance Storeable db HtmlView
 
 
 
@@ -195,7 +195,7 @@ instance Data db => Storeable db HtmlView
 -- Non-cached WebView for displaying raw html content read from a file in /htmlTemplates.
 -- Placeholders are of the format __placeholderName__.
 
-data HtmlTemplateView = HtmlTemplateView String deriving (Eq, Show, Typeable, Data)
+data HtmlTemplateView = HtmlTemplateView String deriving (Eq, Show, Typeable)
 
 instance Initial HtmlTemplateView where
   initial = HtmlTemplateView "HtmlTemplateView not initialized"
@@ -203,7 +203,7 @@ instance Initial HtmlTemplateView where
 instance MapWebView db HtmlTemplateView where
   mapWebView (HtmlTemplateView a) = HtmlTemplateView <$> mapWebView a
 
-mkHtmlTemplateView ::  Data db => String -> [(String,String)] -> WebViewM db (WebView db)
+mkHtmlTemplateView ::  String -> [(String,String)] -> WebViewM db (WebView db)
 mkHtmlTemplateView path subs = mkWebView $
  \vid (HtmlTemplateView _) ->
    do { templateStr <- liftIO $ readUTFFile $ "htmlTemplates/"++path
@@ -214,12 +214,12 @@ mkHtmlTemplateView path subs = mkWebView $
 instance Presentable HtmlTemplateView where
   present (HtmlTemplateView htmlStr) = primHtml htmlStr
 
-instance Data db => Storeable db HtmlTemplateView
+instance Storeable db HtmlTemplateView
 
 
 -- MaybeView ---------------------------------------------------------------------  
 
-data MaybeView db = MaybeView String (Maybe (WebView db)) deriving (Eq, Show, Typeable, Data)
+data MaybeView db = MaybeView String (Maybe (WebView db)) deriving (Eq, Show, Typeable)
 
 
 instance Initial (MaybeView db) where
@@ -229,7 +229,7 @@ instance MapWebView db (MaybeView db) where
   mapWebView (MaybeView a b) = MaybeView <$> mapWebView a <*> mapWebView b
  
 -- TODO: do we want to offer the vid also to mWebViewM? (which will then have type ViewId -> WebViewM db (Maybe (WebView db)))
-mkMaybeView :: Data db => String -> WebViewM db (Maybe (WebView db)) -> WebViewM db (WebView db)
+mkMaybeView :: String -> Typeable db => WebViewM db (Maybe (WebView db)) -> WebViewM db (WebView db)
 mkMaybeView nothingStr mWebViewM = mkWebView $
  \vid (MaybeView _ _) ->
    do { mWebView <- mWebViewM
@@ -241,14 +241,14 @@ instance Presentable (MaybeView db) where
     case mWebView of Just webView -> present webView
                      Nothing      -> toHtml nothingStr
 
-instance Data db => Storeable db (MaybeView db)
+instance Storeable db (MaybeView db)
 
 
 -- SelectableView ---------------------------------------------------------------------  
  
 -- TODO: maybe add a class tag to allow specific presentation in css
 --       add 'enabled' field? 
-data SelectableView db = SelectableView ViewId [ViewId] Bool String (Widget (EditAction db)) String deriving (Eq, Show, Typeable, Data)
+data SelectableView db = SelectableView ViewId [ViewId] Bool String (Widget (EditAction db)) String deriving (Eq, Show, Typeable)
 
 instance Initial (SelectableView db) where
   initial = SelectableView (ViewId []) initial initial initial initial initial
@@ -257,7 +257,7 @@ instance MapWebView db ViewId
 instance MapWebView db (SelectableView db) where
   mapWebView (SelectableView a b c d e f) = SelectableView <$> mapWebView a <*> mapWebView b <*> mapWebView c <*> mapWebView d <*> mapWebView e <*> mapWebView f
 
-mkSelectableView :: forall db . Data db => [ViewId] -> String -> Bool -> EditM db () -> WebViewM db (WebView db)
+mkSelectableView :: forall db . Typeable db => [ViewId] -> String -> Bool -> EditM db () -> WebViewM db (WebView db)
 mkSelectableView allSelectableVids str selected clickCommand = mkWebView $
   \vid _ ->
     do { clickAction <- mkEditAction $  do { sequence_ [ viewEdit v $ \(SelectableView vi vis _ str ca scr :: SelectableView db) ->
@@ -285,7 +285,7 @@ instance Storeable db (SelectableView db)
   
 -- TODO: can make this more general by providing a list of (EditM db ()) for each button
 -- TODO: allow multiple selection buttons
-mkSelectableViews :: Data db => [String] -> Maybe String -> ((Int,String) -> EditM db ()) -> WebViewM db [WebView db]
+mkSelectableViews :: Typeable db => [String] -> Maybe String -> ((Int,String) -> EditM db ()) -> WebViewM db [WebView db]
 mkSelectableViews strs mSelectedStr clickActionF =
  do { rec { wvs <- sequence [ mkSelectableView vids str (Just str == mSelectedStr) $ clickActionF (i,str)  
                             | (i,str) <- zip [0..] strs
@@ -308,10 +308,7 @@ mkSelectableViews strs mSelectedStr clickActionF =
 
 {- Very experimental webview for providing presentation functions as arguments, instead of declaring instances.
 
-This requires the function to be in the WebView, and hence instance of Data, Typeable, Eq, and Show.
-
-Data and Typeable are handled by creating a Wrapped type with a Data instance that does not descend into its argument (not
-sure if this is correct now)
+This requires the function to be in the WebView, and hence instance of Typeable, Eq, and Show.
 
 Because the present function may change, we need to test for equality. This can be done by supplying a list of dummy
 noHtml arguments with the same length as the list of webview children. Differences in length are caught by comparing the child lists.
@@ -323,7 +320,6 @@ compare the latter with dummy arguments, and would have to compare the Html for 
 
 TODO: 
     -- don't use ByteString instead of show and string for comparing Html
-    -- check Wrapped Data and Typeable instances
 -}
 newtype Wrapped = Wrapped ([Html] -> Html)
 
@@ -339,20 +335,9 @@ instance Initial Wrapped where
 instance MapWebView db Wrapped
 
 instance Typeable Wrapped where
-  typeOf _ = mkTyConApp (mkTyCon3 "WebViews" "Main" "Wrapped") []
+  typeOf _ = mkTyConApp (mkTyCon3 "WebViews" "WebViewLib" "Wrapped") []
   
-instance  Data Wrapped where
-  gfoldl k z x@(Wrapped a) = z x --error "gfold not defined for WrappedHtml" -- z WrappedHtml `k` undefined
-  gunfold k z c = error "gunfold not defined for WrappedHtml"
-     
-  toConstr (Wrapped _) =  con_Html
- 
-  dataTypeOf _ = ty_Html
-  
-ty_Html = mkDataType "Wrapped" [con_StateT]
-con_Html = mkConstr ty_StateT "Wrapped" [] Prefix
-
-data PresentView db = PresentView Wrapped [WebView db] deriving (Show, Typeable, Data)
+data PresentView db = PresentView Wrapped [WebView db] deriving (Show, Typeable)
 
 instance Eq (PresentView db) where
   (PresentView (Wrapped pres1) wvs1) == (PresentView (Wrapped pres2) wvs2) =
@@ -360,7 +345,7 @@ instance Eq (PresentView db) where
     wvs1 == wvs2
     -- just compare the html for dummy arguments (since the presentation will never depend on the arguments themselves)
 
-instance Data db => Storeable db (PresentView db)
+instance Storeable db (PresentView db)
 
 instance  Initial (PresentView db) where
   initial = PresentView initial initial
@@ -368,7 +353,7 @@ instance  Initial (PresentView db) where
 instance MapWebView db (PresentView db) where
   mapWebView (PresentView a b) = PresentView <$> mapWebView a <*> mapWebView b
 
-mkPresentView :: Data db => ([Html] -> Html) -> WebViewM db [WebView db] -> WebViewM db (WebView db)
+mkPresentView :: Typeable db => ([Html] -> Html) -> WebViewM db [WebView db] -> WebViewM db (WebView db)
 mkPresentView presentList mkSubWebViews = mkWebView $
   \vid oldView@(PresentView _ _) ->
     do { wvs <- mkSubWebViews

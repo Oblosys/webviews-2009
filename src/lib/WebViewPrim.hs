@@ -52,7 +52,7 @@ debugLn str = trace str $ return ()
 
 -- When loading from different point than root, make sure Id's are not messed up
 
-instance Data db => Storeable db (WebView db) where
+instance Storeable db (WebView db) where
   save wv@(WebView _ _ _ _ v) =
     let topLevelWebViews :: [WebView db] = getTopLevelWebViews wv
     in  foldl (.) id $ save v : map save topLevelWebViews
@@ -243,7 +243,7 @@ mkTestView v = mkView $
 
 --- Edit Monad
 
-viewEdit :: (Typeable db, Data db, Data v) => ViewId -> (v -> v) -> EditM db ()
+viewEdit :: Typeable v => ViewId -> (v -> v) -> EditM db ()
 viewEdit vid viewUpdate =
   do{ editState <- get
     ; let webViewUpdate = \(WebView vi si i lv v) ->
@@ -279,7 +279,7 @@ showDialogEdit contents buttons =
 confirmEdit :: String -> EditM db () -> EditM db ()
 confirmEdit msg okAction = showDialogEdit (toHtml msg) [("Ok", Just okAction), ("Cancel", Nothing) ]
 
-authenticateEdit :: Data db => ViewIdRef -> ViewIdRef -> EditM db (Maybe (String,String))
+authenticateEdit :: ViewIdRef -> ViewIdRef -> EditM db (Maybe (String,String))
 authenticateEdit userEStringViewId passwordEStringViewId =
  do { eState@EditState{ getEStateAllUsers = users, getEStateRootView = rootView } <- get
     ; let userName = getTextViewStrByViewIdRef userEStringViewId rootView
@@ -309,7 +309,7 @@ applyIfCorrectType f x = case cast f of
                            Nothing -> x
 
 -- Experimental, not sure if we need this one and if it works correctly
-withView :: forall db v a . (Typeable db, Data db, Data v, Typeable a) => ViewId -> (v->a) -> EditM db (Maybe a)
+withView :: forall db v a . (Typeable v, Typeable a) => ViewId -> (v->a) -> EditM db (Maybe a)
 withView vid f =
   do{ editState <- get
     ; let wf = \(WebView vi si i lv v) -> case cast f of
@@ -337,7 +337,7 @@ loadView (WebView _ si i mkView oldView') =
     ; return $ WebView newViewId si i mkView view    
     }
         
-mkWebView :: Data db => (Presentable v, Storeable db v, Initial v, Show v, Eq v, Data v, MapWebView db v) =>
+mkWebView :: (Presentable v, Storeable db v, Initial v, Show v, Eq v, Typeable v, MapWebView db v) =>
              (ViewId -> v -> WebViewM db v) ->
              WebViewM db (WebView db)
 mkWebView mkView =
@@ -546,9 +546,9 @@ instance Presentable (AnyWidget db) where
 
 newtype ViewIdT viewType = ViewIdT ViewId
 
-newtype WebViewT viewType db = WebViewT { unWebViewT :: WebView db } deriving (Eq, Show, Typeable, Data)
+newtype WebViewT viewType db = WebViewT { unWebViewT :: WebView db } deriving (Eq, Show, Typeable)
 
-instance Data db => Initial (WebViewT wv db)
+instance Initial (WebViewT wv db)
   where initial = WebViewT initial
 
 instance Presentable (WebViewT wv db)
@@ -565,7 +565,7 @@ getViewIdT (WebViewT wv) = ViewIdT $ getViewId wv
 getViewIdT_ :: HasViewId v => v -> ViewId
 getViewIdT_ = getViewId
 
-mkWebViewT :: Data db => (Presentable v, Storeable db v, Initial v, Show v, Eq v, Data v, MapWebView db v) =>
+mkWebViewT ::(Presentable v, Storeable db v, Initial v, Show v, Eq v, Typeable v, MapWebView db v) =>
              (ViewIdT v -> v -> WebViewM db v) ->
              WebViewM db (WebViewT v db)
              
@@ -578,7 +578,7 @@ mkWebViewT mkViewT =
 rootView :: String -> (WebViewM db (WebViewT  v db)) -> (String, WebViewM db (WebView db) )
 rootView name mkWV = (name, fmap unWebViewT mkWV)
     
-viewEditT :: (Typeable db, Data db, Data v) => ViewIdT v -> (v -> v) -> EditM db ()
+viewEditT :: Typeable v => ViewIdT v -> (v -> v) -> EditM db ()
 viewEditT (ViewIdT vid) viewUpdate = viewEdit vid viewUpdate
 
 
@@ -658,14 +658,14 @@ jsAlert msg = "alert("++show msg++")" --
 
 -- Hacky stuff
 
-getTextViewContents ::Data db => Widget (TextView db) -> EditM db String
+getTextViewContents ::Widget (TextView db) -> EditM db String
 getTextViewContents text =
  do { editState <- get
     ; return $ getTextViewStrByViewIdRef (widgetGetViewRef text) $ getEStateRootView editState
     } 
 
 -- probably to be deleted, labels do not need to be accessed    
-getLabelContents :: Data db => Widget (LabelView db) -> EditM db String
+getLabelContents :: Widget (LabelView db) -> EditM db String
 getLabelContents text =
  do { editState <- get
     ; return $ getLabelStrByViewIdRef (widgetGetViewRef text) $ getEStateRootView editState
@@ -673,7 +673,7 @@ getLabelContents text =
     
 
 -- not sure if we'll need these, passing vars as arguments works for submit actions.
-getJSVarContents :: Data db => Widget (JSVar db) -> EditM db String
+getJSVarContents :: Widget (JSVar db) -> EditM db String
 getJSVarContents text =
  do { editState <- get
     ; return $ getJSVarValueByViewIdRef (widgetGetViewRef text) $ getEStateRootView editState

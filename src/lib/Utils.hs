@@ -60,7 +60,7 @@ drawWebNodes webnode = drawTree $ treeFromView webnode
               showAnyWidget (EditActionWidget (EditAction id _)) = "EditAction "++ show id
 
 
-getTopLevelWebNodesForWebNode :: (Data db) => WebNode db -> [WebNode db]
+getTopLevelWebNodesForWebNode :: WebNode db -> [WebNode db]
 getTopLevelWebNodesForWebNode (WidgetNode _ _ _ wn) = []
 getTopLevelWebNodesForWebNode (WebViewNode wv) = getTopLevelWebNodes wv
 
