@@ -6,7 +6,7 @@ module WebViewLibExp where
    Keeping them here during development prevents having to recompile the library on every change. 
 -}
 
-import Data.Generics hiding (Data)
+import Data.Generics
 import Data.List
 import Data.Function (on)
 import Types
@@ -28,7 +28,7 @@ class TaggedPresent tag args where
   
   
 
-data SortDefaultPresent = SortDefaultPresent deriving (Show,Eq,Typeable)
+data SortDefaultPresent = SortDefaultPresent deriving (Show,Eq,Typeable) -- this appears as a type arg, so we need Typeable
 
 instance MapWebView db SortDefaultPresent
 instance Initial SortDefaultPresent where

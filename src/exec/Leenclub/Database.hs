@@ -14,7 +14,6 @@ module Database ( module DatabaseTypes
                 , emptyItem, emptyBook, emptyGame, emptyCD, emptyDVD, emptyTool
                 ) where
 
-import Data.Generics
 import Data.List
 import Data.Maybe
 import Data.Char
