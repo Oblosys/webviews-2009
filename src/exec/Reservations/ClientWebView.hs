@@ -29,7 +29,7 @@ data ClientView =
   ClientView Int (Maybe Date) (Maybe Time) [Widget (Button Database)] (Widget (TextView Database)) (Widget (TextView Database)) (Widget (Button Database)) (Widget (Button Database)) [Widget (Button Database)] [[Widget (Button Database)]] (Widget (Button Database)) 
   (Widget (LabelView Database)) (Widget (LabelView Database)) (Widget (LabelView Database)) (Widget (EditAction Database))
     String
-    deriving (Eq, Show, Typeable, Data)
+    deriving (Eq, Show, Typeable)
     
 setClientViewNrOfPeople np (ClientView _ b c d e f g h i j k l m n o p) = (ClientView np b c d e f g h i j k l m n o p) 
 setClientViewDate md (ClientView a _ c d e f g h i j k l m n o p) = (ClientView a md c d e f g h i j k l m n o p) 

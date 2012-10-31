@@ -15,11 +15,11 @@ users = Map.fromList [("martijn", ("p", "Martijn"))
 -- TODO: maybe this can be (a special) part of db?
 
 
-newtype ReservationId = ReservationId {unReservationId :: Int} deriving (Show, Read, Eq, Ord, Typeable, Data)
+newtype ReservationId = ReservationId {unReservationId :: Int} deriving (Show, Read, Eq, Ord)
 
 -- must be Typeable and Data, because update functions in views (which must be Data etc.) are Database->Database
 data Database = Database { allReservations :: Map ReservationId Reservation
-                         } deriving (Eq, Show, Read, Typeable,Data)
+                         } deriving (Eq, Show, Read, Typeable)
 
 
 type Hours = Int
@@ -37,7 +37,7 @@ data Reservation =
               , name :: String
               , nrOfPeople :: Int
               , comment :: String
-              } deriving (Eq, Show, Read, Typeable, Data)
+              } deriving (Eq, Show, Read)
 
 -- not safe, requires that id in reservation is respected by f
 updateReservation :: ReservationId -> (Reservation -> Reservation) -> Database -> Database

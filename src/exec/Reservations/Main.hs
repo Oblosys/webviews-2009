@@ -42,7 +42,7 @@ rootViews = [ rootView ""           mkMainRootView
  -- TODO: sessionId? put this in an environment? or maybe the WebViewM monad?
 data TestView1 =
   TestView1 (Widget (EditAction Database)) (Widget (Button Database)) String String
-    deriving (Eq, Show, Typeable, Data)
+    deriving (Eq, Show, Typeable)
          
 instance Initial TestView1 where
   initial = TestView1 initial initial initial initial
@@ -72,7 +72,7 @@ instance Storeable Database TestView1 where
 -- trying to handle passing back client state by using a JSVar
 data TestView2 =
   TestView2 (Widget (JSVar Database)) (Widget (Button Database)) String String
-    deriving (Eq, Show, Typeable, Data)
+    deriving (Eq, Show, Typeable)
          
 instance Initial TestView2 where
   initial = TestView2 initial initial initial initial
@@ -107,7 +107,7 @@ instance Storeable Database TestView2 where
 
 data MainView = 
   MainView (WebViewT ClientView Database) (WebViewT RestaurantView Database)
-    deriving (Eq, Show, Typeable, Data)
+    deriving (Eq, Show, Typeable)
   
 instance Initial MainView where                 
   initial = MainView initial initial
@@ -143,7 +143,7 @@ instance Storeable Database MainView where
 
 data RestaurantView = 
   RestaurantView (Maybe Date) (Int,Int) [[(WebViewT CalendarDayView Database,String, Widget (EditAction Database))]] (WebViewT DayView Database) (WebViewT HourView Database) (WebViewT ReservationView Database) String
-    deriving (Eq, Show, Typeable, Data)
+    deriving (Eq, Show, Typeable)
 
 instance Initial RestaurantView where                 
   initial = RestaurantView initial (initial,initial) [] initial initial initial initial
@@ -302,7 +302,7 @@ instance Storeable Database RestaurantView where
      
 data CalendarDayView = 
   CalendarDayView Date Bool Bool Bool [Reservation]
-    deriving (Eq, Show, Typeable, Data)
+    deriving (Eq, Show, Typeable)
   
 instance Initial CalendarDayView where                 
   initial = CalendarDayView (initial, initial, initial) initial initial initial initial
@@ -335,7 +335,7 @@ instance Storeable Database CalendarDayView where
 
 data DayView = 
   DayView [String] [Reservation] String
-    deriving (Eq, Show, Typeable, Data)
+    deriving (Eq, Show, Typeable)
   
 instance Initial DayView where                 
   initial = DayView initial initial initial
@@ -404,7 +404,7 @@ instance Storeable Database DayView where
 
 data HourView = 
   HourView[String] [Reservation] String
-    deriving (Eq, Show, Typeable, Data)
+    deriving (Eq, Show, Typeable)
   
 instance Initial HourView where                 
   initial = HourView initial initial initial
@@ -481,7 +481,7 @@ instance Storeable Database HourView where
 
 data ReservationView = 
   ReservationView (Widget (Button Database)) (Widget (EditAction Database)) String
-    deriving (Eq, Show, Typeable, Data)
+    deriving (Eq, Show, Typeable)
   
 instance Initial ReservationView where                 
   initial = ReservationView initial initial initial
