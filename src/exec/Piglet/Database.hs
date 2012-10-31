@@ -16,21 +16,20 @@ users = Map.fromList [("martijn", ("p", "Martijn"))
 -- TODO: maybe this can be (a special) part of db?
 
 
-newtype VisitId = VisitId Int deriving (Show, Read, Eq, Ord, Typeable, Data)
+newtype VisitId = VisitId Int deriving (Show, Read, Eq, Ord)
 
-newtype PigId = PigId Int deriving (Show, Read, Eq, Ord, Typeable, Data)
+newtype PigId = PigId Int deriving (Show, Read, Eq, Ord)
 
-newtype CommentId = CommentId Int deriving (Show, Read, Eq, Ord, Typeable, Data)
+newtype CommentId = CommentId Int deriving (Show, Read, Eq, Ord)
 
--- must be Typeable and Data, because update functions in views (which must be Data etc.) are Database->Database
 data Database = Database { allVisits :: Map VisitId Visit, allPigs :: Map PigId Pig 
                          , allComments :: Map CommentId Comment }
-                  deriving (Eq, Show, Read, Typeable,Data)
+                  deriving (Eq, Show, Read, Typeable)
 
 data Visit = 
   Visit { visitId :: VisitId, zipCode :: String
         , date :: String, pigs :: [PigId]
-        } deriving (Eq, Show, Read, Typeable, Data)
+        } deriving (Eq, Show, Read)
 
 updateVisit :: VisitId -> (Visit -> Visit) -> Database -> Database
 updateVisit i f db = 
@@ -52,7 +51,7 @@ newVisit db =
 data Pig = 
   Pig { pigId :: PigId, parentVisit :: VisitId, pigName :: String, symptoms :: [Int]
       , diagnose :: Either Int String 
-      } deriving (Eq, Show, Read, Typeable,Data)
+      } deriving (Eq, Show, Read)
 
 -- put id in element? It is also in the map.
 
@@ -75,7 +74,7 @@ newPig vid db =
 data Comment =
   Comment { commentId :: CommentId, commentAuthor :: String, commentDate :: String
           , commentText :: String
-          } deriving (Eq, Show, Read, Typeable,Data)
+          } deriving (Eq, Show, Read)
 
 newComment :: Database -> (Comment, Database)
 newComment db =

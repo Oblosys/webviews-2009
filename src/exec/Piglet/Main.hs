@@ -29,7 +29,7 @@ import Database
 
 data CommentView = CommentView CommentId Bool String String String
                                (Maybe (WebView Database)) (Maybe (WebView Database)) (Maybe (Widget (TextView Database)))
-                   deriving (Eq, Show, Typeable, Data)
+                   deriving (Eq, Show, Typeable)
 
 instance Initial CommentId where
   initial = (CommentId initial)
@@ -107,7 +107,7 @@ instance Presentable CommentView where
 -- Pig -------------------------------------------------------------------------  
 
 data PigView = PigView PigId (Widget (EditAction Database)) String (Widget (Button Database)) Int Int (Widget (TextView Database)) (Widget (TextView Database)) [Widget (RadioView Database)] (Either Int String) 
-               deriving (Eq, Show, Typeable, Data)
+               deriving (Eq, Show, Typeable)
 
 instance Initial PigId where
   initial = PigId initial
@@ -168,7 +168,7 @@ instance Storeable Database PigView where
 data VisitView = 
   VisitView VisitId (Widget (TextView Database)) (Widget (TextView Database)) Int (Widget (Button Database)) 
            (Widget (Button Database)) (Widget (Button Database)) [PigId] [String] [WebView Database]
-    deriving (Eq, Show, Typeable, Data)
+    deriving (Eq, Show, Typeable)
 
 modifyViewedPig f (VisitView vid zipCode date viewedPig b1 b2 b3 pigs pignames mSubview) =
   VisitView vid zipCode date (f viewedPig) b1 b2 b3 pigs pignames mSubview
@@ -231,7 +231,7 @@ data VisitsView =
   VisitsView Bool Int Int User [(String,String)] 
                  (WebView Database) [Widget (EditAction Database)] (Widget (Button Database)) (Widget (Button Database)) (Widget (Button Database)) (Widget (Button Database)) 
                  (WebView Database) [CommentId] [WebView Database] (Maybe (Widget (Button Database)))
-    deriving (Eq, Show, Typeable, Data)
+    deriving (Eq, Show, Typeable)
 
 deriveInitial ''VisitsView
 deriveMapWebViewDb ''Database ''VisitsView
@@ -257,7 +257,7 @@ mkVisitsView = mkWebView $
                            
      ; user <- getUser
                
-     ; loginOutView <- if user == Nothing then mkLoginView 
+     ; loginOutView <- if user == Nothing then mkLoginView (const $ return ())
                                           else mkLogoutView
      ; labels <- withDb $ \db -> map (zipCode . unsafeLookup (allVisits db)) visitIds
        
