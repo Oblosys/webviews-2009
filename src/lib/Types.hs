@@ -1,5 +1,5 @@
-{-# LANGUAGE ExistentialQuantification, FlexibleContexts, TypeSynonymInstances, FlexibleInstances #-}
-{-# LANGUAGE MultiParamTypeClasses, RankNTypes, ImpredicativeTypes, OverlappingInstances #-}
+{-# LANGUAGE ExistentialQuantification, FlexibleContexts, TypeSynonymInstances, FlexibleInstances, DeriveDataTypeable #-}
+{-# LANGUAGE MultiParamTypeClasses, RankNTypes, ImpredicativeTypes, OverlappingInstances, UndecidableInstances, LiberalTypeSynonyms #-}
 module Types where
 
 import ObloUtils
@@ -40,7 +40,7 @@ data Command = Init       String [(String,String)] -- rootView args    http://we
 -- view id's are for identifying views and widgets with regard to incrementality
 -- they remain constant over the view's/widget's life
 -- for now, we assign them at mkView
-newtype ViewId = ViewId [Int] deriving (Eq, Ord)
+newtype ViewId = ViewId [Int] deriving (Eq, Ord, Typeable)
 
 unViewId  (ViewId pth) = pth -- not defined as a field, since ViewId's are now simply showed to get javascript id's, and we don't
                              -- want them to look like ... id = "ViewID {unViewId = [..]}" 
@@ -252,7 +252,7 @@ editActionWidget viewId cmd = Widget noId noId $ EditAction viewId cmd
 class HasViewId v where
   getViewId :: v -> ViewId
 
-instance HasViewId (WebView db) where
+instance HasViewId (WebView db v) where
   getViewId (WebView viewId _ _ _ _) = viewId 
   
 instance HasViewId w => HasViewId (Widget w) where
@@ -313,36 +313,33 @@ class Storeable db v where
   save :: v -> db -> db
   save _ = id -- the derived instance for webview takes care of recursively saving all webview children
 
--- needed for initial of WebView, which has () as its view
-instance Storeable db () where
-  save () = id
-
 type User = Maybe (String, String)
 
 type WebNodeMap db = Map.Map ViewId (WebNode db)
 
 -- TODO: why are stub id and id inside WebView instead of in WebViewNode?
-data WebNode db = WebViewNode (WebView db)
+data WebNode db = WebViewNode (UntypedWebView db)
                 | WidgetNode  ViewId Id Id (AnyWidget db) -- ViewId StubId Id 
-                  deriving Show
+                  --deriving Show
 
+instance Show (WebNode db)
 
 instance Eq (WebNode db) where
   (WidgetNode _ _ _ w1) == (WidgetNode _ _ _ w2) = w1 == w2 -- note that w1 and w2 are not Widget w, but AnyWidget
 -- WebViews are always equal for diff, so descend into them to do a real eq.
-  (WebViewNode (WebView _ _ _ _ wv1)) == (WebViewNode (WebView _ _ _ _ wv2)) = 
+  (WebViewNode (UntypedWebView (WebView _ _ _ _ wv1))) == (WebViewNode (UntypedWebView (WebView _ _ _ _ wv2))) = 
     case cast wv1 of
       Nothing -> False
       Just wv1' -> wv1' == wv2
   _ == _ = False             
 
                           
-type ViewMap db = Map.Map ViewId (WebView db)
+type ViewMap db = Map.Map ViewId (UntypedWebView db)
 
--- no class viewable, because mkView has parameters
-data WebView db = forall view . ( Initial view, Presentable view, Storeable db view
-                                , Show view, Eq view, Typeable view, MapWebView db view) => 
-                                WebView !ViewId !Id !Id (ViewId -> view -> WebViewM db view) !view
+
+
+                  
+data WebView db view = WebView !ViewId !Id !Id (ViewId -> view -> WebViewM db view) !view
                              
 -- (viewId -> view -> WebViewM view) is the load view function. the parameters are the id and the old view (or initial)
 -- view is the actual view (which is 'updated')
@@ -352,24 +349,70 @@ data WebView db = forall view . ( Initial view, Presentable view, Storeable db v
 -- why was this one existential again?
 
 
-instance Show (WebView db) where
+instance Show v => Show (WebView db v) where
   show (WebView (ViewId i) _ _ _ v) = "<" ++ show i ++ ":" ++ show v ++ ">"
 
-{- this one is not possible
-instance Initial WebView where
-  initial = WebView (ViewId (-1)) initial
--}
-instance Presentable () where
-  present () = "<initial webview>"
-  
---instance Presentable WebView where
---  present (WebView _ _ _ _ v) = present v
-
-instance Eq (WebView db) where
+instance Eq (WebView db v) where
   _ == _ = True
-
 -- webviews are always equal, so equality on views is not based on its sub views
 -- (changes in the stucture of subviews is taken into account though, eq: [v1,v2] /= [v1,v2,newv])
+
+
+-- Presentable and Storeable instances for WebView are declared in WebViewPrim
+
+instance Initial v => Initial (WebView db v) where
+  initial = WebView (ViewId []) noId noId (\_ _ -> return initial) initial
+
+-- We don't use a class viewable, because mkView sometimes has extra parameters
+
+
+
+-- Class IsWebView can be used as a shorthand for Show, Eq, ... MapWebView
+
+class (Show v, Eq v, Presentable v, Storeable db v, Initial v, Typeable v, MapWebView db v, Typeable db) => IsWebView db v
+      
+instance (Show v, Eq v, Presentable v, Storeable db v, Initial v, Typeable v, MapWebView db v, Typeable db) => IsWebView db v
+
+
+  
+-- Wrapper for WebView to make the view type existential.
+
+data UntypedWebView db =  forall view . IsWebView db view => UntypedWebView (WebView db view) 
+
+mkUntypedWebView mkTypedWebView = fmap UntypedWebView mkTypedWebView
+
+instance Show (UntypedWebView db) where
+  show (UntypedWebView wv) = show wv
+
+instance Eq (UntypedWebView db) where
+  UntypedWebView v1 == UntypedWebView v2 = True
+
+-- Presentable and Storeable instances for UntypedWebView are declared in WebViewPrim
+
+instance Typeable db => Initial (UntypedWebView db) where
+  initial = UntypedWebView $ (initial :: WebView db InitialView) 
+
+instance MapWebView db (UntypedWebView db) where
+  mapWebView (UntypedWebView v) = UntypedWebView <$> mapWebView v
+
+
+-- For initial UntypedWebView we use a special value Initial which will never be presented or used, but needs all the IsWebView instances.
+
+data InitialView = InitialView deriving (Show, Eq, Typeable) 
+
+instance Presentable InitialView where
+  present InitialView = "<InitialView>"
+
+instance Storeable db InitialView where
+  save InitialView = id
+
+instance Initial InitialView where
+  initial = InitialView
+
+instance MapWebView db InitialView -- default instance is good
+
+
+-- Initial class
 
 instance Initial () where
   initial = ()
@@ -440,21 +483,18 @@ instance Initial (JSVar db) where
 instance Initial (EditAction db) where
   initial = EditAction noViewId (const $ return ())  
 
-instance Initial (WebView db) where
-  initial = WebView (ViewId []) noId noId (\_ _ -> return ()) ()
-
 -- Alternative Generics method
 
 -- recursive map on v arg in WebView is maybe handled a bit dodgy still.
-class MapWebView db v where
-  mapWebView :: v -> 
-                (forall w . ( WebView db -> s -> (WebView db,s) 
-                            , MapWebView db (w db) => Widget (w db) -> s -> (Widget (w db),s) -- This MapWebView context requires ImpredicativeTypes :-(
-                            , WidgetUpdates db s
-                            , Bool -- specifies whether map will recurse in WebView children
-                            )
+class MapWebView db wv where
+  mapWebView :: wv -> 
+                (forall v w . ( IsWebView db v => WebView db v -> s -> (WebView db v,s) 
+                              , MapWebView db (w db) => Widget (w db) -> s -> (Widget (w db),s) -- This MapWebView context requires ImpredicativeTypes :-(
+                              , WidgetUpdates db s
+                              , Bool -- specifies whether map will recurse in WebView children
+                              )
                 ) -> 
-                s -> (v, s)
+                s -> (wv, s)
   mapWebView x = pure x
 {- By keeping the reader (ie. function tuple) and state arguments at the end, we can pass these around
    automatically in functions pure and <*>, which allows for very elegant instance declarations:
@@ -476,12 +516,12 @@ noWidgetUpdates :: WidgetUpdates db s
 noWidgetUpdates = WidgetUpdates inert inert inert inert inert inert inert
 
 inert x s = (x,s)
-   
-instance MapWebView db (WebView db) where
+ 
+instance IsWebView db v => MapWebView db (WebView db v) where
   mapWebView wv fns@(fwv,_,_,recursive) state =
    case fwv wv state of
      (WebView a b c d v, state') ->  let (v', state'') | recursive = mapWebView v fns state'
-                                                       | otherwise   = (v, state')
+                                                       | otherwise = (v, state')
                                      in  (WebView a b c d v', state'')
 
 instance MapWebView db (w db) => MapWebView db (Widget (w db)) where
@@ -576,9 +616,17 @@ data WebViewState db =
                , getWVStatePath :: [Int], getWVStateViewIdCounter :: Int 
                , getWVStateSessionId :: SessionId -- not sure we really need the session ID here, but it doesn't do any harm
                , getWVStateHashArgs :: HashArgs
-               }
+               } deriving Typeable
 
 type WebViewM db a = StateT (WebViewState db) IO a
+
+-- Typeable1 instance for StateT, which comes from happstack-state-6.1.4/src/Happstack/State/Types.hs 
+-- (and has been updated to use mkTyCon3 instead of the deprecated mkTycon)
+instance (Typeable st, Typeable1 m) => Typeable1 (StateT st m) where
+    typeOf1 x = mkTyConApp (mkTyCon3 "mtl" "Control.Monad.State.Lazy" "StateT") [typeOf (undefined :: st), typeOf1 (m x)]
+        where m :: StateT st m a -> m a
+              m = undefined
+
 
 
 type SessionId = Int
@@ -586,7 +634,7 @@ type SessionId = Int
 data SessionState db = SessionState { getSStateSessionId :: SessionId
                                     , getSStateUser :: User
                                     , getSStateDb :: db
-                                    , getSStateRootView :: WebView db
+                                    , getSStateRootView :: UntypedWebView db
                                     , getSStateDialogCommands :: Maybe [Maybe (EditM db ())]
                                     , getSStateHashArgs :: HashArgs
                                     } 
@@ -598,7 +646,7 @@ type SessionStateRef db = IORef (SessionState db)
 data EditState db = EditState { getEStateAllUsers :: Map String (String, String)
                               , getEStateUser :: User
                               , getEStateDb :: db
-                              , getEStateRootView :: WebView db
+                              , getEStateRootView :: UntypedWebView db
                               , getEStateScriptLines :: [String]
                               , getEStateDialog :: Maybe (Html ,[(String, Maybe (EditM db ()))])
                               }
@@ -658,6 +706,6 @@ modifyDb f = modify (modifyStateDb f)
  
 type HashArgs = [(String,String)]
   
-type RootViews db = [ (String, WebViewM db (WebView db)) ]
+type RootViews db = [ (String, WebViewM db (UntypedWebView db)) ]
 -- for keeping track of the root webviews
  

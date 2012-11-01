@@ -24,7 +24,7 @@ instance MapWebView db (LoginView db) where
   mapWebView (LoginView a b c) = LoginView <$> mapWebView a <*> mapWebView b <*> mapWebView c
 
 -- Typeable db constraint is required because of derived Typeable on LoginView
-mkLoginView :: Typeable db => ((String,String) -> EditM db ()) -> WebViewM db (WebView db)
+mkLoginView :: Typeable db => ((String,String) -> EditM db ()) -> WebViewM db (WebView db (LoginView db))
 mkLoginView successAction = mkWebView $
   \vid (LoginView name password b) ->
 #if __GLASGOW_HASKELL__ >= 612
@@ -70,7 +70,7 @@ instance Initial (LogoutView db) where initial = LogoutView initial
 instance MapWebView db (LogoutView db) where
   mapWebView (LogoutView a) = LogoutView <$> mapWebView a
 
-mkLogoutView :: Typeable db => WebViewM db (WebView db)
+mkLogoutView :: Typeable db => WebViewM db (WebView db (LogoutView db))
 mkLogoutView = mkWebView $
   \vid _ -> 
    do { (Just (l,_)) <- getUser
@@ -110,7 +110,7 @@ instance Presentable (LinkView db) where
 
 
 -- TabbedView ---------------------------------------------------------------------  
-  
+  {-
 data TabbedView db = TabbedView Int [WebView db] [WebView db] deriving (Eq, Show, Typeable)
 
 instance Initial (TabbedView db) where
@@ -119,7 +119,7 @@ instance Initial (TabbedView db) where
 instance MapWebView db (TabbedView db) where
   mapWebView (TabbedView a b c) = TabbedView <$> mapWebView a <*> mapWebView b <*> mapWebView c
 
-mkTabbedView :: forall db . Typeable db => [(String, Maybe (EditM db ()), WebView db)] -> WebViewM db (WebView db)
+mkTabbedView :: forall db . Typeable db => [(String, Maybe (EditM db ()), WebView db)] -> WebViewM db (WebView db v)
 mkTabbedView labelsEditActionsTabViews = mkWebView $
  \vid (TabbedView selectedTab _ _) ->
   do { let (labels, mEditActions,tabViews) = unzip3 labelsEditActionsTabViews
@@ -155,7 +155,7 @@ instance Presentable (TabbedView db) where
                                                        then "visible"
                                                        else "none"
                 ])
-
+-}
 {- version that uses jQuery tabs. Does weird things with font and buttons
 instance Presentable TabbedView where
   present (TabbedView _ tabViews) = 
@@ -178,7 +178,7 @@ instance Initial HtmlView where
 instance MapWebView db HtmlView where
   mapWebView (HtmlView a) = HtmlView <$> mapWebView a
 
-mkHtmlView ::  String -> WebViewM db (WebView db)
+mkHtmlView ::  Typeable db => String -> WebViewM db (WebView db HtmlView)
 mkHtmlView html = mkWebView $
  \vid (HtmlView _) ->
    do { return $ HtmlView html
@@ -204,7 +204,7 @@ instance Initial HtmlTemplateView where
 instance MapWebView db HtmlTemplateView where
   mapWebView (HtmlTemplateView a) = HtmlTemplateView <$> mapWebView a
 
-mkHtmlTemplateView ::  String -> [(String,String)] -> WebViewM db (WebView db)
+mkHtmlTemplateView :: Typeable db => String -> [(String,String)] -> WebViewM db (WebView db HtmlTemplateView )
 mkHtmlTemplateView path subs = mkWebView $
  \vid (HtmlTemplateView _) ->
    do { templateStr <- liftIO $ readUTFFile $ "htmlTemplates/"++path
@@ -219,32 +219,33 @@ instance Storeable db HtmlTemplateView
 
 
 -- MaybeView ---------------------------------------------------------------------  
+{-
+data MaybeView db v = MaybeView String (Maybe (WebView db v)) deriving (Eq, Show, Typeable)
 
-data MaybeView db = MaybeView String (Maybe (WebView db)) deriving (Eq, Show, Typeable)
 
 
-instance Initial (MaybeView db) where
+instance Initial (MaybeView db v) where
   initial = MaybeView "MaybeView not initialized" Nothing
 
-instance MapWebView db (MaybeView db) where
+instance MapWebView db (MaybeView db v) where
   mapWebView (MaybeView a b) = MaybeView <$> mapWebView a <*> mapWebView b
  
--- TODO: do we want to offer the vid also to mWebViewM? (which will then have type ViewId -> WebViewM db (Maybe (WebView db)))
-mkMaybeView :: Typeable db => String -> WebViewM db (Maybe (WebView db)) -> WebViewM db (WebView db)
+-- TODO: do we want to offer the vid also to mWebViewM? (which will then have type ViewId -> WebViewM db (Maybe (WebView db v)))
+mkMaybeView :: Typeable db => String -> WebViewM db (Maybe (WebView db v)) -> WebViewM db (WebView db (MaybeView db v))
 mkMaybeView nothingStr mWebViewM = mkWebView $
  \vid (MaybeView _ _) ->
    do { mWebView <- mWebViewM
       ; return $ MaybeView nothingStr mWebView
       }
 
-instance Presentable (MaybeView db) where
+instance Presentable (MaybeView db v) where
   present (MaybeView nothingStr mWebView) =
     case mWebView of Just webView -> present webView
                      Nothing      -> toHtml nothingStr
 
-instance Storeable db (MaybeView db)
+instance Storeable db (MaybeView db v)
 
-
+-}
 -- SelectableView ---------------------------------------------------------------------  
  
 -- TODO: maybe add a class tag to allow specific presentation in css
@@ -258,7 +259,8 @@ instance MapWebView db ViewId
 instance MapWebView db (SelectableView db) where
   mapWebView (SelectableView a b c d e f) = SelectableView <$> mapWebView a <*> mapWebView b <*> mapWebView c <*> mapWebView d <*> mapWebView e <*> mapWebView f
 
-mkSelectableView :: forall db . Typeable db => [ViewId] -> String -> Bool -> EditM db () -> WebViewM db (WebView db)
+
+mkSelectableView :: forall db v . Typeable db => [ViewId] -> String -> Bool -> EditM db () -> WebViewM db (WebView db (SelectableView db))
 mkSelectableView allSelectableVids str selected clickCommand = mkWebView $
   \vid _ ->
     do { clickAction <- mkEditAction $  do { sequence_ [ viewEdit v $ \(SelectableView vi vis _ str ca scr :: SelectableView db) ->
@@ -286,7 +288,7 @@ instance Storeable db (SelectableView db)
   
 -- TODO: can make this more general by providing a list of (EditM db ()) for each button
 -- TODO: allow multiple selection buttons
-mkSelectableViews :: Typeable db => [String] -> Maybe String -> ((Int,String) -> EditM db ()) -> WebViewM db [WebView db]
+mkSelectableViews :: Typeable db => [String] -> Maybe String -> ((Int,String) -> EditM db ()) -> WebViewM db [WebView db (SelectableView db)]
 mkSelectableViews strs mSelectedStr clickActionF =
  do { rec { wvs <- sequence [ mkSelectableView vids str (Just str == mSelectedStr) $ clickActionF (i,str)  
                             | (i,str) <- zip [0..] strs
@@ -322,6 +324,7 @@ compare the latter with dummy arguments, and would have to compare the Html for 
 TODO: 
     -- don't use ByteString instead of show and string for comparing Html
 -}
+{-
 newtype Wrapped = Wrapped ([Html] -> Html) deriving Typeable
 
 instance Eq Wrapped where
@@ -335,29 +338,30 @@ instance Initial Wrapped where
 
 instance MapWebView db Wrapped
   
-data PresentView db = PresentView Wrapped [WebView db] deriving (Show, Typeable)
+data PresentView db v = PresentView Wrapped [WebView db v] deriving (Show, Typeable)
 
-instance Eq (PresentView db) where
+instance Eq (PresentView db v) where
   (PresentView (Wrapped pres1) wvs1) == (PresentView (Wrapped pres2) wvs2) =
     (show $ pres1 (replicate (length wvs1) $ noHtml)) == (show $ pres2 (replicate (length wvs2) $ noHtml)) &&
     wvs1 == wvs2
     -- just compare the html for dummy arguments (since the presentation will never depend on the arguments themselves)
 
-instance Storeable db (PresentView db)
+instance Storeable db (PresentView db v)
 
-instance  Initial (PresentView db) where
+instance  Initial (PresentView db v) where
   initial = PresentView initial initial
 
-instance MapWebView db (PresentView db) where
+instance MapWebView db (PresentView db v) where
   mapWebView (PresentView a b) = PresentView <$> mapWebView a <*> mapWebView b
 
-mkPresentView :: Typeable db => ([Html] -> Html) -> WebViewM db [WebView db] -> WebViewM db (WebView db)
+mkPresentView :: Typeable db => ([Html] -> Html) -> WebViewM db [WebView db v] -> WebViewM db (WebView db v)
 mkPresentView presentList mkSubWebViews = mkWebView $
   \vid oldView@(PresentView _ _) ->
     do { wvs <- mkSubWebViews
        ; return $ PresentView (Wrapped presentList) wvs
        }
 
-instance Presentable (PresentView db) where
+instance Presentable (PresentView db v) where
   present (PresentView (Wrapped presentList) wvs) = presentList $ map present wvs
 
+-}

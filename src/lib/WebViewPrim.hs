@@ -52,18 +52,32 @@ debugLn str = trace str $ return ()
 
 -- When loading from different point than root, make sure Id's are not messed up
 
-instance Storeable db (WebView db) where
+instance IsWebView db v => Storeable db (WebView db v) where
   save wv@(WebView _ _ _ _ v) =
-    let topLevelWebViews :: [WebView db] = getTopLevelWebViews wv
-    in  foldl (.) id $ save v : map save topLevelWebViews
+    let topLevelWebViews :: [UntypedWebView db] = getTopLevelWebViews wv
+    in  foldl (.) id $ save v : map saveUntyped topLevelWebViews
+   where saveUntyped :: UntypedWebView db -> db -> db
+         saveUntyped (UntypedWebView v) = save v
 
+instance Storeable db (UntypedWebView db) where
+  save (UntypedWebView v) = save v 
 
 
 ---- Monad stuff
 
+--type RootViewz db = [ (String, WebViewM db (WebView db)) ]
+
+mkRootView :: forall db . Typeable db => RootViews db -> String -> HashArgs -> User -> db -> SessionId -> ViewMap db -> IO (UntypedWebView db)
+mkRootView rootViews rootViewName args user db sessionId viewMap = 
+  case lookup rootViewName rootViews of
+    Nothing  -> error $ "Unknown view: "++rootViewName
+    Just mkV -> runWebView user db viewMap [] 0 sessionId args mkV
+
+runWebView :: User -> db -> ViewMap db -> [Int] -> Int -> SessionId -> HashArgs -> (WebViewM db (UntypedWebView db)) ->
+              IO (UntypedWebView db)
 runWebView user db viewMap path viewIdCounter sessionId args wvm =
- do { rv <- evalStateT wvm (WebViewState user db viewMap path viewIdCounter sessionId args)
-    ; return $ assignIds rv
+ do { UntypedWebView rv <- evalStateT wvm (WebViewState user db viewMap path viewIdCounter sessionId args)
+    ; return $ UntypedWebView $ assignIds rv
     }
 
 getUser :: WebViewM db User 
@@ -245,17 +259,13 @@ mkTestView v = mkView $
 
 viewEdit :: Typeable v => ViewId -> (v -> v) -> EditM db ()
 viewEdit vid viewUpdate =
-  do{ editState <- get
-    ; let webViewUpdate = \(WebView vi si i lv v) ->
-                            WebView vi si i lv $ applyIfCorrectType viewUpdate v
-          wv = getWebViewById vid $ getEStateRootView editState
-          wv' = webViewUpdate wv
-          rootView' = replaceWebViewById vid wv' $ getEStateRootView editState 
-                          
-    ; put editState{ getEStateDb = save rootView' (getEStateDb editState)
-                   , getEStateRootView = rootView'
-                   }
-    }
+  do { editState@EditState{ getEStateDb = db, getEStateRootView = UntypedWebView rootView } <- get
+     ; let rootView' = updateViewById vid viewUpdate rootView
+     ; put editState{ getEStateDb = save rootView' db
+                    , getEStateRootView = UntypedWebView rootView'
+                    }
+     }
+
 -- TODO save automatically, or maybe require explicit save? (after several view updates)
 -- for now, just after every viewEdit
 
@@ -281,7 +291,7 @@ confirmEdit msg okAction = showDialogEdit (toHtml msg) [("Ok", Just okAction), (
 
 authenticateEdit :: ViewIdRef -> ViewIdRef -> EditM db (Maybe (String,String))
 authenticateEdit userEStringViewId passwordEStringViewId =
- do { eState@EditState{ getEStateAllUsers = users, getEStateRootView = rootView } <- get
+ do { eState@EditState{ getEStateAllUsers = users, getEStateRootView = UntypedWebView rootView } <- get
     ; let userName = getTextViewStrByViewIdRef userEStringViewId rootView
           enteredPassword = getTextViewStrByViewIdRef passwordEStringViewId rootView
     ; case Map.lookup userName users of
@@ -303,11 +313,7 @@ authenticateEdit userEStringViewId passwordEStringViewId =
 logoutEdit :: EditM db ()
 logoutEdit = modify $ \es -> es{getEStateUser = Nothing}
 
-applyIfCorrectType :: (Typeable y, Typeable x) => (y -> y) -> x -> x
-applyIfCorrectType f x = case cast f of 
-                           Just fx -> fx x
-                           Nothing -> x
-
+{-
 -- Experimental, not sure if we need this one and if it works correctly
 withView :: forall db v a . (Typeable v, Typeable a) => ViewId -> (v->a) -> EditM db (Maybe a)
 withView vid f =
@@ -319,11 +325,12 @@ withView vid f =
           
     ; return $ wf wv
     }
+-}
 
 -- the view matching on load can be done explicitly, following structure and checking ids, or
 -- maybe automatically, based on id. Maybe extra state can be in a separate data structure even,
 -- like in Proxima
-loadView :: WebView db -> WebViewM db (WebView db)
+loadView :: IsWebView db v => WebView db v -> WebViewM db (WebView db v)
 loadView (WebView _ si i mkView oldView') =
  do { state@(WebViewState user db viewMap path viewIdCounter sid has) <- get
     ; let newViewId = ViewId $ path ++ [viewIdCounter]                             
@@ -337,9 +344,9 @@ loadView (WebView _ si i mkView oldView') =
     ; return $ WebView newViewId si i mkView view    
     }
         
-mkWebView :: (Presentable v, Storeable db v, Initial v, Show v, Eq v, Typeable v, MapWebView db v) =>
+mkWebView :: IsWebView db v =>
              (ViewId -> v -> WebViewM db v) ->
-             WebViewM db (WebView db)
+             WebViewM db (WebView db v)
 mkWebView mkView =
  do { let initialWebView = WebView noViewId noId noId mkView initial
     ; webView <- loadView initialWebView
@@ -379,7 +386,7 @@ Now the unique id's only have to be unique with regard to other elts in the list
 
 Note that the zeros after the uniques are added due to the way mkWebview and load Webview work.
 -}
-uniqueIds :: [(Int, WebViewM db (WebView db))] -> WebViewM db [WebView db]
+uniqueIds :: [(Int, WebViewM db (WebView v db))] -> WebViewM db [WebView v db]
 uniqueIds idsMkWvs =
  do { state@(WebViewState user db viewMap path viewIdCounter sid has) <- get
     ; put $ state { getWVStatePath = path++[viewIdCounter], getWVStateViewIdCounter = 0 } 
@@ -514,9 +521,12 @@ presentEditAction :: EditAction db -> Html
 presentEditAction _ = noHtml 
 
 
-instance Presentable (WebView db) where
+instance Presentable (WebView db v) where
   present (WebView _ (Id stubId) _ _ _) = mkSpan (show stubId) << "ViewStub"
-  
+
+instance Presentable (UntypedWebView db) where
+  present (UntypedWebView wv) = present wv
+    
 instance Presentable (Widget (LabelView w)) where present = presentWidget
 instance Presentable (Widget (TextView w)) where present = presentWidget
 instance Presentable (Widget (RadioView w)) where present = presentWidget
@@ -542,8 +552,9 @@ instance Presentable (AnyWidget db) where
   
   
 -- Phantom typing
-
 newtype ViewIdT viewType = ViewIdT ViewId
+-- TODO: why do we use this one?
+{- Obsolete in Typed web
 
 newtype WebViewT viewType db = WebViewT { unWebViewT :: WebView db } deriving (Eq, Show)
 
@@ -581,7 +592,7 @@ viewEditT :: Typeable v => ViewIdT v -> (v -> v) -> EditM db ()
 viewEditT (ViewIdT vid) viewUpdate = viewEdit vid viewUpdate
 
 
-
+-}
 
 -- Scripting
 
@@ -657,25 +668,25 @@ jsAlert msg = "alert("++show msg++")" --
 
 -- Hacky stuff
 
-getTextViewContents ::Widget (TextView db) -> EditM db String
+getTextViewContents :: Widget (TextView db) -> EditM db String
 getTextViewContents text =
- do { editState <- get
-    ; return $ getTextViewStrByViewIdRef (widgetGetViewRef text) $ getEStateRootView editState
-    } 
+ do { EditState{ getEStateRootView = UntypedWebView rootView } <- get
+    ; return $ getTextViewStrByViewIdRef (widgetGetViewRef text) rootView
+    }
 
 -- probably to be deleted, labels do not need to be accessed    
 getLabelContents :: Widget (LabelView db) -> EditM db String
 getLabelContents text =
- do { editState <- get
-    ; return $ getLabelStrByViewIdRef (widgetGetViewRef text) $ getEStateRootView editState
+ do { EditState{ getEStateRootView = UntypedWebView rootView } <- get
+    ; return $ getLabelStrByViewIdRef (widgetGetViewRef text) rootView
     } 
     
 
 -- not sure if we'll need these, passing vars as arguments works for submit actions.
 getJSVarContents :: Widget (JSVar db) -> EditM db String
 getJSVarContents text =
- do { editState <- get
-    ; return $ getJSVarValueByViewIdRef (widgetGetViewRef text) $ getEStateRootView editState
+ do { EditState{ getEStateRootView = UntypedWebView rootView } <- get
+    ; return $ getJSVarValueByViewIdRef (widgetGetViewRef text) rootView
     } 
 
 

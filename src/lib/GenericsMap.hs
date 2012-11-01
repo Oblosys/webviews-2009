@@ -10,28 +10,28 @@ import Data.IntSet (IntSet)
 import qualified Data.IntSet as IntSet 
 import qualified Data.IntMap as IntMap 
 import Debug.Trace
+import Data.Generics (Typeable, cast)
 
-
-getAllIds :: forall db . WebView db -> [Id]
+getAllIds :: forall db v . IsWebView db v => WebView db v -> [Id]
 getAllIds rootView = snd $ mapWebView rootView (getAllIdsWV, getAllIdsWd, noWidgetUpdates, True) [] 
-  where getAllIdsWV :: WebView db -> [Id] -> (WebView db, [Id])
+  where getAllIdsWV :: WebView db v' -> [Id] -> (WebView db v', [Id])
         getAllIdsWV wv@(WebView _ sid id _ _) ids = (wv, sid:id:ids)
         getAllIdsWd wd@(Widget sid id _)      ids = (wd, sid:id:ids)
 
-clearIds :: forall db . WebView db -> WebView db
+clearIds :: forall db v . IsWebView db v => WebView db v -> WebView db v
 clearIds rootView = fst $ mapWebView rootView (clearIdsWV, clearIdsWd, noWidgetUpdates, True) () 
-  where clearIdsWV :: WebView db -> () -> (WebView db, ())
+  where clearIdsWV :: WebView db v' -> () -> (WebView db v', ())
         clearIdsWV wv@(WebView vid _ _ mkF v) _ = (WebView vid noId noId mkF v, ())
         clearIdsWd wd@(Widget _ _ w)          _ = (Widget noId noId w, ())
 
-assignIdsFromList :: forall db . [Id] -> WebView db -> WebView db
+assignIdsFromList :: forall db v . IsWebView db v => [Id] -> WebView db v -> WebView db v
 assignIdsFromList allIds rootView =
   let assigned = fst $ mapWebView rootView (assignIdsWV, assignIdsWd, noWidgetUpdates, True) freeIds
   in {- trace (if [] /= filter (==Id (-1))(getAll assigned :: [Id]) then show assigned else "ok") $ -} assigned
  where usedIds = IntSet.fromList $ map unId $ filter (/= noId) $ allIds 
        freeIds = (IntSet.fromList $ [0 .. length allIds - 1]) `IntSet.difference` usedIds
 
-       assignIdsWV :: WebView db -> IntSet -> (WebView db, IntSet)
+       assignIdsWV :: WebView db v' -> IntSet -> (WebView db v', IntSet)
        assignIdsWV (WebView vi sid id mkF v) state = (WebView vi sid' id' mkF v, state'')
         where (sid',state') = mkId state sid
               (id',state'') = mkId state' id
@@ -47,74 +47,74 @@ mkId ids (Id i) = if (i == -1)
                                               in  (Id newId, ids') 
                                     else (Id i, ids)       
 
-getTopLevelWebViews :: WebView db -> [WebView db]
+getTopLevelWebViews :: MapWebView db v => WebView db v -> [UntypedWebView db]
 getTopLevelWebViews wv = [w | WebViewNode w <- getTopLevelWebNodes wv]
 
 -- get top-level WebNodes (WebViews and widgets), not including the WebView itself
-getTopLevelWebNodes :: WebView db -> [WebNode db]
+getTopLevelWebNodes :: MapWebView db v => WebView db v -> [WebNode db]
 getTopLevelWebNodes (WebView _ _ _ _ v) = map snd $ getWebNodesAndViewIds False v
 
-mkWebNodeMap :: WebView db -> WebNodeMap db
+mkWebNodeMap :: IsWebView db v => WebView db v -> WebNodeMap db
 mkWebNodeMap wv = Map.fromList $ getWebNodesAndViewIds True wv
 
-mkViewMap :: WebView db -> ViewMap db
+mkViewMap ::IsWebView db v => WebView db v -> ViewMap db
 mkViewMap wv = Map.fromList $ [ (vid, wv) | (vid, WebViewNode wv) <- getWebNodesAndViewIds True wv ]
 
-getLabelViewByViewId :: ViewId -> WebView db -> LabelView db
+getLabelViewByViewId :: IsWebView db v => ViewId -> WebView db v -> LabelView db
 getLabelViewByViewId i wv =
   case getAnyWidgetById i wv of
     LabelWidget x -> x
     _             -> error $ "internal error: widget with id " ++ show i ++ " is not a LabelView" 
 
-getTextViewByViewId :: ViewId -> WebView db -> TextView db
+getTextViewByViewId :: IsWebView db v => ViewId -> WebView db v -> TextView db
 getTextViewByViewId i wv =
   case getAnyWidgetById i wv of
     TextWidget x -> x
     _              -> error $ "internal error: widget with id " ++ show i ++ " is not a TextView" 
 
-getRadioViewByViewId :: ViewId -> WebView db -> RadioView db
+getRadioViewByViewId :: IsWebView db v => ViewId -> WebView db v -> RadioView db
 getRadioViewByViewId i wv =
   case getAnyWidgetById i wv of
     RadioViewWidget x -> x
     _                 -> error $ "internal error: widget with id " ++ show i ++ " is not a RadioView" 
 
-getSelectViewByViewId :: ViewId -> WebView db -> SelectView db
+getSelectViewByViewId :: IsWebView db v => ViewId -> WebView db v -> SelectView db
 getSelectViewByViewId i wv =
   case getAnyWidgetById i wv of
     SelectViewWidget x -> x
     _                  -> error $ "internal error: widget with id " ++ show i ++ " is not a SelectView" 
 
 
-getButtonByViewId :: ViewId -> WebView db -> Button db
+getButtonByViewId :: IsWebView db v => ViewId -> WebView db v -> Button db
 getButtonByViewId i wv =
   case getAnyWidgetById i wv of
     ButtonWidget x -> x
     _              -> error $ "internal error: widget with id " ++ show i ++ " is not a Button" 
 
-getJSVarByViewId :: ViewId -> WebView db -> JSVar db
+getJSVarByViewId :: IsWebView db v => ViewId -> WebView db v -> JSVar db
 getJSVarByViewId i wv =
   case getAnyWidgetById i wv of
     JSVarWidget x -> x
     _             -> error $ "internal error: widget with id " ++ show i ++ " is not a JSVar" 
 
-getEditActionByViewId :: ViewId -> WebView db -> EditAction db
+getEditActionByViewId :: IsWebView db v => ViewId -> WebView db v -> EditAction db
 getEditActionByViewId i wv =
   case getAnyWidgetById i wv of
     EditActionWidget x -> x
     _             -> error $ "internal error: widget with id " ++ show i ++ " is not an EditAction" 
 
-getWebViewById :: ViewId -> WebView db -> WebView db
+getWebViewById :: IsWebView db v => ViewId -> WebView db v -> UntypedWebView db
 getWebViewById i wv = 
   case getWebNodeById "getWebViewById" i wv of
     (WebViewNode wv) -> wv
     _                -> error $ "internal error: webnode with id " ++ show i ++ " is not a WebViewNode"
 
 
-getAnyWidgetById :: ViewId -> WebView db -> AnyWidget db
+getAnyWidgetById :: IsWebView db v => ViewId -> WebView db v -> AnyWidget db
 getAnyWidgetById i wv = fromMaybe (error $ "internal error: webnode with id " ++ show i ++ " is not a WidgetNode") $
                           mGetAnyWidgetById i wv
 
-getWebNodeById :: String -> ViewId -> WebView db -> WebNode db
+getWebNodeById :: IsWebView db v => String -> ViewId -> WebView db v -> WebNode db
 getWebNodeById callerTag i wv = 
   case [ wn | (vid, wn) <- getWebNodesAndViewIds True wv, vid == i ] of
     [b] -> b
@@ -122,13 +122,13 @@ getWebNodeById callerTag i wv =
     _   -> error $ "internal error: getWebNodeById (called by "++callerTag++"): multiple webnode with id " ++ show i
 
 -- workaround for problem with events that arrive after the target widget has been removed. (especially on iPad/iPhone)
-mGetAnyWidgetById :: ViewId -> WebView db -> Maybe (AnyWidget db)
+mGetAnyWidgetById :: IsWebView db v => ViewId -> WebView db v -> Maybe (AnyWidget db)
 mGetAnyWidgetById i wv = 
   case mGetWebNodeById "getAnyWidgetById" i wv of
     Just (WidgetNode _ _ _ wd) -> Just wd
     _                          -> Nothing
 
-mGetWebNodeById :: String -> ViewId -> WebView db -> Maybe (WebNode db)
+mGetWebNodeById :: IsWebView db v => String -> ViewId -> WebView db v -> Maybe (WebNode db)
 mGetWebNodeById callerTag i wv = 
   case [ wn | (vid, wn) <- getWebNodesAndViewIds True wv, vid == i ] of
     [b] -> Just b
@@ -137,8 +137,9 @@ mGetWebNodeById callerTag i wv =
 
 getWebNodesAndViewIds :: forall db v . MapWebView db v => Bool -> v -> [(ViewId, WebNode db)]
 getWebNodesAndViewIds recursive v = snd $ mapWebView v (getWebNodesAndViewIdsWV, getWebNodesAndViewIdsWd, noWidgetUpdates, recursive) []
- where getWebNodesAndViewIdsWV :: WebView db -> [(ViewId, WebNode db)] -> (WebView db, [(ViewId, WebNode db)])
-       getWebNodesAndViewIdsWV wv@(WebView vi _ _ _ _) state = (wv, (vi, WebViewNode wv):state)
+ where getWebNodesAndViewIdsWV :: IsWebView db v' =>
+                                  WebView db v' -> [(ViewId, WebNode db)] -> (WebView db v', [(ViewId, WebNode db)])
+       getWebNodesAndViewIdsWV wv@(WebView vi _ _ _ _) state = (wv, (vi, WebViewNode $ UntypedWebView wv):state)
 
        getWebNodesAndViewIdsWd :: MapWebView db (w db) => Widget (w db) -> [(ViewId, WebNode db)] -> (Widget (w db), [(ViewId, WebNode db)])
        getWebNodesAndViewIdsWd wd@(Widget sid id w) state = (wd, widgetNode ++ state) 
@@ -160,17 +161,22 @@ widgetToAnyWidget w = snd $ mapWebView w (inert,inert,widgetUpdates,False {- has
        jsVarUpd w s      = (w, Just (getViewId w, JSVarWidget w))
        editActionUpd w s = (w, Just (getViewId w, EditActionWidget w))
 
-replaceWebViewById :: forall db . ViewId -> WebView db -> WebView db -> WebView db
-replaceWebViewById vid newWV rootView = fst $ mapWebView rootView (replaceWebViewByIdWV, replaceWebViewByIdWd, noWidgetUpdates, True) ()
- where replaceWebViewByIdWV :: WebView db -> () -> (WebView db, ())
-       replaceWebViewByIdWV wv@(WebView vi sid id mkF v) state = (if vid == vi then newWV else wv, state)
+updateViewById :: forall db v view . (IsWebView db v, Typeable view) => ViewId -> (view->view) -> WebView db v -> WebView db v
+updateViewById vid viewUpdate rootView = fst $ mapWebView rootView (updateViewByIdWV, updateViewByIdWd, noWidgetUpdates, True) ()
+ where updateViewByIdWV :: IsWebView db v' => WebView db v' -> () -> (WebView db v', ())
+       updateViewByIdWV wv@(WebView vi si i mkV v) state = 
+         ( if vid == vi
+           then case cast viewUpdate of
+                  Just f  -> WebView vid si i mkV $ f v 
+                  Nothing -> error "replaceWebViewById: type error"
+           else wv
+         , state )
 
-       replaceWebViewByIdWd wd state = (wd, state)
+       updateViewByIdWd wd state = (wd, state)
 
-
-substituteIds :: forall db . [(Id, Id)] -> WebView db -> WebView db
+substituteIds :: forall db v . IsWebView db v => [(Id, Id)] -> WebView db v -> WebView db v
 substituteIds subs rootView = fst $ mapWebView rootView (substituteIdsWV, substituteIdsWd, noWidgetUpdates, True) ()
- where substituteIdsWV :: WebView db -> () -> (WebView db, ())
+ where substituteIdsWV :: WebView db v' -> () -> (WebView db v', ())
        substituteIdsWV (WebView vi sid id mkF v) state = (WebView vi (substituteId sid) (substituteId id) mkF v, state)
        
        substituteIdsWd (Widget sid id w) state = (Widget (substituteId sid) (substituteId id) w, state)
@@ -190,9 +196,9 @@ type Updates = Map ViewId String  -- maps id's to the string representation of t
 --       In that case, probably need a phantom type in Widget, as well as db.
 
 -- update the datastructure at the id's in Updates 
-applyUpdates :: forall db d . Updates -> WebView db -> WebView db
+applyUpdates :: forall db v . IsWebView db v => Updates -> WebView db v -> WebView db v
 applyUpdates updates rootView = fst $ mapWebView rootView (applyUpdatesWV, applyUpdatesWd, widgetUpdates, True) ()
- where applyUpdatesWV :: WebView db -> () -> (WebView db, ())
+ where applyUpdatesWV :: WebView db v' -> () -> (WebView db v', ())
        applyUpdatesWV wd state = (wd, state)
        applyUpdatesWd wd state = (wd, state)
        widgetUpdates = WidgetUpdates labelViewUpd textViewUpd radioViewUpd selectViewUpd buttonUpd jsVarUpd editActionUpd
@@ -209,4 +215,4 @@ applyUpdates updates rootView = fst $ mapWebView rootView (applyUpdatesWV, apply
        mkWidgetUpdate w upd parse s = case Map.lookup (getViewId w) updates of
                                         Nothing  -> (w,s)
                                         Just str -> (upd (parse str),s)
-                                      
+                                    

@@ -37,7 +37,7 @@ isMove (Move _ _ _) = True
 isMove _          = False
 
 
-mkIncrementalUpdates :: forall db . WebView db -> WebView db -> IO ([Html], WebView db)
+mkIncrementalUpdates :: forall db v1 v2 . (IsWebView db v1, IsWebView db v2) => WebView db v1 -> WebView db v2 -> IO ([Html], WebView db v2)
 mkIncrementalUpdates oldRootView rootView =
  do { let (newWebNodes :: [WebNode db], updates) = diffViews oldRootView rootView
     --; putStrLn $ "\nChanged or new web nodes\n" ++ unlines (map shallowShowWebNode newWebNodes) 
@@ -67,7 +67,7 @@ mkIncrementalUpdates oldRootView rootView =
 
 -- TODO: no need to compute new or changed first, can be put in Update list
 --       do have to take into account addChangedViewChildren then
-diffViews :: WebView db -> WebView db -> ([WebNode db], [Update])
+diffViews :: (IsWebView db v1, IsWebView db v2) => WebView db v1 -> WebView db v2 -> ([WebNode db], [Update])
 diffViews oldRootView rootView = 
   let newWebNodeMap = mkWebNodeMap rootView
       oldWebNodeMap = mkWebNodeMap oldRootView
@@ -86,8 +86,8 @@ getNewOrChangedIdsWebNodes oldWebNodeMap newWebNodeMap =
            Nothing -> True
            Just oldWebNode -> oldWebNode /= webNode
           
-computeMoves :: WebView db -> WebNodeMap db -> [ViewId] -> WebView db -> [Update]           
-computeMoves oldRootViewrootView@(WebView _ _ oldRootId _ _) 
+computeMoves :: IsWebView db v2 => WebView db v1 -> WebNodeMap db -> [ViewId] -> WebView db v2 -> [Update]           
+computeMoves (WebView _ _ oldRootId _ _) 
              oldWebNodeMap changedOrNewWebNodes rootView@(WebView rootVid stubId rootId _ _) = 
   (if rootVid `elem` changedOrNewWebNodes 
    then [ Move "Root move" (mkRef $ rootId) (mkRef $ oldRootId) ] 
@@ -168,14 +168,14 @@ traceArg str x = trace (str ++ show x) x
 webViewGetId (WebView _ _ i _ _) = i 
 
     
-getWebNodeViewId (WebViewNode (WebView vid _ _ _ _)) = vid      
+getWebNodeViewId (WebViewNode (UntypedWebView (WebView vid _ _ _ _))) = vid      
 getWebNodeViewId (WidgetNode vid _ _ _) = vid
 
-getWebNodeId (WebViewNode (WebView _ _ i _ _)) = i      
+getWebNodeId (WebViewNode (UntypedWebView (WebView _ _ i _ _))) = i      
 getWebNodeId (WidgetNode _ _ i _) = i
 
 
-getWebNodeStubId (WebViewNode (WebView _ si _ _ _)) = si      
+getWebNodeStubId (WebViewNode (UntypedWebView (WebView _ si _ _ _))) = si      
 getWebNodeStubId (WidgetNode _ si _ _) = si
 
 
@@ -191,7 +191,7 @@ newWebNodeHtml (WidgetNode _ _ (Id i) w) =
       updateResponse = div_ ! strAttr "op" "new"  $ (mkSpan (show i) $ html)
       scriptResponse = div_ ! strAttr "op" "eval" $ (toHtml $ concat scripts)
   in  Just (updateResponse, if null scripts then Nothing else Just scriptResponse)
-newWebNodeHtml (WebViewNode (WebView _ _ (Id i) _ v)) = 
+newWebNodeHtml (WebViewNode (UntypedWebView (WebView _ _ (Id i) _ v))) = 
   let htmlWithScript = present v
       (html, scripts) = extractScriptHtml htmlWithScript
       updateResponse = div_ ! strAttr "op" "new" $ (mkSpan (show i) $ html)

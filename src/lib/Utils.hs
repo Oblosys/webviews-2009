@@ -12,13 +12,13 @@ import Data.Tree
 import WebViewPrim
 import HtmlLib
 
-getRootView :: SessionStateRef db -> IO (WebView db)
+getRootView :: SessionStateRef db -> IO (UntypedWebView db)
 getRootView sessionStateRef =
  do { sessionState <- readIORef sessionStateRef
     ; return $ getSStateRootView sessionState
     }
  
-setRootView :: SessionStateRef db -> WebView db -> IO ()
+setRootView :: SessionStateRef db -> UntypedWebView db -> IO ()
 setRootView sessionStateRef rootView =
  do { sessionState <- readIORef sessionStateRef
     ; writeIORef sessionStateRef sessionState{ getSStateRootView = rootView }
@@ -38,14 +38,14 @@ setSessionHashArgs sessionStateRef hashArgs =
 
 
 
-shallowShowWebNode (WebViewNode wv) = "WebNode: " ++ shallowShowWebView wv
+shallowShowWebNode (WebViewNode (UntypedWebView wv)) = "WebNode: " ++ shallowShowWebView wv
 shallowShowWebNode (WidgetNode viewId stubId id w) = "WebNode: ("++show viewId++", stub:"++show (unId stubId)++", id:"++show (unId id)++") " ++ show w 
 
 shallowShowWebView (WebView vid sid id _ v) =
   "<WebView: "++show vid ++ ", stub:" ++ show (unId sid) ++ ", id:" ++ show (unId id) ++ " " ++ show (typeOf v)++ ">"
 
 drawWebNodes webnode = drawTree $ treeFromView webnode
- where treeFromView (WebViewNode wv@(WebView vid sid id _ v)) =
+ where treeFromView (WebViewNode (UntypedWebView wv@(WebView vid sid id _ v))) =
          Node ("("++show vid ++ ", stub:" ++ show (unId sid) ++ ", id:" ++ show (unId id) ++ ") : " ++ show (typeOf v)) $
               map treeFromView $ getTopLevelWebNodes wv
        treeFromView (WidgetNode vid sid id w) =
@@ -62,7 +62,7 @@ drawWebNodes webnode = drawTree $ treeFromView webnode
 
 getTopLevelWebNodesForWebNode :: WebNode db -> [WebNode db]
 getTopLevelWebNodesForWebNode (WidgetNode _ _ _ wn) = []
-getTopLevelWebNodesForWebNode (WebViewNode wv) = getTopLevelWebNodes wv
+getTopLevelWebNodesForWebNode (WebViewNode (UntypedWebView wv)) = getTopLevelWebNodes wv
 
 
 -- Template utils

@@ -5,6 +5,7 @@ import Happstack.Server
 import System.IO
 import Data.List
 import Data.List.Split
+import Data.Generics (Typeable)
 import Data.Maybe
 import Data.IORef
 import Data.ByteString.Char8 (unpack)
@@ -91,18 +92,18 @@ type ServerInstanceId = EpochTime
 
 type SessionCounter = Int
 
-type Sessions db = IntMap (User, WebView db, Maybe [Maybe (EditM db ())], HashArgs)
+type Sessions db = IntMap (User, UntypedWebView db, Maybe [Maybe (EditM db ())], HashArgs)
 
-server :: (Show db, Read db, Eq db) =>
+server :: (Show db, Read db, Eq db, Typeable db) =>
           Int -> String -> RootViews db -> [String] -> String -> IO (db) -> Map String (String, String) -> IO ()
 server portNr title rootViews scriptFilenames dbFilename mkInitialDatabase users =
  do { hSetBuffering stdout NoBuffering -- necessary to run server in Eclipse
     ; time <- getClockTime
     ; args <- getArgs
     ; let debug = case args of
-                    []          -> True
+                    []            -> True
                     ["--nodebug"] -> False
-                    _           -> error "Incorrect parameters: only 'nodebug' is allowed"
+                    _             -> error "Incorrect parameters: only 'nodebug' is allowed"
         
     ; putStrLn $ "\n\n### Started WebViews server "++show title++" (port "++show portNr++")\n"++show time ++"\n"++
                  "Debugging: "++(if debug then "ON" else "OFF")++"\n\n"
@@ -160,7 +161,7 @@ instance FromData Int where
 
 readInt s = fromMaybe (-1) (readMaybe s)
 
-handlers :: (Show db, Eq db) => Bool -> String -> RootViews db -> [String] -> String -> db -> Map String (String, String) -> ServerInstanceId -> GlobalStateRef db -> [ServerPart Response]
+handlers :: (Show db, Eq db, Typeable db) => Bool -> String -> RootViews db -> [String] -> String -> db -> Map String (String, String) -> ServerInstanceId -> GlobalStateRef db -> [ServerPart Response]
 handlers debug title rootViews scriptFilenames dbFilename db users serverSessionId globalStateRef = 
   (do { msum [ dir "favicon.ico" $  serveDirectory DisableBrowsing [] "favicon.ico"
              , dir "scr" $ msum [ serveDirectory DisableBrowsing [] "scr"
@@ -234,7 +235,7 @@ Set-Cookie: webviews="(1242497513,2)";Max-Age=3600;Path=/;Version="1"
 
 type SessionCookie = (String, String)
 
-session :: (Show db, Eq db) => Bool -> RootViews db -> String -> db -> Map String (String, String) -> ServerInstanceId -> GlobalStateRef db -> Int -> Commands -> ServerPart Response
+session :: (Show db, Eq db, Typeable db) => Bool -> RootViews db -> String -> db -> Map String (String, String) -> ServerInstanceId -> GlobalStateRef db -> Int -> Commands -> ServerPart Response
 session debug rootViews dbFilename db users serverInstanceId globalStateRef requestId cmds =
  do { mCookieSessionId <- parseCookieSessionId serverInstanceId
       
@@ -271,15 +272,16 @@ parseCookieSessionId serverInstanceId =
     ; return mCookieSessionId
     }
 
-mkInitialRootView :: db -> IO (WebView db)
-mkInitialRootView db = runWebView Nothing db Map.empty [] 0 (-1) [] $ mkWebView (\_ _ -> return ()) 
-
+mkInitialRootView :: Typeable db => db -> IO (UntypedWebView db)
+mkInitialRootView db = do { wv <- runWebView Nothing db Map.empty [] 0 (-1) [] $ fmap UntypedWebView $ mkWebView (\_ _ -> return InitialView) 
+                          ; return wv
+                          }
 -- this creates a WebView with stubid 0 and id 1
 -- for now, we count on that in the client
 -- TODO: change this to something more robust
 -- todo: use different id
 
-createNewSessionState :: Bool -> db -> GlobalStateRef db -> ServerInstanceId -> ServerPart SessionId
+createNewSessionState :: Typeable db => Bool -> db -> GlobalStateRef db -> ServerInstanceId -> ServerPart SessionId
 createNewSessionState debug db globalStateRef serverInstanceId = 
  do { (database, sessions,sessionCounter) <- io $ readIORef globalStateRef
     ; let sessionId = sessionCounter
@@ -319,7 +321,7 @@ storeSessionState globalStateRef sessionId sessionStateRef =
     ; io $ writeIORef globalStateRef (database', sessions', sessionCounter)
     }
  
-sessionHandler :: (Show db, Eq db) => RootViews db -> String -> db -> Map String (String, String) -> SessionStateRef db -> Int -> Commands -> ServerPart Html
+sessionHandler :: (Show db, Eq db, Typeable db) => RootViews db -> String -> db -> Map String (String, String) -> SessionStateRef db -> Int -> Commands -> ServerPart Html
 sessionHandler rootViews dbFilename db users sessionStateRef requestId (SyntaxError cmdStr) =
   error $ "Syntax error in commands from client: "++cmdStr 
 sessionHandler rootViews dbFilename db users sessionStateRef requestId (Commands allCmds) = io $  
@@ -369,7 +371,7 @@ Note that EvalJS and Confirm also cause a view update.
 -}    
 
 handleCommands :: forall db . (Eq db, Show db) =>
-                  RootViews db -> String -> db -> Map String (String, String) -> SessionStateRef db -> WebView db -> [Command] ->
+                  RootViews db -> String -> db -> Map String (String, String) -> SessionStateRef db -> UntypedWebView db -> [Command] ->
                   IO [Html]
 handleCommands rootViews dbFilename db users sessionStateRef oldRootView cmds = handleCommands' [] cmds
  where handleCommands' allScripts [] = 
@@ -404,11 +406,11 @@ mkConfirmDialogResponseHtml dialogHtml buttonNames = -- the Bool specifies wheth
   ] 
 
 
-mkViewUpdateResponseHtml :: (Eq db, Show db) => SessionStateRef db -> String -> db -> WebView db -> IO [Html]
-mkViewUpdateResponseHtml sessionStateRef dbFilename db oldRootView =
+mkViewUpdateResponseHtml :: (Eq db, Show db) => SessionStateRef db -> String -> db -> UntypedWebView db -> IO [Html]
+mkViewUpdateResponseHtml sessionStateRef dbFilename db (UntypedWebView oldRootView) =
          do { 
  
-            ; rootViewWithoutIds <- getRootView sessionStateRef
+            ; UntypedWebView rootViewWithoutIds <- getRootView sessionStateRef
               -- this is the modified rootView                      
                                     
             -- save the database if there was a change
@@ -426,7 +428,7 @@ mkViewUpdateResponseHtml sessionStateRef dbFilename db oldRootView =
             ; seq (length (show rootView)) $ return ()
             --; putStrLn "seq'ed rootView"
             
-            ; setRootView sessionStateRef rootView
+            ; setRootView sessionStateRef $ UntypedWebView rootView
               
               
             ; (responseHtml, rootView') <- mkIncrementalUpdates oldRootView rootView
@@ -435,7 +437,7 @@ mkViewUpdateResponseHtml sessionStateRef dbFilename db oldRootView =
                                            
             --; putStrLn $ "View tree:\n" ++ drawWebNodes (WebViewNode rootView') 
             --; putStrLn $ "rootView':\n" ++ show rootView'
-            ; setRootView sessionStateRef rootView'
+            ; setRootView sessionStateRef $ UntypedWebView rootView'
             --; putStrLn $ "database:\n" ++ show db
             --; putStrLn $ "\n\n\nresponse = \n" ++ show responseHtml
             --; putStrLn $ "View tree':\n" ++ drawWebNodes (WebViewNode rootView') 
@@ -447,18 +449,11 @@ mkViewUpdateResponseHtml sessionStateRef dbFilename db oldRootView =
             ; return $ responseHtml
             }
 
-mkRootView ::RootViews db -> String -> HashArgs -> User -> db -> SessionId -> ViewMap db -> IO (WebView db)
-mkRootView rootViews rootViewName args user db sessionId viewMap =
-  runWebView user db viewMap [] 0 sessionId args $ mkMainView
- where mkMainView = case lookup rootViewName rootViews of
-                      Nothing -> error $ "Unknown view: "++rootViewName
-                      Just mkV -> mkV
-
 handleCommand :: forall db . RootViews db -> Map String (String, String) -> SessionStateRef db -> Command -> IO ServerResponse
 handleCommand rootViews _ sessionStateRef (Init rootViewName hashArgs) =
  do { putStrLn $ "Init " ++ show rootViewName ++ " " ++ show hashArgs
     ; setSessionHashArgs sessionStateRef hashArgs
-    ; SessionState sessionId user db oldRootView _ _ <- readIORef sessionStateRef
+    ; SessionState sessionId user db (UntypedWebView oldRootView) _ _ <- readIORef sessionStateRef
     ; rootView <- io $ mkRootView rootViews rootViewName hashArgs user db sessionId (mkViewMap oldRootView)
     ; setRootView sessionStateRef rootView
      
@@ -467,12 +462,12 @@ handleCommand rootViews _ sessionStateRef (Init rootViewName hashArgs) =
 handleCommand rootViews _ sessionStateRef (HashUpdate rootViewName hashArgs) = -- fired when hash hash changed in client
  do { putStrLn $ "HashUpdate " ++ show rootViewName ++ " " ++ show hashArgs
     ; setSessionHashArgs sessionStateRef hashArgs
-    ; SessionState sessionId user db oldRootView _ _ <- readIORef sessionStateRef
+    ; SessionState sessionId user db (UntypedWebView oldRootView) _ _ <- readIORef sessionStateRef
     ; rootView <- io $ mkRootView rootViews rootViewName hashArgs user db sessionId (mkViewMap oldRootView)
     ; setRootView sessionStateRef rootView
      
     ; return $ ServerResponse [] Nothing
-    }
+    } 
 handleCommand _ _ sessionStateRef Refresh =
  do { -- putStrLn "Refresh"
     ; reloadRootView sessionStateRef
@@ -483,12 +478,12 @@ handleCommand _ _ sessionStateRef Test =
     ; return $ ServerResponse [] Nothing
     }
 handleCommand _ users sessionStateRef (SetC viewId value) =
- do { SessionState sessionId user db rootView dialogCommands hashArgs <- readIORef sessionStateRef      
+ do { SessionState sessionId user db (UntypedWebView rootView) dialogCommands hashArgs <- readIORef sessionStateRef      
     ; putStrLn $ "Performing: "++show (SetC viewId value)
     --; putStrLn $ "RootView:\n" ++ show rootView ++"\n\n\n\n\n"
     ; let rootView' = applyUpdates (Map.fromList [(viewId, value)]) (assignIds rootView)
     ; let db' = save rootView' db
-    ; writeIORef sessionStateRef $ SessionState sessionId user db' rootView' dialogCommands hashArgs
+    ; writeIORef sessionStateRef $ SessionState sessionId user db' (UntypedWebView rootView') dialogCommands hashArgs
     ; reloadRootView sessionStateRef
 
     --; putStrLn $ "Updated rootView:\n" ++ show rootView'
@@ -500,9 +495,9 @@ handleCommand _ users sessionStateRef (SetC viewId value) =
       -- TODO: check if mkViewMap has correct arg
     -- TODO: instead of updating all, just update the one that was changed
     ; return response
-    }
+    } 
 handleCommand _  users sessionStateRef (ButtonC viewId) =
- do { SessionState _ user db rootView dialogCommands hashArgs <- readIORef sessionStateRef
+ do { SessionState _ user db (UntypedWebView rootView) dialogCommands hashArgs <- readIORef sessionStateRef
     ; let (Button _ txt _ _ _ act) = getButtonByViewId viewId rootView
     ; putStrLn $ "Button #" ++ show viewId ++ ":" ++ txt ++ " was clicked"
 
@@ -511,7 +506,7 @@ handleCommand _  users sessionStateRef (ButtonC viewId) =
     ; return response
     }
 handleCommand _ users sessionStateRef (SubmitC viewId) =
- do { SessionState _ user db rootView dialogCommandst hashArgs <- readIORef sessionStateRef
+ do { SessionState _ user db (UntypedWebView rootView) dialogCommandst hashArgs <- readIORef sessionStateRef
     ; let TextView _ _ txt _ _ _ mAct = getTextViewByViewId viewId rootView
     ; putStrLn $ "TextView #" ++ show viewId ++ ":" ++ txt ++ " was submitted"
 
@@ -522,7 +517,7 @@ handleCommand _ users sessionStateRef (SubmitC viewId) =
     ; return response
     }
 handleCommand _ users sessionStateRef (PerformEditActionC viewId args) =
- do { SessionState _ user db rootView dialogCommands hashArgs <- readIORef sessionStateRef
+ do { SessionState _ user db (UntypedWebView rootView) dialogCommands hashArgs <- readIORef sessionStateRef
     ; let EditAction _ act = getEditActionByViewId viewId rootView
     ; putStrLn $ "EditAction with ViewId "++show viewId ++ " was executed"
 
@@ -546,11 +541,11 @@ handleCommand _ users sessionStateRef (DialogButtonPressed nr) = -- TODO
  
 reloadRootView :: SessionStateRef db -> IO ()
 reloadRootView sessionStateRef =
- do { SessionState sessionId user db rootView dialogCommands hashArgs <- readIORef sessionStateRef
+ do { SessionState sessionId user db (UntypedWebView rootView) dialogCommands hashArgs <- readIORef sessionStateRef
     ; 
     ; rootView' <- evalStateT (loadView rootView) (WebViewState user db (mkViewMap rootView) [] 0 sessionId hashArgs)
  -- TODO this 0 does not seem right BUG
-    ; writeIORef sessionStateRef $ SessionState sessionId user db rootView' dialogCommands hashArgs
+    ; writeIORef sessionStateRef $ SessionState sessionId user db (UntypedWebView rootView') dialogCommands hashArgs
     } 
  
 performEdit :: Map String (String, String) -> SessionStateRef db -> EditM db () -> IO ServerResponse
