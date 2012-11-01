@@ -4,12 +4,16 @@ import Data.Map (Map)
 import Data.Maybe
 import qualified Data.Map as Map
 import ObloUtils
+import Types
+
+type WV v = WebView Database v
 
 type QuestionTag = String
 
 type Answer = String
 
 type Database = Map QuestionTag (Maybe (Bool, Answer))
+
 -- TODO: use Answered here. We need a version of answered with the strings in it, so we don't have a string for Unanswered
 
 mkInitialDatabase :: IO Database
