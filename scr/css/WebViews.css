@@ -47,6 +47,7 @@ table td, table th {
   background-color:black;
   opacity:0.4;
   filter:alpha(opacity=40);
+  z-index: 1000;
 }
 
 .dialogContainer {
@@ -56,6 +57,7 @@ table td, table th {
   left: 50%;
   width: 522px; /* is dialog max-width + 2*border + 2*padding */
   margin-left: -250; /* width / 2 */
+  z-index: 1001;
 }
 .dialog {
   display:table;
