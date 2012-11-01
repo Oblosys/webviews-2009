@@ -454,10 +454,10 @@ instance Storeable Database TextAnswerView where
 --------- Non-answer views ------------------------------------------------------------
 
 
-data StyleView = StyleView String (UntypedWebView Database {-WV FormEltView-})
+data StyleView = StyleView String (UntypedWebView Database)
    deriving (Eq, Show, Typeable)
 
-mkStyleView :: String -> UntypedWebView Database {-WV FormEltView-} -> WebViewM Database (WV StyleView)
+mkStyleView :: String -> UntypedWebView Database -> WebViewM Database (WV StyleView)
 mkStyleView styleStr wv = mkWebView $
   \vid _ ->
     do { return $ StyleView styleStr wv
@@ -471,11 +471,11 @@ instance Storeable Database StyleView
 
 
 
-data TableView = TableView String Bool Bool Bool [[UntypedWebView Database {-WV FormEltView-}]]
+data TableView = TableView String Bool Bool Bool [[UntypedWebView Database]]
    deriving (Eq, Show, Typeable)
 
 
-mkTableView :: String -> Bool -> Bool -> Bool -> [[UntypedWebView Database {-WV FormEltView-}]] -> WebViewM Database (WV TableView)
+mkTableView :: String -> Bool -> Bool -> Bool -> [[UntypedWebView Database]] -> WebViewM Database (WV TableView)
 mkTableView classTag border topHeader leftHeader rows = mkWebView $
   \vid _ ->
     do { return $ TableView classTag border topHeader leftHeader rows
@@ -504,69 +504,6 @@ instance Storeable Database TableView
 
 
 
-{-
-data FormEltView = RadioAnswerFormEltView (WV RadioAnswerView) 
-                 | RadioTextAnswerFormEltView (WV RadioTextAnswerView)
-                 | ButtonAnswerFormEltView (WV ButtonAnswerView)
-                 | TextAnswerFormEltView (WV TextAnswerView)
-                 | HtmlFormEltView (WV HtmlView)
-                 | HtmlTemplateFormEltView (WV HtmlTemplateView)
-                 | StyleFormEltView (WV StyleView)
-                 | TableFormEltView (WV TableView)
-                     deriving (Show, Eq, Typeable)
-
--- put these here due to Template-Haskell scope restrictions
-deriveInitial ''StyleView
-deriveMapWebViewDb ''Database ''StyleView
-
-deriveInitial ''TableView
-deriveMapWebViewDb ''Database ''TableView
-
-deriveInitial ''FormEltView
-deriveMapWebViewDb ''Database ''FormEltView
-
-
-mkFormEltView :: (WV a -> FormEltView) -> WebViewM Database (WV a) -> WebViewM Database (WV FormEltView)
-mkFormEltView cnstr mkwv = mkWebView $
-  \vid _ ->
-    do { wv <- mkwv
-       ; return $ cnstr wv
-       }
-
-instance Presentable FormEltView where
-  present (RadioAnswerFormEltView wv) = present wv
-  present (RadioTextAnswerFormEltView wv) = present wv
-  present (ButtonAnswerFormEltView wv) = present wv
-  present (TextAnswerFormEltView wv) = present wv
-  present (HtmlFormEltView wv) = present wv
-  present (HtmlTemplateFormEltView wv) = present wv
-  present (StyleFormEltView wv) = present wv
-  present (TableFormEltView wv) = present wv
-
-instance Storeable Database FormEltView
-
-
-         
-mkViewFormElt :: FormElt -> WebViewM Database (WV FormEltView)
-mkViewFormElt (RadioAnswerElt r)      = mkFormEltView RadioAnswerFormEltView $ mkRadioAnswerView r
-mkViewFormElt (RadioTextAnswerElt rt) = mkFormEltView RadioTextAnswerFormEltView $ mkRadioTextAnswerView rt
-mkViewFormElt (ButtonAnswerElt b)     = mkFormEltView ButtonAnswerFormEltView $ mkButtonAnswerView b
-mkViewFormElt (TextAnswerElt t)       = mkFormEltView TextAnswerFormEltView $ mkTextAnswerView t
-mkViewFormElt (HtmlElt html)          = mkFormEltView HtmlFormEltView $ mkHtmlView html
-mkViewFormElt (HtmlFileElt path)      = mkFormEltView HtmlTemplateFormEltView $ mkHtmlTemplateView ("Webforms/"++path) []
-mkViewFormElt (StyleElt styleStr elt) = 
- do { wv <- mkViewFormElt elt
-    ; mkFormEltView StyleFormEltView $ mkStyleView styleStr wv
-    }
-mkViewFormElt (TableElt classTag border topHeader leftHeader rows) = 
-  do { wvs <- mapM (mapM mkViewFormElt) rows
-     ; mkFormEltView TableFormEltView $ mkTableView classTag border topHeader leftHeader wvs
-     }
--- TODO: recursion in mkView (Form & FormPage) or separate (TableEtl)
---       separate may be clearer, but has the weird situation that we get both FormPage and the WebViews
---       representing the page. Also maybe we don't want to generate all pages but only the current one.
--}
-
 
 -- put these here due to Template-Haskell scope restrictions
 deriveInitial ''StyleView
@@ -576,7 +513,7 @@ deriveInitial ''TableView
 deriveMapWebViewDb ''Database ''TableView
 
 
-mkViewFormElt :: FormElt -> WebViewM Database (UntypedWebView Database {-WV FormEltView-})
+mkViewFormElt :: FormElt -> WebViewM Database (UntypedWebView Database)
 mkViewFormElt (RadioAnswerElt r)      = mkUntypedWebView $ mkRadioAnswerView r
 mkViewFormElt (RadioTextAnswerElt rt) = mkUntypedWebView $ mkRadioTextAnswerView rt
 mkViewFormElt (ButtonAnswerElt b)     = mkUntypedWebView $ mkButtonAnswerView b
@@ -594,7 +531,7 @@ mkViewFormElt (TableElt classTag border topHeader leftHeader rows) =
 
 
 data FormPageView = 
-  FormPageView [UntypedWebView Database {-WV FormEltView-}] String
+  FormPageView [UntypedWebView Database] String
     deriving (Eq, Show, Typeable)
 
 deriveInitial ''FormPageView
