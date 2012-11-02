@@ -446,7 +446,7 @@ presentTextField (TextView viewId textType str enabled stl _ mEditAction) =
                      )  >>
   (mkScript $ declareWVTextViewScript viewId)      
 
-declareWVTextViewScript viewId = jsDeclareVar (ViewIdT viewId) "script" $ "new TextViewScript(\""++show viewId++"\");"
+declareWVTextViewScript viewId = jsDeclareVar viewId "script" $ "new TextViewScript(\""++show viewId++"\");"
 
 -- For the moment, onclick disables the standard server ButtonC command
 presentButton :: Button db -> Html
@@ -461,7 +461,7 @@ presentButton (Button viewId txt enabled style onclick _) =
   (mkScript $ declareWVButtonScript viewId)
 -- TODO: text should be escaped
 
-declareWVButtonScript viewId = jsDeclareVar (ViewIdT viewId) "script" $ "new ButtonScript(\""++show viewId++"\");"
+declareWVButtonScript viewId = jsDeclareVar viewId "script" $ "new ButtonScript(\""++show viewId++"\");"
 
 -- Edit actions are a bit different, since they do not have a widget presentation.
 -- TODO: maybe combine edit actions with buttons, so they use the same command structure
@@ -509,7 +509,7 @@ presentSelectView (SelectView viewId items selectedIx enabled stl _) =
      ; mkScript $ declareWVSelectScript viewId
      }
 
-declareWVSelectScript viewId = jsDeclareVar (ViewIdT viewId) "script" $ "new SelectScript(\""++show viewId++"\");"
+declareWVSelectScript viewId = jsDeclareVar viewId "script" $ "new SelectScript(\""++show viewId++"\");"
 
 presentJSVar :: JSVar db -> Html
 presentJSVar (JSVar viewId name value) = thediv ! (id_ $ mkHtmlViewIdVal viewId) << 
@@ -551,10 +551,12 @@ instance Presentable (AnyWidget db) where
   
   
   
+
+
+{- Obsolete in Typed web
 -- Phantom typing
 newtype ViewIdT viewType = ViewIdT ViewId
 -- TODO: why do we use this one?
-{- Obsolete in Typed web
 
 newtype WebViewT viewType db = WebViewT { unWebViewT :: WebView db } deriving (Eq, Show)
 
@@ -570,10 +572,6 @@ instance MapWebView db (WebViewT wv db)
 getViewIdT :: WebViewT v db -> ViewIdT v
 getViewIdT (WebViewT wv) = ViewIdT $ getViewId wv
 
--- TODO: still need this for widget view id's. Figure out what to do with widgets
--- right now, they use getViewIdT_ and also avoid the typed stuff with some ..ByViewIdRef functions 
-getViewIdT_ :: HasViewId v => v -> ViewId
-getViewIdT_ = getViewId
 
 mkWebViewT ::(Presentable v, Storeable db v, Initial v, Show v, Eq v, Typeable v, MapWebView db v) =>
              (ViewIdT v -> v -> WebViewM db v) ->
@@ -604,7 +602,7 @@ declareFunction vid name params body = name++viewIdSuffix vid++" = Function("++c
 -- todo: escape '
 
 escapeSingleQuote str = concatMap (\c -> if c == '\'' then "\\'" else [c]) str 
-jsFunction (ViewIdT v) n a b = declareFunction v n a $ escapeSingleQuote $ intercalate ";" b -- no newlines here, since scripts are executed line by line 
+jsFunction v n a b = declareFunction v n a $ escapeSingleQuote $ intercalate ";" b -- no newlines here, since scripts are executed line by line 
 jsScript lines = intercalate ";\n" lines
 jsIf c t = "if ("++c++") {"++intercalate ";" t++"}"
 jsIfElse c t e = "if ("++c++") {"++intercalate ";" t++"} else {"++intercalate ";" e++ "}"
@@ -634,14 +632,14 @@ onSubmit button expr = onEvent "Submit" button expr
 onEvent :: HasViewId w => String -> (Widget w) -> String -> String
 onEvent event widget expr = "script"++viewIdSuffix (getViewId widget) ++ ".on"++event++" = function () {"++expr++"};"
 
-jsVar (ViewIdT vid) name = name++viewIdSuffix vid
-jsAssignVar (ViewIdT vid) name value = name++viewIdSuffix vid++" = "++value++";"
+jsVar vid name = name++viewIdSuffix vid
+jsAssignVar vid name value = name++viewIdSuffix vid++" = "++value++";"
 -- TODO: maybe refVar and assignVar are more appropriate?
-jsDeclareVar (ViewIdT vid) name value = let jsVar = name++viewIdSuffix vid
+jsDeclareVar vid name value = let jsVar = name++viewIdSuffix vid
                             in  jsVar++" = "++value++";"
 -- no "var " here, does not work when evaluated with eval
 
-jsCallFunction (ViewIdT vid) name params = name++viewIdSuffix vid++"("++intercalate "," params++")"
+jsCallFunction vid name params = name++viewIdSuffix vid++"("++intercalate "," params++")"
 -- old disenable call in presentButton:--"disenable"++viewIdSuffix (ViewId $ init $ unViewId viewId)++"('"++show (unViewId viewId)++"');
 -- figure out if we need the viewId for the button when specifying the onclick
 -- but maybe  we get a way to specify a client-side edit op and do this more general
