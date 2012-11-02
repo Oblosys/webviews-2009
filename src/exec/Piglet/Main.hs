@@ -28,7 +28,7 @@ import Database
 -- Comment -----------------------------------------------------------------------  
 
 data CommentView = CommentView CommentId Bool String String String
-                               (Maybe (WebView Database)) (Maybe (WebView Database)) (Maybe (Widget (TextView Database)))
+                               (Maybe (WV (LinkView Database))) (Maybe (WV (LinkView Database))) (Maybe (Widget (TextView Database)))
                    deriving (Eq, Show, Typeable)
 
 instance Initial CommentId where
@@ -116,7 +116,8 @@ deriveInitial ''PigView
 instance MapWebView Database PigId
 deriveMapWebViewDb ''Database ''PigView
 
-mkPigView parentViewId pignr pigId@(PigId pigInt) viewedPig = mkWebView $ 
+mkPigView :: ViewId -> Int -> PigId -> Int -> WebViewM Database (WV PigView)
+mkPigView parentViewId pignr pigId@(PigId pigInt) viewedPigNr = mkWebView $ 
   \vid (PigView _ _ _ _ _ _ oldViewStateT _ _ _) ->
    do { (Pig pid vid name [s0,s1,s2] diagnosis) <- withDb $ \db -> unsafeLookup (allPigs db) pigId
       ; selectAction <- mkEditAction $ viewEdit parentViewId $ modifyViewedPig (\_ -> pignr)
@@ -129,7 +130,7 @@ mkPigView parentViewId pignr pigId@(PigId pigInt) viewedPig = mkWebView $
       ; rv2 <- mkRadioView ["Yes", "No"]    s1 True
       ; rv3 <- mkRadioView ["Yes", "No"]    s2 (s1 == 0)
              
-      ; return $ PigView pid selectAction (imageUrl s0) removeB viewedPig pignr 
+      ; return $ PigView pid selectAction (imageUrl s0) removeB viewedPigNr pignr 
                          viewStateT nameT [rv1, rv2, rv3] diagnosis
       }
  where removePigAlsoFromVisit pid vid =
@@ -137,14 +138,14 @@ mkPigView parentViewId pignr pigId@(PigId pigInt) viewedPig = mkWebView $
        
        imageUrl s0 = "pig"++pigColor s0++pigDirection++".png" 
        pigColor s0 = if s0 == 1 then "Grey" else ""
-       pigDirection = if viewedPig < pignr then "Left" 
-                      else if viewedPig > pignr then "Right" else ""
+       pigDirection = if viewedPigNr < pignr then "Left" 
+                      else if viewedPigNr > pignr then "Right" else ""
 
 instance Presentable PigView where
   present (PigView pid _ _ b _ _ pignr name [] diagnosis) = "initial pig"
-  present (PigView pid editAction imageUrl b viewedPig pignr viewStateT name [co, ab, as] diagnosis) =
+  present (PigView pid editAction imageUrl b viewedPigNr pignr viewStateT name [co, ab, as] diagnosis) =
     withEditAction editAction $    
-      roundedBoxed (Just $ if viewedPig == pignr then Rgb 200 200 200 else Rgb 225 225 225) $
+      roundedBoxed (Just $ if viewedPigNr == pignr then Rgb 200 200 200 else Rgb 225 225 225) $
         (center $ image imageUrl) +++
         (center $ " nr. " +++ (toHtml $ show (pignr+1))) +++
         p << (center $ (present b)) +++
@@ -167,7 +168,7 @@ instance Storeable Database PigView where
 
 data VisitView = 
   VisitView VisitId (Widget (TextView Database)) (Widget (TextView Database)) Int (Widget (Button Database)) 
-           (Widget (Button Database)) (Widget (Button Database)) [PigId] [String] [WebView Database]
+           (Widget (Button Database)) (Widget (Button Database)) [PigId] [String] [WV PigView]
     deriving (Eq, Show, Typeable)
 
 modifyViewedPig f (VisitView vid zipCode date viewedPig b1 b2 b3 pigs pignames mSubview) =
@@ -180,6 +181,7 @@ deriveInitial ''VisitView
 instance MapWebView Database VisitId
 deriveMapWebViewDb ''Database ''VisitView
 
+mkVisitView :: VisitId -> WebViewM Database (WV VisitView)
 mkVisitView i = mkWebView $
   \vid (VisitView _ _ _ oldViewedPig _ _ _ _ _ mpigv) -> 
     do { (Visit visd zipcode date pigIds) <- withDb $ \db -> unsafeLookup (allVisits db) i
@@ -192,7 +194,7 @@ mkVisitView i = mkWebView $
        ; prevB <- mkButton "Previous" (viewedPig > 0)              $ previous vid
        ; nextB <- mkButton "Next"     (viewedPig < (nrOfPigs - 1)) $ next vid
        ; addB  <- mkButton "Add"      True                         $ addPig visd
-                 
+                
        ; pigViews <- uniqueIds $ [ (uniqueId, mkPigView vid i pigId viewedPig)
                                  | (pigId@(PigId uniqueId),i) <- zip pigIds [0..] 
                                  ]
@@ -229,8 +231,8 @@ instance Storeable Database VisitView where
 
 data VisitsView = 
   VisitsView Bool Int Int User [(String,String)] 
-                 (WebView Database) [Widget (EditAction Database)] (Widget (Button Database)) (Widget (Button Database)) (Widget (Button Database)) (Widget (Button Database)) 
-                 (WebView Database) [CommentId] [WebView Database] (Maybe (Widget (Button Database)))
+                 (UntypedWebView Database) [Widget (EditAction Database)] (Widget (Button Database)) (Widget (Button Database)) (Widget (Button Database)) (Widget (Button Database)) 
+                 (WV (TabbedView Database)) [CommentId] [WV CommentView] (Maybe (Widget (Button Database)))
     deriving (Eq, Show, Typeable)
 
 deriveInitial ''VisitsView
@@ -257,14 +259,14 @@ mkVisitsView = mkWebView $
                            
      ; user <- getUser
                
-     ; loginOutView <- if user == Nothing then mkLoginView (const $ return ())
-                                          else mkLogoutView
+     ; loginOutView <- if user == Nothing then mkUntypedWebView $ mkLoginView (const $ return ())
+                                          else mkUntypedWebView mkLogoutView
      ; labels <- withDb $ \db -> map (zipCode . unsafeLookup (allVisits db)) visitIds
        
      ; visitViews <- uniqueIds $ [ (uniqueId, mkVisitView visitId)
                                  | (visitId@(VisitId uniqueId),i) <- zip visitIds [0..] 
                                  ]
-     ; tabbedVisits <- mkTabbedView $ zip3 labels (map Just selectionEdits) visitViews
+     ; tabbedVisits <- mkTabbedView $ zip3 labels (map Just selectionEdits) $ map UntypedWebView $ visitViews
      --; let tabbedVisits = visitViews             
      --; let tabbedVisits = visitViews !! viewedVisit
      ; commentIds <- withDb $ \db -> Map.keys (allComments db)
@@ -364,4 +366,4 @@ main :: IO ()
 main = server 8090 "Piglet" rootViews [] "PigletDB.txt" mkInitialDatabase users
 
 rootViews :: RootViews Database
-rootViews = [ ("", mkVisitsView) ] 
+rootViews = [ mkRootView "" mkVisitsView ] 
