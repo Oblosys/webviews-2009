@@ -379,6 +379,7 @@ instance (Show v, Eq v, Presentable v, Storeable db v, Initial v, Typeable v, Ma
 
 data UntypedWebView db =  forall view . IsWebView db view => UntypedWebView (WebView db view) 
 
+mkUntypedWebView :: IsWebView db v => WebViewM db (WebView db v) -> WebViewM db (UntypedWebView db)
 mkUntypedWebView mkTypedWebView = fmap UntypedWebView mkTypedWebView
 
 instance Show (UntypedWebView db) where
