@@ -331,7 +331,7 @@ rootViewLink rootViewName html = a ! (href $ (toValue $ "/#" ++ rootViewName)) <
 
 
 
-data LeenclubLoginOutView = LeenclubLoginOutView (WebView Database) deriving (Eq, Show, Typeable)
+data LeenclubLoginOutView = LeenclubLoginOutView (UntypedWebView Database) deriving (Eq, Show, Typeable)
 
 deriveInitial ''LeenclubLoginOutView
 
@@ -342,9 +342,9 @@ instance Storeable Database LeenclubLoginOutView
 mkLeenClubLoginOutView = mkWebView $
   \vid oldItemView@LeenclubLoginOutView{} ->
    do { user <- getUser
-      ; loginOutView <- if user == Nothing then mkLoginView $ \(login, fullName) -> 
+      ; loginOutView <- if user == Nothing then mkUntypedWebView . mkLoginView $ \(login, fullName) -> 
                                                   evalJSEdit [ jsNavigateTo $ "'#lener&lener="++login++"'" ]
-                                           else mkLogoutView
+                                           else mkUntypedWebView mkLogoutView
       ; return $ LeenclubLoginOutView loginOutView
       }
        
@@ -370,7 +370,7 @@ mkItemRootView = mkMaybeView "Onbekend item" $
 data LenderView = 
   LenderView Inline User Lender (Maybe Lender) {- [Property Lender] -} [(String,Property Database Lender)]  [(String,Property Database Lender)]
              --(Maybe (Widget (TextView Database, TextView Database)))
-             [WebView Database] [Widget (Button Database)] [Widget (Button Database)]
+             [WV ItemView ] [Widget (Button Database)] [Widget (Button Database)]
     deriving (Eq, Show, Typeable)
 
  -- todo: edit button in Inline/Full datatype?                  
@@ -512,7 +512,7 @@ getExtraProps vid isEdited lender = sequence
          , lenderRating :: Int, lenderItems :: [ItemId]
 -}
 data ItemsRootView = 
-  ItemsRootView (WebView Database)
+  ItemsRootView (WV (SearchView Database (SortView SortDefaultPresent Database ItemView)))
     deriving (Eq, Show, Typeable)
 
 deriveInitial ''ItemsRootView
@@ -521,7 +521,7 @@ deriveMapWebViewDb ''Database ''ItemsRootView
 
 instance Storeable Database ItemsRootView
 
-mkItemsRootView ::WebViewM Database (WebView Database)
+mkItemsRootView :: WebViewM Database (WV ItemsRootView)
 mkItemsRootView = mkWebView $
   \vid oldLenderView@(ItemsRootView _) ->
     do { let namedSortFunctions = [ ("Naam",     compare `on` get itemName) 
@@ -544,7 +544,7 @@ instance Presentable ItemsRootView where
 
 
     
-data LendersRootView = LendersRootView (WebView Database)
+data LendersRootView = LendersRootView (WV (SearchView Database (SortView SortDefaultPresent Database LenderView)))
     deriving (Eq, Show, Typeable)
 
 deriveInitial ''LendersRootView
@@ -553,7 +553,7 @@ deriveMapWebViewDb ''Database ''LendersRootView
 
 instance Storeable Database LendersRootView
 
-mkLendersRootView :: WebViewM Database (WebView Database)
+mkLendersRootView :: WebViewM Database (WV LendersRootView)
 mkLendersRootView = mkWebView $
   \vid oldLenderView@(LendersRootView _) ->
     do { let namedSortFunctions = [ ("Voornaam",   compare `on` get lenderFirstName) 
@@ -585,14 +585,14 @@ mkLenderRootView = mkMaybeView "Onbekende lener" $
 
 
 
-data BorrowedRootView = BorrowedRootView [WebView Database]  [WebView Database]
+data BorrowedRootView = BorrowedRootView [WV ItemView] [WV ItemView]
     deriving (Eq, Show, Typeable)
 
 deriveInitial ''BorrowedRootView
 
 instance Storeable Database BorrowedRootView
 
-mkBorrowedRootView :: WebViewM Database (WebView Database)
+mkBorrowedRootView :: WebViewM Database (WebView Database BorrowedRootView)
 mkBorrowedRootView = mkWebView $
   \vid oldLenderView@(BorrowedRootView _ _) ->
    do { Just (login,_) <- getUser
@@ -611,7 +611,7 @@ instance Presentable BorrowedRootView where
     vList (map present lended)
 
 -- unnecessary at the moment, as the page has no controls of its own
-data LeenclubPageView = LeenclubPageView User String (Widget (EditAction Database)) (WebView Database) deriving (Eq, Show, Typeable)
+data LeenclubPageView = LeenclubPageView User String (Widget (EditAction Database)) (UntypedWebView Database) deriving (Eq, Show, Typeable)
 
 deriveInitial ''LeenclubPageView
 
@@ -662,14 +662,14 @@ instance Presentable LeenclubPageView where
   
 
 
-mkHomeView :: WebViewM Database (WebView Database)
+mkHomeView :: WebViewM Database (WebView Database HtmlTemplateView)
 mkHomeView = mkHtmlTemplateView "LeenclubWelcome.html" []
 
 --- Testing
 
 
 data TestView = 
-  TestView Int (Widget (RadioView Database)) (Widget (Button Database)) (Widget (TextView Database)) (WebView Database) (WebView Database)
+  TestView Int (Widget (RadioView Database)) (Widget (Button Database)) (Widget (TextView Database)) (WV HtmlView) (WV HtmlTemplateView)
            (Widget (LabelView Database)) (Widget (TextView Database))
     deriving (Eq, Show, Typeable)
 
@@ -677,7 +677,7 @@ deriveInitial ''TestView
 
 deriveMapWebViewDb ''Database ''TestView
 
-mkTestView :: WebViewM Database (WebView Database)
+mkTestView :: WebViewM Database (WebView Database TestView)
 mkTestView = mkWebView $
   \vid oldTestView@(TestView _ radioOld _ _ _ _ _ oldTxtArea) ->
     do { radio <-  mkRadioViewWithChange ["Naam", "Punten", "Drie"] (getSelection radioOld) True $ \sel -> viewEdit vid $ \v -> trace ("selected"++show sel) v :: TestView
@@ -685,17 +685,10 @@ mkTestView = mkWebView $
        ; b <- mkButton "Test button" True $ viewEdit vid $ \(TestView a b c d e f g h) -> TestView 2 b c d e f g h
        ; tf <- mkTextField "bla"
        ; liftIO $ putStr $ show oldTestView
-       ; (wv1, wv2) <- if True -- radioSel == 0
-                       then do { wv1 <- mkHtmlView $ "een"
-                               ; wv2 <- mkHtmlTemplateView "test.html" []
-                               ; return (wv1,wv2)
-                               }
-                       else do { wv1 <- mkHtmlTemplateView "test.html" []
-                               ; wv2 <- mkHtmlView $ "een"
-                               ; return (wv1,wv2)
-                               }
+       ; wv1 <- mkHtmlView $ "een"
+       ; wv2 <- mkHtmlTemplateView "test.html" []
        ; liftIO $ putStrLn $ "radio value " ++ show radioSel
-       ; let (wv1',wv2') = if radioSel == 0 then (wv1,wv2) else (wv2,wv1)
+       ; let (wv1',wv2') = if radioSel == 0 then (wv1,wv2) else (wv1, wv2) -- (wv2,wv1) -- switching no longer possible without using untyped
        
        ; lbl <- mkLabelViewWithStyle "label" "color: blue"
        ; txtArea <- mkTextAreaWithStyleChange (getStrVal oldTxtArea) ("background-color: "++if getStrVal oldTxtArea /= "" then "green" else "red") $ \str -> viewEdit vid $ \v -> trace ("edited "++show str) v :: TestView
@@ -728,7 +721,7 @@ deriveInitial ''TestView2
 
 deriveMapWebViewDb ''Database ''TestView2
 
-mkTestView2 :: WebViewM Database (WebView Database)
+mkTestView2 :: WebViewM Database (WV TestView2)
 mkTestView2 = mkWebView $
   \vid oldTestView@(TestView2 ea radioOld text str1 str2) ->
     do { ea <- mkEditAction $ viewEdit vid $ \(TestView2 a b c d e) -> TestView2 a b c "clicked" e
@@ -755,41 +748,45 @@ instance Presentable TestView2 where
 
 instance Storeable Database TestView2
 
-
+{-
 mkTestView3 msg = mkPresentView (\hs -> hList $ toHtml (msg :: String) : hs) $
     do { wv1 <- mkHtmlView $ "een"
        ; wv2 <- mkHtmlTemplateView "test.html" []
        ; return $ [wv1,wv2] 
        }
-
+-}
 
 -- some webviews for testing with ghci
 
-data AView db = AView (WebView db) (Widget (TextView db)) String (Widget (TextView db))
-              | AAView (WebView db)
+data AView db = AView (WebView db (BView db)) (Widget (TextView db)) String (Widget (TextView db))
+              | AAView (WebView db (BView db)) deriving (Show, Eq, Typeable)
+
+data BView db = BView String (AView db) deriving (Show, Eq, Typeable)
+
+instance Presentable (AView db)
+instance Storeable db (AView db)
+instance Initial (AView db)
+instance Presentable (BView db)
+instance Storeable db (BView db)
+instance Initial (BView db)
 
 
-{-
-instance MapWebView db (AView db) where
+instance Typeable db => MapWebView db (AView db) where
   mapWebView (AView wv1 wd1 str wd2) = 
     AView <$> mapWebView wv1 <*> mapWebView wd1 <*> mapWebView str <*> mapWebView wd2 
--}
-deriveMapWebView ''AView
 
-data BView db = BView String (AView db)
+--deriveMapWebView ''AView
 
-instance MapWebView db (BView db) where
+
+instance Typeable db => MapWebView db (BView db) where
   mapWebView (BView str a) = BView <$> mapWebView str <*> mapWebView a
 
 --testmkwv :: x -> WebView Database
 testmkwv x = WebView (ViewId []) noId noId undefined $ x 
 
-testwv :: Int -> WebView Database
+testwv :: Int -> WV HtmlTemplateView
 testwv i = testmkwv $ HtmlTemplateView (show i)
  
-testwv0 :: WebView Database
-testwv0 =  WebView (ViewId []) (Id 1) (Id 2) undefined $ ItemsRootView (testwv 1)
-
 testwd :: String -> Widget (Button Database)
 testwd str = buttonWidget (ViewId []) str True "" "" logoutEdit
 testproplist :: [(String, Property Database Item)]
@@ -805,9 +802,12 @@ main :: IO ()
 main = server 8101 "Leenclub" rootViews [] "LeenclubDB.txt" mkInitialDatabase users
 
 rootViews :: RootViews Database
-rootViews = [ ("",       mkLeenclubPageView "Home"   mkHomeView), ("test", mkTestView), ("test2", mkTestView2), ("test3", mkTestView3 "msg")
-            , ("leners", mkLeenclubPageView "Leners" mkLendersRootView), ("lener", mkLeenclubPageView "Lener" mkLenderRootView)
-            , ("items",  mkLeenclubPageView "Spullen" mkItemsRootView),   ("item",  mkLeenclubPageView "Item"  mkItemRootView) 
-            , ("geleend", mkLeenclubPageView "Geleend" mkBorrowedRootView)
-            , ("login",  mkLeenclubPageView "Login"  mkLeenClubLoginOutView)
+rootViews = [ mkRootView ""        $ mkLeenclubPageView "Home"    $ mkUntypedWebView mkHomeView
+            , mkRootView "leners"  $ mkLeenclubPageView "Leners"  $ mkUntypedWebView mkLendersRootView
+            , mkRootView "lener"   $ mkLeenclubPageView "Lener"   $ mkUntypedWebView mkLenderRootView
+            , mkRootView "items"   $ mkLeenclubPageView "Spullen" $ mkUntypedWebView mkItemsRootView
+            , mkRootView "item"    $ mkLeenclubPageView "Item"    $ mkUntypedWebView mkItemRootView
+            , mkRootView "geleend" $ mkLeenclubPageView "Geleend" $ mkUntypedWebView mkBorrowedRootView
+            , mkRootView "login"   $ mkLeenclubPageView "Login"   $ mkUntypedWebView mkLeenClubLoginOutView
+            , mkRootView "test"    $ mkTestView, mkRootView "test2" mkTestView2
             ] 

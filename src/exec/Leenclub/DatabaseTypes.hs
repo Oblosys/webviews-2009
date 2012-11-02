@@ -7,6 +7,9 @@ import qualified Data.Map as Map
 import Control.Category hiding (Category) -- fclabels
 import Data.Label                         -- fclabels
 import Prelude hiding ((.), id)           -- fclabels
+import Types
+
+type WV v = WebView Database v
 
 newtype LenderId = LenderId { _lenderIdLogin :: String } deriving (Show, Read, Eq, Ord)
 

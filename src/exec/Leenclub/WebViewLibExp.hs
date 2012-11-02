@@ -34,7 +34,7 @@ instance MapWebView db SortDefaultPresent
 instance Initial SortDefaultPresent where
   initial = SortDefaultPresent
 
-instance TaggedPresent SortDefaultPresent (Widget (SelectView db), Widget (SelectView db), [WebView db]) where
+instance TaggedPresent SortDefaultPresent (Widget (SelectView db), Widget (SelectView db), [WebView db v]) where
   taggedPresent SortDefaultPresent (sortFieldSelect, sortOrderSelect, webViews) =
     (vList $ hStretchList [space, E $ "Sorteer" +++ nbsp, E $ present sortOrderSelect, E $ nbsp +++ "op" +++ nbsp, E $ present sortFieldSelect] 
               ! style (toValue $ "margin: 4 0 4 0;" ++ gradientStyle Nothing "#101010" "#707070") 
@@ -44,25 +44,28 @@ instance TaggedPresent SortDefaultPresent (Widget (SelectView db), Widget (Selec
 
 
 
-data SortView tag db = 
-  SortView tag (Widget (SelectView db)) (Widget (SelectView db)) [WebView db]  
+data SortView tag db v = 
+  SortView tag (Widget (SelectView db)) (Widget (SelectView db)) [WebView db v]  
     deriving (Eq, Show, Typeable)
 
 -- no derive Initial/MapWebView functions for parameterized types yet, so we specify manual instances
-instance (Initial tag) => Initial (SortView tag db) where
+instance Initial tag => Initial (SortView tag db v) where
   initial = SortView initial initial initial initial
-instance MapWebView db tag => MapWebView db (SortView tag db) where
+instance (MapWebView db tag, IsWebView db v) => MapWebView db (SortView tag db v) where
   mapWebView (SortView tag wv1 wv2 wvs)  = SortView <$> mapWebView tag <*> mapWebView wv1 <*> mapWebView wv2 <*> mapWebView wvs 
 
-instance Storeable db (SortView tag db)
+instance Storeable db (SortView tag db v)
 
-mkSortView :: Typeable db => [(String, a->a->Ordering)] -> (a-> WebViewM db (WebView db)) -> [a] -> WebViewM db (WebView db)
+mkSortView :: (Typeable db, IsWebView db v) => [(String, a->a->Ordering)] -> (a-> WebViewM db (WebView db v)) -> [a] -> WebViewM db (WebView db (SortView SortDefaultPresent db v))
 mkSortView = mkSortViewEx SortDefaultPresent
 
 -- [("sorteer oplopend", id), ("sorteer aflopend", reverse)]
 -- [("Sorteer op naam", 
-mkSortViewEx :: (Typeable db, TaggedPresent tag (Widget (SelectView db), Widget (SelectView db), [WebView db]), Eq tag, Show tag, Typeable tag, Initial tag, MapWebView db tag) =>
-              tag -> [(String, a->a->Ordering)] -> (a-> WebViewM db (WebView db)) -> [a] -> WebViewM db (WebView db)
+mkSortViewEx :: ( Typeable db, IsWebView db v
+                , TaggedPresent tag (Widget (SelectView db), Widget (SelectView db), [WebView db v])
+                , Eq tag, Show tag, Typeable tag, Initial tag, MapWebView db tag) =>
+              tag -> [(String, a->a->Ordering)] -> (a-> WebViewM db (WebView db v)) -> [a] ->
+              WebViewM db (WebView db (SortView tag db v))
 mkSortViewEx tag namedSortFunctions mkResultWV results = mkWebView $
   \vid oldView@(SortView _ sortFieldSelectOld sortOrderSelectOld _) ->
     do { let sortField = getSelection sortFieldSelectOld
@@ -73,27 +76,27 @@ mkSortViewEx tag namedSortFunctions mkResultWV results = mkWebView $
        
        ; resultsWVs <- sequence [ fmap (r,) $ mkResultWV r | r <- results ]
        ; sortedResultViews <- case results of
-                                [] -> fmap singleton $ mkHtmlView $ "Geen resultaten"
+                                [] -> return [] -- fmap singleton $ mkHtmlView $ "Geen resultaten"
                                 _  -> return $ map snd $ (if sortOrder == 0 then id else reverse) $ 
                                                          sortBy (sortFunctions !! sortField `on` fst) $ resultsWVs
     
        ; return $ SortView tag sortFieldSelect sortOrderSelect sortedResultViews
        }
 
-instance TaggedPresent tag (Widget (SelectView db), Widget (SelectView db), [WebView db]) => Presentable (SortView tag db) where
+instance TaggedPresent tag (Widget (SelectView db), Widget (SelectView db), [WebView db v]) => Presentable (SortView tag db v) where
   present (SortView tag sortFieldSelect sortOrderSelect webViews) = taggedPresent tag (sortFieldSelect, sortOrderSelect, webViews)
 
-data SearchView db = 
-  SearchView String (Widget (TextView db)) (Widget (Button db)) (WebView db) String 
+data SearchView db v = 
+  SearchView String (Widget (TextView db)) (Widget (Button db)) (WebView db v) String 
     deriving (Eq, Show, Typeable)
 
-instance Initial (SearchView db) where
+instance IsWebView db v => Initial (SearchView db v) where
   initial = SearchView initial initial initial initial initial
-
-instance  MapWebView db (SearchView db) where
+instance IsWebView db v => MapWebView db (SearchView db v) where
   mapWebView (SearchView a b c d e) = SearchView <$> mapWebView a <*> mapWebView b <*> mapWebView c <*> mapWebView d <*> mapWebView e
 
-instance Storeable db (SearchView db)
+instance Storeable db (SearchView db v)
+
 
 -- todo: different languages 
 mkSearchView label argName resultsf = mkWebView $
@@ -113,8 +116,7 @@ mkSearchView label argName resultsf = mkWebView $
                         , onSubmit searchField navigateAction
                         ]
        }
-
-instance Presentable (SearchView db) where
+instance IsWebView db v => Presentable (SearchView db v) where
   present (SearchView label searchField searchButton wv script) =
       (hStretchList [E $ toHtml label +++ nbsp, Stretch $ with [style "width: 100%;"] (present searchField), E $ present searchButton]) +++
       present wv
