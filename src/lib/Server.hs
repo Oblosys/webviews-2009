@@ -38,7 +38,7 @@ import Utils
 
 
 {-
-see if passing down mkRootView, dbFilename, db and users can be improved (maybe in state?)
+see if passing down dbFilename, db and users can be improved (maybe in state?)
              
 
 maybe use type class?
@@ -454,7 +454,7 @@ handleCommand rootViews _ sessionStateRef (Init rootViewName hashArgs) =
  do { putStrLn $ "Init " ++ show rootViewName ++ " " ++ show hashArgs
     ; setSessionHashArgs sessionStateRef hashArgs
     ; SessionState sessionId user db (UntypedWebView oldRootView) _ _ <- readIORef sessionStateRef
-    ; rootView <- io $ mkRootView rootViews rootViewName hashArgs user db sessionId (mkViewMap oldRootView)
+    ; rootView <- io $ createRootView rootViews rootViewName hashArgs user db sessionId (mkViewMap oldRootView)
     ; setRootView sessionStateRef rootView
      
     ; return $ ServerResponse [] Nothing
@@ -463,7 +463,7 @@ handleCommand rootViews _ sessionStateRef (HashUpdate rootViewName hashArgs) = -
  do { putStrLn $ "HashUpdate " ++ show rootViewName ++ " " ++ show hashArgs
     ; setSessionHashArgs sessionStateRef hashArgs
     ; SessionState sessionId user db (UntypedWebView oldRootView) _ _ <- readIORef sessionStateRef
-    ; rootView <- io $ mkRootView rootViews rootViewName hashArgs user db sessionId (mkViewMap oldRootView)
+    ; rootView <- io $ createRootView rootViews rootViewName hashArgs user db sessionId (mkViewMap oldRootView)
     ; setRootView sessionStateRef rootView
      
     ; return $ ServerResponse [] Nothing

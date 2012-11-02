@@ -709,3 +709,7 @@ type HashArgs = [(String,String)]
 type RootViews db = [ (String, WebViewM db (UntypedWebView db)) ]
 -- for keeping track of the root webviews
  
+-- Utility function that creates a RootViews tuple by applying UntypedWebView to webview builder function
+-- It also takes the name parameter so we don't have to apply the function inside the tuple.
+mkRootView :: IsWebView db v => String -> WebViewM db (WebView db v) -> (String, WebViewM db (UntypedWebView db))
+mkRootView name mkTypedRootView = (name, fmap UntypedWebView mkTypedRootView)

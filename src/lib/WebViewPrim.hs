@@ -67,8 +67,8 @@ instance Storeable db (UntypedWebView db) where
 
 --type RootViewz db = [ (String, WebViewM db (WebView db)) ]
 
-mkRootView :: forall db . Typeable db => RootViews db -> String -> HashArgs -> User -> db -> SessionId -> ViewMap db -> IO (UntypedWebView db)
-mkRootView rootViews rootViewName args user db sessionId viewMap = 
+createRootView :: forall db . Typeable db => RootViews db -> String -> HashArgs -> User -> db -> SessionId -> ViewMap db -> IO (UntypedWebView db)
+createRootView rootViews rootViewName args user db sessionId viewMap = 
   case lookup rootViewName rootViews of
     Nothing  -> error $ "Unknown view: "++rootViewName
     Just mkV -> runWebView user db viewMap [] 0 sessionId args mkV

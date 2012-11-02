@@ -686,10 +686,6 @@ getQuestionsAnsweredFormElt (TableElt _ _ _ _ rows) db = and [ getQuestionsAnswe
 main :: IO ()
 main = server 8100 "Blij van IT" rootViews ["WebForms.js", "WebForms.css", "BlijVanIT.css"] "WebFormDB.txt" mkInitialDatabase $ Map.empty
 
--- also take the name parameter so we don't have to apply the function inside the tuple
-rview :: IsWebView db v => String -> WebViewM db (WebView db v) -> (String, WebViewM db (UntypedWebView db))
-rview name mkTypedRootView = (name, fmap UntypedWebView mkTypedRootView)
-
 rootViews :: RootViews Database
-rootViews = [ rview "" $ mkFormView testForm, rview "form" $ mkFormView testForm
+rootViews = [ mkRootView "" $ mkFormView testForm, mkRootView "form" $ mkFormView testForm
             ] 
