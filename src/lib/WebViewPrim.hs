@@ -386,7 +386,7 @@ Now the unique id's only have to be unique with regard to other elts in the list
 
 Note that the zeros after the uniques are added due to the way mkWebview and load Webview work.
 -}
-uniqueIds :: [(Int, WebViewM db (WebView v db))] -> WebViewM db [WebView v db]
+uniqueIds :: [(Int, WebViewM db (WebView db v))] -> WebViewM db [WebView db v]
 uniqueIds idsMkWvs =
  do { state@(WebViewState user db viewMap path viewIdCounter sid has) <- get
     ; put $ state { getWVStatePath = path++[viewIdCounter], getWVStateViewIdCounter = 0 } 
