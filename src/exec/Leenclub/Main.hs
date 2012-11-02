@@ -757,7 +757,7 @@ mkTestView3 msg = mkPresentView (\hs -> hList $ toHtml (msg :: String) : hs) $
 -}
 
 -- some webviews for testing with ghci
-
+{-
 data AView db = AView (WebView db (BView db)) (Widget (TextView db)) String (Widget (TextView db))
               | AAView (WebView db (BView db)) deriving (Show, Eq, Typeable)
 
@@ -780,7 +780,7 @@ instance Typeable db => MapWebView db (AView db) where
 
 instance Typeable db => MapWebView db (BView db) where
   mapWebView (BView str a) = BView <$> mapWebView str <*> mapWebView a
-
+-}
 --testmkwv :: x -> WebView Database
 testmkwv x = WebView (ViewId []) noId noId undefined $ x 
 
