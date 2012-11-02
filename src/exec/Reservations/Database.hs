@@ -7,6 +7,9 @@ import System.Time hiding (Day, Month)
 import Data.Generics
 import Data.Map (Map)
 import qualified Data.Map as Map 
+import Types
+
+type WV v = WebView Database v
 
 users :: Map String (String, String)
 users = Map.fromList [("martijn", ("p", "Martijn"))

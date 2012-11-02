@@ -13,9 +13,9 @@ import qualified Data.IntMap as IntMap
 import Debug.Trace
 import System.Time
 import Data.Time.Calendar
-import Types hiding (WebView, ViewId, getViewId)
+import Types
 import Generics
-import WebViewPrim hiding (viewEdit, mkWebView)
+import WebViewPrim
 import WebViewLib
 import HtmlLib
 import Control.Monad.State
@@ -30,10 +30,11 @@ main :: IO ()
 main = server 8102 "Reservations" rootViews [] "ReservationsDB.txt" mkInitialDatabase users
 
 -- the webviews here are phantom typed, so we need rootView to get rid of the phantom types
-rootViews = [ rootView ""           mkMainRootView
-            , rootView "client"     mkClientView
-            , rootView "restaurant" mkRestaurantView
-            , rootView "test"       mkTestView1 ]
+rootViews = [ mkRootView ""           mkMainRootView
+            , mkRootView "client"     mkClientView
+            , mkRootView "restaurant" mkRestaurantView
+            , mkRootView "test"       mkTestView1 
+            ]
              
   -- TODO: id's here?
   -- TODO: fix the sessionId stuff
@@ -49,10 +50,10 @@ instance Initial TestView1 where
   
 -- pass client state back with an edit action
 -- seems easier than using JSVar's below
-mkTestView1 = mkWebViewT $
+mkTestView1 = mkWebView $
  \vid (TestView1 ea _ status _) ->
   do { ea <- mkEditActionEx $ \args -> do { debugLn $ "edit action executed "++show args
-                                          ; viewEditT vid $ (\(TestView1 a b _ d) -> TestView1 a b (head args) d)
+                                          ; viewEdit vid $ (\(TestView1 a b _ d) -> TestView1 a b (head args) d)
                                           }
   -- todo: need a way to enforce that ea is put in the webview
      ; b <- mkButton "Test" True $ return () 
@@ -77,7 +78,7 @@ data TestView2 =
 instance Initial TestView2 where
   initial = TestView2 initial initial initial initial
   
-mkTestView2 = mkWebViewT $
+mkTestView2 = mkWebView $
  \vid (TestView2 oldXVar@(Widget _ _ (JSVar _ _ v)) _ status _) ->
   do { x <- mkJSVar "x" (if v == "" then "6" else v) 
      -- todo Even though the initial value is only assigned once to the client variable, it is also
@@ -85,13 +86,13 @@ mkTestView2 = mkWebViewT $
      -- this is not okay. keep separate field for initializer?
      ; b <- mkButton "Test" True $ do { xval <- getJSVarContents x
                                       ; debugLn $ "value of js var is "++xval
-                                      ; viewEditT vid $ (\(TestView2 a b _ d) -> TestView2 a b xval d)
+                                      ; viewEdit vid $ (\(TestView2 a b _ d) -> TestView2 a b xval d)
                                       } 
      ; return $ TestView2 x b status $
          "console.log('test script running');" ++
          onClick b (refJSVar x++"++;console.log("++refJSVar x++");" ++
-                    "queueCommand('SetC ("++show (getViewIdT_ x)++") \"'+"++refJSVar x++"+'\"');"++
-                    "queueCommand('ButtonC ("++show (getViewIdT_ b)++")');")
+                    "queueCommand('SetC ("++show (getViewId x)++") \"'+"++refJSVar x++"+'\"');"++
+                    "queueCommand('ButtonC ("++show (getViewId b)++")');")
      }
 -- todo: reusing goes wrong in this case: ; nrOfPeopleVar <- mkJSVar "x" $ show $ getJSVarValue oldNrOfPeopleVar
 --extra escape chars are added on each iteration. (this was in a webview that was re-presented constantly)
@@ -106,14 +107,14 @@ instance Storeable Database TestView2 where
 -- Main ----------------------------------------------------------------------  
 
 data MainView = 
-  MainView (WebViewT ClientView Database) (WebViewT RestaurantView Database)
+  MainView (WV ClientView) (WV RestaurantView)
     deriving (Eq, Show, Typeable)
   
 instance Initial MainView where                 
   initial = MainView initial initial
 
 
-mkMainRootView = mkWebViewT $
+mkMainRootView = mkWebView $
  \vid (MainView _ _) ->
   do { clientView <- mkClientView
      ; restaurantView <- mkRestaurantView                                            
@@ -142,13 +143,13 @@ instance Storeable Database MainView where
 -- Main ----------------------------------------------------------------------  
 
 data RestaurantView = 
-  RestaurantView (Maybe Date) (Int,Int) [[(WebViewT CalendarDayView Database,String, Widget (EditAction Database))]] (WebViewT DayView Database) (WebViewT HourView Database) (WebViewT ReservationView Database) String
+  RestaurantView (Maybe Date) (Int,Int) [[(WV CalendarDayView,String, Widget (EditAction Database))]] (WV DayView) (WV HourView) (WV ReservationView) String
     deriving (Eq, Show, Typeable)
 
 instance Initial RestaurantView where                 
   initial = RestaurantView initial (initial,initial) [] initial initial initial initial
 
-mkRestaurantView = mkWebViewT $
+mkRestaurantView = mkWebView $
  \vid (RestaurantView oldMSelectedDate _ _ _ _ _ _) ->
   do { clockTime <-  liftIO getClockTime
      ; ct <- liftIO $ toCalendarTime clockTime
@@ -188,8 +189,8 @@ mkRestaurantView = mkWebViewT $
      ; let reservationsSelectedDay = filter ((==mSelectedDate). Just . date) reservations
       
      ; reservationView <- mkReservationView vid
-     ; hourView <- mkHourView vid (getViewIdT reservationView) []
-     ; dayView <- mkDayView vid (getViewIdT hourView) reservationsSelectedDay
+     ; hourView <- mkHourView vid (getViewId reservationView) []
+     ; dayView <- mkDayView vid (getViewId hourView) reservationsSelectedDay
 
      
      ; return $ RestaurantView mSelectedDate (currentMonth, currentYear) weeks dayView hourView reservationView $ jsScript 
@@ -206,7 +207,7 @@ mkRestaurantView = mkWebViewT $
              [ "$('#calDayView_'+i).css('background-color',("++jsVar vid "selectedDayIx"++"==i)?'"++htmlColor selectedDayColor++"'"++
                                                                                             ":'"++htmlColor dayColor++"')"
              ]
-           , jsCallFunction (getViewIdT dayView) "load" []
+           , jsCallFunction (getViewId dayView) "load" []
            ]   
            
          , jsFunction vid "selectDay" ["i"]  
@@ -233,7 +234,7 @@ mkRestaurantView = mkWebViewT $
          , jsCallFunction vid "load" []
          ]
      }
- where selectDateEdit vid d = mkEditAction $ viewEditT vid $ 
+ where selectDateEdit vid d = mkEditAction $ viewEdit vid $ 
               \(RestaurantView _ my weeks dayView hourView reservationView script) ->
                 RestaurantView (Just d)my weeks dayView hourView reservationView script
           
@@ -278,7 +279,7 @@ instance Presentable RestaurantView where
                   (header :
                    [ [ ([{- withEditActionAttr selectionAction-} strAttr "onClick" $ "addSpinner('hourView');"++ -- todo refs are hardcoded!
                                                                 selectScript++
-                                                                ";queueCommand('PerformEditActionC ("++show (getViewIdT_ selectionAction)++") []')"]
+                                                                ";queueCommand('PerformEditActionC ("++show (getViewId selectionAction)++") []')"]
                      , with [id_ $ toValue $ "calDayView_"++show (i*7+j)] $ present dayView) 
                      | (j,(dayView, selectScript, selectionAction)) <- zip [0..] week] 
                    | (i,week) <- zip [0..] weeks ]
@@ -307,7 +308,7 @@ data CalendarDayView =
 instance Initial CalendarDayView where                 
   initial = CalendarDayView (initial, initial, initial) initial initial initial initial
 
-mkCalendarDayView date isSelected isToday isThisMonth reservations = mkWebViewT $
+mkCalendarDayView date isSelected isToday isThisMonth reservations = mkWebView $
  \vid (CalendarDayView _ _ _ _ _) ->
   do { return $ CalendarDayView date isSelected isToday isThisMonth reservations
      }
@@ -341,8 +342,8 @@ instance Initial DayView where
   initial = DayView initial initial initial
 
 -- the bar with hours under the calendar
-mkDayView :: ViewIdT RestaurantView -> ViewIdT HourView -> [Reservation] -> WebViewM Database (WebViewT DayView Database)
-mkDayView restaurantViewId hourViewId dayReservations = mkWebViewT $
+mkDayView :: ViewId -> ViewId -> [Reservation] -> WebViewM Database (WV DayView)
+mkDayView restaurantViewId hourViewId dayReservations = mkWebView $
  \vid (DayView _ _ _) ->
   do { let selectHourActions = map (selectHourEdit vid) [18..24]
      ; return $ DayView selectHourActions dayReservations $
@@ -410,8 +411,8 @@ instance Initial HourView where
   initial = HourView initial initial initial
 
 -- the list of reservations for a certain hour
-mkHourView :: ViewIdT RestaurantView -> ViewIdT ReservationView -> [Reservation] -> WebViewM Database (WebViewT HourView Database)
-mkHourView restaurantViewId reservationViewId hourReservations = mkWebViewT $
+mkHourView :: ViewId -> ViewId -> [Reservation] -> WebViewM Database (WV HourView)
+mkHourView restaurantViewId reservationViewId hourReservations = mkWebView $
  \vid (HourView _ _ _) ->
   do { let selectReservationActions = map (selectReservationEdit vid) [0..19]
      ; return $ HourView selectReservationActions hourReservations $
@@ -486,7 +487,7 @@ data ReservationView =
 instance Initial ReservationView where                 
   initial = ReservationView initial initial initial
 
-mkReservationView restaurantViewId = mkWebViewT $
+mkReservationView restaurantViewId = mkWebView $
  \vid (ReservationView _ _ _) ->
   do { removeButton <- mkButton "x" True $ return ()
      ; removeAction <- mkEditActionEx $ \[reservationId] -> modifyDb $ removeReservation $ read reservationId  
