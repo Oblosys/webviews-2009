@@ -110,16 +110,16 @@ instance Presentable (LinkView db) where
 
 
 -- TabbedView ---------------------------------------------------------------------  
-  {-
-data TabbedView db = TabbedView Int [WebView db] [WebView db] deriving (Eq, Show, Typeable)
+
+data TabbedView db = TabbedView Int [WebView db (LinkView db)] [UntypedWebView db] deriving (Eq, Show, Typeable)
 
 instance Initial (TabbedView db) where
   initial = TabbedView 0 initial initial
 
-instance MapWebView db (TabbedView db) where
+instance Typeable db => MapWebView db (TabbedView db) where
   mapWebView (TabbedView a b c) = TabbedView <$> mapWebView a <*> mapWebView b <*> mapWebView c
 
-mkTabbedView :: forall db . Typeable db => [(String, Maybe (EditM db ()), WebView db)] -> WebViewM db (WebView db v)
+mkTabbedView :: forall db . Typeable db => [(String, Maybe (EditM db ()), UntypedWebView db)] -> WebViewM db (WebView db (TabbedView db))
 mkTabbedView labelsEditActionsTabViews = mkWebView $
  \vid (TabbedView selectedTab _ _) ->
   do { let (labels, mEditActions,tabViews) = unzip3 labelsEditActionsTabViews
@@ -155,7 +155,7 @@ instance Presentable (TabbedView db) where
                                                        then "visible"
                                                        else "none"
                 ])
--}
+
 {- version that uses jQuery tabs. Does weird things with font and buttons
 instance Presentable TabbedView where
   present (TabbedView _ tabViews) = 
