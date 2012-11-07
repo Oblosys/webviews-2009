@@ -396,7 +396,7 @@ function updateTree(update, moves, scripts) {
   }
   else if (op === 'dialog') {
 	  dialogContent = $(update).find('.contents').html();
-	  buttons = $.map( $(update).find('.button'), function(b) {return {name: $(b).attr('name'), command: $(b).attr('command')} } );
+	  var buttons = $.map( $(update).find('.button'), function(b) {return {name: $(b).attr('name'), command: $(b).attr('command')} } );
 	  showDialog(dialogContent, buttons);
   } 
   else if (op === 'authenticate') {
