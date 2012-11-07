@@ -18,9 +18,15 @@ function showDialog(dialogContent, buttonNames) {
   $('body').append( $dialogContainer );
   $dialogBackground.fadeIn(100);
   $dialogContainer.fadeIn(100);
+  $(document).on("keydown.dialog",function(e) {
+    if (e.keyCode == 27)  
+     dialogButtonClicked( -1, false );
+     // only handle escape key, no default for return key yet.
+  });
 }
 
 function dialogButtonClicked(nr,command) {
+  $(document).off("keydown.dialog");
   var $dialogContainer = $('.dialogContainer');
   var $dialogBackground = $('.dialogBackground');
   $dialogBackground.fadeOut(100, function() { // delay should be small, because background prevents editing
