@@ -39,7 +39,8 @@ table td, table th {
 }
 
 .dialogBackground {
-  position: absolute;
+  display: none;
+  position: fixed;
   top:0;
   left:0;
   width:100%;
@@ -51,7 +52,8 @@ table td, table th {
 }
 
 .dialogContainer {
-  position: absolute;
+  display: none;
+  position: fixed;
   margin: auto;
   top: 100px;
   left: 50%;

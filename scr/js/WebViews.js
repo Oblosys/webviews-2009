@@ -13,13 +13,23 @@ function showDialog(dialogContent, buttonNames) {
   $dialog.append($buttonRow);
   $dialogContainer = $('<div class="dialogContainer"></div>');
   $dialogContainer.append($dialog);
-  $('#root').append('<div class="dialogBackground">');
-  $('#root').append( $dialogContainer );
+  $dialogBackground = $('<div class="dialogBackground">');
+  $('body').append( $dialogBackground);
+  $('body').append( $dialogContainer );
+  $dialogBackground.fadeIn(100);
+  $dialogContainer.fadeIn(100);
 }
 
 function dialogButtonClicked(nr,command) {
-  $('.dialogContainer').remove();
-  $('.dialogBackground').remove();
+  var $dialogContainer = $('.dialogContainer');
+  var $dialogBackground = $('.dialogBackground');
+  $dialogBackground.fadeOut(100, function() { // delay should be small, because background prevents editing
+    $dialogBackground.remove();
+  });
+  $dialogContainer.fadeOut(100, function() {
+    $dialogContainer.remove();
+  });
+  
   if (command) {
     queueCommand("DialogButtonPressed "+nr);
   }
