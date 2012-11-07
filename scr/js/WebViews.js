@@ -1,6 +1,6 @@
 // make sure that jQuery is loaded before this file is loaded
 
-function showDialog(dialogContent, buttonNames) {
+function showDialog(dialogContent, buttons) {
   dlog(dialogContent);
   dlog(buttons);
   $dialog = $('<div class="dialog"></div>');
@@ -8,7 +8,7 @@ function showDialog(dialogContent, buttonNames) {
   $buttonRow = $('<div class="dialogButtons"></div>');
   var commandNr = 0;
   for (var i=0; i<buttons.length; i++) {
-    $buttonRow.append($('<input type=button value="'+buttonNames[i].name+'" onClick="dialogButtonClicked('+ i + ',' + buttons[i].command +')"></input>'));
+    $buttonRow.append($('<input type=button value="'+buttons[i].name+'" onClick="dialogButtonClicked('+ i + ',' + buttons[i].command +')"></input>'));
   }
   $dialog.append($buttonRow);
   $dialogContainer = $('<div class="dialogContainer"></div>');
@@ -19,13 +19,15 @@ function showDialog(dialogContent, buttonNames) {
   $dialogBackground.fadeIn(100);
   $dialogContainer.fadeIn(100);
   $(document).on("keydown.dialog",function(e) {
-    if (e.keyCode == 27)  
-     dialogButtonClicked( -1, false );
+    if (e.keyCode == 13)  
+      dialogButtonClicked(0, buttons[0].command == "true" ? true : false);
+    else if (e.keyCode == 27)  
+      dialogButtonClicked(-1, false);
      // only handle escape key, no default for return key yet.
   });
 }
 
-function dialogButtonClicked(nr,command) {
+function dialogButtonClicked(nr,command) { // command == false denotes a cancel button (for which nr is ignored)
   $(document).off("keydown.dialog");
   var $dialogContainer = $('.dialogContainer');
   var $dialogBackground = $('.dialogBackground');
