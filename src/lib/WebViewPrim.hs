@@ -276,7 +276,7 @@ evalJSEdit scriptLines =
     }
 
 alertEdit :: String -> EditM db ()
-alertEdit str = evalJSEdit [ jsAlert str ]
+alertEdit str = showDialogEdit (toHtml str) [("Ok", Nothing)]
 
 showDialogEdit :: Html -> [(String, Maybe (EditM db ()))] -> EditM db ()
 showDialogEdit contents buttons =
@@ -661,8 +661,9 @@ callServerEditAction (Widget _ _ ea) args =
       intercalate "," ["\"'+"++arg++"+'\"" | arg <- args] 
       ++"]');"
 
+-- Don't use this for alerts from EditM, use alertEdit instead (which uses webviews dialog instead of javascript alert)
 jsAlert :: String -> String
-jsAlert msg = "alert("++show msg++")" -- 
+jsAlert msg = "alert("++show msg++")"
 
 -- Hacky stuff
 
