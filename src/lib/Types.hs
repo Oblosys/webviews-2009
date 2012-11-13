@@ -367,19 +367,19 @@ instance Initial v => Initial (WebView db v) where
 
 
 
--- Class IsWebView can be used as a shorthand for Show, Eq, ... MapWebView
+-- Class IsView is used for the view parameter of a WebView and is a shorthand for Show, Eq, ... MapWebView
 
-class (Show v, Eq v, Presentable v, Storeable db v, Initial v, Typeable v, MapWebView db v, Typeable db) => IsWebView db v
+class (Show v, Eq v, Presentable v, Storeable db v, Initial v, Typeable v, MapWebView db v, Typeable db) => IsView db v
       
-instance (Show v, Eq v, Presentable v, Storeable db v, Initial v, Typeable v, MapWebView db v, Typeable db) => IsWebView db v
+instance (Show v, Eq v, Presentable v, Storeable db v, Initial v, Typeable v, MapWebView db v, Typeable db) => IsView db v
 
 
   
 -- Wrapper for WebView to make the view type existential.
 
-data UntypedWebView db =  forall view . IsWebView db view => UntypedWebView (WebView db view) 
+data UntypedWebView db =  forall view . IsView db view => UntypedWebView (WebView db view) 
 
-mkUntypedWebView :: IsWebView db v => WebViewM db (WebView db v) -> WebViewM db (UntypedWebView db)
+mkUntypedWebView :: IsView db v => WebViewM db (WebView db v) -> WebViewM db (UntypedWebView db)
 mkUntypedWebView mkTypedWebView = fmap UntypedWebView mkTypedWebView
 
 instance Show (UntypedWebView db) where
@@ -397,7 +397,7 @@ instance MapWebView db (UntypedWebView db) where
   mapWebView (UntypedWebView v) = UntypedWebView <$> mapWebView v
 
 
--- For initial UntypedWebView we use a special value Initial which will never be presented or used, but needs all the IsWebView instances.
+-- For initial UntypedWebView we use a special value Initial which will never be presented or used, but needs all the IsView instances.
 
 data InitialView = InitialView deriving (Show, Eq, Typeable) 
 
@@ -489,7 +489,7 @@ instance Initial (EditAction db) where
 -- recursive map on v arg in WebView is maybe handled a bit dodgy still.
 class MapWebView db wv where
   mapWebView :: wv -> 
-                (forall v w . ( IsWebView db v => WebView db v -> s -> (WebView db v,s) 
+                (forall v w . ( IsView db v => WebView db v -> s -> (WebView db v,s) 
                               , MapWebView db (w db) => Widget (w db) -> s -> (Widget (w db),s) -- This MapWebView context requires ImpredicativeTypes :-(
                               , WidgetUpdates db s
                               , Bool -- specifies whether map will recurse in WebView children
@@ -518,7 +518,7 @@ noWidgetUpdates = WidgetUpdates inert inert inert inert inert inert inert
 
 inert x s = (x,s)
  
-instance IsWebView db v => MapWebView db (WebView db v) where
+instance IsView db v => MapWebView db (WebView db v) where
   mapWebView wv fns@(fwv,_,_,recursive) state =
    case fwv wv state of
      (WebView a b c d v, state') ->  let (v', state'') | recursive = mapWebView v fns state'
@@ -712,5 +712,5 @@ type RootViews db = [ (String, WebViewM db (UntypedWebView db)) ]
  
 -- Utility function that creates a RootViews tuple by applying UntypedWebView to webview builder function
 -- It also takes the name parameter so we don't have to apply the function inside the tuple.
-mkRootView :: IsWebView db v => String -> WebViewM db (WebView db v) -> (String, WebViewM db (UntypedWebView db))
+mkRootView :: IsView db v => String -> WebViewM db (WebView db v) -> (String, WebViewM db (UntypedWebView db))
 mkRootView name mkTypedRootView = (name, fmap UntypedWebView mkTypedRootView)

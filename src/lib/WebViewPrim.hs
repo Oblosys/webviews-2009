@@ -52,7 +52,7 @@ debugLn str = trace str $ return ()
 
 -- When loading from different point than root, make sure Id's are not messed up
 
-instance IsWebView db v => Storeable db (WebView db v) where
+instance IsView db v => Storeable db (WebView db v) where
   save wv@(WebView _ _ _ _ v) =
     let topLevelWebViews :: [UntypedWebView db] = getTopLevelWebViews wv
     in  foldl (.) id $ save v : map saveUntyped topLevelWebViews
@@ -330,7 +330,7 @@ withView vid f =
 -- the view matching on load can be done explicitly, following structure and checking ids, or
 -- maybe automatically, based on id. Maybe extra state can be in a separate data structure even,
 -- like in Proxima
-loadView :: IsWebView db v => WebView db v -> WebViewM db (WebView db v)
+loadView :: IsView db v => WebView db v -> WebViewM db (WebView db v)
 loadView (WebView _ si i mkView oldView') =
  do { state@(WebViewState user db viewMap path viewIdCounter sid has) <- get
     ; let newViewId = ViewId $ path ++ [viewIdCounter]                             
@@ -344,7 +344,7 @@ loadView (WebView _ si i mkView oldView') =
     ; return $ WebView newViewId si i mkView view    
     }
         
-mkWebView :: IsWebView db v =>
+mkWebView :: IsView db v =>
              (ViewId -> v -> WebViewM db v) ->
              WebViewM db (WebView db v)
 mkWebView mkView =

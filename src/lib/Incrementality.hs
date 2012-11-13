@@ -37,7 +37,7 @@ isMove (Move _ _ _) = True
 isMove _          = False
 
 
-mkIncrementalUpdates :: forall db v1 v2 . (IsWebView db v1, IsWebView db v2) => WebView db v1 -> WebView db v2 -> IO ([Html], WebView db v2)
+mkIncrementalUpdates :: forall db v1 v2 . (IsView db v1, IsView db v2) => WebView db v1 -> WebView db v2 -> IO ([Html], WebView db v2)
 mkIncrementalUpdates oldRootView rootView =
  do { let (newWebNodes :: [WebNode db], updates) = diffViews oldRootView rootView
     --; putStrLn $ "\nChanged or new web nodes\n" ++ unlines (map shallowShowWebNode newWebNodes) 
@@ -67,7 +67,7 @@ mkIncrementalUpdates oldRootView rootView =
 
 -- TODO: no need to compute new or changed first, can be put in Update list
 --       do have to take into account addChangedViewChildren then
-diffViews :: (IsWebView db v1, IsWebView db v2) => WebView db v1 -> WebView db v2 -> ([WebNode db], [Update])
+diffViews :: (IsView db v1, IsView db v2) => WebView db v1 -> WebView db v2 -> ([WebNode db], [Update])
 diffViews oldRootView rootView = 
   let newWebNodeMap = mkWebNodeMap rootView
       oldWebNodeMap = mkWebNodeMap oldRootView
@@ -86,7 +86,7 @@ getNewOrChangedIdsWebNodes oldWebNodeMap newWebNodeMap =
            Nothing -> True
            Just oldWebNode -> oldWebNode /= webNode
           
-computeMoves :: IsWebView db v2 => WebView db v1 -> WebNodeMap db -> [ViewId] -> WebView db v2 -> [Update]           
+computeMoves :: IsView db v2 => WebView db v1 -> WebNodeMap db -> [ViewId] -> WebView db v2 -> [Update]           
 computeMoves (WebView _ _ oldRootId _ _) 
              oldWebNodeMap changedOrNewWebNodes rootView@(WebView rootVid stubId rootId _ _) = 
   (if rootVid `elem` changedOrNewWebNodes 

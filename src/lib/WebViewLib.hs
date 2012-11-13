@@ -227,11 +227,11 @@ data MaybeView db v = MaybeView String (Maybe (WebView db v)) deriving (Eq, Show
 instance Initial (MaybeView db v) where
   initial = MaybeView "MaybeView not initialized" Nothing
 
-instance IsWebView db v => MapWebView db (MaybeView db v) where
+instance IsView db v => MapWebView db (MaybeView db v) where
   mapWebView (MaybeView a b) = MaybeView <$> mapWebView a <*> mapWebView b
 
 -- TODO: do we want to offer the vid also to mWebViewM? (which will then have type ViewId -> WebViewM db (Maybe (WebView db v)))
-mkMaybeView :: (Typeable db, IsWebView db v) => String -> WebViewM db (Maybe (WebView db v)) -> WebViewM db (WebView db (MaybeView db v))
+mkMaybeView :: (Typeable db, IsView db v) => String -> WebViewM db (Maybe (WebView db v)) -> WebViewM db (WebView db (MaybeView db v))
 mkMaybeView nothingStr mWebViewM = mkWebView $
  \vid (MaybeView _ _) ->
    do { mWebView <- mWebViewM

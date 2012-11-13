@@ -51,17 +51,17 @@ data SortView tag db v =
 -- no derive Initial/MapWebView functions for parameterized types yet, so we specify manual instances
 instance Initial tag => Initial (SortView tag db v) where
   initial = SortView initial initial initial initial
-instance (MapWebView db tag, IsWebView db v) => MapWebView db (SortView tag db v) where
+instance (MapWebView db tag, IsView db v) => MapWebView db (SortView tag db v) where
   mapWebView (SortView tag wv1 wv2 wvs)  = SortView <$> mapWebView tag <*> mapWebView wv1 <*> mapWebView wv2 <*> mapWebView wvs 
 
 instance Storeable db (SortView tag db v)
 
-mkSortView :: (Typeable db, IsWebView db v) => [(String, a->a->Ordering)] -> (a-> WebViewM db (WebView db v)) -> [a] -> WebViewM db (WebView db (SortView SortDefaultPresent db v))
+mkSortView :: (Typeable db, IsView db v) => [(String, a->a->Ordering)] -> (a-> WebViewM db (WebView db v)) -> [a] -> WebViewM db (WebView db (SortView SortDefaultPresent db v))
 mkSortView = mkSortViewEx SortDefaultPresent
 
 -- [("sorteer oplopend", id), ("sorteer aflopend", reverse)]
 -- [("Sorteer op naam", 
-mkSortViewEx :: ( Typeable db, IsWebView db v
+mkSortViewEx :: ( Typeable db, IsView db v
                 , TaggedPresent tag (Widget (SelectView db), Widget (SelectView db), [WebView db v])
                 , Eq tag, Show tag, Typeable tag, Initial tag, MapWebView db tag) =>
               tag -> [(String, a->a->Ordering)] -> (a-> WebViewM db (WebView db v)) -> [a] ->
@@ -90,9 +90,9 @@ data SearchView db v =
   SearchView String (Widget (TextView db)) (Widget (Button db)) (WebView db v) String 
     deriving (Eq, Show, Typeable)
 
-instance IsWebView db v => Initial (SearchView db v) where
+instance IsView db v => Initial (SearchView db v) where
   initial = SearchView initial initial initial initial initial
-instance IsWebView db v => MapWebView db (SearchView db v) where
+instance IsView db v => MapWebView db (SearchView db v) where
   mapWebView (SearchView a b c d e) = SearchView <$> mapWebView a <*> mapWebView b <*> mapWebView c <*> mapWebView d <*> mapWebView e
 
 instance Storeable db (SearchView db v)
@@ -116,7 +116,7 @@ mkSearchView label argName resultsf = mkWebView $
                         , onSubmit searchField navigateAction
                         ]
        }
-instance IsWebView db v => Presentable (SearchView db v) where
+instance IsView db v => Presentable (SearchView db v) where
   present (SearchView label searchField searchButton wv script) =
       (hStretchList [E $ toHtml label +++ nbsp, Stretch $ with [style "width: 100%;"] (present searchField), E $ present searchButton]) +++
       present wv

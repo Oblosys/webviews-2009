@@ -36,7 +36,7 @@ import Debug.Trace
 import qualified Data.Map as Map
 
 -- clear all ids in webView and assign unique ones with respect to oldWebView
-assignAllUniqueIds :: (IsWebView db v1, IsWebView db v2) => WebView db v1 -> WebView db v2 -> WebView db v2
+assignAllUniqueIds :: (IsView db v1, IsView db v2) => WebView db v1 -> WebView db v2 -> WebView db v2
 assignAllUniqueIds oldWebView webView =
   let clearedWebView = clearIds webView
       allIds = getAllIds oldWebView ++ getAllIds clearedWebView -- clearedWebView is necessary because assignIdz uses
@@ -45,7 +45,7 @@ assignAllUniqueIds oldWebView webView =
      assigned
   
 -- assign unique ids to all noIds in x
-assignIds :: (MapWebView db (WebView db v), IsWebView db v) => WebView db v -> WebView db v
+assignIds :: (MapWebView db (WebView db v), IsView db v) => WebView db v -> WebView db v
 assignIds x = let allIds = getAllIds x
                   assigned = assignIdsFromList allIds x
               in --trace (show $ filter (==Id (-1)) (getAllIds assigned)) $
@@ -59,7 +59,7 @@ lookupOldView vid viewMap =
 
 
 -- return al list of all WebNodes in rootView            
-getBreadthFirstWebNodes :: IsWebView db v => WebView db v -> [WebNode db]
+getBreadthFirstWebNodes :: IsView db v => WebView db v -> [WebNode db]
 getBreadthFirstWebNodes rootView = -- todo: why not do getWebNodes with recursion? Do we need breadth-first here?
   concat $ takeWhile (not . null) $ iterate (concatMap getTopLevelWebNodesWebNode) 
                                        [WebViewNode $ UntypedWebView rootView]
@@ -67,15 +67,15 @@ getBreadthFirstWebNodes rootView = -- todo: why not do getWebNodes with recursio
        getTopLevelWebNodesWebNode _ = []
 
 
-getTextViewStrByViewIdRef :: forall db v . IsWebView db v => ViewIdRef -> WebView db v -> String
+getTextViewStrByViewIdRef :: forall db v . IsView db v => ViewIdRef -> WebView db v -> String
 getTextViewStrByViewIdRef (ViewIdRef i) wv = getTextStrVal $ (getTextViewByViewId (ViewId i) wv :: TextView db)
 
-getLabelStrByViewIdRef :: forall db v . IsWebView db v => ViewIdRef -> WebView db v -> String
+getLabelStrByViewIdRef :: forall db v . IsView db v => ViewIdRef -> WebView db v -> String
 getLabelStrByViewIdRef (ViewIdRef i) view =
   let (LabelView _ str _) :: LabelView db = getLabelViewByViewId (ViewId i) view
   in  str
     
-getJSVarValueByViewIdRef :: forall db v . IsWebView db v => ViewIdRef -> WebView db v -> String
+getJSVarValueByViewIdRef :: forall db v . IsView db v => ViewIdRef -> WebView db v -> String
 getJSVarValueByViewIdRef (ViewIdRef i) view =
   let (JSVar _ _ value) :: JSVar db = getJSVarByViewId (ViewId i) view
   in  value
