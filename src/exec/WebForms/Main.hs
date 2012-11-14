@@ -593,7 +593,6 @@ mkFormView form@(Form pages) = mkWebView $
        clearForm :: EditM Database ()
        clearForm = 
         do { modifyDb $ \db -> Map.empty
-           ; 
            ; evalJSEdit [gotoPageNr 0]
            }
                              
