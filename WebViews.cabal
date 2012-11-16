@@ -67,7 +67,9 @@ Library
                    Types,
                    Utils,
                    WebViewLib,
-                   WebViewPrim
+                   WebViewPrim,
+                   Xprez
+  other-modules:   
 
 Executable piglet
   Main-is:    Main.hs 
