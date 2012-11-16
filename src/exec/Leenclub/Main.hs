@@ -535,8 +535,6 @@ mkItemsRootView = mkWebView $
              }
        ; return $ ItemsRootView searchView
        }
--- TODO: don't like the getViewId for dialogView, can we make a webview and return a result somehow?
---       or will typed webviews make this safe enough?
 
 instance Presentable ItemsRootView where
   present (ItemsRootView searchView) =
