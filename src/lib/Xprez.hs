@@ -53,8 +53,9 @@ xp x = let (html, attrs) = renderX x in html
 
 {-
 TODO: 
-maybe leave stretching of tables to parent table, so hStretch/vStretch not necessary anymore
-fix rounding of width/height. Are floats like "33.33%" possible?
+-Maybe leave stretching of tables to parent table, so hStretch/vStretch not necessary anymore
+-Fix rounding of width/height. 1 decimal should be fine. Maybe we can even use 0%? That seems to lead to even distribution in Firefox & Safari.
+-Check columns
 -}
 renderX (Html h) = (h, Attrs False False)
 renderX (Row xs) = let (hs, attrss) = unzip $ map renderX xs
