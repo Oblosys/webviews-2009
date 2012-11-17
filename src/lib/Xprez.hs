@@ -39,8 +39,8 @@ mkTestPage h = H.html  $
 
 test = row [ col [ h $ H.div ! A.style "background-color: yellow" $ "hello"
                  , h $ H.div ! A.style "background-color: red" $ "bla" ]
-           , col [ stretch $ h $ H.div ! A.style "background-color: grey" $ "text" ]
            , col [ h $ H.div ! A.style "background-color: green" $ "more text" ]
+           , col [ stretch $ h $ H.div ! A.style "background-color: grey" $ "text" ]
            ]
 
 hStretch = With (\a->a{getHStretch=True})
@@ -51,15 +51,21 @@ stretch  = With (\a->a{getHStretch=True, getVStretch=True})
 xp :: Xprez -> Html
 xp x = let (html, attrs) = renderX x in html
 
+{-
+TODO: 
+maybe leave stretching of tables to parent table, so hStretch/vStretch not necessary anymore
+fix rounding of width/height. Are floats like "33.33%" possible?
+-}
 renderX (Html h) = (h, Attrs False False)
 renderX (Row xs) = let (hs, attrss) = unzip $ map renderX xs
                        hStretches = map getHStretch attrss
                        hStretch = or hStretches
+                       childWidth = 100 / (fromIntegral $ length $ filter id hStretches)
                        vStretches = map getVStretch attrss
                        vStretch = and vStretches
-                   in  ( htmlStretch hStretch vStretch $
+                   in  ( htmlStretch Nothing Nothing hStretch vStretch $
                            H.table ! A.class_ "Xprez" $
-                             H.tr $ concatHtml $ [ htmlStretch hStr vStr $ H.td $ htmlStretch hStr  vStr $ H.div $ h 
+                             H.tr $ concatHtml $ [ htmlStretch (Just childWidth) Nothing hStr vStr $ H.td $ htmlStretch Nothing Nothing hStr  vStr $ H.div $ h 
                                                  | (h,hStr, vStr) <- zip3 hs hStretches vStretches 
                                                  ] 
                        , Attrs { getHStretch = hStretch, getVStretch = vStretch }
@@ -69,17 +75,23 @@ renderX (Col xs) = let (hs, attrss) = unzip $ map renderX xs
                        hStretch = and hStretches
                        vStretches = map getVStretch attrss
                        vStretch = or vStretches
-                   in  ( htmlStretch hStretch vStretch $
+                       childHeight = 100 / (fromIntegral $ length $ filter id vStretches)
+                   in  ( htmlStretch Nothing Nothing hStretch vStretch $
                            H.table ! A.class_ "Xprez" $ concatHtml $
-                             [ H.tr $ htmlStretch hStr vStr $ H.td $ htmlStretch hStr vStr $ H.div $ h 
+                             [ H.tr $ htmlStretch Nothing (Just childHeight) hStr vStr $ H.td $ htmlStretch Nothing Nothing hStr vStr $ H.div $ h 
                              | (h,hStr, vStr) <- zip3 hs hStretches vStretches 
                              ]                            
                        , Attrs { getHStretch = hStretch, getVStretch = vStretch }
                        )
 renderX (With f x) = let (hs, attrs) = renderX x in (hs, f attrs)
 
-htmlStretch hStr vStr x = x ! A.style ( toValue $ (if hStr then "width: 100%;" :: String else "") ++
-                                                  (if vStr then "height: 100%;" else "")) 
+htmlStretch mWdth mHght hStr vStr x = x ! A.style ( toValue $ (if hStr then "width: "++widthStr mWdth++";" :: String else "") ++
+                                                              (if vStr then "height: "++heightStr mHght++";" else ""))
+ where widthStr Nothing = "100%"
+       widthStr (Just wdth) = show (round wdth)++"%"
+       heightStr Nothing = "100%"
+       heightStr (Just hght) = show (round hght)++"%"
+       
 
 row :: [Xprez]-> Xprez
 row xs = Row xs
