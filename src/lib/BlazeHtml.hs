@@ -98,9 +98,6 @@ cellspacing = A4.cellspacing . fromString
 center = H4.center
 --
 
-test = div_ ! style "dsD" << noHtml
-
-
 -- Nasty bits for extracting script text that is part of the html tree. This code depends on the internals of blaze html :-(
 -- Being able to store scripts in the html makes handling and combining presentations much easier though.
 -- TODO: figure out if we can't do the extraction client side.
