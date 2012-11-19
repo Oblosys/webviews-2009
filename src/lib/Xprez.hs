@@ -3,6 +3,7 @@ module Xprez where
 
 import BlazeHtml hiding (col)
 import Text.Blaze.Html
+import ObloUtils
 import qualified Text.Blaze.Html5 as H
 import qualified Text.Blaze.Html5.Attributes as A
 import Text.Blaze.Html.Renderer.String
@@ -28,7 +29,7 @@ mkTestPage h = H.html  $
 
 test = row [ col [ h $ H.div ! A.style "background-color: yellow" $ "hello"
                  , h $ H.div ! A.style "background-color: red" $ "bla" ]
-           , col [ h $ H.div ! A.style "background-color: green" $ "more text" ]
+           , col [ stretch $ h $ H.div ! A.style "background-color: green" $ "more text" ]
            , col [ stretch $ h $ H.div ! A.style "background-color: grey" $ "text" ]
            ]
 
@@ -42,9 +43,9 @@ xp x = let (html, attrs) = renderX x in html
 
 {-
 TODO: 
--Maybe leave stretching of tables to parent table, so hStretch/vStretch not necessary anymore
--Fix rounding of width/height. 1 decimal should be fine. Maybe we can even use 0%? That seems to lead to even distribution in Firefox & Safari.
--Check columns
+- Maybe leave stretching of tables to parent table, so hStretch/vStretch not necessary anymore
+- Maybe we can even use 0% for width/height of stretching elts? It seems to lead to even distribution in Firefox & Safari.
+- Test vertical stretching.
 -}
 renderX (Html h) = (h, Attrs False False)
 renderX (Row xs) = let (hs, attrss) = unzip $ map renderX xs
@@ -78,9 +79,9 @@ renderX (With f x) = let (hs, attrs) = renderX x in (hs, f attrs)
 htmlStretch mWdth mHght hStr vStr x = x ! A.style ( toValue $ (if hStr then "width: "++widthStr mWdth++";" :: String else "") ++
                                                               (if vStr then "height: "++heightStr mHght++";" else ""))
  where widthStr Nothing = "100%"
-       widthStr (Just wdth) = show (round wdth)++"%"
+       widthStr (Just wdth) = showFloat 2 wdth ++ "%"
        heightStr Nothing = "100%"
-       heightStr (Just hght) = show (round hght)++"%"
+       heightStr (Just hght) = showFloat 2 hght ++ "%"
        
 
 row :: [Xprez]-> Xprez
