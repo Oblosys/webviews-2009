@@ -1,29 +1,18 @@
 {-# LANGUAGE OverloadedStrings, TypeSynonymInstances, FlexibleInstances #-}
 module Xprez where
 
+import BlazeHtml hiding (col)
 import Text.Blaze.Html
 import qualified Text.Blaze.Html5 as H
 import qualified Text.Blaze.Html5.Attributes as A
 import Text.Blaze.Html.Renderer.String
 import Text.Blaze.Internal
-import Data.Monoid (mempty)
 import Data.String
-
-noHtml :: Html
-noHtml = mempty
-
-concatHtml :: [Html] -> Html
-concatHtml hs = foldr (>>) mempty hs
-
-instance Show Html where
-  show html = show (renderHtml html) 
+import Text.Show.Functions
   
 data Attrs = Attrs { getHStretch :: Bool, getVStretch :: Bool }
 
 data Xprez = Html Html | Row [Xprez] | Col [Xprez] | Table [[Xprez]] | With (Attrs -> Attrs) Xprez deriving Show
-
-instance Show (Attrs -> Attrs) where
-  show f = "(Attrs -> Attrs)"
   
 run :: Xprez -> IO ()
 run x = writeFile "Xprez.html" . renderHtml . mkTestPage . xp $ x

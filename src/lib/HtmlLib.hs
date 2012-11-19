@@ -1,6 +1,7 @@
 module HtmlLib where
 
 import BlazeHtml
+import Xprez
 import Data.Char hiding (Space)
 import Data.List
 import Data.String
