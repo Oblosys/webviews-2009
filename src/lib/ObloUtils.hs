@@ -2,7 +2,9 @@
 module ObloUtils where
 
 import Data.Maybe
+import Data.List
 import qualified Data.Map as Map
+import GHC.Float (formatRealFloat, FFFormat(FFFixed))
 import Control.Category hiding (Category) -- fclabels
 import Data.Label                         -- fclabels
 import Prelude hiding ((.), id)           -- fclabels
@@ -23,7 +25,22 @@ unsafeLookup tag key map =
 singleton :: a -> [a]
 singleton x = [x]
 
+-- | showFloat shows a floating-point value with a maximum number of decimals and without exponent notation.
+showFloat :: Int -> Double -> String
+showFloat nrOfDigits f =
+    let s = formatRealFloat FFFixed (Just nrOfDigits) f
+        s' = dropWhile (== '0') (reverse s)
+        s'' = if head s' == '.' then '0':s' else s'
+    in reverse s''
 
+showFloats :: Int -> [Double] -> String
+showFloats nrOfDigits fs = "[" ++ (concat $ intersperse ", " $ map (showFloat nrOfDigits) fs) ++ "]"
+
+-- | niceFloatFix prints a floating-point value with fixed number of decimals and without exponent notation.
+showFloatFix :: Int -> Double -> String
+showFloatFix nrOfDigits f =
+    let s = formatRealFloat FFFixed (Just nrOfDigits) f
+    in  if head s == '.' then '0':s else s
 
 -- fclabels
 
