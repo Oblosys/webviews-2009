@@ -1,4 +1,4 @@
-module HtmlLib where
+module HtmlLib (module Xprez, module HtmlLib) where
 
 import BlazeHtml
 import Xprez

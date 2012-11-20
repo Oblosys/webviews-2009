@@ -1,7 +1,7 @@
 {-# LANGUAGE OverloadedStrings, TypeSynonymInstances, FlexibleInstances #-}
 module Xprez where
 
-import BlazeHtml hiding (col)
+import BlazeHtml
 import Text.Blaze.Html
 import ObloUtils
 import qualified Text.Blaze.Html5 as H
@@ -46,6 +46,12 @@ TODO:
 - Maybe leave stretching of tables to parent table, so hStretch/vStretch not necessary anymore
 - Maybe we can even use 0% for width/height of stretching elts? It seems to lead to even distribution in Firefox & Safari.
 - Test vertical stretching.
+
+
+
+Stretching: take proportional amount of space. Non-stretching, take minimal space. How to specify something not to stretch, but still take
+maximum space? So "this text" is not broken into "this" and "text"
+
 -}
 renderX (Html h) = (h, Attrs False False)
 renderX (Row xs) = let (hs, attrss) = unzip $ map renderX xs
