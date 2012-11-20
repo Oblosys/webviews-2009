@@ -213,8 +213,10 @@ instance Presentable ItemView where
               , multiLineStringToHtml $ get itemDescr item
               , hList $ map present buttons
               ]
-  present (ItemView Inline dist item mEdited owner button mBorrower props buttons) =
+  present (ItemView Inline dist item mEdited owner button mBorrower props buttons) = 
     -- todo present imdb link, present movieOrSeries
+  {-
+   vList [
       hStretchList
             [ E $ linkedItem item $ (div_ (boxedEx 1 1 $ image ("items/" ++ get itemImage item) ! style "height: 130px")) ! style "width: 134px" ! align "top"
             , E $  nbsp +++ nbsp
@@ -249,6 +251,39 @@ instance Presentable ItemView where
               ]
                 ) ! style "width: 200px; height: 130px; padding: 5; font-size: 12px"
             ]
+   , -} xp $
+    addStyle "font-size: 12px; margin: 5px;" $
+    row [ h $ linkedItem item $ (div_ (boxedEx 1 1 $ image ("items/" ++ get itemImage item) ! style "height: 130px")) ! style "width: 134px" ! align "top"
+        , h $ hSpace 10
+        , vAlign Top $ hStretch $ h $ linkedItem item $ xp $
+          col [ h $ with [style "font-weight: bold; font-size: 15px"] $ toHtml (getItemCategoryName item ++ ": " ++ get itemName item) 
+              , h $ vSpace 2
+              , h $ with [style "color: #333"] $
+                               presentEditableProperties props -- ++
+                                                   -- [("Punten", toHtml . show $ get itemPrice item)]
+              , h $ vSpace 3
+              , h $ with [style "font-weight: bold"] $ "Beschrijving:" 
+              , hStretch $ h $ with [class_ "ellipsis multiline", style "height: 30px"] $
+                                                                  {- 30 : 2 * 14 + 2 -}
+                               multiLineStringToHtml $ get itemDescr item
+                           ]
+        , h $ hSpace 10
+        , vAlign Top $ addStyle "width: 200px" $
+          col ([ h $ presentProperties $ [ ("Eigenaar", linkedLenderFullName owner)
+                                      , ("Rating", with [style "font-size: 17px; position: relative; top: -6px; height: 12px" ] $ presentRating 5 $ get lenderRating owner)
+                                      ] ++
+                                  (if dist > 0 then [ ("Afstand", toHtml $ showDistance dist) ] else [])
+                  --, div_ $ presentPrice (itemPrice item)
+                ] ++
+                  maybe [] (\borrower -> [h $ with [style "color: red"] $ "Uitgeleend aan " +++ linkedLenderFullName borrower]) mBorrower
+                  ++ [h $ vSpace 5
+                , h $ present button 
+                , h $ vSpace 10
+                , row $ map (h . present) buttons
+              ])
+        ] 
+  -- ]
+  
 vDivList elts = div_ $ mapM_ div_ elts 
 
 
