@@ -68,8 +68,11 @@ TODO:
 
 -- use style "display: table-cell" to get rid of extra divs?
 
+Alternative for tables for long pages so we can render faster?
+
+
 Stretching: take proportional amount of space. Non-stretching, take minimal space. How to specify something not to stretch, but still take
-maximum space? So "this text" is not broken into "this" and "text"
+maximum space? For text, this is no longer a problem because of the white-space: nowrap in rows.
 
 -}
 renderX (Html h) = (h, defaultAttrs)
@@ -81,7 +84,7 @@ renderX (Row xs) = let (hs, attrss) = unzip $ map renderX xs
                        hStretch = or hStretches
                        vStretch = and vStretches
                        childWidth = 100 / (fromIntegral $ length $ filter id hStretches)
-                   in  ( H.table ! A.class_ "Xprez" $
+                   in  ( H.table ! A.class_ "Xprez Row" $ -- Row class to allow specific css styling for row/col elements
                            H.tr $ concatHtml $ [ setTDAttrs (Just childWidth) Nothing hStr vStr vAlgn $ H.td $ 
                                                    setChildAttrs hStr vStr stl $ H.div $ h 
                                                | (h,hStr, vStr, vAlgn, stl) <- zip5 hs hStretches vStretches vAlgns styles 
@@ -96,7 +99,7 @@ renderX (Col xs) = let (hs, attrss) = unzip $ map renderX xs
                        hStretch = and hStretches
                        vStretch = or vStretches
                        childHeight = 100 / (fromIntegral $ length $ filter id vStretches)
-                   in  ( H.table ! A.class_ "Xprez" $ concatHtml $
+                   in  ( H.table ! A.class_ "Xprez Col" $ concatHtml $ -- Col class to allow specific css styling for row/col elements
                            [ H.tr $ setTDAttrs Nothing (Just childHeight) hStr vStr vAlgn $ H.td $ 
                                       setChildAttrs hStr vStr stl $ H.div $ h 
                            | (h,hStr, vStr, vAlgn, stl) <- zip5 hs hStretches vStretches vAlgns styles 

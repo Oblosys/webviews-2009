@@ -1,11 +1,22 @@
-table { /* for some weird reason tables don't inherit font and color by default */
-  font: inherit;
-  color: inherit;
+/* TODO: Maybe remove these table rules, now we have Xprez tables? */
+table {
+  font: inherit; color: inherit; /* for some weird reason tables don't inherit font and color by default */
   border-spacing:0;
   border-collapse: collapse;
 }
 table td, table th {
   padding: 0;
+}
+
+table.Xprez { 
+  font: inherit; color: inherit; /* for some weird reason tables don't inherit font and color by default */
+  border-spacing:0; border-collapse: collapse; border: 0;
+}
+table.Xprez td, table.Xprez th {
+  padding: 0;
+}
+table.Xprez.Row td {
+  white-space: nowrap;
 }
 
 .roundedBorder
