@@ -679,15 +679,16 @@ instance Presentable LeenclubPageView where
             ]
             -}
       col [ row [ addStyle "font-size: 50px; color: #ddd" $ h $ "Leenclub.nl"
-                , hStretch $ h noHtml
+                , flexHSpace
                 , vAlign Bottom $ h $
                     case user of
                       Nothing        -> noHtml
                       Just (login,_) -> withStyle "margin-bottom:5px; color: #ddd" $ "Ingelogd als "+++ (span_ ! style "color: white" $ toHtml login)
                 ]
+          , flexVSpace
           , addStyle "width: 800px; border: 1px solid black; background-color: #f0f0f0; box-shadow: 0 0 8px rgba(0, 0, 0, 0.7);" $
               col [ addStyle ("color: white; font-size: 17px;"++ gradientStyle Nothing "#707070" "#101010") $
-                      row $  map (h . highlightItem) leftMenuItems ++ [hStretch $ h noHtml] ++ map (h . highlightItem) rightMenuItems
+                      row $  map (h . highlightItem) leftMenuItems ++ [flexHSpace] ++ map (h . highlightItem) rightMenuItems
                   , h $ withStyle "padding: 10px" $ present wv
                   ]
           ]

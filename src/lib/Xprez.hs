@@ -50,6 +50,11 @@ hStretch = With (\a->a{getHStretch=True})
 vStretch = With (\a->a{getVStretch=True})
 stretch  = With (\a->a{getHStretch=True, getVStretch=True})
 
+flexSpace = stretch $ h noHtml
+
+flexHSpace = hStretch $ h noHtml
+
+flexVSpace = vStretch $ h noHtml -- untested
 
 vAlign algn = With (\a->a{getVAlign=algn})
 
@@ -64,6 +69,7 @@ xp x = let (html, attrs) = renderX x
 TODO: 
 - Maybe we can even use 0% for width/height of stretching elts? It seems to lead to even distribution in Firefox & Safari.
 - Test vertical stretching.
+- Balance between Html and Xprez is tricky. Do everything in Xprez? Expensive and need to lift all Html functions.
 
 
 -- use style "display: table-cell" to get rid of extra divs?
