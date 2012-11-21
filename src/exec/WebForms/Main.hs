@@ -465,7 +465,7 @@ mkStyleView styleStr wv = mkWebView $
 
 instance Presentable StyleView where
   present (StyleView styleStr wv) =
-      with [thestyle styleStr] $ present wv
+      withStyle styleStr $ present wv
 
 instance Storeable Database StyleView
 
@@ -483,13 +483,13 @@ mkTableView classTag border topHeader leftHeader rows = mkWebView $
 
 instance Presentable TableView where
   present (TableView classTag hasBorder topHeader leftHeader rows) =
-    mkTableEx [border $ if hasBorder then "1" else "0", theclass $ "FormTable Table"++classTag ] [] [] $ 
-      [ [ ([ theclass $ "TableCell " ++ (if rowNr == 1 then " TopRow" else "") ++
-                                        (if rowNr > 1 && rowNr < nrOfRows then " MiddleRow" else "") ++
-                                        (if rowNr == nrOfRows then " BottomRow" else "") ++
-                                        (if colNr == 1 then " LeftCol" else "") ++
-                                        (if colNr > 1 && colNr < nrOfCols then " MiddleCol" else "") ++
-                                        (if colNr == nrOfCols then " RightCol" else "")
+    mkTableEx [border $ if hasBorder then "1" else "0", class_ $ "FormTable Table"++classTag ] [] [] $ 
+      [ [ ([ class_ $ "TableCell " ++ (if rowNr == 1 then " TopRow" else "") ++
+                                      (if rowNr > 1 && rowNr < nrOfRows then " MiddleRow" else "") ++
+                                      (if rowNr == nrOfRows then " BottomRow" else "") ++
+                                      (if colNr == 1 then " LeftCol" else "") ++
+                                      (if colNr > 1 && colNr < nrOfCols then " MiddleCol" else "") ++
+                                      (if colNr == nrOfCols then " RightCol" else "")
            ] ++                              
            if rowNr == 1 && topHeader || colNr == 1 && leftHeader then [style "background-color: #EEE"] else []
           , present elt) 
@@ -612,17 +612,17 @@ mkFormView form@(Form pages) = mkWebView $
        
 instance Presentable FormView where
   present (FormView isComplete currentPageNr nrOfPages prevButton nextButton sendButton clearButton wv) =
-    mkPage [thestyle "background: url('img/background_linen.png') repeat scroll center top transparent; min-height: 100%; font-family: Geneva"] $
-      with [theclass $ "FormPage" ++ if currentPageNr == nrOfPages-1 then " LastPage" else "", thestyle "background: white;", align "left"] $
+    mkPage [style "background: url('img/background_linen.png') repeat scroll center top transparent; min-height: 100%; font-family: Geneva"] $
+      with [class_ $ "FormPage" ++ if currentPageNr == nrOfPages-1 then " LastPage" else "", style "background: white;", align "left"] $
                                  -- dimensions are specified in css to allow iPad specific style                                                              
         mkPageHeader +++
         vList [ present wv
               , vSpace 40
               , hStretchList [ E $ present clearButton, space
                              , E $ with [ onclick (toValue $ jsNavigateTo $ "'"++resultsFilepath++"'") -- use onclick to avoid problem with getting <a> underlined.
-                                        , thestyle "font-size: 80%; color: blue; text-decoration: underline; cursor: pointer"] $  "Resultaten downloaden"
+                                        , style "font-size: 80%; color: blue; text-decoration: underline; cursor: pointer"] $  "Resultaten downloaden"
                              , space
-                             , E $ with [theclass "SendButton"] $ present sendButton ]
+                             , E $ with [class_ "SendButton"] $ present sendButton ]
               -- Decrease FormPage bottom-padding to 20px when enabling this.
               --, vSpace 70
               --, hStretchList [ space, E $ with [style "font-size: 11px; font-style: italic"] "Powered by WebViews" ]
@@ -631,7 +631,7 @@ instance Presentable FormView where
                           hListCenter 
                                 [ present prevButton
                                 , with [style "font-size: 80%"] $ nbsp >> (toHtml $ "Pagina "++show (currentPageNr+1) ++"/"++show nrOfPages) >> nbsp
-                                , with [theclass "NextButton"] $ present nextButton ] 
+                                , with [class_ "NextButton"] $ present nextButton ] 
       --  +++
           
 

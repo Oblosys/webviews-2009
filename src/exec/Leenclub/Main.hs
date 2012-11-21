@@ -666,7 +666,7 @@ mkLeenclubPageView menuItemLabel mWebViewM = mkWebView $
 instance Presentable LeenclubPageView where
   present (LeenclubPageView user menuItemLabel logoutAction wv) =
     -- imdb: background-color: #E3E2DD; background-image: -moz-linear-gradient(50% 0%, #B3B3B0 0px, #E3E2DD 500px);  
-    mkPage [thestyle $ gradientStyle (Just 500) "#444" {- "#B3B3B0" -} "#E3E2DD"  ++ " font-family: arial"] $ xp $ 
+    mkPage [style $ gradientStyle (Just 500) "#444" {- "#B3B3B0" -} "#E3E2DD"  ++ " font-family: arial"] $ xp $ 
       {-vList [ (div_ ! style "float: left; font-size: 50px; color: #ddd" $ "Leenclub.nl") +++
               case user of 
                  Nothing        -> noHtml
@@ -681,7 +681,7 @@ instance Presentable LeenclubPageView where
       col [ row [ addStyle "font-size: 50px; color: #ddd" $ h $ "Leenclub.nl"
                 , hStretch $ h noHtml
                 , vAlign Bottom $ h $
-                    case user of 
+                    case user of
                       Nothing        -> noHtml
                       Just (login,_) -> withStyle "margin-bottom:5px; color: #ddd" $ "Ingelogd als "+++ (span_ ! style "color: white" $ toHtml login)
                 ]
@@ -700,10 +700,10 @@ instance Presentable LeenclubPageView where
          
          highlightItem (label, e) = with [ onmouseover "this.style.backgroundColor='#666'" -- not nice, but it works and prevents
                                          , onmouseout  "this.style.backgroundColor=''"     -- the need for a css declaration
-                                         , thestyle $ "height: 25px; margin: 0 20 0 20; " ++ 
-                                                    if label == menuItemLabel 
-                                                    then gradientStyle Nothing "#303030" "#101010" 
-                                                    else "" ] $
+                                         , style $ "height: 25px; margin: 0 20 0 20; " ++ 
+                                                   if label == menuItemLabel 
+                                                   then gradientStyle Nothing "#303030" "#101010" 
+                                                   else "" ] $
                                     with [style "padding: 2 10 5 10;" ] e
 
   

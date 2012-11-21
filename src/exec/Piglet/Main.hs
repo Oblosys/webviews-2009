@@ -81,9 +81,9 @@ instance Storeable Database CommentView where
 
 instance Presentable CommentView where
   present (CommentView _ edited author date text mEditAction mRemoveAction mTextArea) =
-    thediv ! thestyle "border:solid; border-width:1px; padding:0px; min-width: 550px;" $
+    withStyle "border:solid; border-width:1px; padding:0px; min-width: 550px;" $
      (withBgColor (Rgb 225 225 225) $ --  thespan![thestyle "margin:4px;"] $
-        (thespan ! thestyle "margin:4px;" $ "Posted by " +++ toHtml author +++ " on " +++ toHtml date)
+        (span_ ! style "margin:4px;" $ "Posted by " +++ toHtml author +++ " on " +++ toHtml date)
         `hDistribute`
         (withColor (Color "blue") $
           case mEditAction of
@@ -97,10 +97,10 @@ instance Presentable CommentView where
      (withBgColor (Color "white") $ 
         
          if edited then case mTextArea of 
-                          Nothing -> thespan ! thestyle "margin:4px;" $ -- TODO: figure out why margin above creates too much space  
+                          Nothing -> span_ ! style "margin:4px;" $ -- TODO: figure out why margin above creates too much space  
                                        multiLineStringToHtml text
                           Just textArea -> withHeight 100 $ present textArea
-         else thespan ! thestyle "margin:4px;" $ -- TODO: figure out why margin above creates too much space  
+         else span_ ! style "margin:4px;" $ -- TODO: figure out why margin above creates too much space  
                 multiLineStringToHtml text)
   
 
@@ -313,7 +313,7 @@ instance Presentable VisitsView where
   present (VisitsView _ viewedVisit sessionId user visits loginoutView selectionActions  
                       prev next add remove tabbedVisits _ commentViews mAddCommentButton) =
     withBgColor (Rgb 235 235 235) $ withPad 5 0 5 0 $    
-    with [thestyle "font-family: arial"] $
+    with [style "font-family: arial"] $
       mkTableEx [width "100%"] [] [valign "top"]
        [[ ([],
            h2 << "Piglet 2.0"  +++
@@ -330,7 +330,7 @@ instance Presentable VisitsView where
                          [ [toHtml $ show i, toHtml zipCode, toHtml date] 
                          | (i, (zipCode, date)) <- zip [1..] visits
                          ]
-              in  mkTable [strAttr "width" "100%", strAttr "cellPadding" "2", thestyle "border-collapse: collapse"] 
+              in  mkTable [strAttr "width" "100%", strAttr "cellPadding" "2", style "border-collapse: collapse"] 
                      rowAttrss [] rows
                  )])  +++
       p << (present add +++ present remove) 

@@ -133,9 +133,10 @@ selectedReservationColor = selectedDayColor
 
 instance Presentable MainView where
   present (MainView cv rv) = 
-     hListEx [] [ with [thestyle "font-family:arial"] $ roundedBoxed (Just $ appBgColor) $ present cv
+     hListEx [] [ withStyle "font-family:arial" $ roundedBoxed (Just $ appBgColor) $ present cv
                 , hSpace 30
-                , with [thestyle "font-family:arial"] $ roundedBoxed (Just $ appBgColor) $ present rv ] 
+                , withStyle "font-family:arial" $ roundedBoxed (Just $ appBgColor) $ present rv 
+                ] 
 
 instance Storeable Database MainView where
      
@@ -273,9 +274,9 @@ mark different months, mark appointments
 instance Presentable RestaurantView where
   present (RestaurantView mSelectedDate (currentMonth, currentYear) weeks dayView hourView reservationView script) = 
     (vList $ 
-      [ with [thestyle "text-align:center; font-weight:bold"] $ toHtml $ showMonth currentMonth ++ " "++show currentYear
+      [ withStyle "text-align:center; font-weight:bold" $ toHtml $ showMonth currentMonth ++ " "++show currentYear
       , vSpace 5
-      , mkTableEx [cellpadding "0", cellspacing "0", thestyle "border-collapse:collapse; text-align:center"] [] [thestyle "border: 1px solid #909090"]  
+      , mkTableEx [cellpadding "0", cellspacing "0", style "border-collapse:collapse; text-align:center"] [] [style "border: 1px solid #909090"]  
                   (header :
                    [ [ ([{- withEditActionAttr selectionAction-} strAttr "onClick" $ "addSpinner('hourView');"++ -- todo refs are hardcoded!
                                                                 selectScript++
@@ -287,7 +288,7 @@ instance Presentable RestaurantView where
       ] ++
       [ present dayView
       , vSpace 15
-      , with [thestyle "font-size:80%"] $
+      , withStyle "font-size:80%" $
           with [id_ "betweenPlaceholder"] "uninitialized 'between' placeholder"
       , vSpace 6
       , present hourView
@@ -319,16 +320,16 @@ instance Presentable CalendarDayView where
     -- doing this with borders is awkward as they resize the table
     conditionallyBoxed isToday 2 (htmlColor todayColor) $
        mkTableEx [ width "36px", height "36", cellpadding "0", cellspacing "0" 
-                   , thestyle $ "margin:2px"] [] [] 
-             [[ ([valign "top"] ++ if isThisMonth then [] else [thestyle "color: #808080"], toHtml (show day)) ]
-           ,[ ([thestyle "font-size:80%; color:#0000ff"], if not $ null reservations then toHtml $ show (length reservations) ++ " (" ++ show (sum $ map nrOfPeople reservations)++")" else nbsp) ] 
+                 , style $ "margin:2px"] [] [] 
+             [[ ([valign "top"] ++ if isThisMonth then [] else [style "color: #808080"], toHtml (show day)) ]
+           ,[ ([style "font-size:80%; color:#0000ff"], if not $ null reservations then toHtml $ show (length reservations) ++ " (" ++ show (sum $ map nrOfPeople reservations)++")" else nbsp) ] 
         ]
     -- TODO: make Rgb for standard html colors, make rgbH for (rgbH 0xffffff)
     
     -- check slow down after running for a while
 conditionallyBoxed cond width color elt =
-  if cond then thediv!*[thestyle $ "border:solid; border-color:"++color++"; border-width:"++show width++"px;"] << elt
-          else thediv!*[thestyle $ "padding:"++show width++"px;"] << elt
+  if cond then div_!*[style $ "border:solid; border-color:"++color++"; border-width:"++show width++"px;"] << elt
+          else div_!*[style $ "padding:"++show width++"px;"] << elt
 
 instance Storeable Database CalendarDayView where
 
@@ -386,16 +387,16 @@ mkDayView restaurantViewId hourViewId dayReservations = mkWebView $
 
 instance Presentable DayView where
   present (DayView selectHourActions dayReservations script) =
-    mkTableEx [width "100%", cellpadding "0", cellspacing "0", thestyle "border-collapse:collapse; font-size:80%"] [] [] 
+    mkTableEx [width "100%", cellpadding "0", cellspacing "0", style "border-collapse:collapse; font-size:80%"] [] [] 
       [[ ([id_ . toValue $ "hourOfDayView_"++show (hr-18)
           , strAttr "onClick" sa -- todo: don't like this onClick here
-          , thestyle $ "border: 1px solid #909090; background-color: #d0d0d0"]
+          , style $ "border: 1px solid #909090; background-color: #d0d0d0"]
          , presentHour hr) | (sa,hr) <- zip selectHourActions [18..24] ]] +++ mkScript script
 
    where presentHour hr = --withBgColor (Rgb 255 255 0) $
            vListEx [width "40px"] -- needs to be smaller than alotted hour cell, but larger than width of "xx(xx)"
                  [ toHtml $ show hr++"h"
-                 , with [thestyle "font-size:80%; text-align:center; color:#0000ff"] $ 
+                 , withStyle "font-size:80%; text-align:center; color:#0000ff" $ 
                      let ressAtHr = filter ((==hr) . fst . time) dayReservations
                      in  if not $ null ressAtHr then toHtml $ show (length ressAtHr) ++ " (" ++ show (sum $ map nrOfPeople ressAtHr)++")" else nbsp 
                  ]
@@ -467,11 +468,11 @@ mkHourView restaurantViewId reservationViewId hourReservations = mkWebView $
 instance Presentable HourView where
   present (HourView selectReservationActions hourReservations script) =
     (with [id_ "hourView"] $ -- in separate div, because spinners on scrolling elements  cause scrollbars to be shown
-    boxedEx 1 0 $ with [ thestyle "height:90px;overflow:auto"] $
-      mkTableEx [width "100%", cellpadding "0", cellspacing "0", thestyle "border-collapse:collapse"] [] [] $ 
+    boxedEx 1 0 $ withStyle "height:90px;overflow:auto" $
+      mkTableEx [width "100%", cellpadding "0", cellspacing "0", style "border-collapse:collapse"] [] [] $ 
         [ [ ([id_ . toValue $ "reservationLine_"++show i
              , strAttr "onClick" sa -- todo: don't like this onClick here
-             , thestyle $ "border: 1px solid #909090"]
+             , style $ "border: 1px solid #909090"]
           , hList [nbsp, with [id_ . toValue $ "reservationEntry_"++show i] $ "reservationEntry"]) ]
         | (i,sa) <- zip [0..] selectReservationActions 
         ]) +++ mkScript script
@@ -522,7 +523,7 @@ mkReservationView restaurantViewId = mkWebView $
  
 -- todo comment has hard-coded width. make constant for this
 instance Presentable ReservationView where
-  present (ReservationView removeButton _ script) = (with [thestyle "background-color:#f0f0f0"] $ boxed $ 
+  present (ReservationView removeButton _ script) = (withStyle "background-color:#f0f0f0" $ boxed $ 
     vListEx [ id_ "reservationView"] 
       [ hListEx [width "100%"] [ hList [ "Reservation date: ",nbsp
                                        , with [colorAttr reservationColor] $ with [id_ "dateField"] $ noHtml ]
@@ -531,7 +532,7 @@ instance Presentable ReservationView where
       , hList [ "Name:",nbsp, with [colorAttr reservationColor] $ with [id_ "nameField"] $ noHtml]
       , hList [ "Nr. of people:",nbsp, with [colorAttr reservationColor] $ with [id_ "nrOfPeopleField"] $ noHtml ]
       , "Comment:" 
-      , boxedEx 1 0 $ with [thestyle $ "padding-left:4px;height:70px; width:300px; overflow:auto; color:" ++ htmlColor reservationColor] $ with [id_ "commentField"] $  
+      , boxedEx 1 0 $ withStyle ("padding-left:4px;height:70px; width:300px; overflow:auto; color:" ++ htmlColor reservationColor) $ with [id_ "commentField"] $  
           noHtml
       ]) +++ mkScript script
    where reservationColor = Rgb 0x00 0x00 0xff
