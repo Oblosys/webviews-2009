@@ -400,8 +400,8 @@ mkEvalJSResponseHtml script = [ div_ ! strAttr "op" "eval" $ toHtml script ]
 mkConfirmDialogResponseHtml :: Html -> [(String,Bool)] -> [Html]
 mkConfirmDialogResponseHtml dialogHtml buttonNames = -- the Bool specifies whether the associated button has a server-side command 
   [ div_ ! strAttr "op" "dialog" $                   -- (otherwise it's a cancel button that only hides the dialog)
-     (div_ ! theclass "contents" $ dialogHtml) +++ 
-     concatHtml [ div_ ! theclass "button" ! strAttr "name" name ! strAttr "command" (if command then "true" else "false") $ noHtml 
+     (div_ ! class_ "contents" $ dialogHtml) +++ 
+     concatHtml [ div_ ! class_ "button" ! strAttr "name" name ! strAttr "command" (if command then "true" else "false") $ noHtml 
                 | (name,command) <- buttonNames ]
   ] 
 

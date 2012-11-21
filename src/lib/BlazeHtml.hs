@@ -5,8 +5,8 @@ module BlazeHtml (module Text.Blaze.Html5, module Text.Blaze.Html5.Attributes
 import Data.String
 import Data.Monoid
 
-import Text.Blaze.Html5 hiding (div,span,button,map,   style, table, col)
-import Text.Blaze.Html5.Attributes hiding (id,min,max,   cite, form, label, span, summary, title)
+import Text.Blaze.Html5 hiding (div, span, button, map, style, table, col)
+import Text.Blaze.Html5.Attributes hiding (id, min, max, class_, style, cite, form, label, span, summary, title)
 import qualified Text.Blaze.Html5 as H
 import qualified Text.Blaze.Html5.Attributes as A
 
@@ -65,12 +65,13 @@ enable overloaded Strings? helps with some toHtml and toValue cases
 -- transition
 type HtmlAttr = Attribute
 
+-- added a fromString to prevent annoying ambiguities
+class_ :: String -> Attribute
+class_ = A.class_ . fromString
 
-
-thediv = div_
-thespan = span_
-theclass = class_ . fromString
-thestyle = style . fromString
+-- added a fromString to prevent annoying ambiguities
+style :: String -> Attribute
+style = A.style . fromString
 
 infixr 2 +++  -- combining Html
 (+++) = (>>)

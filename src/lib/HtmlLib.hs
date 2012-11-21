@@ -27,14 +27,14 @@ increase x = x + 1
 
 updateReplaceHtml :: String -> Html -> Html
 updateReplaceHtml targetId newElement =
-  thediv!!![strAttr "op" "replace", strAttr "targetId" targetId ] 
+  div_!!![strAttr "op" "replace", strAttr "targetId" targetId ] 
     << newElement
 
 nbsp = primHtml "&nbsp;"
 
 
-hSpace w = thediv!!![thestyle $ "width: "++show w++"px; height: 0px;"] << noHtml
-vSpace h = thediv!!![thestyle $ "height: "++show h++"px; width: 0px;"] << noHtml
+hSpace w = div_!!![style $ "width: "++show w++"px; height: 0px;"] << noHtml
+vSpace h = div_!!![style $ "height: "++show h++"px; width: 0px;"] << noHtml
                  
 nbspaces i = primHtml $ concat $ replicate i "&nbsp;"
 
@@ -51,16 +51,16 @@ boxed :: Html -> Html
 boxed elt = boxedEx 1 4 elt
 
 boxedEx :: Int -> Int -> Html -> Html
-boxedEx lineWidth padding elt = thediv!!![thestyle $ "border:solid; border-width:"++show lineWidth++"px; padding:"++show padding++"px;"] << elt
+boxedEx lineWidth padding elt = div_!!![style $ "border:solid; border-width:"++show lineWidth++"px; padding:"++show padding++"px;"] << elt
 
 roundedBoxed mColor elt =
   mkTable attrs [] [] [[elt]]
- where attrs = theclass "roundedBorder" : 
+ where attrs = class_ "roundedBorder" : 
                case mColor of Nothing -> []
-                              Just color -> [thestyle $ "background-color: "++htmlColor color] 
-{-  (thespan!!![theclass"tl"] << noHtml +++ thespan!!![theclass"tr"] << noHtml +++ 
-   thespan!!![thestyle"width:95%"] << elt +++
-   thespan!!![theclass"bl"] << noHtml +++ thespan!!![theclass"br"] << noHtml)
+                              Just color -> [style $ "background-color: "++htmlColor color] 
+{-  (thespan!!![class_"tl"] << noHtml +++ thespan!!![class_"tr"] << noHtml +++ 
+   thespan!!![style"width:95%"] << elt +++
+   thespan!!![class_"bl"] << noHtml +++ thespan!!![class_"br"] << noHtml)
 -}
  {- 
 <div class="rounded_colhead" style="background-color: red;">
@@ -85,8 +85,8 @@ space = Stretch noHtml
 hStretchList :: [ListElt] -> Html
 hStretchList listElts = table ! width "100%" $ tr $ sequence_ 
                           [ case listElt of E html       -> td ! style "white-space: nowrap" $ html
-                                            Stretch html -> td ! thestyle ("width: "++show spaceWidth++"%") $  html 
-                          | listElt <- listElts 
+                                            Stretch html -> td ! style ("width: "++show spaceWidth++"%") $  html 
+                          | listElt <- listElts
                           ]
  where nrOfSpaces = length [ () | Stretch _ <- listElts ]
        spaceWidth = if nrOfSpaces == 0 then 0 else 100 `div` nrOfSpaces 
@@ -94,7 +94,7 @@ hStretchList listElts = table ! width "100%" $ tr $ sequence_
 vStretchList :: [ListElt] -> Html
 vStretchList listElts = table ! height "100%" ! style "background-color: red" $ sequence_ 
                           [ case listElt of E html       -> tr $ td $ html
-                                            Stretch html -> tr $ td ! thestyle ("height: "++show spaceWidth++"%") $ html 
+                                            Stretch html -> tr $ td ! style ("height: "++show spaceWidth++"%") $ html 
                           | listElt <- listElts 
                           ]
  where nrOfSpaces = length [ () | Stretch _ <- listElts ]
@@ -104,14 +104,14 @@ hDistribute e1 e2 =
   mkTableEx [width "100%"] [] [valign "top"]
        [[ ([],e1), ([align "right"],e2) ]]
 
-hCenter elt = with [thestyle "text-align:center"] elt
+hCenter elt = with [style "text-align:center"] elt
 
-hList' elts = ul!!![theclass "hList"] $ sequence_ [ li << elt | elt <- elts ] -- for drag & drop experiments
+hList' elts = ul!!![class_ "hList"] $ sequence_ [ li << elt | elt <- elts ] -- for drag & drop experiments
 
 hList elts = hListEx [] elts
 
 hListEx attrs [] = noHtml
-hListEx attrs  elts = simpleTable ([] ++ attrs) [theclass "draggable"] [ elts ]
+hListEx attrs  elts = simpleTable ([] ++ attrs) [class_ "draggable"] [ elts ]
 
 hListCenter elts = mkTableEx [] [] [style "vertical-align: middle"] [[ ([],elt) |elt <- elts ]] 
 
@@ -151,12 +151,12 @@ mkPage attrs elt = table !* ([height "100%", width "100%"]++attrs) $
 data Color = Rgb Int Int Int
            | Color String deriving Show
 
-with attrs elt = thediv !!! attrs << elt
+with attrs elt = div_ !!! attrs << elt
 
 withStyle :: String -> Html -> Html
-withStyle stl elt = with [style $ toValue stl] elt
+withStyle stl elt = with [style stl] elt
 
-withColor color elt = thediv !!! [colorAttr color] << elt
+withColor color elt = div_ !!! [colorAttr color] << elt
 
 htmlColor :: Color -> String
 htmlColor (Rgb r g b) = "#" ++ toHex2 r ++ toHex2 g ++ toHex2 b
@@ -166,26 +166,26 @@ htmlColor (Color colorStr) = colorStr
 -- style attribute declarations cannot be combined :-( so setting color and then size as attrs
 -- will fail. But as Html->Html with divs, there is no problem
 fgbgColorAttr color bgColor = 
-  thestyle $ "color: "++htmlColor color++"; background-color: "++htmlColor bgColor++";"
+  style $ "color: "++htmlColor color++"; background-color: "++htmlColor bgColor++";"
 
 colorAttr color = 
-  thestyle $ "color: "++htmlColor color++";"
+  style $ "color: "++htmlColor color++";"
 
-withBgColor color elt = thediv !!! [bgColorAttr color] << elt
+withBgColor color elt = div_ !!! [bgColorAttr color] << elt
 
 bgColorAttr color = 
-  thestyle $ "background-color: "++htmlColor color++";"
+  style $ "background-color: "++htmlColor color++";"
 
 gradientStyle :: Maybe Int -> String -> String -> String
 gradientStyle mHeight topColor bottomColor =
     "background: -moz-linear-gradient("++topColor++" 0px, "++bottomColor++ maybe "" (\h -> " "++show h++"px") mHeight ++ "); "
   ++"background: -webkit-gradient(linear, left top, left "++maybe "bottom" show mHeight ++", from("++topColor++"), to("++bottomColor++"));"
 
-withSize width height elt = thediv!!! [thestyle $ "width: "++show width++"px;" ++
-                                                "height: "++show height++"px;" ++
-                                                "overflow: auto" ] << elt
-withHeight height elt = thediv!!! [thestyle $ "height: "++show height++"px;" ++
-                                            "overflow: auto" ] << elt
+withSize width height elt = div_!!! [style $ "width: "++show width++"px;" ++
+                                             "height: "++show height++"px;" ++
+                                             "overflow: auto" ] << elt
+withHeight height elt = div_ !!! [style $ "height: "++show height++"px;" ++
+                                          "overflow: auto" ] << elt
 
 constrain mn mx x = (mn `max` x) `min` mx
 
@@ -196,8 +196,8 @@ toHexDigit d = let d' = constrain 0 15 d
                in  chr $ d' + if d < 10 then ord '0' else ord 'A' - 10  
 
 withPad left right top bottom h =
-  thediv !!! [thestyle $ "padding: "++show top++"px "++show right++"px "++
-                       show bottom++"px "++show left++"px;"] << h
+  div_ !!! [style $ "padding: "++show top++"px "++show right++"px "++
+                    show bottom++"px "++show left++"px;"] << h
 
 
 image :: String -> Html -- type sig is necessary, otherwise overloaded strings give confusing errors

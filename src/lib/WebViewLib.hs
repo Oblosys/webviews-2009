@@ -142,24 +142,24 @@ instance Storeable db (TabbedView db) where
 -- TODO: may have been broken by new roundedBoxed implementation
 instance Presentable (TabbedView db) where
   present (TabbedView selectedTab selectionViews tabViews) =
-    hList [ thespan !* [ theclass "tab"
-                       , thestyle ("background-color: "++color)
-                       ] $ present selectionView 
+    hList [ span_ !* [ class_ "tab"
+                     , style ("background-color: "++color)
+                     ] $ present selectionView 
           | (i,selectionView) <- zip [0..] selectionViews
           , let color = htmlColor $ if i == selectedTab then Color white else Rgb 200 200 200
           ] +++
     (roundedBoxed (Just $ Color white) $
-     concatHtml [ thediv ! attr $ present tabView 
+     concatHtml [ div_ ! attr $ present tabView 
                 | (i,tabView) <- zip [0..] tabViews 
-                , let attr = thestyle $ "display: " ++ if i == selectedTab 
-                                                       then "visible"
-                                                       else "none"
+                , let attr = style $ "display: " ++ if i == selectedTab 
+                                                    then "visible"
+                                                    else "none"
                 ])
 
 {- version that uses jQuery tabs. Does weird things with font and buttons
 instance Presentable TabbedView where
   present (TabbedView _ tabViews) = 
-    thediv![theclass "tabbed"] <<
+    div_![class_ "tabbed"] <<
       ((ulist $ concatHtml [li $ anchor![href $ "#"++mkHtmlViewId webView] $ stringToHtml label 
                            | (webView,label)  <- zip tabViews ["een","twee","drie"] ] ) +++
        (concatHtml [ mkDiv (mkHtmlViewId tabView) $ present tabView | tabView <- tabViews ] ))
@@ -275,13 +275,13 @@ mkSelectableView allSelectableVids str selected clickCommand = mkWebView $
 instance Presentable (SelectableView db) where
   present (SelectableView vid allVids selected str clickAction script) =
     with [ id_ . toValue $ mkId vid
-         , theclass $ "SelectableView " ++ if selected then "Selected" else "Deselected"
-         , thestyle "cursor: pointer"
+         , class_ $ "SelectableView " ++ if selected then "Selected" else "Deselected"
+         , style "cursor: pointer"
          , strAttr "onClick" $ concat -- use js to select/deselect views immediately (while waiting for server response)
                                  [ "selectSelectableView("++show (mkId vid)++",["++ intercalate "," [ show $ mkId vi |vi <- allVids] ++ "]);"
                                  , callServerEditAction clickAction []
                                  ]
-         ] $ thediv $ primHtml str +++ mkScript script
+         ] $ div_ $ primHtml str +++ mkScript script
    where mkId viewId = "SelectableView_"++show viewId
 
 instance Storeable db (SelectableView db)
