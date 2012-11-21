@@ -153,6 +153,9 @@ data Color = Rgb Int Int Int
 
 with attrs elt = thediv !!! attrs << elt
 
+withStyle :: String -> Html -> Html
+withStyle stl elt = with [style $ toValue stl] elt
+
 withColor color elt = thediv !!! [colorAttr color] << elt
 
 htmlColor :: Color -> String
