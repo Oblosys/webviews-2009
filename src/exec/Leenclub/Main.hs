@@ -666,8 +666,8 @@ mkLeenclubPageView menuItemLabel mWebViewM = mkWebView $
 instance Presentable LeenclubPageView where
   present (LeenclubPageView user menuItemLabel logoutAction wv) =
     -- imdb: background-color: #E3E2DD; background-image: -moz-linear-gradient(50% 0%, #B3B3B0 0px, #E3E2DD 500px);  
-    mkPage [thestyle $ gradientStyle (Just 500) "#444" {- "#B3B3B0" -} "#E3E2DD"  ++ " font-family: arial"] $ 
-      vList [ (div_ ! style "float: left; font-size: 50px; color: #ddd" $ "Leenclub.nl") +++
+    mkPage [thestyle $ gradientStyle (Just 500) "#444" {- "#B3B3B0" -} "#E3E2DD"  ++ " font-family: arial"] $ xp $ 
+      {-vList [ (div_ ! style "float: left; font-size: 50px; color: #ddd" $ "Leenclub.nl") +++
               case user of 
                  Nothing        -> noHtml
                  Just (login,_) -> div_ ! style "float: right; margin-top:35px; color: #ddd" $ "Ingelogd als "+++ (span_ ! style "color: white" $ toHtml login)
@@ -677,8 +677,22 @@ instance Presentable LeenclubPageView where
                          ! (thestyle $ "color: white; font-size: 17px;"++ gradientStyle Nothing "#707070" "#101010")
                       , div_ ! thestyle "padding: 10px" $ present wv ] ! width "800px"
             ]
-   where leftMenuItems = (map (\(label,rootView) -> (label, rootViewLink rootView $ toHtml label)) $
-                        [("Home",""), ("Leners", "leners"), ("Spullen", "items")] ++ userMenuItems user)
+            -}
+      col [ row [ addStyle "font-size: 50px; color: #ddd" $ h $ "Leenclub.nl"
+                , hStretch $ h noHtml
+                , vAlign Bottom $ h $
+                    case user of 
+                      Nothing        -> noHtml
+                      Just (login,_) -> withStyle "margin-bottom:5px; color: #ddd" $ "Ingelogd als "+++ (span_ ! style "color: white" $ toHtml login)
+                ]
+          , addStyle "width: 800px; border: 1px solid black; background-color: #f0f0f0; box-shadow: 0 0 8px rgba(0, 0, 0, 0.7);" $
+              col [ addStyle ("color: white; font-size: 17px;"++ gradientStyle Nothing "#707070" "#101010") $
+                      row $  map (h . highlightItem) leftMenuItems ++ [hStretch $ h noHtml] ++ map (h . highlightItem) rightMenuItems
+                  , h $ withStyle "padding: 10px" $ present wv
+                  ]
+          ]
+   where leftMenuItems = map (\(label,rootView) -> (label, rootViewLink rootView $ toHtml label)) $
+                           [("Home",""), ("Leners", "leners"), ("Spullen", "items")] ++ userMenuItems user
          rightMenuItems = [ if user == Nothing then ("Login", rootViewLink "login" "Login") 
                                                else ("Logout", withEditAction logoutAction "Logout") ] -- Logout is not menu, so it will not be highlighted
          userMenuItems Nothing = []
