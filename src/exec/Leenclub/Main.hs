@@ -255,8 +255,8 @@ instance Presentable ItemView where
     addStyle "font-size: 12px; margin: 5px;" $
     row [ h $ linkedItem item $ (div_ (boxedEx 1 1 $ image ("items/" ++ get itemImage item) ! style "height: 130px")) ! style "width: 134px" ! align "top"
         , h $ hSpace 10
-        , vAlign Top $ hStretch $ h $ linkedItem item $ xp $
-          col [ h $ with [style "font-weight: bold; font-size: 15px"] $ toHtml (getItemCategoryName item ++ ": " ++ get itemName item) 
+        , vAlign Top $ hStretch $ h $ linkedItem item $ xp $  -- TODO: need the explicit widht here, or long names widen the column. Not nice.
+          col [ h $ with [style "font-weight: bold; font-size: 15px; overflow: hidden; width:416px"] $ toHtml (getItemCategoryName item ++ ": " ++ get itemName item) 
               , h $ vSpace 2
               , h $ with [style "color: #333"] $
                                presentEditableProperties props -- ++
