@@ -685,7 +685,6 @@ instance Presentable LeenclubPageView where
                       Nothing        -> noHtml
                       Just (login,_) -> withStyle "margin-bottom:5px; color: #ddd" $ "Ingelogd als "+++ (span_ ! style "color: white" $ toHtml login)
                 ]
-          , flexVSpace
           , addStyle "width: 800px; border: 1px solid black; background-color: #f0f0f0; box-shadow: 0 0 8px rgba(0, 0, 0, 0.7);" $
               col [ addStyle ("color: white; font-size: 17px;"++ gradientStyle Nothing "#707070" "#101010") $
                       row $  map (h . highlightItem) leftMenuItems ++ [flexHSpace] ++ map (h . highlightItem) rightMenuItems
