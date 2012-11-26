@@ -182,7 +182,10 @@ handlers debug title rootViews scriptFilenames dbFilename db users serverSession
                                             Left err            -> do { io $ putStrLn $ "No requestId in request from " ++ clientIp ++ ", "++show time; mzero }
                                 
                             ; io $ putStrLn $ "RequestId " ++ show (requestId :: Int) ++ " (" ++ clientIp ++ "), "++show time
-                            ; method GET >> nullDir >> session debug rootViews dbFilename db users serverSessionId globalStateRef requestId cmds
+                            ; method GET
+                            ; nullDir
+                            ; fmap (setHeader "Cache-Control" "no-cache") $ 
+                                session debug rootViews dbFilename db users serverSessionId globalStateRef requestId cmds
                             })
   , serveRootPage -- this generates an init event, which will handle hash arguments
   ] 
