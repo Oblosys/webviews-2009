@@ -33,11 +33,10 @@ run x = writeFile "XprezTest.html" . renderHtml . mkTestPage . xp $ x
 
 mkTestPage :: Html -> Html
 mkTestPage h = H.html  $
-                 (H.head $ H.style $ preEscapedString xprezCss) >>
+                 (H.head $ (H.style $ preEscapedString xprezCss) +++
+                           (H.link ! A.href "scr/css/WebViews.css" ! A.rel "stylesheet" ! A.type_ "text/css")) >>
                  (H.body h)
- where xprezCss = unlines $ [ "body {padding: 0px; margin: 0px;}"
-                            , "table.Xprez {font: inherit; color: inherit; border-spacing:0; border-collapse: collapse; border: 2}"
-                            , "table.Xprez td, table.Xprez th { padding: 0;}"
+ where xprezCss = unlines $ [ -- Use this for ad-hoc styles we don't immediately want in WebViews.css.
                             ]
 
 test = row [ col [ h $ H.div ! A.style "background-color: yellow" $ "hello"
@@ -118,7 +117,13 @@ renderX (Col xs) = let (hs, attrss) = unzip $ map renderX xs
                            | (h,hStr, vStr, vAlgn, stl) <- zip5 hs hStretches vStretches vAlgns styles 
                            ]                            
                        , defaultAttrs { getHStretch = hStretch, getVStretch = vStretch }
-                       )
+                       ) {-
+                       ( H.ul ! A.class_ "Xprez Col" $ concatHtml $ -- Col class to allow specific css styling for row/col elements
+                           [ H.li $ setChildAttrs hStr vStr stl $ H.div $ h 
+                           | (h,hStr, vStr, vAlgn, stl) <- zip5 hs hStretches vStretches vAlgns styles 
+                           ]                            
+                       , defaultAttrs { getHStretch = hStretch, getVStretch = vStretch }
+                       )-}
 renderX (With f x) = let (hs, attrs) = renderX x in (hs, f attrs)
 
 
