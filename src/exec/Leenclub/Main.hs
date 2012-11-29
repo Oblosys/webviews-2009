@@ -666,7 +666,7 @@ mkLeenclubPageView menuItemLabel mWebViewM = mkWebView $
 instance Presentable LeenclubPageView where
   present (LeenclubPageView user menuItemLabel logoutAction wv) =
     -- imdb: background-color: #E3E2DD; background-image: -moz-linear-gradient(50% 0%, #B3B3B0 0px, #E3E2DD 500px);  
-    mkPage [style $ gradientStyle (Just 500) "#444" {- "#B3B3B0" -} "#E3E2DD"  ++ " font-family: arial"] $ xp $ 
+    mkPage [style $ gradientStyle (Just 500) "#404040" {- "#B3B3B0" -} "#E3E2DD"  ++ " font-family: arial"] $ xp $ 
       {-vList [ (div_ ! style "float: left; font-size: 50px; color: #ddd" $ "Leenclub.nl") +++
               case user of 
                  Nothing        -> noHtml
@@ -678,7 +678,7 @@ instance Presentable LeenclubPageView where
                       , div_ ! thestyle "padding: 10px" $ present wv ] ! width "800px"
             ]
             -}
-      col [ row [ addStyle "font-size: 50px; color: #ddd" $ h $ "Leenclub.nl"
+      col [ row [ addStyle "font-size: 50px; color: #ddd" $ text "Leenclub.nl"
                 , flexHSpace
                 , vAlign Bottom $ h $
                     case user of
@@ -686,9 +686,10 @@ instance Presentable LeenclubPageView where
                       Just (login,_) -> withStyle "margin-bottom:5px; color: #ddd" $ "Ingelogd als "+++ (span_ ! style "color: white" $ toHtml login)
                 ]
           , addStyle "width: 800px; border: 1px solid black; background-color: #f0f0f0; box-shadow: 0 0 8px rgba(0, 0, 0, 0.7);" $
-              col [ addStyle ("color: white; font-size: 17px;"++ gradientStyle Nothing "#707070" "#101010") $
-                      row $  map (h . highlightItem) leftMenuItems ++ [flexHSpace] ++ map (h . highlightItem) rightMenuItems
-                  , h $ withStyle "padding: 10px" $ present wv
+              hStretch $
+                col [ addStyle ("color: white; font-size: 17px;"++ gradientStyle Nothing "#707070" "#101010") $
+                        row $  map (h . highlightItem) leftMenuItems ++ [flexHSpace] ++ map (h . highlightItem) rightMenuItems
+                    , h $ withStyle "padding: 10px" $ present wv
                   ]
           ]
    where leftMenuItems = map (\(label,rootView) -> (label, rootViewLink rootView $ toHtml label)) $
@@ -846,7 +847,7 @@ deriveMapWebViewDb ''Database ''BorrowedRootView
 ---- Main (needs to be below all webviews that use deriveInitial)
 
 main :: IO ()
-main = server 8101 "Leenclub" rootViews [] "LeenclubDB.txt" mkInitialDatabase users
+main = server 8101 "Leenclub" rootViews ["Leenclub.css"] "LeenclubDB.txt" mkInitialDatabase users
 
 rootViews :: RootViews Database
 rootViews = [ mkRootView ""        $ mkLeenclubPageView "Home"    $ mkUntypedWebView mkHomeView
