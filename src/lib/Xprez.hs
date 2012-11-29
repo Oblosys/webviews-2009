@@ -29,7 +29,7 @@ defaultAttrs = Attrs False False Middle ""
 data Xprez = Html Html | Row [Xprez] | Col [Xprez] | Table [[Xprez]] | With (Attrs -> Attrs) Xprez deriving Show
   
 run :: Xprez -> IO ()
-run x = writeFile "Xprez.html" . renderHtml . mkTestPage . xp $ x
+run x = writeFile "XprezTest.html" . renderHtml . mkTestPage . xp $ x
 
 mkTestPage :: Html -> Html
 mkTestPage h = H.html  $
@@ -45,6 +45,7 @@ test = row [ col [ h $ H.div ! A.style "background-color: yellow" $ "hello"
            , col [ stretch $ h $ H.div ! A.style "background-color: green" $ "more text" ]
            , col [ stretch $ h $ H.div ! A.style "background-color: grey" $ "text" ]
            ]
+test2 = row [hStretch $ col [ hStretch $ h $ H.div ! A.style "background-color: yellow" $ "hello" ]]
 
 hStretch = With (\a->a{getHStretch=True})
 vStretch = With (\a->a{getVStretch=True})
@@ -54,7 +55,7 @@ flexSpace = stretch $ h noHtml
 
 flexHSpace = hStretch $ h noHtml
 
-flexVSpace = vStretch $ h noHtml -- untested
+flexVSpace = vStretch $ h noHtml
 
 vAlign algn = With (\a->a{getVAlign=algn})
 
@@ -67,10 +68,16 @@ xp x = let (html, attrs) = renderX x
 
 {-
 TODO: 
-- Maybe we can even use 0% for width/height of stretching elts? It seems to lead to even distribution in Firefox & Safari.
-- Test vertical stretching.
-- Balance between Html and Xprez is tricky. Do everything in Xprez? Expensive and need to lift all Html functions.
 
+Dangerous to set width/heigth with an addStyle. Becomes problematic in http://localhost:8101/#items&q=blaaa.
+How to handle setting a constaint on a stretching column?
+
+
+
+maybe possible to use ul also when stretching?
+- Maybe we can even use 0% for width/height of stretching elts? It seems to lead to even distribution in Firefox & Safari.
+- Balance between Html and Xprez is tricky. Do everything in Xprez? Expensive and need to lift all Html functions.
+- Is it possible to let content respect max width? So row [ "very long title" ] with width 30px stays within 30px?
 
 -- use style "display: table-cell" to get rid of extra divs?
 
@@ -92,7 +99,7 @@ renderX (Row xs) = let (hs, attrss) = unzip $ map renderX xs
                        childWidth = 100 / (fromIntegral $ length $ filter id hStretches)
                    in  ( H.table ! A.class_ "Xprez Row" $ -- Row class to allow specific css styling for row/col elements
                            H.tr $ concatHtml $ [ setTDAttrs (Just childWidth) Nothing hStr vStr vAlgn $ H.td $ 
-                                                   setChildAttrs hStr vStr stl $ H.div $ h 
+                                                   setChildAttrs hStr vStr stl $ h 
                                                | (h,hStr, vStr, vAlgn, stl) <- zip5 hs hStretches vStretches vAlgns styles 
                                                ] 
                        , defaultAttrs { getHStretch = hStretch, getVStretch = vStretch }
@@ -107,7 +114,7 @@ renderX (Col xs) = let (hs, attrss) = unzip $ map renderX xs
                        childHeight = 100 / (fromIntegral $ length $ filter id vStretches)
                    in  ( H.table ! A.class_ "Xprez Col" $ concatHtml $ -- Col class to allow specific css styling for row/col elements
                            [ H.tr $ setTDAttrs Nothing (Just childHeight) hStr vStr vAlgn $ H.td $ 
-                                      setChildAttrs hStr vStr stl $ H.div $ h 
+                                      setChildAttrs hStr vStr stl $ h 
                            | (h,hStr, vStr, vAlgn, stl) <- zip5 hs hStretches vStretches vAlgns styles 
                            ]                            
                        , defaultAttrs { getHStretch = hStretch, getVStretch = vStretch }
@@ -142,3 +149,5 @@ col xs = Col xs
 h :: Html -> Xprez
 h html = Html html
 
+text :: String -> Xprez
+text str = h $ div_ $ toHtml str
