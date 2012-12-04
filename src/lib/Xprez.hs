@@ -1,13 +1,15 @@
 {-# LANGUAGE OverloadedStrings, TypeSynonymInstances, FlexibleInstances #-}
 module Xprez where
 
+-- run with:   ghci src/lib/Xprez.hs -isrc/lib
+
 import BlazeHtml
 import Text.Blaze.Html
 import ObloUtils
 import qualified Text.Blaze.Html5 as H
 import qualified Text.Blaze.Html5.Attributes as A
 import Text.Blaze.Html.Renderer.String
-import Text.Blaze.Internal
+import Text.Blaze.Internal hiding (text)
 import Data.String
 import Data.List
 import Text.Show.Functions
@@ -16,7 +18,7 @@ import Text.Show.Functions
 data VAlign = Top | Middle | Bottom
 
 data Attrs = Attrs { getHStretch :: Bool, getVStretch :: Bool
-                   , getVAlign :: VAlign
+                   , getVAlign :: VAlign -- doesn't work in columns, so use flexVSpace there
                    , getStyle :: String
                    }
 {-
@@ -45,6 +47,9 @@ test = row [ col [ h $ H.div ! A.style "background-color: yellow" $ "hello"
            , col [ stretch $ h $ H.div ! A.style "background-color: grey" $ "text" ]
            ]
 test2 = row [hStretch $ col [ hStretch $ h $ H.div ! A.style "background-color: yellow" $ "hello" ]]
+testAlign = row [ letter 100, vAlign Top $ letter 10, vAlign Middle $ letter 10, vAlign Bottom $ letter 10 ]
+test3 = addStyle "background-color: green" $ col [ vAlign Bottom $ vStretch $ text "bla", text "bla" ]
+letter size = addStyle ("font-size: " ++ show size ++"px") $ text "X"
 
 hStretch = With (\a->a{getHStretch=True})
 vStretch = With (\a->a{getVStretch=True})
@@ -58,6 +63,7 @@ flexVSpace = vStretch $ h noHtml
 
 vAlign algn = With (\a->a{getVAlign=algn})
 
+-- append the style to the end of the styles (and inserts a ;)
 addStyle :: String -> Xprez -> Xprez
 addStyle stl x = With (\a->a{getStyle=stl ++";" ++ getStyle a}) x
 
@@ -111,19 +117,20 @@ renderX (Col xs) = let (hs, attrss) = unzip $ map renderX xs
                        hStretch = and hStretches
                        vStretch = or vStretches
                        childHeight = 100 / (fromIntegral $ length $ filter id vStretches)
-                   in  ( H.table ! A.class_ "Xprez Col" $ concatHtml $ -- Col class to allow specific css styling for row/col elements
-                           [ H.tr $ setTDAttrs Nothing (Just childHeight) hStr vStr vAlgn $ H.td $ 
-                                      setChildAttrs hStr vStr stl $ h 
-                           | (h,hStr, vStr, vAlgn, stl) <- zip5 hs hStretches vStretches vAlgns styles 
-                           ]                            
-                       , defaultAttrs { getHStretch = hStretch, getVStretch = vStretch }
-                       ) {-
-                       ( H.ul ! A.class_ "Xprez Col" $ concatHtml $ -- Col class to allow specific css styling for row/col elements
-                           [ H.li $ setChildAttrs hStr vStr stl $ H.div $ h 
-                           | (h,hStr, vStr, vAlgn, stl) <- zip5 hs hStretches vStretches vAlgns styles 
-                           ]                            
-                       , defaultAttrs { getHStretch = hStretch, getVStretch = vStretch }
-                       )-}
+                   in  if vStretch
+                       then ( H.table ! A.class_ "Xprez Col" $ concatHtml $ -- Col class to allow specific css styling for row/col elements
+                                [ H.tr $ setTDAttrs Nothing (Just childHeight) hStr vStr vAlgn $ H.td $ 
+                                           setChildAttrs hStr vStr stl $ h 
+                                | (h,hStr, vStr, vAlgn, stl) <- zip5 hs hStretches vStretches vAlgns styles 
+                                ]                            
+                            , defaultAttrs { getHStretch = hStretch, getVStretch = vStretch }
+                            )
+                       else ( H.ul ! A.class_ "Xprez Col" $ concatHtml $
+                                [ H.li $ setChildAttrs hStr vStr stl $ H.div $ h 
+                                | (h,hStr, vStr, vAlgn, stl) <- zip5 hs hStretches vStretches vAlgns styles 
+                                ]                            
+                            , defaultAttrs { getHStretch = hStretch, getVStretch = vStretch }
+                            )
 renderX (With f x) = let (hs, attrs) = renderX x in (hs, f attrs)
 
 
