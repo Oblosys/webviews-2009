@@ -121,7 +121,7 @@ getWebNodeById callerTag i wv =
     []  -> error $ "internal error: getWebNodeById (called by "++callerTag++"): no webnode with id " ++ show i
     _   -> error $ "internal error: getWebNodeById (called by "++callerTag++"): multiple webnode with id " ++ show i
 
--- workaround for problem with events that arrive after the target widget has been removed. (especially on iPad/iPhone)
+-- TODO: workaround for problem with events that arrive after the target widget has been removed. (especially on iPad/iPhone)
 mGetAnyWidgetById :: IsView db v => ViewId -> WebView db v -> Maybe (AnyWidget db)
 mGetAnyWidgetById i wv = 
   case mGetWebNodeById "getAnyWidgetById" i wv of
