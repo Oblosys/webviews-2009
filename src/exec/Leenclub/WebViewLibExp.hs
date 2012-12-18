@@ -105,14 +105,13 @@ mkSearchView label argName resultsf = mkWebView $
        ; let searchTerm = case lookup argName args of 
                             Nothing    -> ""
                             Just term -> term 
-       ; searchField <- mkTextField searchTerm `withTextViewSubmit` (return ()) 
+       ; searchField <- mkTextField searchTerm
        ; searchButton <- mkButtonWithClick "Zoek" True $ const ""
        ; results <- resultsf searchTerm
        ; return $ SearchView label searchField searchButton results $
                   jsScript $
                     let navigateAction = "setHashArg('"++argName++"', "++jsGetWidgetValue searchField++");"
-                    in  [ inertTextView searchField
-                        , onClick searchButton navigateAction
+                    in  [ onClick searchButton navigateAction
                         , onSubmit searchField navigateAction
                         ]
        }
