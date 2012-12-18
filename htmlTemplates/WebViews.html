@@ -597,22 +597,29 @@ function elementGotFocus(id) {
 
 // constructors for script nodes associated with each webview
 // Note: the viewId's here are Haskell ViewId's (eg. ViewId [path])
+// Note: we can safely refer to viewId instead of this.viewId, since it doesn't change
 function ButtonScript(viewId) {
     this.viewId = viewId;
     this.onFocus = function () {elementGotFocus(viewId)};
     this.onClick = function () {queueCommand('ButtonC '+viewId)};
 }
 
-function TextViewScript(viewId) {
+// notifyServer is true for text fields (not areas) with a non-Nothing server edit action
+function TextViewScript(viewId, notifyServer) {
     this.viewId = viewId;
-    this.onSubmit = function () {dlog('onSubmit');textFieldChanged(viewId);queueCommand('SubmitC '+ viewId)}; 
-    // only called for edit actions on text fields (not areas)
+    this.notifyServer = notifyServer;
+    this.onSubmit = function () { dlog('TextViewScript.onSubmit (notifyServer='+(this.notifyServer?'true':'false')+')');
+                                ; if (this.notifyServer) {
+                                    textFieldChanged(viewId);
+                                    queueCommand('SubmitC '+ viewId);
+                                  }
+                                }; 
     // the textFieldChanged will cause a double update on the textfield, since the blur will also fire
     // (unless the submit causes an update that removes the textfield). Superfluous happen all the time
     // though, so this should not create a problem. TODO: maybe cache the textfield value and only send it on a change
     
-    this.onFocus  = function () {dlog('onFocus');elementGotFocus(viewId)};
-    this.onBlur   = function () {dlog('onBlur');textFieldChanged(viewId)};
+    this.onFocus  = function () {dlog('TextViewScript.onFocus');elementGotFocus(viewId)};
+    this.onBlur   = function () {dlog('TextViewScript.onBlur');textFieldChanged(viewId)};
     this.onKeyUp  = function () {};
 }
 

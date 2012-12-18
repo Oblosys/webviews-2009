@@ -4,6 +4,7 @@ module WebViewPrim where
 import Control.Monad.State
 import BlazeHtml
 import Data.List
+import Data.Maybe
 import Data.Generics
 import Debug.Trace
 import Data.Map (Map)
@@ -428,25 +429,23 @@ presentTextField (TextView viewId TextArea str enabled stl _ _) =
                   , strAttr "onKeyUp" $ "script"++viewIdSuffix viewId++".onKeyUp()"
                   ] ++ if enabled then [] else [disabled "disabled"]
                   ) << toHtml str >>
-  (mkScript $ declareWVTextViewScript viewId)      
+  (mkScript $ declareWVTextViewScript viewId False)      
 presentTextField (TextView viewId textType str enabled stl _ mEditAction) = 
   let inputField = case textType of TextField -> textfield ""
                                     PasswordField -> password ""
                                     
   in form !* [ style "display: inline; width: 100%;"
-             , strAttr "onSubmit" $ (case mEditAction of
-                                       Nothing -> "return false"
-                                       Just _  -> "script"++viewIdSuffix viewId++".onSubmit();"++
-                                                  "return false")] $ -- return false, since we don't actually submit the form
+             , strAttr "onSubmit" $ "script"++viewIdSuffix viewId++".onSubmit(); return false" -- return false, since we don't actually submit the form
+             ] $ 
        inputField !* ([ id_ $ mkHtmlViewIdVal viewId, strAttr "value" str, style $ "width: 100%;" ++ stl
                       , strAttr "onFocus" $ "script"++viewIdSuffix viewId++".onFocus()"
                       , strAttr "onBlur" $ "script"++viewIdSuffix viewId++".onBlur()"
                       , strAttr "onKeyUp" $ "script"++viewIdSuffix viewId++".onKeyUp()" 
                       ] ++ if enabled then [] else [disabled "disabled"]
                      )  >>
-  (mkScript $ declareWVTextViewScript viewId)      
+  (mkScript $ declareWVTextViewScript viewId $ isJust mEditAction)
 
-declareWVTextViewScript viewId = jsDeclareVar viewId "script" $ "new TextViewScript(\""++show viewId++"\");"
+declareWVTextViewScript viewId notifyServer = jsDeclareVar viewId "script" $ "new TextViewScript(\""++show viewId++"\","++jsBool notifyServer++");"
 
 -- For the moment, onclick disables the standard server ButtonC command
 presentButton :: Button db -> Html
@@ -606,6 +605,7 @@ declareFunction vid name params body = name++viewIdSuffix vid++" = Function("++c
 escapeSingleQuote str = concatMap (\c -> if c == '\'' then "\\'" else [c]) str 
 jsFunction v n a b = declareFunction v n a $ escapeSingleQuote $ intercalate ";" b -- no newlines here, since scripts are executed line by line 
 jsScript lines = intercalate ";\n" lines
+jsBool b = if b then "true" else "false"
 jsIf c t = "if ("++c++") {"++intercalate ";" t++"}"
 jsIfElse c t e = "if ("++c++") {"++intercalate ";" t++"} else {"++intercalate ";" e++ "}"
 jsFor c b = "for (var "++c++") {"++intercalate ";" b++"}"
