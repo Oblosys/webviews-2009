@@ -24,6 +24,19 @@ data Attrs = Attrs { getHStretch :: Bool, getVStretch :: Bool
 {-
 Horizontal css align doesn't work like vertical align. It only seems to work on text, and in contrast to vertical align, we
 can set it on a div inside the table cell, so we don't need an attribute for it.
+
+
+.. = stretching
+([    x   ]|   ..   )  x and cell both stretch
+([ x ]|    ..       )  x and table cell don't stretch
+([ x ]     |   ..   )  x doesn't stretch, but cell does
+(  [ x ]   |   ..   )  x doesn't stretch, but cell does 
+(     [ x ]|   ..   )  x doesn't stretch, but cell does 
+cell stretch is synthesized attribute, element stretch (which we can call fill) is inherited
+
+
+
+
 -}
 defaultAttrs :: Attrs
 defaultAttrs = Attrs False False Middle ""
