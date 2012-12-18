@@ -9,7 +9,6 @@ replace scripts in onclick tags by calls to functions (selectHour, etc.)
 
 Fix/clip incorrect selectionIx
 
-Fix layout issue in day before putting online
 Turn on auto refresh (maybe 10s) before putting online
  
 the call to the next load is outside the if now, are the object and index always defined okay?
@@ -60,7 +59,6 @@ Only want this in the WebView instantiation, not internally
 Special init for each webview, not with maybes and initials
 
 Longer term
-get rid of ' in webview type selectors
 
 String max size? make sure that scripts cannot go wrong
 
