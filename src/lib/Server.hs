@@ -249,11 +249,19 @@ session debug rootViews dbFilename db users serverInstanceId globalStateRef requ
                            ; return key
                            }
              
-        ; sessionStateRef <- retrieveSessionState globalStateRef sessionId 
-                                  
-        ; responseHtml <- sessionHandler rootViews dbFilename db users sessionStateRef requestId cmds              
+        ; mSessionStateRef <- retrieveSessionState globalStateRef sessionId 
         
-        ; storeSessionState globalStateRef sessionId sessionStateRef
+        ; responseHtml <-
+            case mSessionStateRef of                         -- don't have a requestId, so use -1 
+              Nothing              -> io $ do { (_, sessions,_) <- readIORef globalStateRef
+    ;                                         ; raiseClientException (-1) $ "Internal error: Session "++show sessionId++
+                                                                            " not found in " ++ show (IntMap.keys sessions)
+                                              }
+              Just sessionStateRef -> 
+               do { responseHtml <- sessionHandler rootViews dbFilename db users sessionStateRef requestId cmds              
+                  ; storeSessionState globalStateRef sessionId sessionStateRef
+                  ; return responseHtml
+                  }
         
         ; io $ putStrLn "Done\n\n"
         ; ok $ toResponse $ responseHtml
@@ -284,6 +292,22 @@ mkInitialRootView db = do { wv <- runWebView Nothing db Map.empty [] 0 (-1) [] $
 -- TODO: change this to something more robust
 -- todo: use different id
 
+-- Raise an exception in the browser and report to stdout. (necessary because we cannot catch exceptions in the
+-- ServerPart monad)
+raiseClientException :: Int -> String -> IO Html
+raiseClientException requestId msg =
+ do { let exceptionText = 
+            "\n\n\n\n################################################################################\n\n\n" ++
+            msg ++ "\n\n\n" ++
+            "################################################################################\n\n" 
+    
+    ; putStrLn exceptionText
+    ; return $ div_ ! id_ "updates" ! strAttr "responseId" (show requestId) $
+                (div_ ! strAttr "op" "exception"
+                      ! strAttr "text" exceptionText
+                      $ noHtml)                       
+    }
+
 createNewSessionState :: Typeable db => Bool -> db -> GlobalStateRef db -> ServerInstanceId -> ServerPart SessionId
 createNewSessionState debug db globalStateRef serverInstanceId = 
  do { (database, sessions,sessionCounter) <- io $ readIORef globalStateRef
@@ -303,17 +327,17 @@ createNewSessionState debug db globalStateRef serverInstanceId =
     ; return sessionId
     }
  
-retrieveSessionState :: GlobalStateRef db -> SessionId -> ServerPart (SessionStateRef db)
+retrieveSessionState :: GlobalStateRef db -> SessionId -> ServerPart (Maybe (SessionStateRef db))
 retrieveSessionState globalStateRef sessionId =
  do { (database, sessions, sessionCounter) <- io $ readIORef globalStateRef
     --; lputStrLn $ "\n\nNumber of active sessions: " ++ show sessionCounter                                          
-    ; sessionState <- case IntMap.lookup sessionId sessions of -- in monad to show errors (which are not caught :-( )
-                             Nothing                      -> do { io $ putStrLn "\n\n\n\nInternal error: Session not found\n\n\n\n\n"
-                                                                ; error "Internal error: Session not found"
-                                                                }
-                             Just (user, rootView, dialogCommands, hashArgs) -> 
-                               return $ SessionState sessionId user database rootView dialogCommands hashArgs
-    ; io $ newIORef sessionState
+    ; case IntMap.lookup sessionId sessions of
+        Nothing                                         -> return Nothing
+        Just (user, rootView, dialogCommands, hashArgs) -> 
+         do { let sessionState = SessionState sessionId user database rootView dialogCommands hashArgs
+            ; sessionStateRef <-io $ newIORef sessionState
+            ; return $ Just sessionStateRef
+            }
     }      
  
 storeSessionState :: GlobalStateRef db -> SessionId -> SessionStateRef db -> ServerPart ()
@@ -326,7 +350,7 @@ storeSessionState globalStateRef sessionId sessionStateRef =
  
 sessionHandler :: (Show db, Eq db, Typeable db) => RootViews db -> String -> db -> Map String (String, String) -> SessionStateRef db -> Int -> Commands -> ServerPart Html
 sessionHandler rootViews dbFilename db users sessionStateRef requestId (SyntaxError cmdStr) =
-  error $ "Syntax error in commands from client: "++cmdStr 
+ io $ raiseClientException requestId $ "Syntax error in commands from client: "++cmdStr 
 sessionHandler rootViews dbFilename db users sessionStateRef requestId (Commands allCmds) = io $  
  do { --putStrLn $ "Received commands" ++ show cmds
     
@@ -349,18 +373,8 @@ sessionHandler rootViews dbFilename db users sessionStateRef requestId (Commands
     --; putStrLn $ show responseHtml
     
     ; return $ div_ ! id_ "updates" ! strAttr "responseId" (show requestId) $ concatHtml responseHtml
-    } `Control.Exception.catch` \exc ->
-       do { let exceptionText = 
-                  "\n\n\n\n###########################################\n\n\n" ++
-                  "Exception: " ++ show (exc :: SomeException) ++ "\n\n\n" ++
-                  "###########################################" 
-          
-          ; putStrLn exceptionText
-          ; return $ div_ ! id_ "updates" ! strAttr "responseId" (show requestId) $
-                      (div_ ! strAttr "op" "exception"
-                            ! strAttr "text" exceptionText
-                            $ noHtml)                       
-          }
+    } `Control.Exception.catch` \exc -> raiseClientException requestId $ "Exception: " ++ show (exc :: SomeException)
+    
 
 
 data ServerResponse = ServerResponse [String] (Maybe (Html, [(String,Bool)])) deriving (Show, Eq)
