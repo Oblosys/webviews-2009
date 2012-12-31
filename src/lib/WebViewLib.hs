@@ -28,9 +28,7 @@ mkLoginView :: Typeable db => ((String,String) -> EditM db ()) -> WebViewM db (W
 mkLoginView successAction = mkWebView $
   \vid (LoginView name password b) ->
 #if __GLASGOW_HASKELL__ >= 612
-    do { rec { nameField <- mkTextFieldEx (getStrVal name)  True " " Nothing (Just authenticate) 
-               -- nasty workaround to distinguish text field from previously used text fields (just for Leenclub)
-             ; --nameT <- mkTextFieldAct (getStrVal name) authenticate 
+    do { rec { nameField <- mkTextFieldAct (getStrVal name) authenticate 
              ; passwordField <- mkPasswordFieldAct (getStrVal password) authenticate 
              ; let authenticate = mkAuthenticateEdit nameField passwordField
              }
