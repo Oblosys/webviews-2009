@@ -40,8 +40,8 @@ isMove _          = False
 mkIncrementalUpdates :: forall db v1 v2 . (IsView db v1, IsView db v2) => WebView db v1 -> WebView db v2 -> IO ([Html], WebView db v2)
 mkIncrementalUpdates oldRootView rootView =
  do { let (newWebNodes :: [WebNode db], updates) = diffViews oldRootView rootView
-    --; putStrLn $ "\nChanged or new web nodes\n" ++ unlines (map shallowShowWebNode newWebNodes) 
-    --; putStrLn $ "\nUpdates\n" ++ unlines (map show updates)
+    ; putStrLn $ "\nChanged or new web nodes\n" ++ unlines (map shallowShowWebNode newWebNodes) 
+    ; putStrLn $ "\nUpdates\n" ++ unlines (map show updates)
     
     ; let (newCommands, mEvalCommands) = unzip $ mapMaybe newWebNodeHtml newWebNodes
     ; let evalCommands = catMaybes mEvalCommands 
@@ -106,7 +106,7 @@ showWebNodeMap wnmap = unlines [ "<"++show k++":"++shallowShowWebNode wn++">"
 computeMove :: forall db . WebNodeMap db -> [ViewId] -> WebNode db -> [Update]
 computeMove oldWebNodeMap changedOrNewWebNodes webNode =  
   if getWebNodeViewId webNode `notElem` changedOrNewWebNodes 
-  then -- parent has not changed, so we restore the move to the oldChildWebNode in the old parent
+  then -- parent has not changed, so we issue a RestoreId to take the node id from its previous version (doesn't take effect until after computeMove has finished)
        let Just oldWebNode = Map.lookup (getWebNodeViewId webNode) oldWebNodeMap 
        in  [RestoreId (mkRef $ getWebNodeId webNode) (mkRef $ getWebNodeId oldWebNode)] ++
            -- restore id's for parent
@@ -116,7 +116,8 @@ computeMove oldWebNodeMap changedOrNewWebNodes webNode =
                   then [] -- same child, which hasn't changed, so do nothing
                   else -- different child, but it hasn't changed, so we move it from its old location to here
                        [ let Just oldSrcChild = Map.lookup childViewId oldWebNodeMap
-                         in  Move "unchanged parent, different unchanged child"
+                         in  -- *** check whether child is clean (not affected by client-side scripts)
+                             Move "unchanged parent, different unchanged child"
                                   (mkRef $ getWebNodeId oldSrcChild) 
                                   (mkRef $ getWebNodeId oldChildWebNode) ]
              else -- child has changed or is new, so we move it from the new nodes to its destination
@@ -142,7 +143,8 @@ computeMove oldWebNodeMap changedOrNewWebNodes webNode =
                   -- because the parent is new, there will not be a child in place already, so we always 
                   -- need to do this move.
                   let Just oldChildWebNode = Map.lookup childViewId oldWebNodeMap
-                  in  [ Move "new/changed parent, unchanged child" 
+                  in  -- *** check whether child is clean (not affected by client-side scripts)
+                      [ Move "new/changed parent, unchanged child" 
                              (mkRef $ getWebNodeId oldChildWebNode)  
                              (mkRef $ getWebNodeStubId childWebNode)
                       ]
