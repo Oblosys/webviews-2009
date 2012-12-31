@@ -17,7 +17,6 @@ We could disallow modified widgets to be moved, but:
 Pres:  [ button, button, edited and modified text field ] -> [ button , radio button, button, edited and modified text field ]?
 In this case, not moving the button would
 
-
 Ideas:
 - Let script make WebView/Widget dirty. 
   # what if next update is received before dirty request from client arrives at server?
@@ -26,6 +25,7 @@ Ideas:
   # expressive enough?
   # probably still possible to create a problem by calling a function
 - Keep track of modified widgets in the WebView and don't create incremental moves for these. Can be done automatically by only exposing widget viewIds monadically.
+  # if parent and child haven't changed, can this problem still occur? (the 'do nothing' case in computeMoves)
 
 *** Queued edit commands on widgets may cause problems when those widgets change after the first command
 
@@ -45,3 +45,19 @@ something else                    (button press on ViewId_2 now has different me
 - What about updates to text fields?
 Ideas:
 - What if we simply read the view id's as soon as we receive them? (not possible if they are not in the same request from the browser, which is likely)
+
+
+
+
+
+
+
+Incrementality:
+
+RestoreId is after computeMove and server side only.
+
+present new root and obtain WebView tree with unique Id's wrt old root (Id's, not ViewId's)
+
+then compare each Node with the old Node having the same ViewId. This yields a list of new nodes and a list of changed nodes
+
+For all unchanged nodes, the node id is replaced by the node id from the previous tree, so we don't need to change these id's client side.
