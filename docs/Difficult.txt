@@ -1,0 +1,47 @@
+*** Reusing may conflict with javascript updates on html tree
+
+Example:
+root: A
+pres A      ->    .. Textfield  ..
+                      script: modify text field
+A ~> B
+
+pres B      ->    .. Textfield ..
+
+
+update Move Textfield to new location
+
+Problem: Textfield is not clean anymore.
+
+We could disallow modified widgets to be moved, but:
+Pres:  [ button, button, edited and modified text field ] -> [ button , radio button, button, edited and modified text field ]?
+In this case, not moving the button would
+
+
+Ideas:
+- Let script make WebView/Widget dirty. 
+  # what if next update is received before dirty request from client arrives at server?
+  # If we re-present the view, we will lose incrementality for scripted widgets
+- only allow scripts to modify direct parent?  
+  # expressive enough?
+  # probably still possible to create a problem by calling a function
+- Keep track of modified widgets in the WebView and don't create incremental moves for these. Can be done automatically by only exposing widget viewIds monadically.
+
+*** Queued edit commands on widgets may cause problems when those widgets change after the first command
+
+Example:
+root: A
+pres A -> [ Button  ViewId_1 { change A to B}, Button ViewId_2 { change A to C } ] 
+press both buttons
+
+handle press ViewID_1 : [ press ViewID_2 ]
+A ~> B
+pres B -> [ Button  ViewId_1 { something }, Button ViewId_2 { something else } ] 
+
+handle press ViewID_2
+something else                    (button press on ViewId_2 now has different meaning)
+
+- If new button looks the same, incrementality may even prevent it from being updated.
+- What about updates to text fields?
+Ideas:
+- What if we simply read the view id's as soon as we receive them? (not possible if they are not in the same request from the browser, which is likely)
