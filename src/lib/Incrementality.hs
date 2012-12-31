@@ -116,11 +116,13 @@ computeMove oldWebNodeMap changedOrNewWebNodes webNode =
                   then [] -- same child, which hasn't changed, so do nothing
                   else -- different child, but it hasn't changed, so we move it from its old location to here
                        [ let Just oldSrcChild = Map.lookup childViewId oldWebNodeMap
-                         in  Move "a" (mkRef $ getWebNodeId oldSrcChild) 
-                                      (mkRef $ getWebNodeId oldChildWebNode) ]
+                         in  Move "unchanged parent, different unchanged child"
+                                  (mkRef $ getWebNodeId oldSrcChild) 
+                                  (mkRef $ getWebNodeId oldChildWebNode) ]
              else -- child has changed or is new, so we move it from the new nodes to its destination
-                  [ Move "b" (mkRef $ getWebNodeId childWebNode) 
-                             (mkRef $ getWebNodeId oldChildWebNode) 
+                  [ Move "unchanged parent, new/changed child" 
+                         (mkRef $ getWebNodeId childWebNode)
+                         (mkRef $ getWebNodeId oldChildWebNode) 
                   ]
                                   
            | let childWebNodes    :: [WebNode db] = getTopLevelWebNodesForWebNode webNode
@@ -140,12 +142,14 @@ computeMove oldWebNodeMap changedOrNewWebNodes webNode =
                   -- because the parent is new, there will not be a child in place already, so we always 
                   -- need to do this move.
                   let Just oldChildWebNode = Map.lookup childViewId oldWebNodeMap
-                  in  [ Move "c" (mkRef $ getWebNodeId oldChildWebNode)  
-                                 (mkRef $ getWebNodeStubId childWebNode)
+                  in  [ Move "new/changed parent, unchanged child" 
+                             (mkRef $ getWebNodeId oldChildWebNode)  
+                             (mkRef $ getWebNodeStubId childWebNode)
                       ]
              else -- child has changed or is new, so we move it from the new nodes to its destination
-                  [ Move "d" (mkRef $ getWebNodeId childWebNode) 
-                             (mkRef $ getWebNodeStubId childWebNode)
+                  [ Move "new/changed parent, new/changed child" 
+                         (mkRef $ getWebNodeId childWebNode)
+                         (mkRef $ getWebNodeStubId childWebNode)
                   ]                                      
            | let childWebNodes :: [WebNode db] = getTopLevelWebNodesForWebNode webNode
            , childWebNode <- --trace ("\nchildren for "++(show $ getWebNodeViewId webNode) ++ 
@@ -204,9 +208,3 @@ mkUpdateHtml (Move _ (IdRef src) (IdRef dst)) =
          then error $ "Source is destination: "++show src 
          else div_ ! strAttr "op" "move" ! strAttr "src" (show src) ! strAttr "dst" (show dst) $ noHtml
 mkUpdateHtml _ = Nothing -- restoreId is not for producing html, but for adapting the rootView  
-
-                 
-data T = T Char [T]
-t0 = T 'a' [T 'b' [T 'd' [], T 'e' []], T 'c' [], T 'f' [T 'g' []]]
-
-bfs (T x cs) = [x] :  (map concat $ transpose $ map bfs cs)
