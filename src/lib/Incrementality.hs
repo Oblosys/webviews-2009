@@ -40,8 +40,8 @@ isMove _          = False
 mkIncrementalUpdates :: forall db v1 v2 . (IsView db v1, IsView db v2) => WebView db v1 -> WebView db v2 -> IO ([Html], WebView db v2)
 mkIncrementalUpdates oldRootView rootView =
  do { let (newWebNodes :: [WebNode db], updates) = diffViews oldRootView rootView
-    ; putStrLn $ "\nChanged or new web nodes\n" ++ unlines (map shallowShowWebNode newWebNodes) 
-    ; putStrLn $ "\nUpdates\n" ++ unlines (map show updates)
+    --; putStrLn $ "\nChanged or new web nodes\n" ++ unlines (map shallowShowWebNode newWebNodes) 
+    --; putStrLn $ "\nUpdates\n" ++ unlines (map show updates)
     
     ; let (newCommands, mEvalCommands) = unzip $ mapMaybe newWebNodeHtml newWebNodes
     ; let evalCommands = catMaybes mEvalCommands 
