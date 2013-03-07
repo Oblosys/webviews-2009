@@ -127,7 +127,7 @@ testPages = [ page [ htmlElt "Wat is uw leeftijd?", styleElt "width: 50px" $ tex
 
 -- Blij van IT onderzoek
 
-testForm = form $ [ introductie, persoonsgegevens, stellingen, deelDrie ] ++ vignettes 
+mainForm = form $ [ introductie, persoonsgegevens, stellingen, deelDrie ] ++ vignettes 
 
 introductie = page [ htmlFileElt "Introductie.html" ]
 
@@ -686,5 +686,5 @@ main :: IO ()
 main = server 8100 "Blij van IT" rootViews ["WebForms.js", "WebForms.css", "BlijVanIT.css"] "WebFormDB.txt" mkInitialDatabase $ Map.empty
 
 rootViews :: RootViews Database
-rootViews = [ mkRootView "" $ mkFormView testForm, mkRootView "form" $ mkFormView testForm
+rootViews = [ mkRootView "" $ mkFormView mainForm, mkRootView "form" $ mkFormView mainForm
             ] 
