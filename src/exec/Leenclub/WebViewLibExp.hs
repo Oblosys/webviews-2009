@@ -113,6 +113,8 @@ mkSearchView label argName resultsf = mkWebView $
                     let navigateAction = "setHashArg('"++argName++"', "++jsGetWidgetValue searchField++");"
                     in  [ onClick searchButton navigateAction
                         , onSubmit searchField navigateAction
+                        -- change background color for testing bug
+                        --, "$(" ++ (jsGetElementByIdRef $ mkViewRef (getViewId searchField)) ++ ").css('background-color','blue')"
                         ]
        }
 instance IsView db v => Presentable (SearchView db v) where
