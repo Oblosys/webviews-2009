@@ -616,6 +616,7 @@ data WebViewState db =
   WebViewState { getWVStateUser :: User, getWVStateDb :: db, getWVStateViewMap :: (ViewMap db) 
                , getWVStatePath :: [Int], getWVStateViewIdCounter :: Int 
                , getWVStateSessionId :: SessionId -- not sure we really need the session ID here, but it doesn't do any harm
+               , getWVStateRootViewName :: String -- will probably want to have a path here
                , getWVStateHashArgs :: HashArgs
                } deriving Typeable
 
@@ -637,7 +638,8 @@ data SessionState db = SessionState { getSStateSessionId :: SessionId
                                     , getSStateDb :: db
                                     , getSStateRootView :: UntypedWebView db
                                     , getSStateDialogCommands :: Maybe [Maybe (EditM db ())]
-                                    , getSStateHashArgs :: HashArgs
+                                    , getSStateRootViewName :: String -- will probably want to have a path here (name: HashPath?)
+                                    , getSStateHashArgs :: HashArgs   -- maybe combine with rootViewName / hash path?
                                     } 
                      
 type SessionStateRef db = IORef (SessionState db)
@@ -648,6 +650,7 @@ data EditState db = EditState { getEStateAllUsers :: Map String (String, String)
                               , getEStateUser :: User
                               , getEStateDb :: db
                               , getEStateRootView :: UntypedWebView db
+                              , getEStateRootViewName :: String -- will probably want to have a path here
                               , getEStateHashArgs :: HashArgs
                               , getEStateScriptLines :: [String]
                               , getEStateDialog :: Maybe (Html ,[(String, Maybe (EditM db ()))])
@@ -724,6 +727,14 @@ instance HasHashArgs (WebViewState db) where getStateHashArgs = getWVStateHashAr
 getHashArgs :: (HasHashArgs state, Functor m, Monad m) => StateT state m HashArgs 
 getHashArgs = gets getStateHashArgs
  
+class HasRootViewName s where getStateRootViewName :: s -> String
+
+instance HasRootViewName (SessionState db) where getStateRootViewName = getSStateRootViewName
+instance HasRootViewName (EditState db)    where getStateRootViewName = getEStateRootViewName
+instance HasRootViewName (WebViewState db) where getStateRootViewName = getWVStateRootViewName
+ 
+getRootViewName :: (HasRootViewName state, Functor m, Monad m) => StateT state m String 
+getRootViewName = gets getStateRootViewName
  
 
 type HashArgs = [(String,String)]

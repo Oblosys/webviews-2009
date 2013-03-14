@@ -72,12 +72,12 @@ createRootView :: forall db . Typeable db => RootViews db -> String -> HashArgs 
 createRootView rootViews rootViewName args user db sessionId viewMap = 
   case lookup rootViewName rootViews of
     Nothing  -> error $ "Unknown view: "++rootViewName
-    Just mkV -> runWebView user db viewMap [] 0 sessionId args mkV
+    Just mkV -> runWebView user db viewMap [] 0 sessionId rootViewName args mkV
 
-runWebView :: User -> db -> ViewMap db -> [Int] -> Int -> SessionId -> HashArgs -> (WebViewM db (UntypedWebView db)) ->
+runWebView :: User -> db -> ViewMap db -> [Int] -> Int -> SessionId -> String -> HashArgs -> (WebViewM db (UntypedWebView db)) ->
               IO (UntypedWebView db)
-runWebView user db viewMap path viewIdCounter sessionId args wvm =
- do { UntypedWebView rv <- evalStateT wvm (WebViewState user db viewMap path viewIdCounter sessionId args)
+runWebView user db viewMap path viewIdCounter sessionId rootViewName args wvm =
+ do { UntypedWebView rv <- evalStateT wvm (WebViewState user db viewMap path viewIdCounter sessionId rootViewName args)
     ; return $ UntypedWebView $ assignIds rv
     }
 
@@ -86,8 +86,8 @@ getSessionId :: WebViewM db SessionId
 getSessionId = fmap getWVStateSessionId $ get
 
 liftS :: ([Int] -> Int -> (x,Int)) -> WebViewM db x
-liftS f = StateT (\(WebViewState user db viewMap path i sid has) -> 
-                   (return $ let (x, i')= f path i in (x, WebViewState user db viewMap path i' sid has)))
+liftS f = StateT $ \(WebViewState user db viewMap path i sid rvn has) -> 
+                      return $ let (x, i')= f path i in (x, WebViewState user db viewMap path i' sid rvn has)
 
 assignViewId :: (ViewId -> v) -> WebViewM db v
 assignViewId viewConstr = liftS $ \path vidC -> (viewConstr (ViewId $ path ++ [vidC]), vidC +1)
@@ -328,9 +328,9 @@ withView vid f =
 -- like in Proxima
 loadView :: IsView db v => WebView db v -> WebViewM db (WebView db v)
 loadView (WebView _ si i mkView oldView') =
- do { state@(WebViewState user db viewMap path viewIdCounter sid has) <- get
+ do { state@(WebViewState user db viewMap path viewIdCounter sid rvn has) <- get
     ; let newViewId = ViewId $ path ++ [viewIdCounter]                             
-    ; put $ WebViewState user db viewMap (path++[viewIdCounter]) 0 sid has
+    ; put $ WebViewState user db viewMap (path++[viewIdCounter]) 0 sid rvn has
     ; let oldView = case lookupOldView newViewId viewMap of
                       Just oldView -> oldView
                       Nothing      -> oldView' -- this will be initial
@@ -384,7 +384,7 @@ Note that the zeros after the uniques are added due to the way mkWebview and loa
 -}
 uniqueIds :: [(Int, WebViewM db (WebView db v))] -> WebViewM db [WebView db v]
 uniqueIds idsMkWvs =
- do { state@(WebViewState user db viewMap path viewIdCounter sid has) <- get
+ do { state@(WebViewState user db viewMap path viewIdCounter sid rvn has) <- get
     ; put $ state { getWVStatePath = path++[viewIdCounter], getWVStateViewIdCounter = 0 } 
       -- 0 is not used, it will be replaced by the unique ids
       

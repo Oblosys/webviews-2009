@@ -24,6 +24,12 @@ setRootView sessionStateRef rootView =
     ; writeIORef sessionStateRef sessionState{ getSStateRootView = rootView }
     }
 
+getSessionRootViewName :: SessionStateRef db -> IO String
+getSessionRootViewName sessionStateRef =
+ do { sessionState <- readIORef sessionStateRef
+    ; return $ getSStateRootViewName sessionState
+    }
+ 
 getSessionHashArgs :: SessionStateRef db -> IO HashArgs
 getSessionHashArgs sessionStateRef =
  do { sessionState <- readIORef sessionStateRef
@@ -36,7 +42,11 @@ setSessionHashArgs sessionStateRef hashArgs =
     ; writeIORef sessionStateRef sessionState{ getSStateHashArgs = hashArgs }
     }
 
-
+setSessionRootViewName :: SessionStateRef db -> String -> IO ()
+setSessionRootViewName sessionStateRef rootViewName =
+ do { sessionState <- readIORef sessionStateRef
+    ; writeIORef sessionStateRef sessionState{ getSStateRootViewName = rootViewName }
+    }
 
 shallowShowWebNode (WebViewNode (UntypedWebView wv)) = "WebNode: " ++ shallowShowWebView wv
 shallowShowWebNode (WidgetNode viewId stubId id w) = "WebNode: ("++show viewId++", stub:"++show (unId stubId)++", id:"++show (unId id)++") " ++ show w 
