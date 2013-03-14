@@ -568,8 +568,9 @@ reloadRootView sessionStateRef =
 performEdit :: Map String (String, String) -> SessionStateRef db -> EditM db () -> IO ServerResponse
 performEdit users sessionStateRef edit  =
  do { sessionState <- readIORef sessionStateRef
-    ; let editState = EditState users (getSStateUser sessionState) (getSStateDb sessionState) (getSStateRootView sessionState) [] Nothing
-    ; EditState _ user' db' rootView' scriptLines mDialog <- execStateT edit editState
+    ; let editState = EditState users (getSStateUser sessionState) (getSStateDb sessionState) (getSStateRootView sessionState) (getSStateHashArgs sessionState) [] Nothing
+    ; EditState _ user' db' rootView' _ scriptLines mDialog <- execStateT edit editState
+    -- HashArgs is read-only
     ; writeIORef sessionStateRef sessionState{ getSStateUser = user', getSStateDb = db', getSStateRootView = rootView' }
     ; reloadRootView sessionStateRef
     --; io $ putStrLn $ "javascript:\n" ++ concat scriptLines
