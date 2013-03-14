@@ -81,11 +81,6 @@ runWebView user db viewMap path viewIdCounter sessionId args wvm =
     ; return $ UntypedWebView $ assignIds rv
     }
 
-getUser :: WebViewM db User 
-getUser = fmap getWVStateUser $ get
-
-getHashArgs :: WebViewM db HashArgs
-getHashArgs = fmap getWVStateHashArgs $ get
 
 getSessionId :: WebViewM db SessionId 
 getSessionId = fmap getWVStateSessionId $ get
