@@ -474,8 +474,8 @@ withEditActionAttr (Widget _ _ (EditAction viewId _)) =
 -- Radio needs table to prevent overflowed text to end up under the button.
 presentRadioView (RadioView viewId items selectedIx enabled stl _) = 
    table!!![cellpadding "0", cellspacing "2px"] $ tbody ! valign "top" $ concatHtml
-  [ tr $ concatHtml  
-      [ td !!! [style "vertical-align: top"] $
+  [ tr $ concatHtml  -- these radio buttons don't look well when font size is increased over 14px
+      [ td !!! [style "vertical-align: text-bottom"] $
           radio (show viewId) (show i) !* 
             ([ id_ (toValue eltId) -- all buttons have viewId as name, so they belong to the same radio button set 
              , strAttr "onChange" ("queueCommand('SetC "++show viewId++" %22"++show i++"%22')") 
@@ -484,7 +484,7 @@ presentRadioView (RadioView viewId items selectedIx enabled stl _) =
              ++ (if enabled && i == selectedIx then [strAttr "checked" ""] else []) 
              ++ (if not enabled then [strAttr "disabled" ""] else [])
              ++ (if stl /= "" then [style stl] else [])) 
-      , td !!! [ strAttr "onClick" $ "$('#"++eltId++"').attr('checked',true);$('#"++eltId++"').change()"] $ toHtml item
+      , td !!! [ style "vertical-align: text-bottom", strAttr "onClick" $ "$('#"++eltId++"').attr('checked',true);$('#"++eltId++"').change()"] $ toHtml item
       ] -- add onClick handler, so we can click anywhere on the text, instead of only on the button.
   | (i, item) <- zip [0..] items 
   , let eltId = "radio"++show viewId++"button"++show i ] -- these must be unique for setting focus
