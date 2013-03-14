@@ -1,5 +1,5 @@
-.MainPage { margin: 10px; padding: 10px 50px 100px 50px; background-color: white}
-.FormPage { width: 800px; margin: 0px; padding: 0px }
+.MainPage { margin: 10px; padding: 10px 50px 100px 50px; background-color: white } /* not part of embedded view */
+.FormPage { width: 630px; margin: 0px; padding: 0px; font-size:14px  }
 
 /* On an iPad, the rule below takes precedence over the one above (order is important) */
 @media only screen and (device-width: 768px) {
@@ -21,7 +21,7 @@
   border-radius: 28px; /* and for IE it seems to be 2*diameter! (28px yields a circle in 14x14 box) */
   position: absolute;
   top: 0px;
-  right: 20px;
+  right: -25px;
   z-index: 100;
 }
 .ProgressMarker[AnswerProgress="Unanswered"] {
@@ -42,7 +42,7 @@
 }
 .ProgressLine[Orientation="Vertical"] {
   width: 2px;
-  right: 27px;         /* Y-position for progress line in the margin */
+  right: -18px;         /* Y-position for progress line in the margin */
 }
 .ProgressLine[Orientation="Horizontal"] {
   height: 2px;
