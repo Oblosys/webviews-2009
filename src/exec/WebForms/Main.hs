@@ -636,7 +636,6 @@ instance Presentable FormView where
 
 instance Storeable Database FormView
 
-
 data MainView = MainView (WV FormView) deriving (Eq, Show, Typeable)
   
 instance Initial MainView where                 
