@@ -575,7 +575,7 @@ mkFormView form@(Form pages) = mkWebView $
              
        ; pageView <- mkFormPageView currentPageNr currentPage
        ; db <- getDb
-       ; liftIO $ putStrLn $ "Db is "++show db
+       --; liftIO $ putStrLn $ "Db is "++show db
        ; let isComplete = all isQuestionAnswered $ Map.elems db
        ; sendButton <- mkButton "Opsturen" isComplete $ confirmEdit "Weet u zeker dat u de antwoorden wilt versturen?"
                                                         sendForm
@@ -588,7 +588,7 @@ mkFormView form@(Form pages) = mkWebView $
                          $ \_ -> gotoPageNr (currentPageNr + 1) 
        ; return $ FormView isComplete currentPageNr (length pages) prevButton nextButton sendButton clearButton pageView
        }
- where gotoPageNr nr = jsNavigateTo $ "'#form&p="++show (1+ nr)++"'" -- nr is 0-based
+ where gotoPageNr nr = "setHashArg('p', '"++show (1+ nr)++"')" -- nr is 0-based
 
        clearForm :: EditM Database ()
        clearForm = 
@@ -612,7 +612,6 @@ mkFormView form@(Form pages) = mkWebView $
        
 instance Presentable FormView where
   present (FormView isComplete currentPageNr nrOfPages prevButton nextButton sendButton clearButton wv) =
-    mkPage [style "background: url('img/background_linen.png') repeat scroll center top transparent; min-height: 100%; font-family: Geneva"] $
       with [class_ $ "FormPage" ++ if currentPageNr == nrOfPages-1 then " LastPage" else "", style "background: white;", align "left"] $
                                  -- dimensions are specified in css to allow iPad specific style                                                              
         mkPageHeader +++
@@ -637,6 +636,25 @@ instance Presentable FormView where
 
 instance Storeable Database FormView
 
+
+data MainView = MainView (WV FormView) deriving (Eq, Show, Typeable)
+  
+instance Initial MainView where                 
+  initial = MainView initial
+
+mkMainView form = mkWebView $
+ \vid (MainView _) ->
+  do { formView <- mkFormView form
+     ; return $ MainView formView
+     }
+
+instance Presentable MainView where
+  present (MainView fv) = mkPage [style "background: url('img/background_linen.png') repeat scroll center top transparent; min-height: 100%; font-family: Geneva"] $
+                            with [class_ $ "MainPage"] $
+                            present fv 
+
+instance Storeable Database MainView where
+     
 
 -- Initialize the database by putting a Nothing for each answer. (so completeness == absence of Nothings)  
 initializeDb :: WebForm -> Database -> Database
@@ -682,9 +700,13 @@ getQuestionsAnsweredFormElt (TableElt _ _ _ _ rows) db = and [ getQuestionsAnswe
 
 ---- Main (needs to be below all webviews that use deriveInitial)
 
+deriveMapWebViewDb ''Database ''MainView
+
 main :: IO ()
 main = server 8100 "Blij van IT" rootViews ["WebForms.js", "WebForms.css", "BlijVanIT.css"] "WebFormDB.txt" mkInitialDatabase $ Map.empty
 
 rootViews :: RootViews Database
-rootViews = [ mkRootView "" $ mkFormView mainForm, mkRootView "form" $ mkFormView mainForm
+rootViews = [ mkRootView "" $ mkMainView mainForm
+            , mkRootView "form" $ mkMainView mainForm
+            , mkRootView "embedded" $ mkFormView mainForm
             ] 
