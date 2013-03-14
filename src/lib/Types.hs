@@ -648,6 +648,7 @@ data EditState db = EditState { getEStateAllUsers :: Map String (String, String)
                               , getEStateUser :: User
                               , getEStateDb :: db
                               , getEStateRootView :: UntypedWebView db
+                              , getEStateHashArgs :: HashArgs
                               , getEStateScriptLines :: [String]
                               , getEStateDialog :: Maybe (Html ,[(String, Maybe (EditM db ()))])
                               }
@@ -690,21 +691,41 @@ instance HasDb WebViewState db where
 -- getDb :: WebViewM db db
 -- getDb :: EditM db db
 getDb :: (HasDb state db, Functor m, Monad m) => StateT (state db) m db
-getDb = fmap getStateDb get
+getDb = gets getStateDb
 
 -- withDb :: (db -> a) -> WebViewM db a
 -- withDb :: (db -> a) -> EditM db a
 withDb :: (HasDb state db, Functor m, Monad m) => (db -> a) -> StateT (state db) m a
-withDb f = fmap (f . getStateDb) $ get
+withDb f = gets (f . getStateDb)
 
 -- modifyDb :: (db -> db) -> WebViewM db ()
 -- modifyDb :: (db -> db) -> EditM db ()
 modifyDb :: (HasDb state db, Functor m, Monad m) => (db -> db) -> StateT (state db) m ()
 modifyDb f = modify (modifyStateDb f)
 
+
+-- monadic accessors for User and HashArgs for all three state monads
+
+class HasUser s where getStateUser :: s -> User
+
+instance HasUser (SessionState db) where getStateUser = getSStateUser
+instance HasUser (EditState db)    where getStateUser = getEStateUser
+instance HasUser (WebViewState db) where getStateUser = getWVStateUser
+ 
+getUser :: (HasUser state, Functor m, Monad m) => StateT state m User 
+getUser = gets getStateUser
+
+class HasHashArgs s where getStateHashArgs :: s -> HashArgs
+
+instance HasHashArgs (SessionState db) where getStateHashArgs = getSStateHashArgs
+instance HasHashArgs (EditState db)    where getStateHashArgs = getEStateHashArgs
+instance HasHashArgs (WebViewState db) where getStateHashArgs = getWVStateHashArgs
+ 
+getHashArgs :: (HasHashArgs state, Functor m, Monad m) => StateT state m HashArgs 
+getHashArgs = gets getStateHashArgs
  
  
- 
+
 type HashArgs = [(String,String)]
   
 type RootViews db = [ (String, WebViewM db (UntypedWebView db)) ]
