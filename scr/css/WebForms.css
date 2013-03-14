@@ -1,10 +1,12 @@
-body { font-size: 12px; font-family: Geneva }
+body { font-size: 12px; font-family: Geneva, Arial }
 .MainPage { font-size: 13px; margin: 10px; padding: 10px 50px 100px 50px; background-color: white } /* not part of embedded view */
 .FormPage { width: 630px; margin: 0px; padding: 0px }
 
-/* On an iPad, the rule below takes precedence over the one above (order is important) */
+/* On an iPad, the rules below takes precedence over the rules above (order is important) */
 @media only screen and (device-width: 768px) {
-  .FormPage { width:708px; margin: 0px; padding: 10px 40px 100px 20px; }
+	.MainPage { width:708px; margin: 0px; padding: 10px 40px 100px 20px; }
+	.MainPage .FormPage { width:690px; margin: 0px; padding-right: 40px }
+  .FormPage { width:630px; margin: 0px; padding-right: 40px }
   div.ProgressMarker { right: 12px; } /* div to make rule more specific */
   div.ProgressLine[Orientation="Vertical"] { right: 19px; }
 }
