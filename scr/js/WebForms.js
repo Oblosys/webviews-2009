@@ -1,7 +1,35 @@
+var $previousAllAnswers = new Array();
+var oldUpperButtonPos, oldLowerButtonPos = {left: 0, top: 0};
+
 function initProgressMarkers() {
+  var $nextButtons = $('.NextButton button');
+  var $upperNextButton = $($nextButtons[0]);
+  var $lowerNextButton = $($nextButtons[1]);
+
+  // compare with previous positions and answer progress, so we don't draw these when nothing changed
+  var $allAnswers = $('[Answer]').map(function() {
+	    return { y: getAnswerPosition($(this)), progress: $(this).attr('Answer')};
+	  });
+
+  var hasChanged = $allAnswers.length != $previousAllAnswers.length 
+  				|| $upperNextButton.position().left != oldUpperButtonPos.left || $upperNextButton.position().top != oldUpperButtonPos.top
+                || $lowerNextButton.position().left != oldLowerButtonPos.left || $lowerNextButton.position().top != oldLowerButtonPos.top; 
+
+  if (!hasChanged)
+    for (var i=0; i < $allAnswers.length && i < $previousAllAnswers.length; i++) {
+	  hasChanged = hasChanged || $allAnswers[i].y != $previousAllAnswers[i].y
+	   				          || $allAnswers[i].progress != $previousAllAnswers[i].progress;
+    } 
+  
+  $previousAllAnswers = $allAnswers;
+  oldUpperButtonPos = $upperNextButton.position();
+  oldLowerButtonPos = $lowerNextButton.position();
+  
+  if(!hasChanged) return;
+  
   $('.ProgressMarker').remove();
   $('.ProgressLine').remove();
-  
+
   var $formPage = $('.FormPage');
   var $progressMarkers = $('[Answer]').map(function() {
     var $progressMarker = $("<div class='ProgressMarker'/>");
@@ -14,10 +42,6 @@ function initProgressMarkers() {
   if ($progressMarkers.length>0) {
 	// Safari and firefox use different methods of rendering buttons (Safari with padding and margin, Firefox with border)
 	// this computation works for both methods and also looks okay in Chrome.
-
-	var $nextButtons = $('.NextButton button');
-	var $upperNextButton = $($nextButtons[0]);
-	var $lowerNextButton = $($nextButtons[1]);
 	
     var firstMarkerY = $progressMarkers[0].position().top;
     var isConnected = !$upperNextButton.is(':disabled');
