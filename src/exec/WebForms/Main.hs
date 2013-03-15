@@ -35,6 +35,7 @@ import WebFormUtils
 
 -- WebForm data types
 -- TODO: figure out how to execute js without problem with incrementality (we now show state in a comment to force evaluation)
+--       Related: somehow queue stuff, since now we do a initProgressMarker for every element on the page
 -- TODO: the question tags are more answer tags
 -- TODO: update script on edit (tricky, needs event model on all widgets and also on ButtonAnswerVIew)
 
