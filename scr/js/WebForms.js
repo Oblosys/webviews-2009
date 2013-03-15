@@ -1,5 +1,6 @@
 var $previousAllAnswers = new Array();
-var oldUpperButtonPos, oldLowerButtonPos = {left: 0, top: 0};
+var oldUpperButtonPos = {left: 0, top: 0};
+var oldLowerButtonPos = {left: 0, top: 0};
 
 function initProgressMarkers() {
   var $nextButtons = $('.NextButton button');
