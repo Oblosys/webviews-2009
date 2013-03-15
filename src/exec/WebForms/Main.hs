@@ -585,7 +585,7 @@ mkFormView form@(Form pages) = mkWebView $
              isLastPage = currentPageNr == length pages - 1
              mkNextButton = if isLastPage
                             then mkButton "Opsturen" isComplete $ confirmEdit "Weet u zeker dat u de antwoorden wilt versturen?"
-                                                        sendForm
+                                                                  sendForm
                             else mkButtonWithClick "Volgende" (getQuestionsAnsweredFormPage currentPage db) $
                                    \_ -> gotoPageNr (currentPageNr + 1) 
        ; prevButton1 <- mkPrevButton
@@ -595,7 +595,7 @@ mkFormView form@(Form pages) = mkWebView $
        
        ; return $ FormView isComplete currentPageNr (length pages) prevButton1 prevButton2 nextButton1 nextButton2 clearButton pageView
        }
- where gotoPageNr nr = "setHashArg('p', '"++show (1+ nr)++"')" -- nr is 0-based
+ where gotoPageNr nr = "setHashArg('p', '"++show (1+ nr)++"');" -- nr is 0-based
 
        clearForm :: EditM Database ()
        clearForm = 
@@ -614,7 +614,6 @@ mkFormView form@(Form pages) = mkWebView $
                     intercalate "," [ show answer | Just (_, answer) <- Map.elems db ]
            
            ; clearForm
-           ; evalJSEdit [gotoPageNr 0]
            }
        
 instance Presentable FormView where
