@@ -556,7 +556,8 @@ instance Presentable FormPageView where
 instance Storeable Database FormPageView
 
 data FormView = 
-  FormView Bool Int Int (Widget (Button Database)) (Widget (Button Database)) (Widget (Button Database)) (Widget (Button Database)) (WV FormPageView)
+  FormView Bool Int Int (Widget (Button Database)) (Widget (Button Database)) (Widget (Button Database)) 
+           (Widget (Button Database)) (Widget (Button Database)) (WV FormPageView)
     deriving (Eq, Show, Typeable)
 
 deriveInitial ''FormView
@@ -565,7 +566,7 @@ deriveMapWebViewDb ''Database ''FormView
 
 mkFormView :: WebForm -> WebViewM Database (WV FormView)
 mkFormView form@(Form pages) = mkWebView $
-  \vid (FormView _ _ _ _ _ _ _ _) ->
+  \vid FormView{} ->
     do { modifyDb $ initializeDb form
        ; args <- getHashArgs
        ; let currentPageNr = case args of
@@ -577,16 +578,21 @@ mkFormView form@(Form pages) = mkWebView $
        ; db <- getDb
        --; liftIO $ putStrLn $ "Db is "++show db
        ; let isComplete = all isQuestionAnswered $ Map.elems db
-       ; sendButton <- mkButton "Opsturen" isComplete $ confirmEdit "Weet u zeker dat u de antwoorden wilt versturen?"
-                                                        sendForm
-       
        ; clearButton <- mkButton "Alles wissen" True $ confirmEdit "Weet u zeker dat u alle antwoorden wilt wissen?" 
                                                        clearForm
-       ; prevButton <- mkButtonWithClick "Vorige" (currentPageNr/=0)                   $ \_ -> gotoPageNr (currentPageNr - 1)
---                                "initProgressMarkers();" 
-       ; nextButton <- mkButtonWithClick "Volgende" (currentPageNr < length pages - 1 && getQuestionsAnsweredFormPage currentPage db)
-                         $ \_ -> gotoPageNr (currentPageNr + 1) 
-       ; return $ FormView isComplete currentPageNr (length pages) prevButton nextButton sendButton clearButton pageView
+       ; let mkPrevButton = mkButtonWithClick "Vorige" (currentPageNr/=0) $ \_ -> gotoPageNr (currentPageNr - 1)
+             isLastPage = currentPageNr == length pages - 1
+             mkNextButton = if isLastPage
+                            then mkButton "Opsturen" isComplete $ confirmEdit "Weet u zeker dat u de antwoorden wilt versturen?"
+                                                        sendForm
+                            else mkButtonWithClick "Volgende" (getQuestionsAnsweredFormPage currentPage db) $
+                                   \_ -> gotoPageNr (currentPageNr + 1) 
+       ; prevButton1 <- mkPrevButton
+       ; prevButton2 <- mkPrevButton
+       ; nextButton1 <- mkNextButton
+       ; nextButton2 <- mkNextButton
+       
+       ; return $ FormView isComplete currentPageNr (length pages) prevButton1 prevButton2 nextButton1 nextButton2 clearButton pageView
        }
  where gotoPageNr nr = "setHashArg('p', '"++show (1+ nr)++"')" -- nr is 0-based
 
@@ -611,25 +617,24 @@ mkFormView form@(Form pages) = mkWebView $
            }
        
 instance Presentable FormView where
-  present (FormView isComplete currentPageNr nrOfPages prevButton nextButton sendButton clearButton wv) =
-      with [class_ $ "FormPage" ++ if currentPageNr == nrOfPages-1 then " LastPage" else "", style "background: white;", align "left"] $
-                                 -- dimensions are specified in css to allow iPad specific style                                                              
-        mkPageHeader +++
+  present (FormView isComplete currentPageNr nrOfPages prevButton1 prevButton2 nextButton1 nextButton2 clearButton wv) =
+      with [class_ $ "FormPage", style "background: white;", align "left"] $ -- dimensions are specified in css to allow iPad specific style
+        with [ align "right", style "margin-bottom:40px"] (mkPageHeader prevButton1 nextButton1) +++
         vList [ present wv
               , vSpace 40
               , hStretchList [ E $ present clearButton, space
                              , E $ with [ onclick (toValue $ jsNavigateTo $ "'"++resultsFilepath++"'") -- use onclick to avoid problem with getting <a> underlined.
                                         , style "font-size: 80%; color: blue; text-decoration: underline; cursor: pointer"] $  "Resultaten downloaden"
                              , space
-                             , E $ with [class_ "SendButton"] $ present sendButton ]
+                             , E $ mkPageHeader prevButton2 nextButton2 ]
               -- Decrease FormPage bottom-padding to 20px when enabling this.
               --, vSpace 70
               --, hStretchList [ space, E $ with [style "font-size: 11px; font-style: italic"] "Powered by WebViews" ]
               ]
-   where mkPageHeader = with [ align "right", style "margin-bottom:40px"] $
+   where mkPageHeader prevButton nextButton =
                           hListCenter 
                                 [ present prevButton
-                                , with [style "font-size: 80%"] $ nbsp >> (toHtml $ "Pagina "++show (currentPageNr+1) ++"/"++show nrOfPages) >> nbsp
+                                , with [style "font-size: 80%"] $ nbsp >> (primHtml $ "Pagina&nbsp;"++show (currentPageNr+1) ++"/"++show nrOfPages) >> nbsp
                                 , with [class_ "NextButton"] $ present nextButton ] 
       --  +++
           
