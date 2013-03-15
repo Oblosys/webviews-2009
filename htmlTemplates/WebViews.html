@@ -422,7 +422,7 @@ function updateTree(update, moves, scripts) {
     if (srcElt && dstElt) { // we don't move here, but simply queue each move (see processPending moves). 
       moves.push({sourceId: srcId, sourceElt: srcElt, destinationId: dstId, destinationParent: dstElt.parentNode,
       	          destinationIndex: $(dstElt.parentNode).contents().index( dstElt ) });
-      dlog('Queue move '+srcId+' '+dstId);
+      //dlog('Queue move '+srcId+' '+dstId);
     }
     else
     	wvError("move source or destination is null. src("+srcId+"):"+srcElt+", dst("+dstId+"):"+dstElt)
@@ -448,7 +448,7 @@ function processPendingMoves(moves) {
     
     breakpointCheck();
    
-    dlog('Processing move of ' + move.sourceId + ' to old location of ' + move.destinationId);;
+    //dlog('Processing move of ' + move.sourceId + ' to old location of ' + move.destinationId);;
     
     // If the source element is not in newNode, we replace it with an anonymous stub, so any subsequent moves to this element
     // (encoded by parent + index) will still succeed.
