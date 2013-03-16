@@ -200,9 +200,10 @@ handlers debug title rootViews scriptFilenames dbFilename db users serverSession
            ; let linksAndScripts = concatMap mkScriptLink scriptFilenames
            ; let debugVal = if debug then "true" else "false"
            ; let htmlStr = substitute [("TITLE",title),("LINKSANDSCRIPTS",linksAndScripts),("DEBUG", debugVal)] templateStr
-           ; ok $ setHeader "Cache-Control" "no-cache" $
+           ; ok $ -- be careful with redirected urls (e.g. webviews.oblomov.com) since they clear these headers
+                  setHeader "Cache-Control" "no-cache" $
                   setHeader "Content-Type" "text/html; charset=utf-8" $
-                  setHeader "X-Frame-Options" "BLA" $
+                  setHeader "X-Frame-Options" "ALLOWALL" $ -- ALLOW apparently is not official, but it works
                   toResponse htmlStr
            } 
            
