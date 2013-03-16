@@ -200,7 +200,10 @@ handlers debug title rootViews scriptFilenames dbFilename db users serverSession
            ; let linksAndScripts = concatMap mkScriptLink scriptFilenames
            ; let debugVal = if debug then "true" else "false"
            ; let htmlStr = substitute [("TITLE",title),("LINKSANDSCRIPTS",linksAndScripts),("DEBUG", debugVal)] templateStr
-           ; ok $ setHeader "Cache-Control" "no-cache" $ setHeader "Content-Type" "text/html; charset=utf-8" $ toResponse htmlStr
+           ; ok $ setHeader "Cache-Control" "no-cache" $
+                  setHeader "Content-Type" "text/html; charset=utf-8" $
+                  setHeader "X-Frame-Options" "BLA" $
+                  toResponse htmlStr
            } 
            
        getClientIp :: ServerPart String
