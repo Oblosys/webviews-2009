@@ -33,7 +33,7 @@ data Lender =
          } deriving (Eq, Show, Read)
 
 
-data MovieOrSeries = Movie | Series deriving (Eq, Show, Read)
+data MovieOrSeries = Movie | Series deriving (Eq, Ord, Show, Read)
 
 data Category = Book { _bookAuthor :: String, _bookYear :: Int, _bookLanguage :: String, _bookGenre :: String, _bookPages :: Int, _bookISBN :: String }
               | Game { _gamePlatform :: String, _gameYear :: Int, _gameDeveloper :: String, _gameGenre :: String }
@@ -42,7 +42,7 @@ data Category = Book { _bookAuthor :: String, _bookYear :: Int, _bookLanguage ::
                      , _dvdRunningTime :: Int, _dvdIMDb :: String, _dvdSeason :: Int, _dvdNrOfEpisodes :: Int }
               | Tool { _toolBrand :: String, _toolType :: String, _toolYear :: Int }
               | Electronics {}
-              | Misc {} deriving (Eq, Show, Read)
+              | Misc {} deriving (Eq, Ord, Show, Read)
 
 data Item = 
   Item { _itemId :: ItemId, _itemOwner :: LenderId, _itemPrice :: Int, _itemName :: String, _itemDescr :: String, _itemState :: String

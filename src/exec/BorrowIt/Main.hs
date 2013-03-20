@@ -155,13 +155,13 @@ mkItemView inline item = mkWebView $
        ; user <- getUser
        ; button <- case (get itemBorrowed item, user) of
            (Nothing, Nothing)         -> mkButton "Leen" False $ return () 
-           (Nothing, Just (userId,_)) | get itemOwner item == LenderId userId -> mkButton "Lenen" False $ return ()
+           (Nothing, Just (userId,_)) | get itemOwner item == LenderId userId -> mkButton "Borrow" False $ return ()
                                       | otherwise                         -> 
-             mkButton "Lenen" True  $ modifyDb $ \db -> 
+             mkButton "Borrow" True  $ modifyDb $ \db -> 
                let items' = Map.update (\i -> Just $ set itemBorrowed (Just $ LenderId userId) item) (get itemId item) (get allItems db) 
                in  set allItems  items' db
            (Just borrowerId,_) -> 
-             mkButton "Terug ontvangen" True $ modifyDb $ \db -> 
+             mkButton "Return" True $ modifyDb $ \db -> 
                let items' = Map.update (\i -> Just $ set itemBorrowed Nothing item) (get itemId item) (get allItems db) 
                in  set allItems items' db
            
@@ -176,8 +176,8 @@ mkItemView inline item = mkWebView $
        ; props <- (if inline == Inline then getInlineCategoryProps else getFullCategoryProps) vid (isJust mEdited) item $ get itemCategory item
        
        ; buttons <- if False {- isInline inline -} then return [] else
-          do { deleteButton <- mkButton "Verwijderen" True $ modifyDb $ deleteItem item
-             ; editButton <- mkButton (maybe "Aanpassen" (const "Gereed") mEdited) True $
+          do { deleteButton <- mkButton "Remove" True $ modifyDb $ deleteItem item
+             ; editButton <- mkButton (maybe "Edit" (const "Done") mEdited) True $
                  case mEdited of
                    Nothing            -> viewEdit vid $ set mEditedItem (Just item)
                    Just updatedItem -> do { modifyDb $ updateItem (get itemId updatedItem) $ \item -> updatedItem
@@ -185,7 +185,7 @@ mkItemView inline item = mkWebView $
                                           ; liftIO $ putStrLn $ "updating item \n" ++ show updatedItem
                                           }
              ; buttons <- if not $ isJust mEdited then return [] else
-                    fmap singleton $ mkButton "Annuleren" True $ viewEdit vid $ set mEditedItem Nothing
+                    fmap singleton $ mkButton "Cancel" True $ viewEdit vid $ set mEditedItem Nothing
              ; return $ [ deleteButton, editButton ] ++ buttons
              }
        
@@ -200,16 +200,16 @@ instance Presentable ItemView where
                       , nbsp
                       , nbsp
                       , vList $ [ with [style "color: #333; font-size: 16px"] $
-                                    presentEditableProperties -- ("Eigenaar: ", Static linkedLenderFullName owner):
+                                    presentEditableProperties -- ("Owner: ", Static linkedLenderFullName owner):
                                                               props
                                 ] 
                                 ++ maybe [] (\borrower -> [ vSpace 10, with [style "color: red"] $ 
-                                                           "Uitgeleend aan " +++ linkedLenderFullName borrower]) mBorrower
+                                                           "Lended to " +++ linkedLenderFullName borrower]) mBorrower
                                 ++ [ vSpace 10
                                 , present button ]
                       ]
               , vSpace 10
-              , with [ style "font-weight: bold"] $ "Beschrijving:" 
+              , with [ style "font-weight: bold"] $ "Description:" 
               , multiLineStringToHtml $ get itemDescr item
               , hList $ map present buttons
               ]
@@ -228,22 +228,22 @@ instance Presentable ItemView where
                            , vSpace 2
                            , with [style "color: #333"] $
                                presentEditableProperties props -- ++
-                                                   -- [("Punten", toHtml . show $ get itemPrice item)]
+                                                   -- [("Points", toHtml . show $ get itemPrice item)]
                            , vSpace 3
-                           , with [style "font-weight: bold"] $ "Beschrijving:" 
+                           , with [style "font-weight: bold"] $ "Description:" 
                            , with [class_ "ellipsis multiline", style "height: 30px;"] $
                                                                   {- 30 : 2 * 14 + 2 -}
                                multiLineStringToHtml $ get itemDescr item
                            ] ! width "100%"
             , E $ nbsp +++ nbsp
             , E $  vDivList   
-               ([ presentProperties $ [ ("Eigenaar", linkedLenderFullName owner)
+               ([ presentProperties $ [ ("Owner", linkedLenderFullName owner)
                                       , ("Rating", with [style "font-size: 17px; position: relative; top: -6px; height: 12px" ] $ presentRating 5 $ get lenderRating owner)
                                       ] ++
-                                  (if dist > 0 then [ ("Afstand", toHtml $ showDistance dist) ] else [])
+                                  (if dist > 0 then [ ("Distance", toHtml $ showDistance dist) ] else [])
                   --, div_ $ presentPrice (itemPrice item)
                 ] ++
-                  maybe [] (\borrower -> [with [style "color: red; font-size: 12px"] $ "Uitgeleend aan " +++ linkedLenderFullName borrower]) mBorrower
+                  maybe [] (\borrower -> [with [style "color: red; font-size: 12px"] $ "Lended to " +++ linkedLenderFullName borrower]) mBorrower
                   ++ [ vSpace 5
                 , present button 
                 , vSpace 10
@@ -262,20 +262,20 @@ instance Presentable ItemView where
                                presentEditableProperties props -- ++
                                                    -- [("Punten", toHtml . show $ get itemPrice item)]
               , h $ vSpace 3
-              , h $ with [style "font-weight: bold"] $ "Beschrijving:" 
+              , h $ with [style "font-weight: bold"] $ "Description:" 
               , hStretch $ h $ with [class_ "ellipsis multiline", style "height: 30px"] $
                                                                   {- 30 : 2 * 14 + 2 -}
                                multiLineStringToHtml $ get itemDescr item
                            ]
         , h $ hSpace 10
         , vAlign Top $ addStyle "width: 200px" $
-          col ([ h $ presentProperties $ [ ("Eigenaar", linkedLenderFullName owner)
+          col ([ h $ presentProperties $ [ ("Owner", linkedLenderFullName owner)
                                       , ("Rating", with [style "font-size: 17px; position: relative; top: -6px; height: 12px" ] $ presentRating 5 $ get lenderRating owner)
                                       ] ++
-                                  (if dist > 0 then [ ("Afstand", toHtml $ showDistance dist) ] else [])
+                                  (if dist > 0 then [ ("Distance", toHtml $ showDistance dist) ] else [])
                   --, div_ $ presentPrice (itemPrice item)
                 ] ++
-                  maybe [] (\borrower -> [h $ with [style "color: red"] $ "Uitgeleend aan " +++ linkedLenderFullName borrower]) mBorrower
+                  maybe [] (\borrower -> [h $ with [style "color: red"] $ "Lended to " +++ linkedLenderFullName borrower]) mBorrower
                   ++ [h $ vSpace 5
                 , h $ present button 
                 , h $ vSpace 10
@@ -308,37 +308,37 @@ getAllCategoryProps vid isEdited item c =
       mkIntProp leftOrRight name catField = fmap (\p -> leftOrRight (name, p)) $ mkEditableProperty vid isEdited mEditedItem (pLens "getAllCategoryProps" $ catField . itemCategory) show readMaybe toHtml item
   in  sequence $ case c of
       Book{} -> 
-        [ mkStringProp Left  "Auteur"        bookAuthor
-        , mkIntProp    Right "Jaar"          bookYear
-        , mkStringProp Left  "Taal"          bookLanguage
+        [ mkStringProp Left  "Author"        bookAuthor
+        , mkIntProp    Right "Year"          bookYear
+        , mkStringProp Left  "Language"      bookLanguage
         , mkStringProp Left  "Genre"         bookGenre
-        , mkIntProp    Right "Aantal bladz." bookPages
+        , mkIntProp    Right "Nr. of pages"  bookPages
         ]
       Game{} ->
         [ mkStringProp Left  "Platform"  gamePlatform
-        , mkIntProp    Left  "Jaar"      gameYear
+        , mkIntProp    Left  "Year"      gameYear
         , mkStringProp Right "Developer" gameDeveloper
         , mkStringProp Left  "Genre"     gameGenre
         ]
       CD{} ->
-        [ mkStringProp Left "Artiest" cdArtist
-        , mkIntProp    Left "Jaar"    cdYear
+        [ mkStringProp Left "Artist"  cdArtist
+        , mkIntProp    Left "Year"    cdYear
         , mkStringProp Left "Genre"   cdGenre
         ]
       DVD{} ->
-        [ mkIntProp    Right "Seizoen"     dvdSeason
-        , mkStringProp Right "Taal"        dvdLanguage
-        , mkIntProp    Right "Jaar"        dvdYear
-        , mkStringProp Left "Genre"        dvdGenre
-        , mkStringProp Left "Regisseur"    dvdDirector
-        , mkIntProp    Right "Aantal afl." dvdNrOfEpisodes
-        , mkIntProp    Right "Speelduur"   dvdRunningTime
+        [ mkIntProp    Right "Season"          dvdSeason
+        , mkStringProp Right "Language"        dvdLanguage
+        , mkIntProp    Right "Year"            dvdYear
+        , mkStringProp Left "Genre"            dvdGenre
+        , mkStringProp Left "Director"         dvdDirector
+        , mkIntProp    Right "Nr. of episodes" dvdNrOfEpisodes
+        , mkIntProp    Right "Running time"   dvdRunningTime
         , fmap (\p -> Left ("IMDb", p)) $ mkEditableProperty vid isEdited mEditedItem (pLens "getAllCategoryProps" $ dvdIMDb . itemCategory) id Just 
                (\str -> if null str then "" else a (toHtml str) ! href (toValue str) ! target "_blank" ! style "color: blue") 
                item -- this one is special because of the html presentation as a link
         ]
       Tool{} ->
-        [ mkStringProp Left "Merk" toolBrand
+        [ mkStringProp Left "Brand" toolBrand
         , mkStringProp Left "Type" toolType
         ]
       _ -> []
@@ -359,7 +359,7 @@ linkedLenderName lender = linkedLender lender $ toHtml $ get (lenderIdLogin . le
 linkedLenderFullName lender = linkedLender lender $ toHtml (get lenderFirstName lender ++ " " ++ get lenderLastName lender)
   
 linkedLender lender html = 
-  a! (href $ (toValue $ "/#lener&lener=" ++ get (lenderIdLogin . lenderId) lender)) << html
+  a! (href $ (toValue $ "/#lender&lender=" ++ get (lenderIdLogin . lenderId) lender)) << html
 
 rootViewLink :: String -> Html -> Html 
 rootViewLink rootViewName html = a ! (href $ (toValue $ "/#" ++ rootViewName)) << html
@@ -378,7 +378,7 @@ mkBorrowItLoginOutView = mkWebView $
   \vid oldItemView@BorrowItLoginOutView{} ->
    do { user <- getUser
       ; loginOutView <- if user == Nothing then mkUntypedWebView . mkLoginView $ \(login, fullName) -> 
-                                                  evalJSEdit [ jsNavigateTo $ "'#lener&lener="++login++"'" ]
+                                                  evalJSEdit [ jsNavigateTo $ "'#lender&lender="++login++"'" ]
                                            else mkUntypedWebView mkLogoutView
       ; return $ BorrowItLoginOutView loginOutView
       }
@@ -389,7 +389,7 @@ instance Presentable BorrowItLoginOutView where
 
 
 
-mkItemRootView = mkMaybeView "Onbekend item" $
+mkItemRootView = mkMaybeView "Unknown item" $
   do { args <- getHashArgs
      ; case lookup "item" args of
          Just item | Just i <- readMaybe item -> 
@@ -439,18 +439,18 @@ mkLenderView inline lender = mkWebView $
        ; extraProps <- if lenderIsUser lender mUser then getExtraProps vid (isJust mEdited) lender else return [] 
        ; (itemWebViews, buttons, addButtons) <- if isInline inline then return ([],[],[]) else
           do { itemWebViews <-  mapM (mkItemView Inline) items
-             ; editButton <- mkButton (maybe "Aanpassen" (const "Gereed") mEdited) (lenderIsUser lender mUser) $
+             ; editButton <- mkButton (maybe "Edit" (const "Done") mEdited) (lenderIsUser lender mUser) $
                  case mEdited of
                           Nothing            -> viewEdit vid $ set mEditedLender (Just lender)
                           Just updatedLender -> if lender /= updatedLender
                                                 then 
-                                                 showDialogEdit ("Wijzigingen opslaan?") 
-                                                   [ ("Opslaan", Just $  
+                                                 showDialogEdit ("Save changes?") 
+                                                   [ ("Save", Just $  
                                                       do { modifyDb $ updateLender (get lenderId updatedLender) $ \lender -> updatedLender
                                                          ; viewEdit vid $ set mEditedLender Nothing
                                                          ; liftIO $ putStrLn $ "updating lender\n" ++ show updatedLender
                                                          })
-                                                   , ("Niet opslaan", Just $ 
+                                                   , ("Don't save", Just $ 
                                                       do { viewEdit vid $ set mEditedLender Nothing
                                                          })
                                                    , ("Cancel", Nothing )
@@ -458,7 +458,7 @@ mkLenderView inline lender = mkWebView $
                                                  else
                                                    viewEdit vid $ set mEditedLender Nothing
              ; buttons <- if not $ isJust mEdited then return [] else
-                    fmap singleton $ mkButton "Annuleren" True $ viewEdit vid $ set mEditedLender Nothing
+                    fmap singleton $ mkButton "Cancel" True $ viewEdit vid $ set mEditedLender Nothing
              ; addButtons <- sequence [ mkAddButton (someEmptyItem $ get lenderId lender) 
                                       | someEmptyItem <- [emptyBook, emptyGame,emptyCD,emptyDVD,emptyTool] ]  
              ; return (itemWebViews, [ editButton ] ++ buttons,addButtons)
@@ -476,7 +476,7 @@ lenderIsUser lender (Just (login,_)) = get (lenderIdLogin . lenderId) lender == 
 instance Presentable LenderView where
   present (LenderView Full mUser lender _ {- testProps -} props extraProps itemWebViews buttons addButtons)   =
         vList [ vSpace 20
-              , hList [ (div_ (boxedEx 1 1 $ image ("leners/" ++ get lenderImage lender) ! style "height: 200px")) ! style "width: 204px" ! align "top"
+              , hList [ (div_ (boxedEx 1 1 $ image ("lenders/" ++ get lenderImage lender) ! style "height: 200px")) ! style "width: 204px" ! align "top"
                       , hSpace 20
                       , vList [ h2 $ {- if editing 
                                      then hList [ present fName, nbsp, present lName ] 
@@ -492,13 +492,13 @@ instance Presentable LenderView where
                               ]
                       ]
               , vSpace 20
-              , h2 $ (toHtml $ "Spullen van "++get lenderFirstName lender)
-              , hList $ "Toevoegen:" : map present addButtons
+              , h2 $ (toHtml $ get lenderFirstName lender ++ "'s Items")
+              , hList $ "Add:" : map present addButtons
               , vList $ map present itemWebViews
               ]
   present (LenderView Inline mUser lender mEdited {- testProps -} props extraProps itemWebViews buttons _) =
     linkedLender lender $
-      hList [ (div_ (boxedEx 1 1 $ image ("leners/" ++ get lenderImage lender) ! style "height: 30px")) ! style "width: 34px" ! align "top"
+      hList [ (div_ (boxedEx 1 1 $ image ("lenders/" ++ get lenderImage lender) ! style "height: 30px")) ! style "width: 34px" ! align "top"
             , nbsp
             , nbsp
             , vList [ toHtml (showName lender)
@@ -521,21 +521,21 @@ getLenderPropsSelf vid isEdited lender = do { props <- getLenderPropsAll vid isE
    --       non-string properties?                        
 getLenderPropsAll vid isEdited lender = sequence
   [ fmap (\p -> Right ("BorrowIt ID", p)) $ mkStaticProperty (lenderIdLogin . lenderId) toHtml lender
-  , fmap (\p -> Left ("M/V", p)) $ mkEditableSelectProperty vid isEdited mEditedLender lenderGender show (toHtml . show) [M,F] lender
+  , fmap (\p -> Left ("Sex", p)) $ mkEditableSelectProperty vid isEdited mEditedLender lenderGender show (toHtml . show) [M,F] lender
   , fmap (\p -> Left ("E-mail", p)) $ mkEditableProperty vid isEdited mEditedLender lenderMail id Just toHtml lender
-  , fmap (\p -> Right ("Adres", p)) $ mkEditableProperty vid isEdited mEditedLender lenderStreet id Just toHtml lender
-  , fmap (\p -> Left ("Postcode", p)) $ mkEditableProperty vid isEdited mEditedLender lenderZipCode id Just toHtml lender 
-  , fmap (\p -> Right ("Woonplaats", p)) $ mkEditableProperty vid isEdited mEditedLender lenderCity id Just toHtml lender 
+  , fmap (\p -> Right ("Adress", p)) $ mkEditableProperty vid isEdited mEditedLender lenderStreet id Just toHtml lender
+  , fmap (\p -> Left ("Zip code", p)) $ mkEditableProperty vid isEdited mEditedLender lenderZipCode id Just toHtml lender 
+  , fmap (\p -> Right ("City", p)) $ mkEditableProperty vid isEdited mEditedLender lenderCity id Just toHtml lender 
   ]
 
 getExtraProps' lender = [ ("Rating", with [style "font-size: 20px; position: relative; top: -5px; height: 17px" ] (presentRating 5 $ get lenderRating lender)) 
-                       , ("Puntenbalans", toHtml . show $ get lenderNrOfPoints lender)
-                       , ("Aantal spullen", toHtml . show $ length (get lenderItems lender))
+                       , ("Points", toHtml . show $ get lenderNrOfPoints lender)
+                       , ("Nr. of items", toHtml . show $ length (get lenderItems lender))
                        ]
 getExtraProps vid isEdited lender = sequence 
   [ fmap ("Rating",) $ mkEditableSelectProperty vid isEdited mEditedLender lenderRating show (presentRating 5) [0..5] lender 
-  , fmap ("Puntenbalans",) $ mkStaticProperty lenderNrOfPoints (toHtml . show) lender
-  , fmap ("Aantal spullen",) $ mkStaticProperty lenderItems (toHtml . show  . length ) lender
+  , fmap ("Points",) $ mkStaticProperty lenderNrOfPoints (toHtml . show) lender
+  , fmap ("Nr. of items",) $ mkStaticProperty lenderItems (toHtml . show  . length ) lender
   ]
 
 {-
@@ -559,12 +559,12 @@ instance Storeable Database ItemsRootView
 mkItemsRootView :: WebViewM Database (WV ItemsRootView)
 mkItemsRootView = mkWebView $
   \vid oldLenderView@(ItemsRootView _) ->
-    do { let namedSortFunctions = [ ("Naam",     compare `on` get itemName) 
-                                  , ("Prijs",    compare `on` get itemPrice)
-                                  , ("Eigenaar", compare `on` get itemDescr)
+    do { let namedSortFunctions = [ ("Name",  compare `on` get itemName) 
+                                  , ("Owner", compare `on` get itemDescr)
+                                  , ("Category", compare `on` get itemCategory)
                                   ]
     
-       ; searchView <- mkSearchView "Zoek in spullen:" "q" $ \searchTerm ->
+       ; searchView <- mkSearchView "Search items:" "q" $ \searchTerm ->
           do { results :: [Item] <- withDb $ \db -> searchItems searchTerm db 
              ; mkSortView namedSortFunctions (mkItemView Inline) results
              }
@@ -589,12 +589,12 @@ instance Storeable Database LendersRootView
 mkLendersRootView :: WebViewM Database (WV LendersRootView)
 mkLendersRootView = mkWebView $
   \vid oldLenderView@(LendersRootView _) ->
-    do { let namedSortFunctions = [ ("Voornaam",   compare `on` get lenderFirstName) 
-                                  , ("Achternaam", compare `on` get lenderLastName) 
+    do { let namedSortFunctions = [ ("First name", compare `on` get lenderFirstName) 
+                                  , ("Last name",  compare `on` get lenderLastName) 
                                   , ("Rating",     compare `on` get lenderRating)
                                   ]
     
-       ; searchView <- mkSearchView "Zoek in leners: " "q" $ \searchTerm ->
+       ; searchView <- mkSearchView "Search lenders: " "q" $ \searchTerm ->
           do { results :: [Lender] <- withDb $ \db -> searchLenders searchTerm db
              ; mkSortView namedSortFunctions (mkLenderView Inline) results
              }
@@ -605,10 +605,10 @@ instance Presentable LendersRootView where
   present (LendersRootView searchView) = present searchView
 
 
-mkLenderRootView = mkMaybeView "Onbekende lener" $
+mkLenderRootView = mkMaybeView "Unknown lender" $
   do { args <- getHashArgs 
-     ; case lookup "lener" args of
-         Just lener -> do { mLender <- withDb $ \db -> Map.lookup (LenderId lener) (get allLenders db)
+     ; case lookup "lender" args of
+         Just lender -> do { mLender <- withDb $ \db -> Map.lookup (LenderId lender) (get allLenders db)
                      ; case mLender of
                          Nothing    -> return Nothing
                          Just lender -> fmap Just $ mkLenderView Full lender
@@ -638,10 +638,10 @@ mkBorrowedRootView = mkWebView $
 
 instance Presentable BorrowedRootView where
   present (BorrowedRootView borrowed lended) =
-    h3 "Geleend" +++
-    vList (map present borrowed) +++
-    h3 "Uitgeleend" +++ 
-    vList (map present lended)
+    h3 "Lended" +++ 
+    vList (map present lended) +++
+    h3 "Borrowed" +++
+    vList (map present borrowed)
 
 -- unnecessary at the moment, as the page has no controls of its own
 data BorrowItPageView = BorrowItPageView User String (Widget (EditAction Database)) (UntypedWebView Database) deriving (Eq, Show, Typeable)
@@ -678,12 +678,13 @@ instance Presentable BorrowItPageView where
                       , div_ ! thestyle "padding: 10px" $ present wv ] ! width "800px"
             ]
             -}
-      col [ row [ addStyle "font-size: 50px; color: #ddd" $ text "BorrowIt"
+      col [ row [ addStyle "font-size: 50px; color: #ddd" $ text "Borrow"
+                , addStyle "font-size: 50px; color: #888" $ text "It"
                 , flexHSpace
                 , vAlign Bottom $ h $
                     case user of
                       Nothing        -> noHtml
-                      Just (login,_) -> withStyle "margin-bottom:5px; color: #ddd" $ "Ingelogd als "+++ (span_ ! style "color: white" $ toHtml login)
+                      Just (login,_) -> withStyle "margin-bottom:5px; color: #ddd" $ "Logged in as "+++ (span_ ! style "color: white" $ toHtml login)
                 ]
           , addStyle "width: 800px; border: 1px solid black; background-color: #f0f0f0; box-shadow: 0 0 8px rgba(0, 0, 0, 0.7);" $
               hStretch $
@@ -693,11 +694,11 @@ instance Presentable BorrowItPageView where
                   ]
           ]
    where leftMenuItems = map (\(label,rootView) -> (label, rootViewLink rootView $ toHtml label)) $
-                           [("Home",""), ("Spullen", "items"), ("Leners", "leners")] ++ userMenuItems user
+                           [("Home",""), ("Items", "items"), ("Lenders", "lenders")] ++ userMenuItems user
          rightMenuItems = [ if user == Nothing then ("Login", rootViewLink "login" "Login") 
-                                               else ("Logout", withEditAction logoutAction "Logout") ] -- Logout is not menu, so it will not be highlighted
+                                               else ("Logout", withEditAction logoutAction "Logout") ] -- Logout is not a menu, so it will not be highlighted
          userMenuItems Nothing = []
-         userMenuItems (Just (userId, _)) = [("Mijn profiel", "lener&lener="++userId), ("Geleend", "geleend")]
+         userMenuItems (Just (userId, _)) = [("My profile", "lender&lender="++userId), ("Lended", "lended")]
          
          highlightItem (label, e) = with [ onmouseover "this.style.backgroundColor='#666'" -- not nice, but it works and prevents
                                          , onmouseout  "this.style.backgroundColor=''"     -- the need for a css declaration
@@ -728,12 +729,12 @@ deriveMapWebViewDb ''Database ''TestView
 mkTestView :: WebViewM Database (WebView Database TestView)
 mkTestView = mkWebView $
   \vid oldTestView@(TestView _ radioOld _ _ _ _ _ oldTxtArea) ->
-    do { radio <-  mkRadioViewWithChange ["Naam", "Punten", "Drie"] (getSelection radioOld) True $ \sel -> viewEdit vid $ \v -> trace ("selected"++show sel) v :: TestView
+    do { radio <-  mkRadioViewWithChange ["Name", "Points", "Three"] (getSelection radioOld) True $ \sel -> viewEdit vid $ \v -> trace ("selected"++show sel) v :: TestView
        ; let radioSel = getSelection radioOld
        ; b <- mkButton "Test button" True $ viewEdit vid $ \(TestView a b c d e f g h) -> TestView 2 b c d e f g h
        ; tf <- mkTextField "bla"
        ; liftIO $ putStr $ show oldTestView
-       ; wv1 <- mkHtmlView $ "een"
+       ; wv1 <- mkHtmlView $ "one"
        ; wv2 <- mkHtmlTemplateView "test.html" []
        ; liftIO $ putStrLn $ "radio value " ++ show radioSel
        ; let (wv1',wv2') = if radioSel == 0 then (wv1,wv2) else (wv1, wv2) -- (wv2,wv1) -- switching no longer possible without using untyped
@@ -851,9 +852,9 @@ main = server 8101 "BorrowIt" rootViews ["BorrowIt.css"] "BorrowItDB.txt" mkInit
 
 rootViews :: RootViews Database
 rootViews = [ mkRootView ""        $ mkBorrowItPageView "Home"    $ mkUntypedWebView mkHomeView
-            , mkRootView "leners"  $ mkBorrowItPageView "Leners"  $ mkUntypedWebView mkLendersRootView
-            , mkRootView "lener"   $ mkBorrowItPageView "Lener"   $ mkUntypedWebView mkLenderRootView
-            , mkRootView "items"   $ mkBorrowItPageView "Spullen" $ mkUntypedWebView mkItemsRootView
+            , mkRootView "lenders"  $ mkBorrowItPageView "Lenders"  $ mkUntypedWebView mkLendersRootView
+            , mkRootView "lender"   $ mkBorrowItPageView "Lender"   $ mkUntypedWebView mkLenderRootView
+            , mkRootView "items"   $ mkBorrowItPageView "Items" $ mkUntypedWebView mkItemsRootView
             , mkRootView "item"    $ mkBorrowItPageView "Item"    $ mkUntypedWebView mkItemRootView
             , mkRootView "geleend" $ mkBorrowItPageView "Geleend" $ mkUntypedWebView mkBorrowedRootView
             , mkRootView "login"   $ mkBorrowItPageView "Login"   $ mkUntypedWebView mkBorrowItLoginOutView

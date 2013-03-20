@@ -1,0 +1,22 @@
+
+
+
+GenericsMap.updateViewById commentaar/error?
+
+WebViewPrim.viewEdit mention that error comes from viewEdit on wrong type?
+
+
+
+WebViewLib.mkPresentView
+
+
+
+WebForms:
+
+
+What do we do about untyped stuff in webviews? make a choice/wrap/untyped webview?
+
+
+Handle sortview for 0 results. (putting in an HtmlView doesn't work anymore with typed webviews)
+
+Typed ViewIds?

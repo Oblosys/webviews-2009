@@ -31,8 +31,6 @@ import Debug.Trace
 
 users :: Map String (String, String)
 users = Map.fromList [ ("martijn", ("p", "Martijn"))
-                     , ("Henny", ("h", "Henny Verweij")) 
-                     , ("Jaap", ("j", "Jaap Lageman"))
                      ] 
 -- TODO: maybe this can be (a special) part of db?
 
@@ -130,11 +128,11 @@ insertAsNewItem itemWithoutId db =
 
 getItemCategoryName :: Item -> String
 getItemCategoryName item = case get itemCategory item of 
-                             Book{}        -> "Boek"
+                             Book{}        -> "Book"
                              Game{}        -> "Game"
                              CD{}          -> "CD"
                              DVD{}         -> "DVD"
-                             Tool{}        -> "Gereedschap"
+                             Tool{}        -> "Tool"
                              Electronics{} -> "Gadget"
                              Misc{}        -> "Misc"
 

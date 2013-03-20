@@ -36,7 +36,7 @@ instance Initial SortDefaultPresent where
 
 instance TaggedPresent SortDefaultPresent (Widget (SelectView db), Widget (SelectView db), [WebView db v]) where
   taggedPresent SortDefaultPresent (sortFieldSelect, sortOrderSelect, webViews) =
-    (vList $ hStretchList [space, E $ "Sorteer" +++ nbsp, E $ present sortOrderSelect, E $ nbsp +++ "op" +++ nbsp, E $ present sortFieldSelect] 
+    (vList $ hStretchList [space, E $ "Sort" +++ nbsp, E $ present sortOrderSelect, E $ nbsp +++ "on" +++ nbsp, E $ present sortFieldSelect] 
               ! style ("margin: 4 0 4 0;" ++ gradientStyle Nothing "#101010" "#707070") 
             : intersperse hSep (map present webViews)
     ) ! style "width: 100%"        
@@ -59,8 +59,6 @@ instance Storeable db (SortView tag db v)
 mkSortView :: (Typeable db, IsView db v) => [(String, a->a->Ordering)] -> (a-> WebViewM db (WebView db v)) -> [a] -> WebViewM db (WebView db (SortView SortDefaultPresent db v))
 mkSortView = mkSortViewEx SortDefaultPresent
 
--- [("sorteer oplopend", id), ("sorteer aflopend", reverse)]
--- [("Sorteer op naam", 
 mkSortViewEx :: ( Typeable db, IsView db v
                 , TaggedPresent tag (Widget (SelectView db), Widget (SelectView db), [WebView db v])
                 , Eq tag, Show tag, Typeable tag, Initial tag, MapWebView db tag) =>
@@ -72,11 +70,11 @@ mkSortViewEx tag namedSortFunctions mkResultWV results = mkWebView $
        ; let sortOrder = getSelection sortOrderSelectOld
        ; let (sortFieldNames, sortFunctions) = unzip namedSortFunctions
        ; sortFieldSelect <- mkSelectView sortFieldNames sortField True
-       ; sortOrderSelect <- mkSelectView ["Oplopend", "Aflopend"] sortOrder True
+       ; sortOrderSelect <- mkSelectView ["Ascending", "Descending"] sortOrder True
        
        ; resultsWVs <- sequence [ fmap (r,) $ mkResultWV r | r <- results ]
        ; sortedResultViews <- case results of
-                                [] -> return [] -- fmap singleton $ mkHtmlView $ "Geen resultaten"
+                                [] -> return [] -- fmap singleton $ mkHtmlView $ "No results"
                                 _  -> return $ map snd $ (if sortOrder == 0 then id else reverse) $ 
                                                          sortBy (sortFunctions !! sortField `on` fst) $ resultsWVs
     
@@ -106,7 +104,7 @@ mkSearchView label argName resultsf = mkWebView $
                             Nothing    -> ""
                             Just term -> term 
        ; searchField <- mkTextField searchTerm
-       ; searchButton <- mkButtonWithClick "Zoek" True $ const ""
+       ; searchButton <- mkButtonWithClick "Search" True $ const ""
        ; results <- resultsf searchTerm
        ; return $ SearchView label searchField searchButton results $
                   jsScript $
