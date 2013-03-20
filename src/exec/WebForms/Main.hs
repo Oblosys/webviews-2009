@@ -249,10 +249,8 @@ mkVignette vt =
   , medSkip
   , htmlElt $ "<br/><em>Klik op het cijfer dat aangeeft in hoeverre u het eens bent met onderstaande stelling:</em><br/><br/>" 
   , tableElt "VignetteKiezen"
-     [ mkScaleQuestion 10 ("vignette"++show (nummer vt)++".moeilijkKiezen")
-                       "Ik vond het moeilijk om te kiezen"
---       [ htmlElt "Ik vond het moeilijk om te kiezen"
---      , buttonAnswerElt ("vignette"++show (nummer vt)++".moeilijkKiezen") $ map show [1..10]]
+     [[ htmlElt "Ik vond het moeilijk om te kiezen"
+      , buttonAnswerElt ("vignette"++show (nummer vt)++".moeilijkKiezen") $ map show [1..10]]
     ]
   ]
 
