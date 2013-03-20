@@ -40,7 +40,7 @@ importCSVFile build filename = importCSVFilePP build (\x -> do { putStrLn ""; re
 
 importCSVFilePP :: Show a => (Record -> Maybe a) -> (a -> IO a) -> [Char] -> IO [String]
 importCSVFilePP build postProcess filename =
- do { ecsv <- parseCSVFromFile $ "BorrowItImport/" ++ filename
+ do { ecsv <- parseCSVFromFile $ "misc/BorrowIt data/" ++ filename
     ; case ecsv of
         Left err  -> error $ show err
         Right csv -> do { let decls = mapMaybe build $ drop 3 csv
