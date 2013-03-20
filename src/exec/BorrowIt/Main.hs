@@ -693,7 +693,7 @@ instance Presentable BorrowItPageView where
                   ]
           ]
    where leftMenuItems = map (\(label,rootView) -> (label, rootViewLink rootView $ toHtml label)) $
-                           [("Home",""), ("Leners", "leners"), ("Spullen", "items")] ++ userMenuItems user
+                           [("Home",""), ("Spullen", "items"), ("Leners", "leners")] ++ userMenuItems user
          rightMenuItems = [ if user == Nothing then ("Login", rootViewLink "login" "Login") 
                                                else ("Logout", withEditAction logoutAction "Logout") ] -- Logout is not menu, so it will not be highlighted
          userMenuItems Nothing = []
