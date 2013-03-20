@@ -1,4 +1,4 @@
-module LeenclubUtils where
+module BorrowItUtils where
 
 --import Data.GPS
 import Database

@@ -30,7 +30,7 @@ import Prelude hiding ((.), id)           -- fclabels
 
 import WebViewLibExp
 import Database
-import LeenclubUtils
+import BorrowItUtils
 
 {-
 Doc
@@ -91,7 +91,7 @@ Home FAQ Profiel spullen geschiedenis Berichten aanmelden inloggen
 unsafeLookupM tag dbf key = withDb $ \db -> unsafeLookup tag key $ dbf db
 
 
--- Leenclub utils
+-- BorrowIt utils
 
 showName lender = get lenderFirstName lender ++ " " ++ get lenderLastName lender
 
@@ -366,25 +366,25 @@ rootViewLink rootViewName html = a ! (href $ (toValue $ "/#" ++ rootViewName)) <
 
 
 
-data LeenclubLoginOutView = LeenclubLoginOutView (UntypedWebView Database) deriving (Eq, Show, Typeable)
+data BorrowItLoginOutView = BorrowItLoginOutView (UntypedWebView Database) deriving (Eq, Show, Typeable)
 
-deriveInitial ''LeenclubLoginOutView
+deriveInitial ''BorrowItLoginOutView
 
-deriveMapWebViewDb ''Database ''LeenclubLoginOutView
+deriveMapWebViewDb ''Database ''BorrowItLoginOutView
 
-instance Storeable Database LeenclubLoginOutView
+instance Storeable Database BorrowItLoginOutView
 
-mkLeenClubLoginOutView = mkWebView $
-  \vid oldItemView@LeenclubLoginOutView{} ->
+mkBorrowItLoginOutView = mkWebView $
+  \vid oldItemView@BorrowItLoginOutView{} ->
    do { user <- getUser
       ; loginOutView <- if user == Nothing then mkUntypedWebView . mkLoginView $ \(login, fullName) -> 
                                                   evalJSEdit [ jsNavigateTo $ "'#lener&lener="++login++"'" ]
                                            else mkUntypedWebView mkLogoutView
-      ; return $ LeenclubLoginOutView loginOutView
+      ; return $ BorrowItLoginOutView loginOutView
       }
        
-instance Presentable LeenclubLoginOutView where
-  present (LeenclubLoginOutView loginOutView) =
+instance Presentable BorrowItLoginOutView where
+  present (BorrowItLoginOutView loginOutView) =
     present loginOutView
 
 
@@ -520,7 +520,7 @@ getLenderPropsSelf vid isEdited lender = do { props <- getLenderPropsAll vid isE
    -- todo: composed properties? address is street + nr
    --       non-string properties?                        
 getLenderPropsAll vid isEdited lender = sequence
-  [ fmap (\p -> Right ("LeenClub ID", p)) $ mkStaticProperty (lenderIdLogin . lenderId) toHtml lender
+  [ fmap (\p -> Right ("BorrowIt ID", p)) $ mkStaticProperty (lenderIdLogin . lenderId) toHtml lender
   , fmap (\p -> Left ("M/V", p)) $ mkEditableSelectProperty vid isEdited mEditedLender lenderGender show (toHtml . show) [M,F] lender
   , fmap (\p -> Left ("E-mail", p)) $ mkEditableProperty vid isEdited mEditedLender lenderMail id Just toHtml lender
   , fmap (\p -> Right ("Adres", p)) $ mkEditableProperty vid isEdited mEditedLender lenderStreet id Just toHtml lender
@@ -644,30 +644,30 @@ instance Presentable BorrowedRootView where
     vList (map present lended)
 
 -- unnecessary at the moment, as the page has no controls of its own
-data LeenclubPageView = LeenclubPageView User String (Widget (EditAction Database)) (UntypedWebView Database) deriving (Eq, Show, Typeable)
+data BorrowItPageView = BorrowItPageView User String (Widget (EditAction Database)) (UntypedWebView Database) deriving (Eq, Show, Typeable)
 
-deriveInitial ''LeenclubPageView
+deriveInitial ''BorrowItPageView
 
-deriveMapWebViewDb ''Database ''LeenclubPageView
+deriveMapWebViewDb ''Database ''BorrowItPageView
 
-instance Storeable Database LeenclubPageView
+instance Storeable Database BorrowItPageView
 
 --updateById id update db = let object = unsafeLookup 
 
-mkLeenclubPageView menuItemLabel mWebViewM = mkWebView $
-  \vid oldItemView@LeenclubPageView{} ->
+mkBorrowItPageView menuItemLabel mWebViewM = mkWebView $
+  \vid oldItemView@BorrowItPageView{} ->
    do { user <- getUser
       ; wv <- mWebViewM
       ; logoutAction <- mkEditAction $ logoutEdit
-      ; return $ LeenclubPageView user menuItemLabel logoutAction wv
+      ; return $ BorrowItPageView user menuItemLabel logoutAction wv
       } 
 
 -- TODO: click in padding does not select item
-instance Presentable LeenclubPageView where
-  present (LeenclubPageView user menuItemLabel logoutAction wv) =
+instance Presentable BorrowItPageView where
+  present (BorrowItPageView user menuItemLabel logoutAction wv) =
     -- imdb: background-color: #E3E2DD; background-image: -moz-linear-gradient(50% 0%, #B3B3B0 0px, #E3E2DD 500px);  
     mkPage [style $ gradientStyle (Just 500) "#404040" {- "#B3B3B0" -} "#E3E2DD"  ++ " font-family: arial"] $ xp $ 
-      {-vList [ (div_ ! style "float: left; font-size: 50px; color: #ddd" $ "Leenclub.nl") +++
+      {-vList [ (div_ ! style "float: left; font-size: 50px; color: #ddd" $ "BorrowIt") +++
               case user of 
                  Nothing        -> noHtml
                  Just (login,_) -> div_ ! style "float: right; margin-top:35px; color: #ddd" $ "Ingelogd als "+++ (span_ ! style "color: white" $ toHtml login)
@@ -678,7 +678,7 @@ instance Presentable LeenclubPageView where
                       , div_ ! thestyle "padding: 10px" $ present wv ] ! width "800px"
             ]
             -}
-      col [ row [ addStyle "font-size: 50px; color: #ddd" $ text "Leenclub.nl"
+      col [ row [ addStyle "font-size: 50px; color: #ddd" $ text "BorrowIt"
                 , flexHSpace
                 , vAlign Bottom $ h $
                     case user of
@@ -711,7 +711,7 @@ instance Presentable LeenclubPageView where
 
 
 mkHomeView :: WebViewM Database (WebView Database HtmlTemplateView)
-mkHomeView = mkHtmlTemplateView "LeenclubWelcome.html" []
+mkHomeView = mkHtmlTemplateView "BorrowItWelcome.html" []
 
 --- Testing
 
@@ -838,7 +838,7 @@ testwv i = testmkwv $ HtmlTemplateView (show i)
 testwd :: String -> Widget (Button Database)
 testwd str = buttonWidget (ViewId []) str True "" "" logoutEdit
 testproplist :: [(String, Property Database Item)]
-testproplist =  [("LeenClub ID",StaticProperty "martijn"),("M/V",EditableProperty (Right (PropertySelectView (Widget {getWidgetStubId = Id {unId = -1}, getWidgetId = Id {unId = -1}, getWidgetWidget = SelectView {getSelectViewId = ViewId [], getSelectItems = ["M","F"], getSelectSelection = 0, getSelectEnabled = True, getSelectStyle = "", getSelectChange = Just undefined}}))))]
+testproplist =  [("BorrowIt ID",StaticProperty "martijn"),("M/V",EditableProperty (Right (PropertySelectView (Widget {getWidgetStubId = Id {unId = -1}, getWidgetId = Id {unId = -1}, getWidgetWidget = SelectView {getSelectViewId = ViewId [], getSelectItems = ["M","F"], getSelectSelection = 0, getSelectEnabled = True, getSelectStyle = "", getSelectChange = Just undefined}}))))]
 deriveMapWebViewDb ''Database ''BorrowedRootView
 
 
@@ -847,15 +847,15 @@ deriveMapWebViewDb ''Database ''BorrowedRootView
 ---- Main (needs to be below all webviews that use deriveInitial)
 
 main :: IO ()
-main = server 8101 "Leenclub" rootViews ["Leenclub.css"] "LeenclubDB.txt" mkInitialDatabase users
+main = server 8101 "BorrowIt" rootViews ["BorrowIt.css"] "BorrowItDB.txt" mkInitialDatabase users
 
 rootViews :: RootViews Database
-rootViews = [ mkRootView ""        $ mkLeenclubPageView "Home"    $ mkUntypedWebView mkHomeView
-            , mkRootView "leners"  $ mkLeenclubPageView "Leners"  $ mkUntypedWebView mkLendersRootView
-            , mkRootView "lener"   $ mkLeenclubPageView "Lener"   $ mkUntypedWebView mkLenderRootView
-            , mkRootView "items"   $ mkLeenclubPageView "Spullen" $ mkUntypedWebView mkItemsRootView
-            , mkRootView "item"    $ mkLeenclubPageView "Item"    $ mkUntypedWebView mkItemRootView
-            , mkRootView "geleend" $ mkLeenclubPageView "Geleend" $ mkUntypedWebView mkBorrowedRootView
-            , mkRootView "login"   $ mkLeenclubPageView "Login"   $ mkUntypedWebView mkLeenClubLoginOutView
+rootViews = [ mkRootView ""        $ mkBorrowItPageView "Home"    $ mkUntypedWebView mkHomeView
+            , mkRootView "leners"  $ mkBorrowItPageView "Leners"  $ mkUntypedWebView mkLendersRootView
+            , mkRootView "lener"   $ mkBorrowItPageView "Lener"   $ mkUntypedWebView mkLenderRootView
+            , mkRootView "items"   $ mkBorrowItPageView "Spullen" $ mkUntypedWebView mkItemsRootView
+            , mkRootView "item"    $ mkBorrowItPageView "Item"    $ mkUntypedWebView mkItemRootView
+            , mkRootView "geleend" $ mkBorrowItPageView "Geleend" $ mkUntypedWebView mkBorrowedRootView
+            , mkRootView "login"   $ mkBorrowItPageView "Login"   $ mkUntypedWebView mkBorrowItLoginOutView
             , mkRootView "test"    $ mkTestView, mkRootView "test2" mkTestView2
             ] 
