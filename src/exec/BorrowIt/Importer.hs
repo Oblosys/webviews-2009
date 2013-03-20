@@ -32,7 +32,7 @@ builders = [ (buildCD, "cd.csv"), (buildBook, "book.csv"), (buildDVD, "dvd.csv")
 main =
  do { lenderStrs <- importCSVFilePP buildLender addLenderCoords "lender.csv"
     ; itemStrs <- fmap concat $ sequence [ importCSVFile build filename | (build, filename) <- builders ]
-    ; writeFile "src/exec/Leenclub/Imported.hs" $ makeModule lenderStrs itemStrs
+    ; writeFile "src/exec/BorrowIt/Imported.hs" $ makeModule lenderStrs itemStrs
     --; putStrLn $ concat itemStrs
     }
 
@@ -40,7 +40,7 @@ importCSVFile build filename = importCSVFilePP build (\x -> do { putStrLn ""; re
 
 importCSVFilePP :: Show a => (Record -> Maybe a) -> (a -> IO a) -> [Char] -> IO [String]
 importCSVFilePP build postProcess filename =
- do { ecsv <- parseCSVFromFile $ "LeenclubImport/" ++ filename
+ do { ecsv <- parseCSVFromFile $ "BorrowItImport/" ++ filename
     ; case ecsv of
         Left err  -> error $ show err
         Right csv -> do { let decls = mapMaybe build $ drop 3 csv
