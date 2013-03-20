@@ -108,7 +108,7 @@ buildCD fields@[afb,eigenaar,titel,artiest,uitvoerende,jaartal,genre,staat, punt
               , _itemBorrowed = Nothing
               , _itemCategory = CD artiest (fromMaybe 0 $ readMaybe jaartal) genre
               }
-buildCD fields = trace ("buildCD: " ++ show (length fields)) Nothing
+buildCD fields = trace ("buildCD: " ++ show (length fields)++"\n"++show fields) Nothing
 
  
 buildBook :: Record -> Maybe Item
