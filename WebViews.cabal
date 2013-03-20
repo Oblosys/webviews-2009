@@ -21,12 +21,12 @@ Flag webforms
   description:  Build WebViews WebForms
   default:      False       
 
-Flag leenclub
-  description:  Build WebViews Leenclub
+Flag borrowit
+  description:  Build WebViews BorrowIt
   default:      False       
 
 Flag importer
-  description:  Build Leenclub Importer
+  description:  Build BorrowIt Importer
   default:      False       
     
 Library
@@ -144,7 +144,7 @@ Executable webforms
   else
     buildable:  False
 
-Executable leenclub
+Executable borrowit
   Main-is:    Main.hs 
   Build-Depends:  WebViews,
                   base >=4.5 && <4.7,
@@ -166,15 +166,15 @@ Executable leenclub
               RankNTypes, 
               ScopedTypeVariables, 
               TemplateHaskell
-  HS-Source-Dirs:  src/exec/Leenclub
+  HS-Source-Dirs:  src/exec/BorrowIt
   Other-Modules:
                 Database,
                 DatabaseTypes,
                 Imported,
                 Importer,
-                LeenclubUtils,
+                BorrowItUtils,
                 WebViewLibExp
-  if flag(leenclub)
+  if flag(borrowit)
     buildable:  True
   else
     buildable:  False
@@ -198,7 +198,7 @@ Executable importer
                   
   GHC-Options: 
   Extensions: 
-  HS-Source-Dirs:  src/exec/Leenclub
+  HS-Source-Dirs:  src/exec/BorrowIt
   Other-Modules:
                 DatabaseTypes
   if flag(importer)

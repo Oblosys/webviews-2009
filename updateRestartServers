@@ -5,4 +5,4 @@ echo Updating, rebuilding, and restarting all WebViews servers.
 cd ~/svn/Oblomov/WebViews
 cabal clean
 updateRestartServer Webforms
-updateRestartServer Leenclub
+updateRestartServer BorrowIt

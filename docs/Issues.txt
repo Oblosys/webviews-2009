@@ -4,7 +4,7 @@ These are called by editActions that are not presented
 Harmless, but annoying.
 
 ------------------------------------------------------------------
-Problem with Leenclub login
+Problem with BorrowIt login
 maybe related to
 
 
