@@ -166,32 +166,32 @@ spullen = assignUniqueItemIds $
                                                  "Uitstekend"
                                                  "1.jpg"
                                                  (Game "Playstation 3" 2011 "Rockstar Games" "Action adventure / open world" )
-                                                 (Just $ LenderId "Jaap")
+                                                 (Just $ LenderId "peter")
           , Item noItemId (LenderId "martijn") 2 "iPhone 3gs"
                                                  "Apple iPhone 3gs, 32Gb"
                                                  "Paar krasjes"
                                                  "2.jpg"
                                                  Electronics
-                                                 (Just $ LenderId "Henny")
-          , Item noItemId (LenderId "Peter")    1 "Boormachine"
+                                                 (Just $ LenderId "tommy")
+          , Item noItemId (LenderId "peter")    1 "Boormachine"
                                                  "Het krachtige en compacte toestel Krachtig motor van 600 Watt, ideaal om te boren tot 10 mm boordiameter in metaal Bevestiging van boorspil in het lager voor hoge precisie Compact design en gering gewicht voor optimale bediening bij middelzware boortoepassingen Besturings-electronic voor exact aanboren Metalen snelspanboorhouder voor hoge precisie en lange levensduur Rechts- en linksdraaien Bijzonder geschikt voor boorgaten tot 10 mm in staal Functies: Rechts- en linksdraaien Electronic Softgrip Leveromvang: Snelspanboorhouder 1 - 10 mm"
                                                  "Goed"
                                                  "3.jpg"
                                                  (Tool "Bosch" "XP33" 2005)
                                                  Nothing
-          , Item noItemId (LenderId "Peter")    1 "Spyder calibratie-apparaat"
+          , Item noItemId (LenderId "peter")    1 "Spyder calibratie-apparaat"
                                                  "De Datacolor Spyder 4 Elite geeft nauwkeurig en natuurgetrouwe kleuren bij fotobewerkingen, films en games. Daarmee is hij geschikt voor professionele fotografen en andere creatievelingen. Verder is dit de eerste Spyder die iPhone en iPad ready is. Dit betekent dat hij via een app kan kalibreren met deze gadgets en de weergave van kleuren op je smartphone of tablet kan optimaliseren."
                                                  "Goed"
                                                  "4.jpg"
                                                  Electronics
                                                  Nothing
-          , Item noItemId (LenderId "Tommy")   2 "Tomtom"
+          , Item noItemId (LenderId "tommy")   2 "Tomtom"
                                                  "Voor de prijsbewuste bestuurder die toch graag in breedbeeld navigeert is er de TomTom XL Classic. Uitermate gemakkelijk in gebruik - plug de 12V autoadapter in en begin onbezorgd aan je reis. Het IQ Routes systeem zorgt op ieder moment van de dag voor de snelste route."
                                                  "Goed"
                                                  "5.jpg"
                                                  Electronics
-                                                 (Just $ LenderId "Jaap")
-          , Item noItemId (LenderId "Tommy")   1 "Boormachine"
+                                                 (Just $ LenderId "peter")
+          , Item noItemId (LenderId "tommy")   1 "Boormachine"
                                                  "De Makita Accuboormachine BDF343SHE Li-Ion 14,4V beschikt niet alleen over uitzonderlijke krachten, hij is ook nog eens bijzonder comfortabel. Hij heeft namelijk een ergonomisch ontwerp meegekregen van Makita. Zo weet u zeker dat u nooit meer last van uw polsen of ellebogen hebt na het klussen. Daarnaast zorgt het softgrip handvat er voor dat hij erg lekker in de hand ligt. En ook blijft liggen, want zelfs met bezwete handen hanteert u hem nog steeds moeiteloos. Dus wilt u een machine die kracht en gebruikscomfort combineert, dan is de Makita Accuboormachine BDF343SHE Li-Ion 14,4V de juiste keuze."
                                                  "Goed"
                                                  "6.jpg"
