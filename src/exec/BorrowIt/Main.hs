@@ -204,7 +204,7 @@ instance Presentable ItemView where
                                                               props
                                 ] 
                                 ++ maybe [] (\borrower -> [ vSpace 10, with [style "color: red"] $ 
-                                                           "Lended to " +++ linkedLenderFullName borrower]) mBorrower
+                                                           "Borrowed by " +++ linkedLenderFullName borrower]) mBorrower
                                 ++ [ vSpace 10
                                 , present button ]
                       ]
@@ -243,7 +243,7 @@ instance Presentable ItemView where
                                   (if dist > 0 then [ ("Distance", toHtml $ showDistance dist) ] else [])
                   --, div_ $ presentPrice (itemPrice item)
                 ] ++
-                  maybe [] (\borrower -> [with [style "color: red; font-size: 12px"] $ "Lended to " +++ linkedLenderFullName borrower]) mBorrower
+                  maybe [] (\borrower -> [with [style "color: red; font-size: 12px"] $ "Borrowed by " +++ linkedLenderFullName borrower]) mBorrower
                   ++ [ vSpace 5
                 , present button 
                 , vSpace 10
@@ -275,7 +275,7 @@ instance Presentable ItemView where
                                   (if dist > 0 then [ ("Distance", toHtml $ showDistance dist) ] else [])
                   --, div_ $ presentPrice (itemPrice item)
                 ] ++
-                  maybe [] (\borrower -> [h $ with [style "color: red"] $ "Lended to " +++ linkedLenderFullName borrower]) mBorrower
+                  maybe [] (\borrower -> [h $ with [style "color: red"] $ "Borrowed by " +++ linkedLenderFullName borrower]) mBorrower
                   ++ [h $ vSpace 5
                 , h $ present button 
                 , h $ vSpace 10
