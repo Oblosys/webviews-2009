@@ -3,7 +3,14 @@ then echo "Usage: $0 <executable dir>"
 else
 if [ -s src/exec/$1 ]; then
 echo Starting ghci for executable \"$1\"
-ghci -isrc src/exec/$1/Main.hs -fglasgow-exts -XOverloadedStrings -isrc/exec/$1 -isrc/lib -hide-package monads-tf
+
+extensions="-XOverloadedStrings\
+ -XExistentialQuantification\
+ -XPatternGuards\
+ -XRankNTypes\
+ -XScopedTypeVariables\
+ -XTemplateHaskell"
+ghci -isrc src/exec/$1/Main.hs -fglasgow-exts $extensions -isrc/exec/$1 -isrc/lib -hide-package mtl
 else
 echo Error: subdirectory src/exec/$1 does not exist.
 echo ja
