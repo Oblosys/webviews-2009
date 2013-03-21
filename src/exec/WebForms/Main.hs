@@ -104,9 +104,11 @@ textAnswerElt tag = TextAnswerElt $ TextAnswer tag $ const True -- any input is 
 
 buttonAnswerElt tag answers = ButtonAnswerElt $ ButtonAnswer tag answers
 
-radioAnswerElt rtag ttag answers = RadioTextAnswerElt $ RadioTextAnswer rtag ttag answers $ const True -- any input is correct
+radioAnswerElt tag answers = RadioAnswerElt $ RadioAnswer tag answers
 
-radioAnswerValidateElt rtag ttag validate answers = RadioTextAnswerElt $ RadioTextAnswer rtag ttag validate answers
+radioTextAnswerElt rtag ttag answers = RadioTextAnswerElt $ RadioTextAnswer rtag ttag answers $ const True -- any input is correct
+
+radioTextAnswerValidateElt rtag ttag validate answers = RadioTextAnswerElt $ RadioTextAnswer rtag ttag validate answers
 
 medSkip = vSkip 30
 bigSkip = vSkip 45
@@ -140,7 +142,7 @@ persoonsgegevens = page
       , [ medSkip ]
       , [ htmlElt "Wat is uw geslacht?", styleElt "width: 100px" $ buttonAnswerElt "geslacht" ["Man", "Vrouw"]]
       , [ medSkip ]
-      , [ htmlElt "In welke functie bent u momenteel werkzaam?", radioAnswerElt "functie" "functieAnders" 
+      , [ htmlElt "In welke functie bent u momenteel werkzaam?", radioTextAnswerElt "functie" "functieAnders" 
                                                                    [ "Activiteitenbegeleider"
                                                                    , "Groepsbegeleider"
                                                                    , "Helpende gezondheidszorg"
@@ -149,7 +151,7 @@ persoonsgegevens = page
                                                                    , "Verzorgende"
                                                                    , "Anders, nl. :" ] ]
       , [ medSkip ]
-      , [ htmlElt "Wat is uw hoogst afgeronde opleiding?", radioAnswerElt "opleiding" "opleidingAnders" 
+      , [ htmlElt "Wat is uw hoogst afgeronde opleiding?", radioTextAnswerElt "opleiding" "opleidingAnders" 
                                                              [ "Lager algemeen onderwijs (basisonderwijs)"
                                                              , "Lager beroepsonderwijs (LTS, LEAO)"
                                                              , "Middelbaar algemeen onderwijs (MAVO, MULO, VMBO)"
