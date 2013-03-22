@@ -196,23 +196,24 @@ mkClientView = mkWebView $
 instance Presentable ClientView where
   present (ClientView nrOfP mDate mTime nrButtons nameText commentText todayButton tomorrowButton dayButtons timeButtonss confirmButton
                       nrOfPeopleLabel dateLabel timeLabel _ script) = 
-    vList [ hListEx [width "100%"] [ "Name:", present nameText] -- todo: buggy on iPhone, space is added between Name and text, but not if "Name:" is replaced by "x"
-          , vSpace 10
+    vListEx [class_ "ClientView"]
+          [ hListEx [width "100%"] [ "Name:", present nameText] -- todo: buggy on iPhone, space is added between Name and text, but not if "Name:" is replaced by "x"
+          , vSpace 8
           , present nrOfPeopleLabel
           , hListEx [class_ "nrButtons", width "100%"] $ map present nrButtons
-          , vSpace 10
+          , vSpace 8
           --, stringToHtml $ maybe "Please choose a date:" (\d -> (showDay . weekdayForDate $ d) ++ ", " ++ showShortDate d) mDate
           , present dateLabel
           , hListEx [class_ "dateButtons", width "100%"] [ present todayButton, present tomorrowButton]
           , hListEx [class_ "dateButtons", width "100%"] $ map present dayButtons
-          , vSpace 10
+          , vSpace 8
           , present timeLabel
           --, stringToHtml $ maybe "Please select a time:" (\d -> showTime d) mTime
           , simpleTable [class_ "timeButtons", width "100%",cellpadding "0", cellspacing "0"] [] $ map (map present) timeButtonss
-          , vSpace 10
+          , vSpace 8
           , "Comments:"
           , present commentText
-          , vSpace 10
+          , vSpace 8
           , present confirmButton ] +++           
           mkScript script
  
