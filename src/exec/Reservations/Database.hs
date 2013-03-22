@@ -96,7 +96,7 @@ lotOfReservations = concat . repeat $
                          , ((20,30), "Nicole", 4, "")
                          , ((22,00), "Ann", 8, "")
                          ]
-                       , [ ((21,00), "Karel 2", 8, "Dinner at nine") 
+                       , [ ((21,00), "Charlie", 8, "Dinner at nine") 
                          ]
                        , [ ((18,00), "Pino", 3, "Please provide bird seed") 
                          ]
