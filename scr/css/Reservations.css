@@ -8,3 +8,7 @@ button[selected] {
 	background-color: #04f;
 	color: white;
 }
+
+.CalendarHeader button {
+	width: 6em;
+}

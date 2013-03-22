@@ -144,29 +144,41 @@ instance Storeable Database MainView where
 -- Main ----------------------------------------------------------------------  
 
 data RestaurantView = 
-  RestaurantView (Maybe Date) (Int,Int) [[(WV CalendarDayView,String, Widget (EditAction Database))]] (WV DayView) (WV HourView) (WV ReservationView) String
+  RestaurantView (Maybe Date) (Int,Int) (Widget (Button Database)) (Widget (Button Database)) 
+                 [[(WV CalendarDayView,String, Widget (EditAction Database))]] (WV DayView) (WV HourView) (WV ReservationView) String
     deriving (Eq, Show, Typeable)
 
 instance Initial RestaurantView where                 
-  initial = RestaurantView initial (initial,initial) [] initial initial initial initial
+  initial = RestaurantView initial (initial,initial) initial initial [] initial initial initial initial
+
+increaseMonth (12,year)    = (1, year+1)
+increaseMonth (month,year) = (month+1, year)
+
+decreaseMonth (1,year)     = (12, year-1)
+decreaseMonth (month,year) = (month-1, year)
+
+modifyViewedDate :: ((Int,Int) -> (Int,Int)) -> RestaurantView -> RestaurantView
+modifyViewedDate f (RestaurantView d my lb nb weeks dayView hourView reservationView script) =
+  RestaurantView d (f my) lb nb weeks dayView hourView reservationView script
 
 mkRestaurantView = mkWebView $
- \vid (RestaurantView oldMSelectedDate _ _ _ _ _ _) ->
+ \vid (RestaurantView oldMSelectedDate viewedMonthYear' _ _ _ _ _ _ _) ->
   do { clockTime <-  liftIO getClockTime
      ; ct <- liftIO $ toCalendarTime clockTime
-     ; let today@(currentDay, currentMonth, currentYear) = dateFromCalendarTime ct
+     ; let today@(_, currentMonth, currentYear) = dateFromCalendarTime ct
            now   = (ctHour ct, ctMin ct)
-           (lastMonth, lastMonthYear) = if currentMonth == 1 then (12,currentYear-1) else (currentMonth-1,currentYear)
-           (nextMonth, nextMonthYear) = if currentMonth == 12 then (1,currentYear+1) else (currentMonth+1,currentYear)
+           viewedMonthYear@(viewedMonth,viewedYear) = if viewedMonthYear'==(0,0) then (currentMonth, currentYear) else viewedMonthYear' 
+           (lastMonth, lastMonthYear) = decreaseMonth viewedMonthYear
+           (nextMonth, nextMonthYear) = increaseMonth viewedMonthYear
            nrOfDaysInLastMonth = gregorianMonthLength (fromIntegral lastMonthYear) lastMonth 
-           nrOfDaysInThisMonth = gregorianMonthLength (fromIntegral currentYear) currentMonth
-           firstDayOfMonth = weekdayForDate (1, 1+fromEnum (ctMonth ct), ctYear ct)
+           nrOfDaysInThisMonth = gregorianMonthLength (fromIntegral viewedYear) viewedMonth
+           firstDayOfMonth = weekdayForDate (1, viewedMonth, viewedYear)
      
      ; let daysOfLastMonth = reverse $ take (firstDayOfMonth-1) [nrOfDaysInLastMonth,nrOfDaysInLastMonth-1..]
      ; let daysOfThisMonth = [1..nrOfDaysInThisMonth]
      ; let daysOfNextMonth = take (7 - ((length daysOfLastMonth + length daysOfThisMonth) `mod` 7)) [1..]
      ; let calendarDaysOfLastMonth = [(d,lastMonth, lastMonthYear) | d <- daysOfLastMonth] 
-     ; let calendarDaysOfThisMonth = [(d,currentMonth, currentYear) | d <- daysOfThisMonth]
+     ; let calendarDaysOfThisMonth = [(d,viewedMonth, viewedYear) | d <- daysOfThisMonth]
      ; let calendarDaysOfNextMonth = [(d,nextMonth, nextMonthYear) | d <- daysOfNextMonth]
      ; let calendarDays = calendarDaysOfLastMonth ++ calendarDaysOfThisMonth ++ calendarDaysOfNextMonth 
      ; let selectScripts = [jsCallFunction vid "selectDay" [show i]| i <- [0..length calendarDays -1]] 
@@ -180,7 +192,7 @@ mkRestaurantView = mkWebView $
                 Just selectedDate -> oldMSelectedDate
                 Nothing           -> Just today
 
-     ; let calendarDayViewForDate date@(_,m,_) = mkCalendarDayView date (Just date==mSelectedDate) (date==today) (m==currentMonth) $
+     ; let calendarDayViewForDate date@(_,m,_) = mkCalendarDayView date (Just date==mSelectedDate) (date==today) (m==viewedMonth) $
                                            [r | r@(Reservation _ d _ _ _ _) <- reservations, date==d]  
      
      ; calendarDayViews <- mapM calendarDayViewForDate calendarDays
@@ -189,12 +201,14 @@ mkRestaurantView = mkWebView $
                                           
      ; let reservationsSelectedDay = filter ((==mSelectedDate). Just . date) reservations
       
+     ; lastButton <- mkButton (showMonth lastMonth) True $ viewEdit vid $ modifyViewedDate decreaseMonth
+     ; nextButton <- mkButton (showMonth nextMonth) True $ viewEdit vid $ modifyViewedDate increaseMonth
      ; reservationView <- mkReservationView vid
      ; hourView <- mkHourView vid (getViewId reservationView) []
      ; dayView <- mkDayView vid (getViewId hourView) reservationsSelectedDay
 
      
-     ; return $ RestaurantView mSelectedDate (currentMonth, currentYear) weeks dayView hourView reservationView $ jsScript 
+     ; return $ RestaurantView mSelectedDate (viewedMonth, viewedYear) lastButton nextButton weeks dayView hourView reservationView $ jsScript 
          [ "console.log(\"restaurant script\")"
          , jsFunction vid "load" []  
            [ jsLog "'Load restaurant view'" -- TODO: in future version that is completely dynamic, check for selectedDayObj == null
@@ -236,8 +250,8 @@ mkRestaurantView = mkWebView $
          ]
      }
  where selectDateEdit vid d = mkEditAction $ viewEdit vid $ 
-              \(RestaurantView _ my weeks dayView hourView reservationView script) ->
-                RestaurantView (Just d)my weeks dayView hourView reservationView script
+              \(RestaurantView _ my lb nb weeks dayView hourView reservationView script) ->
+                RestaurantView (Just d) my lb nb weeks dayView hourView reservationView script
           
 {-
   [ { hourEntry: nrOfRes(nrOfPeople)
@@ -272,9 +286,15 @@ mkReservation (Reservation rid date time name nrOfPeople comment) = mkJson [ ("r
 mark different months, mark appointments
  -}
 instance Presentable RestaurantView where
-  present (RestaurantView mSelectedDate (currentMonth, currentYear) weeks dayView hourView reservationView script) = 
+  present (RestaurantView mSelectedDate (currentMonth, currentYear) lastButton nextButton weeks dayView hourView reservationView script) = 
     (vList $ 
-      [ withStyle "text-align:center; font-weight:bold" $ toHtml $ showMonth currentMonth ++ " "++show currentYear
+      [ mkClassDiv "CalendarHeader" $
+              xp $ row [ h $ present lastButton
+                 , flexSpace
+                 , h $ withStyle "font-weight:bold" $ toHtml $ showMonth currentMonth ++ " "++show currentYear
+                 , flexSpace
+                 , h $ present nextButton
+                 ]
       , vSpace 5
       , mkTableEx [cellpadding "0", cellspacing "0", style "border-collapse:collapse; text-align:center"] [] [style "border: 1px solid #909090"]  
                   (header :
@@ -295,7 +315,7 @@ instance Presentable RestaurantView where
       , vSpace 15
       , present reservationView
       ]) +++ mkScript script
-   where header = [ ([], toHtml $ map toLower $ showShortDay d) | d <- [1..7] ] 
+   where header = [ ([], toHtml $ showShortDay d) | d <- [1..7] ] 
 
 instance Storeable Database RestaurantView where
    
