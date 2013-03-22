@@ -1,0 +1,10 @@
+button {
+	border-width: 1px;
+	border-color: black;
+	border-radius: 10px;
+	background-color: light-grey;
+}
+button[selected] {
+	background-color: #04f;
+	color: white;
+}

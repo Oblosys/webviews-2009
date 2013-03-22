@@ -27,7 +27,7 @@ import Database
 import ClientWebView
 
 main :: IO ()
-main = server 8102 "Reservations" rootViews [] "ReservationsDB.txt" mkInitialDatabase users
+main = server 8102 "Reservations" rootViews ["Reservations.css"] "ReservationsDB.txt" mkInitialDatabase users
 
 -- the webviews here are phantom typed, so we need rootView to get rid of the phantom types
 rootViews = [ mkRootView ""           mkMainRootView
@@ -134,7 +134,7 @@ selectedReservationColor = selectedDayColor
 instance Presentable MainView where
   present (MainView cv rv) = 
      hListEx [] [ withStyle "font-family:arial" $ roundedBoxed (Just $ appBgColor) $ present rv
-                , hSpace 60
+                , hSpace 50
                 , withStyle "font-family:arial" $ roundedBoxed (Just $ appBgColor) $ present cv 
                 ] 
 
