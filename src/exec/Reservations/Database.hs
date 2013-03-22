@@ -65,8 +65,6 @@ unsafeLookup map key =
     (error $ "element "++ show key ++ " not found in " ++ show map) key map
 -- do we want extra params such as pig nrs in sub views?
 -- error handling database access
--- Unclear: we need both pig ids and subview ids?
--- make clear why we need an explicit view, and the html rep is not enough.
 
 
 mkInitialDatabase :: IO (Database)
