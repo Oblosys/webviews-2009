@@ -91,14 +91,16 @@ mkInitialDatabase =
                             , (tm,nm,nr,c) <- ress
                             ]
 lotOfReservations = concat . repeat $
-                      [  [ ((20,00), "Martijn", 2, "Long comment that exceeds the line width and spans\nmultiple\nlines\nto\nsee\nif\nthat\nworks\nLong comment that exceeds the line width and spans\nmultiple\nlines\nto\nsee\nif\nthat\nworks\nLong comment that exceeds the line width and spans\nmultiple\nlines\nto\nsee\nif\nthat\nworks")
-                         , ((20,00), "Tommie", 3, "")
-                         , ((20,00), "Bert", 2, "")
-                         , ((20,30), "Elmo", 2, "")
-                         , ((20,30), "Karel", 4, "Karel says hi")
+                      [  [ ((20,00), "Nathan", 2, "Nathan says hi")
+                         , ((20,00), "Tommy", 3, "")
+                         , ((20,00), "Paul", 2, "")
+                         , ((20,30), "Bridget", 3, "")
+                         , ((20,30), "Nicole", 4, "")
+                         , ((22,00), "Ann", 8, "")
                          ]
-                       , [ ((21,00), "Karel 2", 3, "dinner at nine") 
+                       , [ ((21,00), "Karel 2", 8, "Dinner at nine") 
                          ]
                        , [ ((18,00), "Pino", 3, "Please provide bird seed") 
                          ]
-                      ]
+                       , []
+                       ]
