@@ -511,7 +511,13 @@ instance Initial ReservationView where
 mkReservationView restaurantViewId = mkWebView $
  \vid (ReservationView _ _ _) ->
   do { removeButton <- mkButton "x" True $ return ()
-     ; removeAction <- mkEditActionEx $ \[reservationId] -> modifyDb $ removeReservation $ read reservationId  
+     ; db <- getDb
+     ; removeAction <- mkEditActionEx $ \[reservationId] ->
+         let resId = read reservationId
+         in  case Map.lookup resId (allReservations db) of
+               Nothing  -> return ()
+               Just res -> confirmEdit ("Are you sure you wish to delete the reservation for "++name res++" at "++showTime (time res)++"?") $
+                             modifyDb $ removeReservation resId  
      ; return $ ReservationView removeButton removeAction $ jsScript 
          [ jsFunction vid "load" [] $ 
            let selRes = jsVar restaurantViewId "selectedReservationObj"
