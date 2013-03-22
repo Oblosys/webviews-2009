@@ -53,28 +53,15 @@ boxed elt = boxedEx 1 4 elt
 boxedEx :: Int -> Int -> Html -> Html
 boxedEx lineWidth padding elt = div_!!![style $ "border:solid; border-width:"++show lineWidth++"px; padding:"++show padding++"px;"] << elt
 
-roundedBoxed mColor elt =
-  mkTable attrs [] [] [[elt]]
- where attrs = class_ "roundedBorder" : 
+roundedBoxed :: Maybe Color -> Html -> Html
+roundedBoxed mColor elt = roundedBoxedEx 1 4 mColor elt
+
+roundedBoxedEx :: Int -> Int -> Maybe Color -> Html -> Html
+roundedBoxedEx lineWidth padding mColor elt = div_ !!! attrs $ elt
+ where attrs = class_ "roundedCorners" : 
                case mColor of Nothing -> []
-                              Just color -> [style $ "background-color: "++htmlColor color] 
-{-  (thespan!!![class_"tl"] << noHtml +++ thespan!!![class_"tr"] << noHtml +++ 
-   thespan!!![style"width:95%"] << elt +++
-   thespan!!![class_"bl"] << noHtml +++ thespan!!![class_"br"] << noHtml)
--}
- {- 
-<div class="rounded_colhead" style="background-color: red;">
-  <div class="tl"></div><div class="tr"></div>
-    I'm pure CSS3 for maximum simplicity and speed in Firefox and Safari,
-    but I still look good in IE7 and above!
-    Thanks to the magic of conditional CSS and a small bit of
-    extra markup, it all comes together.
-    In IE6, I look square, but IE6 users, a dwindling breed, are used to ugliness.
-  <div class="bl"></div><div class="br"></div>
-</div>
-
-
- -}
+                              Just color -> [style $ "padding:"++show padding++"px;border-width:"++show lineWidth++"px;"++
+                                                     "background-color:"++htmlColor color] 
   
 -- TODO: name!!!
 data ListElt = E Html | Stretch Html

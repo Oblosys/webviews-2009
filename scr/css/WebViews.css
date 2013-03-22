@@ -28,16 +28,16 @@ table.Xprez.Row td {
   white-space: nowrap;
 }
 
-.roundedBorder
+.roundedCorners
 {
   border:solid; 
   border-width:1px;
   margin: 0px 0px 0px 0px;
-  padding: 3px;
   /* Rounded corner stuff starts here */
   border-radius: 6px;            /* standard */
   -webkit-border-radius: 6px;    /* for older Safari */
   -moz-border-radius: 6px;       /* for older Firefox (<13) */
+  -khtml-border-radius: 6px;     /* not sure for which one this is */
 }
 
 .tab
