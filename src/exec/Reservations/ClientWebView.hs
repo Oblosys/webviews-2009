@@ -151,7 +151,7 @@ mkClientView = mkWebView $
                   , jsDeclareVar vid "selectedNr" "null"
                   , jsFunction vid "setNr" ["nr"] [ "console.log(\"setNr (\"+nr+\") old val: \", "++jsVar vid "selectedNr"++")"
                                                   , jsAssignVar vid "selectedNr" "nr"
-                                                  , "nrStr = nr==null ? \"Please select nr of people\" : 'Nr of people: '+nr"
+                                                  , "nrStr = nr==null ? \"Please select nr of people:\" : 'Nr of people: '+nr"
                                                   , jsGetElementByIdRef (widgetGetViewRef nrOfPeopleLabel)++".innerHTML = nrStr"
                                                   , "$('.nrButtons button').attr('selected',false)"
                                                   , "if (nr!=null) $('.nrButtons button').eq(nr-1).attr('selected',true)"
@@ -160,7 +160,7 @@ mkClientView = mkWebView $
                   , jsDeclareVar vid "selectedTimeIndex" "null"
                   , jsFunction vid "setTime" ["time"] [ "console.log(\"setTime \"+time, "++jsVar vid "selectedTime"++")"
                                                       , jsAssignVar vid "selectedTime" "time"
-                                                      , "timeStr = time==null ? \"Please select a time\" : 'Time: ' + time.hour +\":\"+ (time.min<10?\"0\":\"\") + time.min"
+                                                      , "timeStr = time==null ? \"Please select a time:\" : 'Time: ' + time.hour +\":\"+ (time.min<10?\"0\":\"\") + time.min"
                                                       , jsAssignVar vid "selectedTimeIndex" "time == null ? null : time.index"
                                                       , jsGetElementByIdRef (widgetGetViewRef timeLabel)++".innerHTML = timeStr"
                                                       , "$('.timeButtons button').attr('selected',false)"
@@ -169,7 +169,7 @@ mkClientView = mkWebView $
                   , jsDeclareVar vid "selectedDate" "null"
                   , jsFunction vid "setDate" ["dateIx"] [ "console.log(\"setDate \"+dateIx, "++jsVar vid "selectedDate"++")"
                                                       , jsAssignVar vid "selectedDate" "dateIx"
-                                                      , "dateStr = dateIx==null ? \"Please select a date\" : availability[dateIx].date"
+                                                      , "dateStr = dateIx==null ? \"Please select a date:\" : availability[dateIx].date"
                                                       , jsGetElementByIdRef (widgetGetViewRef dateLabel)++".innerHTML = dateStr"
                                                       , "$('.dateButtons button').attr('selected',false)"
                                                       , "if (dateIx!=null) $('.dateButtons button').eq(dateIx).attr('selected',true)"
@@ -196,18 +196,18 @@ mkClientView = mkWebView $
 instance Presentable ClientView where
   present (ClientView nrOfP mDate mTime nrButtons nameText commentText todayButton tomorrowButton dayButtons timeButtonss confirmButton
                       nrOfPeopleLabel dateLabel timeLabel _ script) = 
-    vList [ hList [ "Name:", hSpace 4, present nameText]
+    vList [ hListEx [width "100%"] [ "Name:", present nameText] -- todo: buggy on iPhone, space is added between Name and text, but not if "Name:" is replaced by "x"
           , vSpace 10
           , present nrOfPeopleLabel
           , hListEx [class_ "nrButtons", width "100%"] $ map present nrButtons
           , vSpace 10
-          --, stringToHtml $ maybe "Please choose a date" (\d -> (showDay . weekdayForDate $ d) ++ ", " ++ showShortDate d) mDate
+          --, stringToHtml $ maybe "Please choose a date:" (\d -> (showDay . weekdayForDate $ d) ++ ", " ++ showShortDate d) mDate
           , present dateLabel
           , hListEx [class_ "dateButtons", width "100%"] [ present todayButton, present tomorrowButton]
           , hListEx [class_ "dateButtons", width "100%"] $ map present dayButtons
           , vSpace 10
           , present timeLabel
-          --, stringToHtml $ maybe "Please select a time" (\d -> showTime d) mTime
+          --, stringToHtml $ maybe "Please select a time:" (\d -> showTime d) mTime
           , simpleTable [class_ "timeButtons", width "100%",cellpadding "0", cellspacing "0"] [] $ map (map present) timeButtonss
           , vSpace 10
           , "Comments:"
