@@ -12,3 +12,7 @@ button[selected] {
 .CalendarHeader button {
 	width: 6em;
 }
+
+.DialogContainer {
+	width: 300px;
+}
