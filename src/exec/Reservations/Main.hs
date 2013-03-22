@@ -176,11 +176,11 @@ mkRestaurantView = mkWebView $
      
      ; let daysOfLastMonth = reverse $ take (firstDayOfMonth-1) [nrOfDaysInLastMonth,nrOfDaysInLastMonth-1..]
      ; let daysOfThisMonth = [1..nrOfDaysInThisMonth]
-     ; let daysOfNextMonth = take (7 - ((length daysOfLastMonth + length daysOfThisMonth) `mod` 7)) [1..]
+     ; let daysOfNextMonth = [1..]
      ; let calendarDaysOfLastMonth = [(d,lastMonth, lastMonthYear) | d <- daysOfLastMonth] 
      ; let calendarDaysOfThisMonth = [(d,viewedMonth, viewedYear) | d <- daysOfThisMonth]
      ; let calendarDaysOfNextMonth = [(d,nextMonth, nextMonthYear) | d <- daysOfNextMonth]
-     ; let calendarDays = calendarDaysOfLastMonth ++ calendarDaysOfThisMonth ++ calendarDaysOfNextMonth 
+     ; let calendarDays = take (7*6) $ calendarDaysOfLastMonth ++ calendarDaysOfThisMonth ++ calendarDaysOfNextMonth 
      ; let selectScripts = [jsCallFunction vid "selectDay" [show i]| i <- [0..length calendarDays -1]] 
      ; selects <- mapM (selectDateEdit vid) calendarDays
      
