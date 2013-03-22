@@ -1,8 +1,26 @@
+/* On an iPad, the rules below takes precedence over the rules above (order is important) */
+@media only screen and (device-width: 768px) {
+  #root {
+    margin: 10px 0px 0px 210px;
+    background-color: lightgrey;
+	  background-color: white;
+  }
+	
+}
+
+@media screen and (max-device-width: 480px) and (orientation:portrait) {
+  #root {
+    margin: 10px;
+    background-color: lightgrey;
+	  background-color: white;
+  }
+} 
+
 button {
 	border-width: 1px;
 	border-color: black;
 	border-radius: 10px;
-	background-color: light-grey;
+	background-color: lightgrey;
 }
 button[selected] {
 	background-color: #04f;
