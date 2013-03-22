@@ -133,9 +133,9 @@ selectedReservationColor = selectedDayColor
 
 instance Presentable MainView where
   present (MainView cv rv) = 
-     hListEx [] [ withStyle "font-family:arial" $ roundedBoxed (Just $ appBgColor) $ present cv
-                , hSpace 30
-                , withStyle "font-family:arial" $ roundedBoxed (Just $ appBgColor) $ present rv 
+     hListEx [] [ withStyle "font-family:arial" $ roundedBoxed (Just $ appBgColor) $ present rv
+                , hSpace 60
+                , withStyle "font-family:arial" $ roundedBoxed (Just $ appBgColor) $ present cv 
                 ] 
 
 instance Storeable Database MainView where
