@@ -266,20 +266,20 @@ session debug rootViews dbFilename db users serverInstanceId globalStateRef sess
          
     ; mSessionStateRef <- retrieveSessionState globalStateRef sessionId 
     
-    ; responseHtml <-
+    ; responseHtmls <-
         case mSessionStateRef of                         -- don't have a requestId, so use -1 
           Nothing              -> io $ do { (_, sessions,_) <- readIORef globalStateRef
                                           ; raiseClientException (-1) $ "Internal error: Session "++show sessionId++
                                                                         " not found in " ++ show (IntMap.keys sessions)
                                           }
           Just sessionStateRef -> 
-           do { responseHtml <- sessionHandler rootViews dbFilename db users sessionStateRef requestId cmds              
+           do { responseHtmls <- sessionHandler rootViews dbFilename db users sessionStateRef requestId cmds              
               ; storeSessionState globalStateRef sessionId sessionStateRef
-              ; return responseHtml
+              ; return responseHtmls
                 }
       
       ; io $ putStrLn "Done\n\n"
-      ; ok $ toResponse $ responseHtml
+      ; ok $ toResponse $ div_ ! id_ "updates" ! strAttr "responseId" (show requestId) $ concatHtml responseHtmls
       }
  
 parseCookieSessionId :: ServerInstanceId -> ServerPart (Maybe SessionId)
@@ -307,21 +307,6 @@ mkInitialRootView db = do { wv <- runWebView Nothing db Map.empty [] 0 (SessionI
 -- TODO: change this to something more robust
 -- todo: use different id
 
--- Raise an exception in the browser and report to stdout. (necessary because we cannot catch exceptions in the
--- ServerPart monad)
-raiseClientException :: Int -> String -> IO Html
-raiseClientException requestId msg =
- do { let exceptionText = 
-            "\n\n\n\n################################################################################\n\n\n" ++
-            msg ++ "\n\n\n" ++
-            "################################################################################\n\n" 
-    
-    ; putStrLn exceptionText
-    ; return $ div_ ! id_ "updates" ! strAttr "responseId" (show requestId) $
-                (div_ ! strAttr "op" "exception"
-                      ! strAttr "text" exceptionText
-                      $ noHtml)                       
-    }
 
 createNewSessionState :: Typeable db => Bool -> db -> GlobalStateRef db -> ServerInstanceId -> ServerPart SessionId
 createNewSessionState debug db globalStateRef serverInstanceId = 
@@ -362,8 +347,25 @@ storeSessionState globalStateRef sessionId@(SessionId i) sessionStateRef =
     ; let sessions' = IntMap.insert i (user', rootView', dialogCommands', rootViewName, hashArgs) sessions                                          
     ; io $ writeIORef globalStateRef (database', sessions', sessionCounter)
     }
- 
-sessionHandler :: (Show db, Eq db, Typeable db) => RootViews db -> String -> db -> Map String (String, String) -> SessionStateRef db -> Int -> Commands -> ServerPart Html
+
+-- Raise an exception in the browser and report to stdout. (necessary because we cannot catch exceptions in the
+-- ServerPart monad)
+-- The return type is [Html] because the exceptions are raised in sessionHandler, which returns a list of updates
+raiseClientException :: Int -> String -> IO [Html]
+raiseClientException requestId msg =
+ do { let exceptionText = 
+            "\n\n\n\n################################################################################\n\n\n" ++
+            msg ++ "\n\n\n" ++
+            "################################################################################\n\n" 
+    
+    ; putStrLn exceptionText
+    ; return $ [ div_ ! strAttr "op" "exception"
+                      ! strAttr "text" exceptionText
+                      $ noHtml
+               ]  
+    }
+
+sessionHandler :: (Show db, Eq db, Typeable db) => RootViews db -> String -> db -> Map String (String, String) -> SessionStateRef db -> Int -> Commands -> ServerPart [Html]
 sessionHandler rootViews dbFilename db users sessionStateRef requestId (SyntaxError cmdStr) =
  io $ raiseClientException requestId $ "Syntax error in commands from client: "++cmdStr 
 sessionHandler rootViews dbFilename db users sessionStateRef requestId (Commands allCmds) = io $  
@@ -387,7 +389,7 @@ sessionHandler rootViews dbFilename db users sessionStateRef requestId (Commands
     ; responseHtml <- handleCommands rootViews dbFilename db users sessionStateRef oldRootView cmds
     --; putStrLn $ show responseHtml
     
-    ; return $ div_ ! id_ "updates" ! strAttr "responseId" (show requestId) $ concatHtml responseHtml
+    ; return responseHtml
     } `Control.Exception.catch` \exc -> raiseClientException requestId $ "Exception: " ++ show (exc :: SomeException)
     
 
