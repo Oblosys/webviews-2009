@@ -250,21 +250,6 @@ function queueCommand(command) {
   }
 }
 
-/*
-// tricky to do these as regular commands in the command queue.
-function authenticate()
-{ xmlhttp.onreadystatechange=state_Change;
-  xmlhttp.open("GET",'authenticate',true);
-  xmlhttp.send(null);
-}
-
-function unauthenticate()
-{ xmlhttp.onreadystatechange=state_Change;
-  xmlhttp.open("GET",'unauthenticate',true);
-  xmlhttp.send(null);
-}
-*/
-
 function state_ChangeWithErrorHandler() {
 	if (window.ActiveXObject) // on IE we don't need to do anything, as errors thrown by state_Change will be caught by debugger
 		state_Change();
@@ -399,9 +384,6 @@ function updateTree(update, moves, scripts) {
 	  dialogContent = $(update).find('.contents').html();
 	  var buttons = $.map( $(update).find('.button'), function(b) {return {name: $(b).attr('name'), command: $(b).attr('command')} } );
 	  showDialog(dialogContent, buttons);
-  } 
-  else if (op === 'authenticate') {
-	  authenticate();
   } 
   else if (op === 'new') {
 	  var newChild = update.childNodes[0];
