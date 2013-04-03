@@ -631,7 +631,7 @@ instance (Typeable st, Typeable1 m) => Typeable1 (StateT st m) where
 
 
 
-type SessionId = Int
+newtype SessionId = SessionId Int deriving (Show, Eq, Ord)
 
 data SessionState db = SessionState { getSStateSessionId :: SessionId
                                     , getSStateUser :: User

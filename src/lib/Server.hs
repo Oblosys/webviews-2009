@@ -156,10 +156,15 @@ readCommand s = case readMaybe s of
                   Just cmds -> cmds
                   Nothing   -> SyntaxError s
 
-instance FromData Int where
-  fromData = liftM readInt (look "requestId")
+newtype RequestId = RequestId Int
+
+instance FromData RequestId where
+  fromData = liftM (RequestId . readInt) (look "requestId")
 
 readInt s = fromMaybe (-1) (readMaybe s)
+
+instance FromData SessionId where
+  fromData = liftM (SessionId . readInt) $ look "sessionId"
 
 handlers :: (Show db, Eq db, Typeable db) => Bool -> String -> RootViews db -> [String] -> String -> db -> Map String (String, String) -> ServerInstanceId -> GlobalStateRef db -> [ServerPart Response]
 handlers debug title rootViews scriptFilenames dbFilename db users serverSessionId globalStateRef = 
@@ -177,11 +182,18 @@ handlers debug title rootViews scriptFilenames dbFilename db users serverSession
            ; clientIp <- getClientIp 
                             ; requestIdData <- getData
                             ; requestId <- case requestIdData of
-                                            Right i |  i/=(-1)  -> return i
-                                            Right i | otherwise -> do { io $ putStrLn $ "Unreadable requestId from " ++ clientIp ++ ", "++show time;    mzero }
+                                            Right (RequestId i) |  i /= -1  -> return i
+                                            Right (RequestId i) | otherwise -> do { io $ putStrLn $ "Unreadable requestId from " ++ clientIp ++ ", "++show time;    mzero }
                                             Left err            -> do { io $ putStrLn $ "No requestId in request from " ++ clientIp ++ ", "++show time; mzero }
                                 
-                            ; io $ putStrLn $ "RequestId " ++ show (requestId :: Int) ++ " (" ++ clientIp ++ "), "++show time
+                            ; sessionIdData <- getData
+                            ; sessionId <- case sessionIdData of
+                                             Right (SessionId i) |  i /= -1  -> return i
+                                             Right (SessionId i) | otherwise -> do { io $ putStrLn $ "Unreadable sessionId from " ++ clientIp ++ ", "++show time;    mzero }
+                                             Left err ->do { io $ putStrLn $ "No sessionId in request from " ++ clientIp ++ ", "++show time; mzero }
+                             
+                            ; io $ putStrLn $ "RequestId " ++ show (requestId :: Int) ++ " (" ++ clientIp ++ ":" ++ show sessionId ++ "), "++show time
+                            
                             ; method GET
                             ; nullDir
                             ; fmap (setHeader "Cache-Control" "no-cache") $ 
@@ -283,12 +295,12 @@ parseCookieSessionId serverInstanceId =
                                    Just (serverTime, key) -> 
                                      if serverTime /= serverInstanceId
                                      then Nothing  -- * cookie from previous WebViews run
-                                     else Just key -- * correct cookie for this run
+                                     else Just (SessionId key) -- * correct cookie for this run
     ; return mCookieSessionId
     }
 
 mkInitialRootView :: Typeable db => db -> IO (UntypedWebView db)
-mkInitialRootView db = do { wv <- runWebView Nothing db Map.empty [] 0 (-1) "" [] $ fmap UntypedWebView $ mkWebView (\_ _ -> return InitialView) 
+mkInitialRootView db = do { wv <- runWebView Nothing db Map.empty [] 0 (SessionId $ -1) "" [] $ fmap UntypedWebView $ mkWebView (\_ _ -> return InitialView) 
                           ; return wv
                           }
 -- this creates a WebView with stubid 0 and id 1
@@ -328,14 +340,14 @@ createNewSessionState debug db globalStateRef serverInstanceId =
    
     ; io $ writeIORef globalStateRef (database, sessions', sessionCounter + 1)
     
-    ; return sessionId
+    ; return $ SessionId sessionId
     }
  
 retrieveSessionState :: GlobalStateRef db -> SessionId -> ServerPart (Maybe (SessionStateRef db))
-retrieveSessionState globalStateRef sessionId =
+retrieveSessionState globalStateRef sessionId@(SessionId i) =
  do { (database, sessions, sessionCounter) <- io $ readIORef globalStateRef
     --; lputStrLn $ "\n\nNumber of active sessions: " ++ show sessionCounter                                          
-    ; case IntMap.lookup sessionId sessions of
+    ; case IntMap.lookup i sessions of
         Nothing                                         -> return Nothing
         Just (user, rootView, dialogCommands, rootViewName, hashArgs) -> 
          do { let sessionState = SessionState sessionId user database rootView dialogCommands rootViewName hashArgs
@@ -345,10 +357,10 @@ retrieveSessionState globalStateRef sessionId =
     }      
  
 storeSessionState :: GlobalStateRef db -> SessionId -> SessionStateRef db -> ServerPart ()
-storeSessionState globalStateRef sessionId sessionStateRef =
+storeSessionState globalStateRef sessionId@(SessionId i) sessionStateRef =
  do { (_, sessions, sessionCounter) <- io $ readIORef globalStateRef
     ; SessionState _ user' database' rootView' dialogCommands' rootViewName hashArgs <- io $ readIORef sessionStateRef
-    ; let sessions' = IntMap.insert sessionId (user', rootView', dialogCommands', rootViewName, hashArgs) sessions                                          
+    ; let sessions' = IntMap.insert i (user', rootView', dialogCommands', rootViewName, hashArgs) sessions                                          
     ; io $ writeIORef globalStateRef (database', sessions', sessionCounter)
     }
  

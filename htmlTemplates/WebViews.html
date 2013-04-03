@@ -239,7 +239,10 @@ function queueCommand(command) {
   }
   if (xmlhttp!=null) {
 	  xmlhttp.onreadystatechange=state_ChangeWithErrorHandler;
-    xmlhttp.open("GET",'/handle?requestId='+requestId+'&commands=Commands ['+commandQueue+']',true);
+	  var sessionId = window.name.length < 32 ? escape(window.name) : ''; 
+	  // since window.name can be set to arbitrary value (and size) by another page, we check its length.
+	  // other invalid values are handled server-side
+    xmlhttp.open("GET",'/handle?requestId='+requestId+'&sessionId='+sessionId+'&commands=Commands ['+commandQueue+']',true);
     dlog("Sent request with id: "+requestId);
     requestId ++;
     xmlhttp.send(null); // commands in commandQueue are already separated by commmas
