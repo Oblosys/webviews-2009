@@ -188,8 +188,7 @@ handlers debug title rootViews scriptFilenames dbFilename db users serverSession
                                 
                             ; sessionIdData <- getData
                             ; sessionId <- case sessionIdData of
-                                             Right (SessionId i) |  i /= -1  -> return i
-                                             Right (SessionId i) | otherwise -> do { io $ putStrLn $ "Unreadable sessionId from " ++ clientIp ++ ", "++show time;    mzero }
+                                             Right sessionId -> return sessionId
                                              Left err ->do { io $ putStrLn $ "No sessionId in request from " ++ clientIp ++ ", "++show time; mzero }
                              
                             ; io $ putStrLn $ "RequestId " ++ show (requestId :: Int) ++ " (" ++ clientIp ++ ":" ++ show sessionId ++ "), "++show time
@@ -197,7 +196,7 @@ handlers debug title rootViews scriptFilenames dbFilename db users serverSession
                             ; method GET
                             ; nullDir
                             ; fmap (setHeader "Cache-Control" "no-cache") $ 
-                                session debug rootViews dbFilename db users serverSessionId globalStateRef requestId cmds
+                                session debug rootViews dbFilename db users serverSessionId globalStateRef sessionId requestId cmds
                             })
   , serveRootPage -- this generates an init event, which will handle hash arguments
   ] 
@@ -254,34 +253,34 @@ Set-Cookie: webviews="(1242497513,2)";Max-Age=3600;Path=/;Version="1"
 
 type SessionCookie = (String, String)
 
-session :: (Show db, Eq db, Typeable db) => Bool -> RootViews db -> String -> db -> Map String (String, String) -> ServerInstanceId -> GlobalStateRef db -> Int -> Commands -> ServerPart Response
-session debug rootViews dbFilename db users serverInstanceId globalStateRef requestId cmds =
+session :: (Show db, Eq db, Typeable db) => Bool -> RootViews db -> String -> db -> Map String (String, String) -> ServerInstanceId -> GlobalStateRef db -> SessionId -> Int -> Commands -> ServerPart Response
+session debug rootViews dbFilename db users serverInstanceId globalStateRef sessionId requestId cmds =
  do { mCookieSessionId <- parseCookieSessionId serverInstanceId
       
---        ; lputStrLn $ show rq
-        ; sessionId <- case mCookieSessionId of 
-            Nothing  -> createNewSessionState debug db globalStateRef serverInstanceId
-            Just key -> do { --lputStrLn $ "Existing session "++show key
-                           ; return key
-                           }
-             
-        ; mSessionStateRef <- retrieveSessionState globalStateRef sessionId 
-        
-        ; responseHtml <-
-            case mSessionStateRef of                         -- don't have a requestId, so use -1 
-              Nothing              -> io $ do { (_, sessions,_) <- readIORef globalStateRef
-    ;                                         ; raiseClientException (-1) $ "Internal error: Session "++show sessionId++
-                                                                            " not found in " ++ show (IntMap.keys sessions)
-                                              }
-              Just sessionStateRef -> 
-               do { responseHtml <- sessionHandler rootViews dbFilename db users sessionStateRef requestId cmds              
-                  ; storeSessionState globalStateRef sessionId sessionStateRef
-                  ; return responseHtml
-                  }
-        
-        ; io $ putStrLn "Done\n\n"
-        ; ok $ toResponse $ responseHtml
-        }
+--    ; lputStrLn $ show rq
+    ; sessionId <- case mCookieSessionId of 
+        Nothing  -> createNewSessionState debug db globalStateRef serverInstanceId
+        Just key -> do { --lputStrLn $ "Existing session "++show key
+                       ; return key
+                       }
+         
+    ; mSessionStateRef <- retrieveSessionState globalStateRef sessionId 
+    
+    ; responseHtml <-
+        case mSessionStateRef of                         -- don't have a requestId, so use -1 
+          Nothing              -> io $ do { (_, sessions,_) <- readIORef globalStateRef
+                                          ; raiseClientException (-1) $ "Internal error: Session "++show sessionId++
+                                                                        " not found in " ++ show (IntMap.keys sessions)
+                                          }
+          Just sessionStateRef -> 
+           do { responseHtml <- sessionHandler rootViews dbFilename db users sessionStateRef requestId cmds              
+              ; storeSessionState globalStateRef sessionId sessionStateRef
+              ; return responseHtml
+                }
+      
+      ; io $ putStrLn "Done\n\n"
+      ; ok $ toResponse $ responseHtml
+      }
  
 parseCookieSessionId :: ServerInstanceId -> ServerPart (Maybe SessionId)
 parseCookieSessionId serverInstanceId = 
