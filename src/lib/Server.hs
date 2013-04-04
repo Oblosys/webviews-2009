@@ -159,13 +159,19 @@ readCommand s = case readMaybe s of
 newtype RequestId = RequestId Int
 
 instance FromData RequestId where
-  fromData = liftM (RequestId . readInt) (look "requestId")
+  fromData = liftM readRequestId (look "requestId")
+   where readRequestId :: String -> RequestId
+         readRequestId s = RequestId $ fromMaybe (-1) (readMaybe s)
 
-readInt s = fromMaybe (-1) (readMaybe s)
-
-instance FromData SessionId where
-  fromData = liftM (SessionId . readInt) $ look "sessionId"
-
+-- clientServerInstanceId is the server instance id that is known by the client
+data SessionInfo = SessionInfo { clientServerInstanceId :: ServerInstanceId, clientSessionId :: Int }
+ 
+instance FromData SessionInfo where
+  fromData = liftM readSessionInfo $ look "sessionId"
+   where readSessionInfo :: String -> SessionInfo
+         readSessionInfo s = (\(instanceId, sessionId)->SessionInfo instanceId sessionId) $ 
+                               fromMaybe (-1,-1) $ readMaybe s
+         
 handlers :: (Show db, Eq db, Typeable db) => Bool -> String -> RootViews db -> [String] -> String -> db -> Map String (String, String) -> ServerInstanceId -> GlobalStateRef db -> [ServerPart Response]
 handlers debug title rootViews scriptFilenames dbFilename db users serverSessionId globalStateRef = 
   (do { msum [ dir "favicon.ico" $  serveDirectory DisableBrowsing [] "favicon.ico"
@@ -186,17 +192,17 @@ handlers debug title rootViews scriptFilenames dbFilename db users serverSession
                                             Right (RequestId i) | otherwise -> do { io $ putStrLn $ "Unreadable requestId from " ++ clientIp ++ ", "++show time;    mzero }
                                             Left err            -> do { io $ putStrLn $ "No requestId in request from " ++ clientIp ++ ", "++show time; mzero }
                                 
-                            ; sessionIdData <- getData
-                            ; sessionId <- case sessionIdData of
-                                             Right sessionId -> return sessionId
-                                             Left err ->do { io $ putStrLn $ "No sessionId in request from " ++ clientIp ++ ", "++show time; mzero }
+                            ; sessionInfoData <- getData
+                            ; sessionInfo <- case sessionInfoData of
+                                               Right sessionInfo -> return sessionInfo
+                                               Left err -> do { io $ putStrLn $ "No sessionId in request from " ++ clientIp ++ ", "++show time; mzero }
                              
-                            ; io $ putStrLn $ "RequestId " ++ show (requestId :: Int) ++ " (" ++ clientIp ++ ":" ++ show sessionId ++ "), "++show time
+                            ; io $ putStrLn $ "RequestId " ++ show (requestId :: Int) ++ " (" ++ clientIp ++ ":" ++ show (clientSessionId sessionInfo) ++ "), "++show time
                             
                             ; method GET
                             ; nullDir
                             ; fmap (setHeader "Cache-Control" "no-cache") $ 
-                                session debug rootViews dbFilename db users serverSessionId globalStateRef sessionId requestId cmds
+                                session debug rootViews dbFilename db users serverSessionId globalStateRef sessionInfo requestId cmds
                             })
   , serveRootPage -- this generates an init event, which will handle hash arguments
   ] 
@@ -252,18 +258,33 @@ Set-Cookie: webviews="(1242497513,2)";Max-Age=3600;Path=/;Version="1"
 
 -}
 
-session :: (Show db, Eq db, Typeable db) => Bool -> RootViews db -> String -> db -> Map String (String, String) -> ServerInstanceId -> GlobalStateRef db -> SessionId -> Int -> Commands -> ServerPart Response
-session debug rootViews dbFilename db users serverInstanceId globalStateRef (SessionId sid) requestId cmds' =
+session :: (Show db, Eq db, Typeable db) => Bool -> RootViews db -> String -> db -> Map String (String, String) -> ServerInstanceId -> GlobalStateRef db -> SessionInfo -> Int -> Commands -> ServerPart Response
+session debug rootViews dbFilename db users serverInstanceId globalStateRef sessionInfo requestId cmds' =
  do { (_, sessions, _) <- io $ readIORef globalStateRef
 
-    ; let isNewSession = {- serverInstanceId /= clientServerInstanceId || -} sid == -1 || not (IntMap.member sid sessions) 
+    -- New session when session id was empty, or this server is not the one that the client thinks it is, or the
+    -- sessionId is not in the session map.
+    ; let isNewClient = clientSessionId sessionInfo == -1
+          isDifferentServerInstance = serverInstanceId /= clientServerInstanceId sessionInfo
+          isNonExistentSession = not $ IntMap.member (clientSessionId sessionInfo) sessions
+          isNewSession = isNewClient || isDifferentServerInstance || isNonExistentSession
     
-    ; (sessionId, cmds) <- if not isNewSession 
-                           then return (SessionId sid, cmds') 
-                           else do { sessionId <- createNewSessionState debug db globalStateRef serverInstanceId
-                                   ; return (sessionId, Commands [Init "" []])
-                                   } 
-    
+    ; (sessionId, cmds, queueInit) <- 
+        if not isNewSession 
+        then return (SessionId $ clientSessionId sessionInfo, cmds', False) 
+        else do { io $ putStrLn $ "Client session Id: "++show (clientSessionId sessionInfo)
+                               ++ (if isDifferentServerInstance then ", different" else ", correct") ++ " server, "
+                               ++ "session id in session list: "++ show (not isNonExistentSession)
+                ; sessionId <- createNewSessionState debug db globalStateRef serverInstanceId
+                 
+                -- if there is an Init, we take the last one in the queue and use that as the command
+                -- if there is no Init, we don't do anything and send a queueInit request with the initSession operation to the client
+                ; let (cmds, queueInit) = case filter isInitCommand (reverse $ getCommands cmds') of
+                        init@(Init _ _):_ -> ([init], False)
+                        _                 -> ([], True) 
+                ; return (sessionId, Commands cmds, queueInit)
+                } 
+    ; io $ putStrLn $ "queueInit" ++ show queueInit
                        
     {-
     Almost works
@@ -296,7 +317,8 @@ TODO: disable caching client-side (as in Amperand) since server redirection clea
               ; return responseHtmls
               }
     
-    ; let initSessionUpdate = div_ ! strAttr "op" "initSession" $ toHtml $ (show $ sessionIdVal sessionId)
+    ; let initSessionUpdate = div_ ! strAttr "op" "initSession" ! strAttr "queueInit" (if queueInit then "true" else "false") $
+                                toHtml $ show (serverInstanceId, sessionIdVal sessionId)
           updateHtmls = (if isNewSession then [initSessionUpdate] else []) ++ responseHtmls
       
     ; io $ putStrLn "Done\n\n"
@@ -373,10 +395,7 @@ sessionHandler rootViews dbFilename db users sessionStateRef requestId (SyntaxEr
  io $ raiseClientException requestId $ "Syntax error in commands from client: "++cmdStr 
 sessionHandler rootViews dbFilename db users sessionStateRef requestId (Commands allCmds) = io $  
  do { --putStrLn $ "Received commands" ++ show cmds
-    
-    ; let isInitCommand (Init _ _) = True
-          isInitCommand _          = False
-    
+        
     -- If one of the commands is Init, we remove the commands in front of the last Init and start with a new initial root view 
     ; cmds <- 
         case break isInitCommand $ reverse $ allCmds of
