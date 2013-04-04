@@ -228,26 +228,34 @@ function getNoCache(url, successCallback) {
   });
 }
 
+var communicationInProgress = false;
+
 //TODO we don't want empty commands sent to server
 function queueCommandNew(command) {
 	if (command != '') addCommand(command);
 
+	if (communicationInProgress)
+		return; // stop if we're still waiting for results
+	
   stopRefreshTimer(); // don't want auto refresh while waiting for results
-
 
   var sessionId = window.name.length < 32 ? escape(window.name) : ''; 
   // Since window.name can be set to arbitrary value (and size) by another page, we check its length.
   // Other invalid values are handled server side.
-   getNoCache( '/handle?requestId='+requestId+'&sessionId='+sessionId+'&commands=Commands ['+commandQueue+']' // commands in commandQueue are already separated by commmas
-   		       , processUpdates);
-   dlog("Sent request with id: "+requestId);
-   requestId ++;
-   xmlhttp.send(null);
-   commandQueue = '';
+  communicationInProgress = true;
+  getNoCache( '/handle?requestId='+requestId+'&sessionId='+sessionId+'&commands=Commands ['+commandQueue+']' // commands in commandQueue are already separated by commmas
+   		      , function (data) {
+								  communicationInProgress = false;
+								  processUpdates(data);
+	              });
+
+  dlog("Sent request with id: "+requestId);
+  requestId ++;
+  commandQueue = '';
 }
 
 
-// TODO: return if we're already sending
+// OPTIMIZE: instead of waiting until results are in before sending, send immediately and let server block on session (maybe also needs to check request order)
 // TODO: error handling
 
 
@@ -275,7 +283,7 @@ function queueCommand(command) {
     xmlhttp=new ActiveXObject("Microsoft.XMLHTTP");
   }
   if (xmlhttp!=null) {
-	  xmlhttp.onreadystatechange=state_ChangeWithErrorHandler;
+	  xmlhttp.onreadystatechange=state_Change;
 	  var sessionId = window.name.length < 32 ? escape(window.name) : ''; 
 	  // Since window.name can be set to arbitrary value (and size) by another page, we check its length.
 	  // Other invalid values are handled server side.
@@ -288,19 +296,6 @@ function queueCommand(command) {
   else {
 	  alert("Your browser does not support XMLHTTP.");
   }
-}
-
-function state_ChangeWithErrorHandler() {
-	if (window.ActiveXObject) // on IE we don't need to do anything, as errors thrown by state_Change will be caught by debugger
-		state_Change();
-	else // on Firefox, errors are lost, so we need to catch and display them with a try catch block
-		try {
-			state_Change();
-		} catch (e) {
-		  console.error("Javascript error (not reported by firebug)"+
-				            (typeof e.lineNumber=='undefined'?", no linenumber available:":" on line "+e.lineNumber)+"\n"+
-				            e.message);
-		}
 }
 
 function state_Change() {
