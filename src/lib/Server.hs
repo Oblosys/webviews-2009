@@ -285,31 +285,19 @@ session debug rootViews dbFilename db users serverInstanceId globalStateRef sess
                 ; return (sessionId, Commands cmds, queueInit)
                 } 
     ; io $ putStrLn $ "queueInit" ++ show queueInit
-                       
-    {-
-    Almost works
     
-    What do we do with init? If session is fresh, we need to initialize, but also need the hash args
-    check if we should just queue init after initSession. This will require an extra step on normal init though..
-
-    UPDATE: if commands has an init, use that as the only command. Otherwise use extra param to sessionInit to initiate init from client
-            seems necessary, as we will need the hash params
-
-    PROBLEMATIC: client sends two queues with same invalid session id. First one leads to new session and sessionInit,
-                 then second one leads to another session and init. Probably rare. Can it cause a problem? (other than
-                 multiple init and one (maybe a couple) of sessions that will time out after idle session timer runs out.
-
-    MAYBE not a problem, since client waits for response before next queued commands are sent.
-TODO: disable caching client-side (as in Amperand) since server redirection clears no-cache headers
-      requires rewrite of command queue / send
-    -}
+    -- pause server for about 4 seconds for testing client                   
+    --; io $ putStrLn $ "pausing..."; seq (sum [0..100000000+requestId]) $ return (); io $ putStrLn $ "done"
+    
+    -- Instead of retrieving the session here, we could do it more type-safe and avoid needing the internal error,
+    -- but this makes the function a lot less clear.
               
     ; mSessionStateRef <- retrieveSessionState globalStateRef sessionId 
     ; responseHtmls <-
-        case mSessionStateRef of                         -- don't have a requestId, so use -1 
+        case mSessionStateRef of 
           Nothing              -> io $ do { (_, sessions,_) <- readIORef globalStateRef
-                                          ; raiseClientException (-1) $ "Internal error: Session "++show sessionId++
-                                                                        " not found in " ++ show (IntMap.keys sessions)
+                                          ; raiseClientException requestId $ "Internal error: Session "++show sessionId++
+                                                                             " not found in " ++ show (IntMap.keys sessions)
                                           }
           Just sessionStateRef -> 
            do { responseHtmls <- sessionHandler rootViews dbFilename db users sessionStateRef requestId cmds              
