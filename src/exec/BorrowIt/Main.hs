@@ -521,7 +521,7 @@ getLenderPropsSelf vid isEdited lender = do { props <- getLenderPropsAll vid isE
    --       non-string properties?                        
 getLenderPropsAll vid isEdited lender = sequence
   [ fmap (\p -> Right ("BorrowIt ID", p)) $ mkStaticProperty (lenderIdLogin . lenderId) toHtml lender
-  , fmap (\p -> Left ("Sex", p)) $ mkEditableSelectProperty vid isEdited mEditedLender lenderGender show (toHtml . show) [M,F] lender
+  , fmap (\p -> Left ("M/F", p)) $ mkEditableSelectProperty vid isEdited mEditedLender lenderGender show (toHtml . show) [M,F] lender
   , fmap (\p -> Left ("E-mail", p)) $ mkEditableProperty vid isEdited mEditedLender lenderMail id Just toHtml lender
   , fmap (\p -> Right ("Adress", p)) $ mkEditableProperty vid isEdited mEditedLender lenderStreet id Just toHtml lender
   , fmap (\p -> Left ("Zip code", p)) $ mkEditableProperty vid isEdited mEditedLender lenderZipCode id Just toHtml lender 
