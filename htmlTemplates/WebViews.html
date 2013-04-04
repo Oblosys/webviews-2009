@@ -237,7 +237,7 @@ function queueCommand(command) {
 	
   stopRefreshTimer(); // don't want auto refresh while waiting for results
 
-  var sessionId = window.name.length < 32 ? escape(window.name) : ''; 
+  var sessionId = window.name.length < 32 ? encodeURIComponent(window.name) : ''; 
   // Since window.name can be set to arbitrary value (and size) by another page, we check its length.
   // Other invalid values are handled server side.
 
