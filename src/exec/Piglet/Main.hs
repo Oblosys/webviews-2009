@@ -283,7 +283,7 @@ mkVisitsView = mkWebView $
                               Nothing -> return Nothing 
                               Just (login,_) -> fmap Just $ mkButton "Add a comment" True $ 
                                                  addComment login today
-     ; sessionId <- getSessionId
+     ; SessionId sessionId <- getSessionId
      
      ;  return $ VisitsView False viewedVisit sessionId user
                  [ (zipCode visit, date visit) | visit <- visits ]
