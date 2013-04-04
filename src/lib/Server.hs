@@ -86,6 +86,9 @@ type ServerInstanceId = String -- We use string instead of POSIXTime, since ther
                                -- and we want to read the value coming from the client.
 
 type SessionCounter = Int
+-- We use an Int counter because it is unsafe to reuse session id's (client using that id may still be alive).
+-- This is safe enough, since even when creating 10 million sessions a second, it will take a couple of thousand years
+-- to reach maxInt.
 
 type Sessions db = IntMap (POSIXTime, User, UntypedWebView db, Maybe [Maybe (EditM db ())], String, HashArgs)
 
