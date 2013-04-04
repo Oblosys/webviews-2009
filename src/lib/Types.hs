@@ -36,6 +36,9 @@ data Command = Init       String [(String,String)] -- rootView args    http://we
              | DialogButtonPressed Int
                deriving (Eq, Show, Read) 
 
+isInitCommand :: Command -> Bool
+isInitCommand (Init _ _) = True
+isInitCommand _          = False
 
 -- view id's are for identifying views and widgets with regard to incrementality
 -- they remain constant over the view's/widget's life
