@@ -2,7 +2,7 @@
 module Main where
 
 import Data.List
-import BlazeHtml hiding (time, head, name)
+import BlazeHtml hiding (time, name)
 import Data.Generics
 import Data.Char
 import Data.Maybe
