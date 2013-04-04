@@ -222,16 +222,14 @@ function addCommand(command) {
 
 //a replacement of get that uses ajax to disable any caching (as html meta tags do not always succeed in disabling the cache)
 function getNoCache(url, successCallback) {
-  $.ajax({ url: url,
-           cache: false,
-           success: successCallback
-  });
+  $.ajax({ url: url, cache: false, success: successCallback });
 }
 
 var communicationInProgress = false;
+//OPTIMIZE: instead of waiting until results are in before sending, send immediately and let server block on session (maybe also needs to check request order)
 
 //TODO we don't want empty commands sent to server
-function queueCommandNew(command) {
+function queueCommand(command) {
 	if (command != '') addCommand(command);
 
 	if (communicationInProgress)
@@ -242,72 +240,25 @@ function queueCommandNew(command) {
   var sessionId = window.name.length < 32 ? escape(window.name) : ''; 
   // Since window.name can be set to arbitrary value (and size) by another page, we check its length.
   // Other invalid values are handled server side.
+
   communicationInProgress = true;
   getNoCache( '/handle?requestId='+requestId+'&sessionId='+sessionId+'&commands=Commands ['+commandQueue+']' // commands in commandQueue are already separated by commmas
    		      , function (data) {
 								  communicationInProgress = false;
 								  processUpdates(data);
+								  
+								  // start refresh timer again
+								  if (commandQueue == '') // only if command handling did not queue any new commands
+								    if (sendingRandomCommands)
+								      sendRandomCommand();
+								    else
+								      startRefreshTimer();
+
 	              });
 
   dlog("Sent request with id: "+requestId);
   requestId ++;
   commandQueue = '';
-}
-
-
-// OPTIMIZE: instead of waiting until results are in before sending, send immediately and let server block on session (maybe also needs to check request order)
-// TODO: error handling
-
-
-
-
-var xmlhttp;
-
-// TODO we don't want empty commands sent to server
-function queueCommand(command) {
-	if (command != '') addCommand(command);
-
-  stopRefreshTimer(); // don't want auto refresh while waiting for results
-
-  if ( xmlhttp && xmlhttp.readyState != 0 && xmlhttp.readyState != 4)
-    return; // if xmlhttp exists and was initialized and not ready, we return
-            // TODO: can readyState == 0 happen?  
-             
-  xmlhttp=null;
-  if (window.XMLHttpRequest) {
-	  // code for Firefox, Opera, IE7, etc.
-    xmlhttp=new XMLHttpRequest();
-  }
-  else if (window.ActiveXObject) {
-	  // code for IE6, IE5
-    xmlhttp=new ActiveXObject("Microsoft.XMLHTTP");
-  }
-  if (xmlhttp!=null) {
-	  xmlhttp.onreadystatechange=state_Change;
-	  var sessionId = window.name.length < 32 ? escape(window.name) : ''; 
-	  // Since window.name can be set to arbitrary value (and size) by another page, we check its length.
-	  // Other invalid values are handled server side.
-    xmlhttp.open("GET",'/handle?requestId='+requestId+'&sessionId='+sessionId+'&commands=Commands ['+commandQueue+']',true);
-    dlog("Sent request with id: "+requestId);
-    requestId ++;
-    xmlhttp.send(null); // commands in commandQueue are already separated by commmas
-    commandQueue = '';
-  }
-  else {
-	  alert("Your browser does not support XMLHTTP.");
-  }
-}
-
-function state_Change() {
-	if (xmlhttp.readyState==4) {// 4 = "loaded"
-  	if (xmlhttp.status==200) {// 200 = "OK"
-	    processUpdates(xmlhttp.responseText);
-  		
-    }
-    else { // xmlhttp.status!=200
-      console.error("Problem retrieving data:" + xmlhttp.statusText);
-    }
-  } // no action if xmlhttp.readyState!=4
 }
 
 function processUpdates(updatesHtml) {
@@ -369,13 +320,6 @@ $(".vList").sortable({connectWith: '.vList, .hList'});
 */
 	$(".ellipsis").ellipsis(); // need to do this after dom is built, so we can't do it in the jsScripts
 	                           // but since ellipsis only executes when necessary, this is no big deal.
-	
-	// start refresh timer again
-	if (commandQueue == '') // only if command handling did not queue any new commands
-	  if (sendingRandomCommands)
-	    sendRandomCommand();
-	  else
-	    startRefreshTimer();
 }
 
 function updateTree(update, moves, scripts) {
