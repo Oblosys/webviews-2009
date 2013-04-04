@@ -57,8 +57,12 @@ $(document).ready(function(){
   init();
 });
 
+//called after page has loaded, after an exception, and from initSession operation in updateTree (only when necessary)
 function init() {
-	var rva = getRootViewAndArgs()
+	$('#root').children().remove(); // clear the root and add the stub with id 1
+	$('#root').append($('<div id="1"></div>'));
+	
+	var rva = getRootViewAndArgs() // get the hash args
   
   queueCommand('Init "'+rva.rootView+'" '+showHaskellArgs(rva.args));
 }
@@ -416,9 +420,16 @@ function updateTree(update, moves, scripts) {
   else if (op === 'initSession') { 
 	  // the sessionId sent from this instance of the script was either '' (this session is new) or not
 	  // found in the sessions (this session was too old)
-	  var sessionId = $(update).text(); 
+	  var sessionId = $(update).text();
+	  var queueInit = $(update).attr('queueInit') == "true" ? true : false;
 	  dlog('New session id received: '+sessionId);
 	  window.name = sessionId;
+	  if (queueInit) {
+		  dlog('Queueing Init command'); // if the previously sent commands caused a new session and did not
+		  init();                        // include an Init command, we need to send one.
+	  }
+	  else
+		  dlog('Not queueing Init command');
   }
   else wvError ('Unknown command: '+op); 
 }
