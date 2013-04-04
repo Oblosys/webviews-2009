@@ -5,7 +5,7 @@ module BlazeHtml (module Text.Blaze.Html5, module Text.Blaze.Html5.Attributes
 import Data.String
 import Data.Monoid
 
-import Text.Blaze.Html5 hiding (div, span, button, map, style, table, col)
+import Text.Blaze.Html5 hiding (div, span, button, map, style, table, col, head)
 import Text.Blaze.Html5.Attributes hiding (id, min, max, class_, style, cite, form, label, span, summary, title)
 import qualified Text.Blaze.Html5 as H
 import qualified Text.Blaze.Html5.Attributes as A
