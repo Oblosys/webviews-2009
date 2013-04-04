@@ -1,5 +1,11 @@
 TVar or MVar instead of IORef (or maybe use atomicModifyIORef)
 
+Optimization: Lock sessions server-side, instead of waiting client-side for the results until sending new commands.
+- when allowing several commands to be queued, check that session handles this. Right now, if the sessionId doesn't
+  exist, a new session is created. If several commands can be underway, this may happen multiple times.
+
+Check if simultaneous access to database doesn't cause any problems.
+
 
 Widget with lens
 
