@@ -213,6 +213,7 @@ handlers debug title rootViews scriptFilenames dbFilename db users serverSession
            ; let htmlStr = substitute [("TITLE",title),("LINKSANDSCRIPTS",linksAndScripts),("DEBUG", debugVal)] templateStr
            ; ok $ -- be careful with redirected urls (e.g. webviews.oblomov.com) since they clear these headers
                   setHeader "Cache-Control" "no-cache" $
+                  setHeader "Expires" "-1" $
                   setHeader "Content-Type" "text/html; charset=utf-8" $
                   setHeader "X-Frame-Options" "ALLOWALL" $ -- ALLOW apparently is not official, but it works
                   toResponse htmlStr
@@ -251,21 +252,38 @@ Set-Cookie: webviews="(1242497513,2)";Max-Age=3600;Path=/;Version="1"
 
 -}
 
-type SessionCookie = (String, String)
-
 session :: (Show db, Eq db, Typeable db) => Bool -> RootViews db -> String -> db -> Map String (String, String) -> ServerInstanceId -> GlobalStateRef db -> SessionId -> Int -> Commands -> ServerPart Response
-session debug rootViews dbFilename db users serverInstanceId globalStateRef sessionId requestId cmds =
- do { mCookieSessionId <- parseCookieSessionId serverInstanceId
-      
---    ; lputStrLn $ show rq
-    ; sessionId <- case mCookieSessionId of 
-        Nothing  -> createNewSessionState debug db globalStateRef serverInstanceId
-        Just key -> do { --lputStrLn $ "Existing session "++show key
-                       ; return key
-                       }
-         
-    ; mSessionStateRef <- retrieveSessionState globalStateRef sessionId 
+session debug rootViews dbFilename db users serverInstanceId globalStateRef (SessionId sid) requestId cmds' =
+ do { (_, sessions, _) <- io $ readIORef globalStateRef
+
+    ; let isNewSession = {- serverInstanceId /= clientServerInstanceId || -} sid == -1 || not (IntMap.member sid sessions) 
     
+    ; (sessionId, cmds) <- if not isNewSession 
+                           then return (SessionId sid, cmds') 
+                           else do { sessionId <- createNewSessionState debug db globalStateRef serverInstanceId
+                                   ; return (sessionId, Commands [Init "" []])
+                                   } 
+    
+                       
+    {-
+    Almost works
+    
+    What do we do with init? If session is fresh, we need to initialize, but also need the hash args
+    check if we should just queue init after initSession. This will require an extra step on normal init though..
+
+    UPDATE: if commands has an init, use that as the only command. Otherwise use extra param to sessionInit to initiate init from client
+            seems necessary, as we will need the hash params
+
+    PROBLEMATIC: client sends two queues with same invalid session id. First one leads to new session and sessionInit,
+                 then second one leads to another session and init. Probably rare. Can it cause a problem? (other than
+                 multiple init and one (maybe a couple) of sessions that will time out after idle session timer runs out.
+
+    MAYBE not a problem, since client waits for response before next queued commands are sent.
+TODO: disable caching client-side (as in Amperand) since server redirection clears no-cache headers
+      requires rewrite of command queue / send
+    -}
+              
+    ; mSessionStateRef <- retrieveSessionState globalStateRef sessionId 
     ; responseHtmls <-
         case mSessionStateRef of                         -- don't have a requestId, so use -1 
           Nothing              -> io $ do { (_, sessions,_) <- readIORef globalStateRef
@@ -276,26 +294,13 @@ session debug rootViews dbFilename db users serverInstanceId globalStateRef sess
            do { responseHtmls <- sessionHandler rootViews dbFilename db users sessionStateRef requestId cmds              
               ; storeSessionState globalStateRef sessionId sessionStateRef
               ; return responseHtmls
-                }
+              }
+    
+    ; let initSessionUpdate = div_ ! strAttr "op" "initSession" $ toHtml $ (show $ sessionIdVal sessionId)
+          updateHtmls = (if isNewSession then [initSessionUpdate] else []) ++ responseHtmls
       
-      ; io $ putStrLn "Done\n\n"
-      ; ok $ toResponse $ div_ ! id_ "updates" ! strAttr "responseId" (show requestId) $ concatHtml responseHtmls
-      }
- 
-parseCookieSessionId :: ServerInstanceId -> ServerPart (Maybe SessionId)
-parseCookieSessionId serverInstanceId = 
- do { rq <- askRq
-             
-    ; let cookieMap = rqCookies rq
-    ; let mCookieSessionId = case lookup "webviews" cookieMap of
-                      Nothing -> Nothing -- * no webviews cookie on the client
-                      Just c  -> case readMaybe (cookieValue c) :: Maybe (EpochTime, Int) of
-                                   Nothing               -> Nothing -- * ill formed cookie on client
-                                   Just (serverTime, key) -> 
-                                     if serverTime /= serverInstanceId
-                                     then Nothing  -- * cookie from previous WebViews run
-                                     else Just (SessionId key) -- * correct cookie for this run
-    ; return mCookieSessionId
+    ; io $ putStrLn "Done\n\n"
+    ; ok $ toResponse $ div_ ! id_ "updates" ! strAttr "responseId" (show requestId) $ concatHtml $ updateHtmls
     }
 
 mkInitialRootView :: Typeable db => db -> IO (UntypedWebView db)
@@ -313,8 +318,6 @@ createNewSessionState debug db globalStateRef serverInstanceId =
  do { (database, sessions,sessionCounter) <- io $ readIORef globalStateRef
     ; let sessionId = sessionCounter
     ; io $ putStrLn $ "New session: "++show sessionId
-    ; addCookie Session (mkCookie "webviews" $ show (serverInstanceId, sessionId))
-    -- cookie lasts for one hour
  
     ; initialRootView <- io $ mkInitialRootView db
                         

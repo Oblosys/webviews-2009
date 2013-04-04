@@ -240,8 +240,8 @@ function queueCommand(command) {
   if (xmlhttp!=null) {
 	  xmlhttp.onreadystatechange=state_ChangeWithErrorHandler;
 	  var sessionId = window.name.length < 32 ? escape(window.name) : ''; 
-	  // since window.name can be set to arbitrary value (and size) by another page, we check its length.
-	  // other invalid values are handled server-side
+	  // Since window.name can be set to arbitrary value (and size) by another page, we check its length.
+	  // Other invalid values are handled server side.
     xmlhttp.open("GET",'/handle?requestId='+requestId+'&sessionId='+sessionId+'&commands=Commands ['+commandQueue+']',true);
     dlog("Sent request with id: "+requestId);
     requestId ++;
@@ -412,6 +412,13 @@ function updateTree(update, moves, scripts) {
     }
     else
     	wvError("move source or destination is null. src("+srcId+"):"+srcElt+", dst("+dstId+"):"+dstElt)
+  }
+  else if (op === 'initSession') { 
+	  // the sessionId sent from this instance of the script was either '' (this session is new) or not
+	  // found in the sessions (this session was too old)
+	  var sessionId = $(update).text(); 
+	  dlog('New session id received: '+sessionId);
+	  window.name = sessionId;
   }
   else wvError ('Unknown command: '+op); 
 }
