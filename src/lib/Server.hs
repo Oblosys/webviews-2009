@@ -19,8 +19,7 @@ import qualified Data.Map as Map
 import Data.IntMap (IntMap)
 import qualified Data.IntMap as IntMap 
 import System.Time (getClockTime)
-import System.Posix.Time
-import System.Posix.Types
+import Data.Time.Clock.POSIX
 import System.Exit
 import System.Environment (getArgs)
 import BlazeHtml hiding (dir, method)
@@ -74,25 +73,18 @@ the monad, but it will only do something if the header is not set in the out par
 Header modifications must therefore be applied to out rather than be fmapped to the monad.
 -}
 
-{-
-
-Buttons that are not found are ignored
-ConfirmDialog is ignored if dialog is not here
-TODO: make confirmDialog more robust
-
-
--}
+-- Todo: make records for these tuples
 type GlobalState db = (db, Sessions db, SessionCounter)
 
 initGlobalState db = (db, IntMap.empty, 0)
 
 type GlobalStateRef db = IORef (GlobalState db)
 
-type ServerInstanceId = EpochTime
+type ServerInstanceId = String
 
 type SessionCounter = Int
 
-type Sessions db = IntMap (User, UntypedWebView db, Maybe [Maybe (EditM db ())], String, HashArgs)
+type Sessions db = IntMap (String, User, UntypedWebView db, Maybe [Maybe (EditM db ())], String, HashArgs)
 
 server :: (Show db, Read db, Eq db, Typeable db) =>
           Int -> String -> RootViews db -> [String] -> String -> IO (db) -> Map String (String, String) -> IO ()
@@ -107,7 +99,7 @@ server portNr title rootViews scriptFilenames dbFilename mkInitialDatabase users
         
     ; putStrLn $ "\n\n### Started WebViews server "++show title++" (port "++show portNr++")\n"++show time ++"\n"++
                  "Debugging: "++(if debug then "ON" else "OFF")++"\n\n"
-    ; serverSessionId <- epochTime
+    ; serverSessionId <- getPosixTimeStr
 
     ; mDb <-
        do { fh <- openFile dbFilename ReadMode
@@ -148,6 +140,8 @@ logWebViewAccess clientIP b _ c d e f g =
  do { putStrLn $ show clientIP ++ " " ++ show b ++ " " ++ show c ++ " " ++ show d ++ " " ++ show e ++ " " ++ show g ++ " " ++ show g
     }
 
+getPosixTimeStr :: IO String
+getPosixTimeStr = fmap show $ getPOSIXTime
 
 instance FromData Commands where
   fromData = liftM readCommand (look "commands")
@@ -170,7 +164,7 @@ instance FromData SessionInfo where
   fromData = liftM readSessionInfo $ look "sessionId"
    where readSessionInfo :: String -> SessionInfo
          readSessionInfo s = (\(instanceId, sessionId)->SessionInfo instanceId sessionId) $ 
-                               fromMaybe (-1,-1) $ readMaybe s
+                               fromMaybe ("",-1) $ readMaybe s
          
 handlers :: (Show db, Eq db, Typeable db) => Bool -> String -> RootViews db -> [String] -> String -> db -> Map String (String, String) -> ServerInstanceId -> GlobalStateRef db -> [ServerPart Response]
 handlers debug title rootViews scriptFilenames dbFilename db users serverSessionId globalStateRef = 
@@ -284,8 +278,8 @@ session debug rootViews dbFilename db users serverInstanceId globalStateRef sess
                         _                 -> ([], True) 
                 ; return (sessionId, Commands cmds, queueInit)
                 } 
-    ; io $ putStrLn $ "queueInit" ++ show queueInit
-    
+    --; io $ putStrLn $ "queueInit" ++ show queueInit
+    ; logSessions globalStateRef
     -- pause server for about 4 seconds for testing client                   
     --; io $ putStrLn $ "pausing..."; seq (sum [0..100000000+requestId]) $ return (); io $ putStrLn $ "done"
     
@@ -327,12 +321,13 @@ createNewSessionState :: Typeable db => Bool -> db -> GlobalStateRef db -> Serve
 createNewSessionState debug db globalStateRef serverInstanceId = 
  do { (database, sessions,sessionCounter) <- io $ readIORef globalStateRef
     ; let sessionId = sessionCounter
+    ; sessionStartTime <- io $ getPosixTimeStr     
     ; io $ putStrLn $ "New session: "++show sessionId
  
     ; initialRootView <- io $ mkInitialRootView db
-                        
+
                        -- for debugging, begin with user martijn  
-    ; let newSession = (if debug then Just ("martijn", "Martijn Schrage") else Nothing, initialRootView, Nothing, "", [])
+    ; let newSession = (sessionStartTime, if debug then Just ("martijn", "Martijn Schrage") else Nothing, initialRootView, Nothing, "", [])
     ; let sessions' = IntMap.insert sessionId newSession sessions
    
     ; io $ writeIORef globalStateRef (database, sessions', sessionCounter + 1)
@@ -346,7 +341,7 @@ retrieveSessionState globalStateRef sessionId@(SessionId i) =
     --; lputStrLn $ "\n\nNumber of active sessions: " ++ show sessionCounter                                          
     ; case IntMap.lookup i sessions of
         Nothing                                         -> return Nothing
-        Just (user, rootView, dialogCommands, rootViewName, hashArgs) -> 
+        Just (_, user, rootView, dialogCommands, rootViewName, hashArgs) -> 
          do { let sessionState = SessionState sessionId user database rootView dialogCommands rootViewName hashArgs
             ; sessionStateRef <-io $ newIORef sessionState
             ; return $ Just sessionStateRef
@@ -357,10 +352,17 @@ storeSessionState :: GlobalStateRef db -> SessionId -> SessionStateRef db -> Ser
 storeSessionState globalStateRef sessionId@(SessionId i) sessionStateRef =
  do { (_, sessions, sessionCounter) <- io $ readIORef globalStateRef
     ; SessionState _ user' database' rootView' dialogCommands' rootViewName hashArgs <- io $ readIORef sessionStateRef
-    ; let sessions' = IntMap.insert i (user', rootView', dialogCommands', rootViewName, hashArgs) sessions                                          
+    ; modificationTime <- io $ getPosixTimeStr     
+    ; let sessions' = IntMap.insert i (modificationTime, user', rootView', dialogCommands', rootViewName, hashArgs) sessions                                          
     ; io $ writeIORef globalStateRef (database', sessions', sessionCounter)
     }
-
+    
+logSessions :: GlobalStateRef db -> ServerPart ()
+logSessions globalStateRef =
+ do { (_, sessions, _) <- io $ readIORef globalStateRef
+    ; let sessionIds = [ sessionId | (sessionId, (_,_,_,_,_,_)) <- IntMap.assocs sessions ]
+    ; io $ putStrLn $ "Current sessions: " ++ show sessionIds
+    }
 -- Raise an exception in the browser and report to stdout. (necessary because we cannot catch exceptions in the
 -- ServerPart monad)
 -- The return type is [Html] because the exceptions are raised in sessionHandler, which returns a list of updates
