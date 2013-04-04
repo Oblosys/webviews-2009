@@ -35,7 +35,6 @@ import HtmlLib
 import ObloUtils
 import Utils
 
-
 {-
 see if passing down dbFilename, db and users can be improved (maybe in state?)
              
@@ -73,6 +72,9 @@ the monad, but it will only do something if the header is not set in the out par
 Header modifications must therefore be applied to out rather than be fmapped to the monad.
 -}
 
+sessionTimeout :: POSIXTime
+sessionTimeout = 15 * 60 -- session is removed when idle for more than seconds
+
 -- Todo: make records for these tuples
 type GlobalState db = (db, Sessions db, SessionCounter)
 
@@ -80,11 +82,12 @@ initGlobalState db = (db, IntMap.empty, 0)
 
 type GlobalStateRef db = IORef (GlobalState db)
 
-type ServerInstanceId = String
+type ServerInstanceId = String -- We use string instead of POSIXTime, since there is no Read instance for POSIXTime,
+                               -- and we want to read the value coming from the client.
 
 type SessionCounter = Int
 
-type Sessions db = IntMap (String, User, UntypedWebView db, Maybe [Maybe (EditM db ())], String, HashArgs)
+type Sessions db = IntMap (POSIXTime, User, UntypedWebView db, Maybe [Maybe (EditM db ())], String, HashArgs)
 
 server :: (Show db, Read db, Eq db, Typeable db) =>
           Int -> String -> RootViews db -> [String] -> String -> IO (db) -> Map String (String, String) -> IO ()
@@ -99,7 +102,8 @@ server portNr title rootViews scriptFilenames dbFilename mkInitialDatabase users
         
     ; putStrLn $ "\n\n### Started WebViews server "++show title++" (port "++show portNr++")\n"++show time ++"\n"++
                  "Debugging: "++(if debug then "ON" else "OFF")++"\n\n"
-    ; serverSessionId <- getPosixTimeStr
+    
+    ; serverSessionId <- fmap show $ getPOSIXTime
 
     ; mDb <-
        do { fh <- openFile dbFilename ReadMode
@@ -139,9 +143,6 @@ logWebViewAccess :: String -> String -> t -> String -> Int -> Integer -> String 
 logWebViewAccess clientIP b _ c d e f g =
  do { putStrLn $ show clientIP ++ " " ++ show b ++ " " ++ show c ++ " " ++ show d ++ " " ++ show e ++ " " ++ show g ++ " " ++ show g
     }
-
-getPosixTimeStr :: IO String
-getPosixTimeStr = fmap show $ getPOSIXTime
 
 instance FromData Commands where
   fromData = liftM readCommand (look "commands")
@@ -254,7 +255,8 @@ Set-Cookie: webviews="(1242497513,2)";Max-Age=3600;Path=/;Version="1"
 
 session :: (Show db, Eq db, Typeable db) => Bool -> RootViews db -> String -> db -> Map String (String, String) -> ServerInstanceId -> GlobalStateRef db -> SessionInfo -> Int -> Commands -> ServerPart Response
 session debug rootViews dbFilename db users serverInstanceId globalStateRef sessionInfo requestId cmds' =
- do { (_, sessions, _) <- io $ readIORef globalStateRef
+ do { pruneOldSessions globalStateRef
+    ; (_, sessions, _) <- io $ readIORef globalStateRef
 
     -- New session when session id was empty, or this server is not the one that the client thinks it is, or the
     -- sessionId is not in the session map.
@@ -279,9 +281,9 @@ session debug rootViews dbFilename db users serverInstanceId globalStateRef sess
                 ; return (sessionId, Commands cmds, queueInit)
                 } 
     --; io $ putStrLn $ "queueInit" ++ show queueInit
-    ; logSessions globalStateRef
     -- pause server for about 4 seconds for testing client                   
     --; io $ putStrLn $ "pausing..."; seq (sum [0..100000000+requestId]) $ return (); io $ putStrLn $ "done"
+    ; logSessions globalStateRef
     
     -- Instead of retrieving the session here, we could do it more type-safe and avoid needing the internal error,
     -- but this makes the function a lot less clear.
@@ -321,7 +323,7 @@ createNewSessionState :: Typeable db => Bool -> db -> GlobalStateRef db -> Serve
 createNewSessionState debug db globalStateRef serverInstanceId = 
  do { (database, sessions,sessionCounter) <- io $ readIORef globalStateRef
     ; let sessionId = sessionCounter
-    ; sessionStartTime <- io $ getPosixTimeStr     
+    ; sessionStartTime <- io $ getPOSIXTime     
     ; io $ putStrLn $ "New session: "++show sessionId
  
     ; initialRootView <- io $ mkInitialRootView db
@@ -352,17 +354,29 @@ storeSessionState :: GlobalStateRef db -> SessionId -> SessionStateRef db -> Ser
 storeSessionState globalStateRef sessionId@(SessionId i) sessionStateRef =
  do { (_, sessions, sessionCounter) <- io $ readIORef globalStateRef
     ; SessionState _ user' database' rootView' dialogCommands' rootViewName hashArgs <- io $ readIORef sessionStateRef
-    ; modificationTime <- io $ getPosixTimeStr     
+    ; modificationTime <- io $ getPOSIXTime     
     ; let sessions' = IntMap.insert i (modificationTime, user', rootView', dialogCommands', rootViewName, hashArgs) sessions                                          
     ; io $ writeIORef globalStateRef (database', sessions', sessionCounter)
     }
-    
+
+pruneOldSessions :: GlobalStateRef db -> ServerPart ()
+pruneOldSessions globalStateRef =
+ do { (database, sessions, sessionCounter) <- io $ readIORef globalStateRef
+    ; currentTime <- io $ getPOSIXTime     
+    ; let sessions' = IntMap.filter (\(sessionModTime,_,_,_,_,_) -> currentTime - sessionModTime < sessionTimeout) sessions 
+          timedOutSessionIds = IntMap.keys sessions \\ IntMap.keys sessions'
+    ; when (not $ null timedOutSessionIds) $ io $ putStrLn $ "The following sessions timed out: " ++ show timedOutSessionIds
+    ; io $ writeIORef globalStateRef (database, sessions', sessionCounter)
+    }
+
 logSessions :: GlobalStateRef db -> ServerPart ()
 logSessions globalStateRef =
  do { (_, sessions, _) <- io $ readIORef globalStateRef
-    ; let sessionIds = [ sessionId | (sessionId, (_,_,_,_,_,_)) <- IntMap.assocs sessions ]
+    ; currentTime <- io $ getPOSIXTime     
+    ; let sessionIds = [ (sessionId,currentTime-sessionModTime) | (sessionId, (sessionModTime,_,_,_,_,_)) <- IntMap.assocs sessions ]
     ; io $ putStrLn $ "Current sessions: " ++ show sessionIds
     }
+    
 -- Raise an exception in the browser and report to stdout. (necessary because we cannot catch exceptions in the
 -- ServerPart monad)
 -- The return type is [Html] because the exceptions are raised in sessionHandler, which returns a list of updates
