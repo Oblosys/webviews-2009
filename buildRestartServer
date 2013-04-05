@@ -1,10 +1,13 @@
-echo Building and restarting WebViews server for $1.
+name=$( echo $1 | tr -s  '[:upper:]'  '[:lower:]' ) # convert to lower case
+
+echo Building and restarting WebViews server for $name.
 cd ~/svn/Oblomov/WebViews
-cabal configure -f$1 --ghc-options=-O2 --disable-library-profiling --disable-executable-profiling
+     
+cabal configure -f$name --ghc-options=-O2 --disable-library-profiling --disable-executable-profiling
 # --disable-executable-profiling seems to help with a ghc linker bug (http://hackage.haskell.org/trac/ghc/ticket/7040)
 cabal build
 if [ "$?" -eq "0" ]; then
-./restartServer $1
+./restartServer $name
 else
 echo
 echo "*** Error during build, server has not been started. ***"
