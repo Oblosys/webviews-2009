@@ -1,4 +1,10 @@
+***
+script nodes are not that well-designed
+using WebViewPrim.inertTextView will clear the blur effect, but that also removes any standard blur functionality
+Solution now is to have two levels, a handlerPrim which calls the handler that may be modified. Is this enough?
+
 *** Reusing may conflict with javascript updates on html tree
+(this problem manifested itself in the borrowit login screen)
 
 Example:
 root: A
