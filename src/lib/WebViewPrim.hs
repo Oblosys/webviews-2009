@@ -416,12 +416,12 @@ presentLabelView (LabelView viewId str stl) = div_ ! id_ (mkHtmlViewIdVal viewId
 presentTextField :: TextView db -> Html
 presentTextField (TextView viewId TextArea str enabled stl _ _) =
    form !* [ style "display: inline; width: 100%;"
-           , strAttr "onSubmit" $ "return false"] $  -- return false, since we don't actually submit the form
+           , strAttr "onsubmit" $ "return false"] $  -- return false, since we don't actually submit the form
      textarea !* ([ id_ (mkHtmlViewIdVal viewId)
                   , style $ "width: 100%; height: 100%;" ++ stl
-                  , strAttr "onFocus" $ "script"++viewIdSuffix viewId++".onFocus()"
-                  , strAttr "onBlur" $ "script"++viewIdSuffix viewId++".onBlur()"
-                  , strAttr "onKeyUp" $ "script"++viewIdSuffix viewId++".onKeyUp()"
+                  , strAttr "onfocus" $ "script"++viewIdSuffix viewId++".onFocusPrim()"
+                  , strAttr "onblur" $ "script"++viewIdSuffix viewId++".onBlurPrim()"
+                  , strAttr "onkeyUp" $ "script"++viewIdSuffix viewId++".onKeyUpPrim()"
                   ] ++ if enabled then [] else [disabled "disabled"]
                   ) << toHtml str >>
   (mkScript $ declareWVTextViewScript viewId False)      
@@ -430,17 +430,24 @@ presentTextField (TextView viewId textType str enabled stl _ mEditAction) =
                                     PasswordField -> password ""
                                     
   in form !* [ style "display: inline; width: 100%;"
-             , strAttr "onSubmit" $ "script"++viewIdSuffix viewId++".onSubmit(); return false" -- return false, since we don't actually submit the form
+             , strAttr "onsubmit" $ "script"++viewIdSuffix viewId++".onSubmitPrim(); return false" -- return false, since we don't actually submit the form
              ] $ 
        inputField !* ([ id_ $ mkHtmlViewIdVal viewId, strAttr "value" str, style $ "width: 100%;" ++ stl
-                      , strAttr "onFocus" $ "script"++viewIdSuffix viewId++".onFocus()"
-                      , strAttr "onBlur" $ "script"++viewIdSuffix viewId++".onBlur()"
-                      , strAttr "onKeyUp" $ "script"++viewIdSuffix viewId++".onKeyUp()" 
+                      , strAttr "onfocus" $ "script"++viewIdSuffix viewId++".onFocusPrim()"
+                      , strAttr "onblur"  $ "script"++viewIdSuffix viewId++".onBlurPrim()"
+                      , strAttr "onkeyUp" $ "script"++viewIdSuffix viewId++".onKeyUpPrim()" 
                       ] ++ if enabled then [] else [disabled "disabled"]
                      )  >>
   (mkScript $ declareWVTextViewScript viewId $ isJust mEditAction)
 
 declareWVTextViewScript viewId notifyServer = jsDeclareVar viewId "script" $ "new TextViewScript(\""++show viewId++"\","++jsBool notifyServer++");"
+
+inertTextView :: (Widget (TextView db)) -> String
+inertTextView tv = jsScript [ onEvent "Submit" tv ""
+                            , onEvent "Focus"  tv ""
+                            , onEvent "Blur"   tv ""
+                            ] -- prevent this text widget from firing updates to the server
+
 
 -- For the moment, onclick disables the standard server ButtonC command
 presentButton :: Button db -> Html
@@ -644,13 +651,6 @@ jsCallFunction vid name params = name++viewIdSuffix vid++"("++intercalate "," pa
 jsGetWidgetValue widget = jsGetElementByIdRef (widgetGetViewRef widget) ++".value"
 
 jsNavigateTo href = "window.location.href = "++ href ++ ";"
-
-
-inertTextView :: (Widget (TextView db)) -> String
-inertTextView tv = jsScript [ onEvent "Submit" tv ""
-                            , onEvent "Blur" tv ""
-                            ] -- prevent this text widget from firing updates to the server
-                              -- Focus event is still necessary though
    
 callServerEditAction :: (Widget (EditAction db)) -> [String] -> String                         
 callServerEditAction (Widget _ _ ea) args = 

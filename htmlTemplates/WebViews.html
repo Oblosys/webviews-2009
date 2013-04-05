@@ -35,6 +35,7 @@ var drawingViewTree = false;
 //var sendingRandomCommands = true;
 var sendingRandomCommands = false;
 
+var autoRefreshInterval = 5;
 var autoRefresh = !debugging; // turn on auto-refresh whenever we're not debugging
 //var autoRefresh = true;
 //var autoRefresh = false;
@@ -156,7 +157,7 @@ function showHaskellArgs(args) {
 
 function startRefreshTimer() {
 	if (autoRefresh) {
-		setRefreshTimer(10*1000);
+		setRefreshTimer(autoRefreshInterval*1000);
   }
 }
 
@@ -452,7 +453,7 @@ function processPendingScripts(scripts_X_) {
     try {
       for (var j_X_=0; j_X_<scriptLines_X_.length; j_X_++) {
         scriptLine_X_ = scriptLines_X_[j_X_];
-        dlog('Eval ('+i_X_+'.'+j_X_+'/'+scripts_X_.length+'): ',scriptLine_X_);
+        dlog('Eval ('+i_X_+'.'+j_X_+'/'+scripts_X_.length+'): '+scriptLine_X_);
         eval(scriptLine_X_);
       }
     }
@@ -572,16 +573,29 @@ function textFieldChanged(textFieldId) {
 }
 
 function elementGotFocus(id) {
-	dlog('element '+id+' got focus');
-  focusedElementId = id;
+	  dlog('element '+id+' got focus');
+	  focusedElementId = id;
+	}  
+
+// Need to handle lost focus event to clear the focus when we click on an element that cannot have focus.
+function elementLostFocus(id) {
+	dlog('element '+id+' lost focus');
+  if (focusedElementId == id) // check id, in case events were mixed up and another element already got focus
+	  focusedElementId = '';
 }  
 
-// constructors for script nodes associated with each webview
+// Constructors for script nodes associated with each webview
+// For TextView, events are directed to a prim function which calls the handler function. This
+// way, we can customize the handler without disabling primitive functionality like focus handling.
+//
 // Note: the viewId's here are Haskell ViewId's (eg. ViewId [path])
 // Note: we can safely refer to viewId instead of this.viewId, since it doesn't change
+// TODO: make scripts like these for all widgets
+// TODO: make prim distinction also for other widgets
 function ButtonScript(viewId) {
     this.viewId = viewId;
     this.onFocus = function () {elementGotFocus(viewId)};
+    this.onBlur = function () {elementLostFocus(viewId)};
     this.onClick = function () {queueCommand('ButtonC '+viewId)};
 }
 
@@ -589,6 +603,10 @@ function ButtonScript(viewId) {
 function TextViewScript(viewId, notifyServer) {
     this.viewId = viewId;
     this.notifyServer = notifyServer;
+    this.onSubmitPrim = function () {this.onSubmit()}
+    this.onFocusPrim  = function () {dlog('TextViewScript.onFocus');elementGotFocus(viewId);this.onFocus()};
+    this.onBlurPrim   = function () {dlog('TextViewScript.onBlur');elementLostFocus(viewId);this.onBlur()};
+    this.onKeyUpPrim  = function () {;this.onKeyUp()};
     this.onSubmit = function () { dlog('TextViewScript.onSubmit (notifyServer='+(this.notifyServer?'true':'false')+')');
                                 ; if (this.notifyServer) {
                                     textFieldChanged(viewId);
@@ -599,8 +617,8 @@ function TextViewScript(viewId, notifyServer) {
     // (unless the submit causes an update that removes the textfield). Superfluous happen all the time
     // though, so this should not create a problem. TODO: maybe cache the textfield value and only send it on a change
     
-    this.onFocus  = function () {dlog('TextViewScript.onFocus');elementGotFocus(viewId)};
-    this.onBlur   = function () {dlog('TextViewScript.onBlur');textFieldChanged(viewId)};
+    this.onFocus  = function () {};
+    this.onBlur   = function () {textFieldChanged(viewId)};
     this.onKeyUp  = function () {};
 }
 
