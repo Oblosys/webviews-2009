@@ -1,4 +1,4 @@
-name=$( echo $1 | tr -s  '[:upper:]'  '[:lower:]' ) # convert to lower case
+name=$( echo $1 | tr  '[:upper:]'  '[:lower:]' ) # convert to lower case
 
 echo Building and restarting WebViews server for $name.
 cd ~/svn/Oblomov/WebViews
