@@ -24,7 +24,11 @@
 	.clientView {
 	  width: 300px;
 	}
-} 
+}
+
+textarea {
+	resize: none;
+}
 
 button {
 	border-width: 1px;
