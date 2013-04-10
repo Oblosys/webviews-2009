@@ -104,7 +104,9 @@ Executable reservations
   GHC-Options: 
   Extensions: OverloadedStrings
   HS-Source-Dirs:  src/exec/Reservations
-  Other-Modules:
+  Other-Modules: Database,
+                 ClientWebView,
+                 ReservationUtils
   if flag(reservations)
     buildable:  True
   else

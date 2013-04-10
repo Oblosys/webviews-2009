@@ -3,11 +3,12 @@ module Database where
 
 import Data.Time.Calendar hiding (Day)
 import System.Time hiding (Day, Month)
-
 import Data.Generics
 import Data.Map (Map)
 import qualified Data.Map as Map 
 import Types
+
+import ReservationUtils
 
 type WV v = WebView Database v
 

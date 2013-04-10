@@ -25,6 +25,7 @@ import TemplateHaskell
 
 import Database
 import ClientWebView
+import ReservationUtils
 
 main :: IO ()
 main = server 8102 "Reservations" rootViews ["Reservations.css"] "ReservationsDB.txt" mkInitialDatabase users
@@ -150,12 +151,6 @@ data RestaurantView =
 
 instance Initial RestaurantView where                 
   initial = RestaurantView initial (initial,initial) initial initial [] initial initial initial initial
-
-increaseMonth (12,year)    = (1, year+1)
-increaseMonth (month,year) = (month+1, year)
-
-decreaseMonth (1,year)     = (12, year-1)
-decreaseMonth (month,year) = (month-1, year)
 
 modifyViewedDate :: ((Int,Int) -> (Int,Int)) -> RestaurantView -> RestaurantView
 modifyViewedDate f (RestaurantView d my lb nb weeks dayView hourView reservationView script) =

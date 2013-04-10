@@ -24,6 +24,7 @@ import System.IO.Unsafe (unsafePerformIO) -- just for calendar stuff
 import TemplateHaskell
 
 import Database
+import ReservationUtils
 
 data ClientView = 
   ClientView Int (Maybe Date) (Maybe Time) [Widget (Button Database)] (Widget (TextView Database)) (Widget (TextView Database)) (Widget (Button Database)) (Widget (Button Database)) [Widget (Button Database)] [[Widget (Button Database)]] (Widget (Button Database)) 
