@@ -6,6 +6,7 @@ Optimization: Lock sessions server-side, instead of waiting client-side for the 
 
 Check if simultaneous access to database doesn't cause any problems.
 
+Check jMacro for representing JavaScript
 
 Widget with lens
 
