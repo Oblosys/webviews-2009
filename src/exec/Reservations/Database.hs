@@ -72,12 +72,11 @@ mkInitialDatabase :: IO (Database)
 mkInitialDatabase =
  do { clockTime <- getClockTime
     ; ct <- toCalendarTime clockTime
-    ; let today@(currentDay, currentMonth, currentYear) = (ctDay ct, 1+fromEnum (ctMonth ct), ctYear ct)
-          (nextMonth, nextMonthYear) = if currentMonth == 12 then (1,currentYear+1) else (currentMonth+1,currentYear)
-          daysInCurrentMonth = gregorianMonthLength (fromIntegral currentYear) currentMonth
-          daysInNextMonth =  gregorianMonthLength (fromIntegral nextMonthYear) nextMonth
-          datedReservations = addDates currentMonth currentYear (take daysInCurrentMonth lotOfReservations) ++
-                              addDates nextMonth nextMonthYear (take daysInNextMonth lotOfReservations)
+    ; let (_, currentMonth, currentYear) = (ctDay ct, 1+fromEnum (ctMonth ct), ctYear ct)
+          months = take 12 $ iterate increaseMonth (currentMonth, currentYear)
+          monthsWithNrOfDays = [ (m,y,gregorianMonthLength (fromIntegral y) m) | (m,y) <- months ]
+          datedReservations = concat $ 
+                                [ addDates' m y $ take nrOfDays lotOfReservations | (m,y,nrOfDays) <- monthsWithNrOfDays ]
     ; return $ Database $ Map.fromList $ addIds datedReservations
                 
     }
@@ -85,10 +84,10 @@ mkInitialDatabase =
                      | (i,(dt, tm, nm, nr, c)) <- zip [0..] ress
                      ]
                 
-       addDates m y resss = [ ((d,m,y),tm,nm,nr,c)
-                            | (d,ress) <- zip [1..] resss
-                            , (tm,nm,nr,c) <- ress
-                            ]
+       addDates' m y resss = [ ((d,m,y),tm,nm,nr,c)
+                             | (d,ress) <- zip [1..] resss
+                             , (tm,nm,nr,c) <- ress
+                             ]
 lotOfReservations = concat . repeat $
                       [  [ ((20,00), "Nathan", 2, "Nathan says hi")
                          , ((20,00), "Tommy", 3, "")
@@ -99,7 +98,7 @@ lotOfReservations = concat . repeat $
                          ]
                        , [ ((21,00), "Charlie", 8, "Dinner at nine") 
                          ]
-                       , [ ((18,00), "Pino", 3, "Please provide bird seed") 
+                       , [ ((18,00), "Sam", 3, "Would like the special menu") 
                          ]
                        , []
                        ]
