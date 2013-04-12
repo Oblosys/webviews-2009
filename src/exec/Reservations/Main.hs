@@ -546,9 +546,9 @@ mkReservationView restaurantViewId = mkWebView $
 instance Presentable ReservationView where
   present (ReservationView removeButton _ script) = (withStyle "background-color:#f0f0f0" $ boxed $ 
     vListEx [ id_ "reservationView"] 
-      [ hListEx [width "100%"] [ hList [ "Reservation date: ",nbsp
+      [ hListEx [width "100%"] [ hList [ "Resservation date: ",nbsp
                                        , with [colorAttr reservationColor] $ with [id_ "dateField"] $ noHtml ]
-                               , with [align "right"] $ present removeButton]
+                               , with [align "right"] $ mkClassDiv "RemoveButton" $ present removeButton]
       , hList [ "Time:",nbsp, with [colorAttr reservationColor] $ with [id_ "timeField"] $ noHtml]
       , hList [ "Name:",nbsp, with [colorAttr reservationColor] $ with [id_ "nameField"] $ noHtml]
       , hList [ "Nr. of people:",nbsp, with [colorAttr reservationColor] $ with [id_ "nrOfPeopleField"] $ noHtml ]

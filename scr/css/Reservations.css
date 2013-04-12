@@ -40,6 +40,10 @@ button[selected] {
 	background-color: #04f;
 	color: white;
 }
+.RemoveButton button:enabled {
+	background-color: red;
+	color: white
+}
 
 .CalendarHeader button {
 	width: 6em;
