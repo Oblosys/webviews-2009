@@ -28,8 +28,7 @@ table.Xprez.Row td {
   white-space: nowrap;
 }
 
-.roundedCorners
-{
+.roundedCorners {
   border:solid; 
   border-width:1px;
   margin: 0px 0px 0px 0px;
@@ -40,8 +39,7 @@ table.Xprez.Row td {
   -khtml-border-radius: 6px;     /* not sure for which one this is */
 }
 
-.tab
-{
+.tab {
   font-size: 70%;
   border:solid; 
   border-width:1px;
