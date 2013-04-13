@@ -200,22 +200,22 @@ instance Presentable ClientView where
     withStyle "font-family:arial" $  
     vListEx [class_ "ClientView"]
           [ hListEx [width "100%"] [ "Name:", present nameText] -- todo: buggy on iPhone, space is added between Name and text, but not if "Name:" is replaced by "x"
-          , vSpace 8
+          , vSpace 7
           , present nrOfPeopleLabel
           , hListEx [class_ "nrButtons", width "100%"] $ map present nrButtons
-          , vSpace 8
+          , vSpace 7
           --, stringToHtml $ maybe "Please choose a date:" (\d -> (showDay . weekdayForDate $ d) ++ ", " ++ showShortDate d) mDate
           , present dateLabel
           , hListEx [class_ "dateButtons", width "100%"] [ present todayButton, present tomorrowButton]
           , hListEx [class_ "dateButtons", width "100%"] $ map present dayButtons
-          , vSpace 8
+          , vSpace 7
           , present timeLabel
           --, stringToHtml $ maybe "Please select a time:" (\d -> showTime d) mTime
           , simpleTable [class_ "timeButtons", width "100%",cellpadding "0", cellspacing "0"] [] $ map (map present) timeButtonss
-          , vSpace 8
+          , vSpace 7
           , "Comments:"
           , present commentText
-          , vSpace 8
+          , vSpace 7
           , present confirmButton ] +++           
           mkScript script
  
