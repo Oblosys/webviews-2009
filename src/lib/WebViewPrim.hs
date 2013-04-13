@@ -209,6 +209,8 @@ mkButtonWithStyleClick str enabled stl foc = mkButtonEx str enabled stl foc $ re
 mkButtonEx :: String -> Bool -> String -> (ViewId -> String) -> EditM db () -> WebViewM db (Widget (Button db))
 mkButtonEx str enabled stl foc ac = assignViewId $ \vid -> buttonWidget vid str enabled stl (foc vid) ac
 
+-- NOTE: when refering to a JSVar, make sure to use its own viewId (obtainable with getViewId) rather than the 
+-- view id of the view the script belongs to
 mkJSVar name value = assignViewId $ \vid -> jsVarWidget vid name value
 
 
@@ -639,8 +641,10 @@ onEvent event widget expr = "script"++viewIdSuffix (getViewId widget) ++ ".on"++
 jsVar vid name = name++viewIdSuffix vid
 jsAssignVar vid name value = name++viewIdSuffix vid++" = "++value++";"
 -- TODO: maybe refVar and assignVar are more appropriate?
+
+-- jsDeclareVar only sets the value if the variable wasn't initialized yet
 jsDeclareVar vid name value = let jsVar = name++viewIdSuffix vid
-                            in  jsVar++" = "++value++";"
+                              in  "if (typeof "++jsVar++" ==\"undefined\") {"++jsVar++" = "++value++"};"
 -- no "var " here, does not work when evaluated with eval
 
 jsCallFunction vid name params = name++viewIdSuffix vid++"("++intercalate "," params++")"
