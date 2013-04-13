@@ -442,7 +442,7 @@ presentTextField (TextView viewId textType str enabled stl _ mEditAction) =
                      )  >>
   (mkScript $ declareWVTextViewScript viewId $ isJust mEditAction)
 
-declareWVTextViewScript viewId notifyServer = jsDeclareVar viewId "script" $ "new TextViewScript(\""++show viewId++"\","++jsBool notifyServer++");"
+declareWVTextViewScript viewId notifyServer = jsAssignVar viewId "script" $ "new TextViewScript(\""++show viewId++"\","++jsBool notifyServer++");"
 
 inertTextView :: (Widget (TextView db)) -> String
 inertTextView tv = jsScript [ onEvent "Submit" tv ""
@@ -464,7 +464,7 @@ presentButton (Button viewId txt enabled stl onclick _) =
   (mkScript $ declareWVButtonScript viewId)
 -- TODO: text should be escaped
 
-declareWVButtonScript viewId = jsDeclareVar viewId "script" $ "new ButtonScript(\""++show viewId++"\");"
+declareWVButtonScript viewId = jsAssignVar viewId "script" $ "new ButtonScript(\""++show viewId++"\");"
 
 -- Edit actions are a bit different, since they do not have a widget presentation.
 -- TODO: maybe combine edit actions with buttons, so they use the same command structure
@@ -514,7 +514,7 @@ presentSelectView (SelectView viewId items selectedIx enabled stl _) =
      ; mkScript $ declareWVSelectScript viewId
      }
 
-declareWVSelectScript viewId = jsDeclareVar viewId "script" $ "new SelectScript(\""++show viewId++"\");"
+declareWVSelectScript viewId = jsAssignVar viewId "script" $ "new SelectScript(\""++show viewId++"\");"
 
 presentJSVar :: JSVar db -> Html
 presentJSVar (JSVar viewId name value) = div_ ! (id_ $ mkHtmlViewIdVal viewId) << 
