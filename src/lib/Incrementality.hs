@@ -57,9 +57,9 @@ mkIncrementalUpdates oldRootView rootView =
     -- todo: check restoration on views, and esp. on root.
     
     ; let rootView' = substituteIds subs rootView
-    --; putStrLn $ "Old root:"++ (drawWebNodes $ WebViewNode oldRootView)
-    --; putStrLn $ "Updated root:"++ (drawWebNodes $ WebViewNode rootView)
-    --; putStrLn $ "Restored Id root:"++(drawWebNodes $ WebViewNode rootView')
+    --; putStrLn $ "Old root:"++ (drawWebNodes $ WebViewNode $ UntypedWebView oldRootView)
+    --; putStrLn $ "Updated root:"++ (drawWebNodes $ WebViewNode $ UntypedWebView rootView)
+    --; putStrLn $ "Restored Id root:"++(drawWebNodes $ UntypedWebView $ WebViewNode rootView')
     --; putStrLn $ "Html:\n" ++ show responseHtml
     ; return (htmlUpdates, rootView')
     }
