@@ -54,6 +54,7 @@ shallowShowWebNode (WidgetNode viewId stubId id w) = "WebNode: ("++show viewId++
 shallowShowWebView (WebView vid sid id _ v) =
   "<WebView: "++show vid ++ ", stub:" ++ show (unId sid) ++ ", id:" ++ show (unId id) ++ " " ++ show (typeOf v)++ ">"
 
+drawWebNodes :: WebNode db -> String
 drawWebNodes webnode = drawTree $ treeFromView webnode
  where treeFromView (WebViewNode (UntypedWebView wv@(WebView vid sid id _ v))) =
          Node ("("++show vid ++ ", stub:" ++ show (unId sid) ++ ", id:" ++ show (unId id) ++ ") : " ++ show (typeOf v)) $
