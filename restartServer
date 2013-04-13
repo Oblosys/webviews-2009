@@ -8,9 +8,9 @@ dist/build/$name/$name --nodebug >> serverOutput_$name.txt 2>&1 &
 # Wait a bit and show initial output to see if the server actually started
 # (cannot use $? because background shell command always exits succesfully)
 sleep 0.1
-echo Showing server output tail:
+echo -------- Showing server output tail: --------
 tail serverOutput_$name.txt
-echo End of server output tail
+echo --------- End of server output tail ---------
 echo
 # when put in crontab, use:
 #    @reboot ~/svn/Oblomov/WebViews/restartServer <Executable>  >/dev/null 2>&1
