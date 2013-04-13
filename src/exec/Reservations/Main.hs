@@ -134,9 +134,9 @@ selectedReservationColor = selectedDayColor
 
 instance Presentable MainView where
   present (MainView cv rv) = 
-     hListEx [] [ withStyle "font-family:arial" $ roundedBoxed (Just $ appBgColor) $ present rv
+     hListEx [] [ roundedBoxed (Just $ appBgColor) $ present rv
                 , hSpace 50
-                , withStyle "font-family:arial" $ roundedBoxed (Just $ appBgColor) $ present cv 
+                , roundedBoxed (Just $ appBgColor) $ present cv 
                 ] 
 
 instance Storeable Database MainView where
@@ -281,7 +281,8 @@ mkReservation (Reservation rid date time name nrOfPeople comment) = mkJson [ ("r
 mark different months, mark appointments
  -}
 instance Presentable RestaurantView where
-  present (RestaurantView mSelectedDate (currentMonth, currentYear) lastButton nextButton weeks dayView hourView reservationView script) = 
+  present (RestaurantView mSelectedDate (currentMonth, currentYear) lastButton nextButton weeks dayView hourView reservationView script) =
+    withStyle "font-family:arial" $  
     (vList $ 
       [ mkClassDiv "CalendarHeader" $
               xp $ row [ h $ present lastButton
