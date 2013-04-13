@@ -199,7 +199,7 @@ mkClientView = mkWebView $
 -- todo comment has hard-coded width. make constant for this
 instance Presentable ClientView where
   present (ClientView nrOfP mDate mTime nrButtons nameText commentText todayButton tomorrowButton dayButtons timeButtonss confirmButton
-                      nrOfPeopleLabel dateLabel timeLabel _ availabilityVar script) =
+                      nrOfPeopleLabel dateLabel timeLabel _ script) =
     withStyle "font-family:arial" $  
     vListEx [class_ "ClientView"]
           [ hListEx [width "100%"] [ "Name:", present nameText] -- todo: buggy on iPhone, space is added between Name and text, but not if "Name:" is replaced by "x"
@@ -220,7 +220,6 @@ instance Presentable ClientView where
           , present commentText
           , vSpace 7
           , present confirmButton ] +++   
-          present availabilityVar +++        
           mkScript script
  
 instance Storeable Database ClientView where
