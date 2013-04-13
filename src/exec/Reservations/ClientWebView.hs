@@ -14,6 +14,7 @@ import Debug.Trace
 import System.Time
 import Data.Time.Calendar
 import Types
+import Utils
 import Generics
 import WebViewPrim
 import WebViewLib
@@ -29,7 +30,7 @@ import ReservationUtils
 data ClientView = 
   ClientView Int (Maybe Date) (Maybe Time) [Widget (Button Database)] (Widget (TextView Database)) (Widget (TextView Database)) (Widget (Button Database)) (Widget (Button Database)) [Widget (Button Database)] [[Widget (Button Database)]] (Widget (Button Database)) 
   (Widget (LabelView Database)) (Widget (LabelView Database)) (Widget (LabelView Database)) (Widget (EditAction Database))
-    String
+  String
     deriving (Eq, Show, Typeable)
     
 setClientViewNrOfPeople np (ClientView _ b c d e f g h i j k l m n o p) = (ClientView np b c d e f g h i j k l m n o p) 
@@ -113,17 +114,16 @@ mkClientView = mkWebView $
                     db'' = updateReservation rid (const $ Reservation rid date time nameStr nrOfPeople commentStr) db
                 in  db''
            }
-     ; let datesAndAvailabilityDecl = "availability = ["++ -- todo: should be declared with jsjsDeclareVar for safety
-             intercalate "," [ "{date: \""++showDay (weekdayForDate  d)++", "++showShortDate d++"\","++
-                               " availables: ["++intercalate "," [ show $ availableAtDateAndTime d (h,m)
-                                                                | h<-[18..23], m<-[0,30]]++"]}" | i <-[0..7], let d = addToDate today i ] 
-             ++"];"
-             
+     ; let datesAndAvailabilityArray = 
+             "["++ intercalate "," [ "{date: \""++showDay (weekdayForDate  d)++", "++showShortDate d++"\","++
+                                     " availables: ["++intercalate "," [ show $ availableAtDateAndTime d (h,m)
+                                                                       | h<-[18..23], m<-[0,30]]++"]}" | i <-[0..7], let d = addToDate today i ] ++ 
+             "];"
      
      ; return $ ClientView nrOfP mDate mTime nrButtons nameText commentText todayButton tomorrowButton dayButtons timeButtonss confirmButton 
                            nrOfPeopleLabel dateLabel timeLabel submitAction
                   $ jsScript --"/*"++show (ctSec ct)++"*/" ++
-                  [ datesAndAvailabilityDecl
+                  [ "availability = "++datesAndAvailabilityArray -- forces script to run when it changes
                     -- maybe combine these with button declarations to prevent multiple list comprehensions
                     -- maybe put script in monad and collect at the end, so we don't have to separate them so far (script :: String -> WebViewM ())
                   , concat [ onClick nrButton $ jsCallFunction vid "setNr" [show nr]| (nr,nrButton) <- zip [1..] nrButtons]
@@ -149,7 +149,6 @@ mkClientView = mkWebView $
                                                    , "return "++jsVar vid "selectedNr"++"!=null && "++jsVar vid "selectedDate"++"!=null && "++jsVar vid "selectedTime"++"!=null && "++
                                                                 jsGetElementByIdRef (widgetGetViewRef nameText)++".value != \"\""
                                                    ] 
-                  , jsDeclareVar vid "selectedNr" "null"
                   , jsFunction vid "setNr" ["nr"] [ "console.log(\"setNr (\"+nr+\") old val: \", "++jsVar vid "selectedNr"++")"
                                                   , jsAssignVar vid "selectedNr" "nr"
                                                   , "nrStr = nr==null ? \"Please select nr of people:\" : 'Nr of people: '+nr"
@@ -157,8 +156,6 @@ mkClientView = mkWebView $
                                                   , "$('.nrButtons button').attr('selected',false)"
                                                   , "if (nr!=null) $('.nrButtons button').eq(nr-1).attr('selected',true)"
                                                   , jsCallFunction vid "disenable" [] ]
-                  , jsDeclareVar vid "selectedTime" "null"
-                  , jsDeclareVar vid "selectedTimeIndex" "null"
                   , jsFunction vid "setTime" ["time"] [ "console.log(\"setTime \"+time, "++jsVar vid "selectedTime"++")"
                                                       , jsAssignVar vid "selectedTime" "time"
                                                       , "timeStr = time==null ? \"Please select a time:\" : 'Time: ' + time.hour +\":\"+ (time.min<10?\"0\":\"\") + time.min"
@@ -167,7 +164,6 @@ mkClientView = mkWebView $
                                                       , "$('.timeButtons button').attr('selected',false)"
                                                       , "if (time!=null) $('.timeButtons button').eq(time.index).attr('selected',true)"
                                                       , jsCallFunction vid "disenable" [] ] 
-                  , jsDeclareVar vid "selectedDate" "null"
                   , jsFunction vid "setDate" ["dateIx"] [ "console.log(\"setDate \"+dateIx, "++jsVar vid "selectedDate"++")"
                                                       , jsAssignVar vid "selectedDate" "dateIx"
                                                       , "dateStr = dateIx==null ? \"Please select a date:\" : availability[dateIx].date"
@@ -188,15 +184,22 @@ mkClientView = mkWebView $
                                                   ]
                     -- todo: handle when time selection is disabled because of availability (on changing nr of persons or date)
                   , onKeyUp nameText $ jsCallFunction vid "disenable" []
-                  , jsCallFunction vid "reset" []
-                  ]                                   
+                  , jsDeclareVar vid "selectedNr" "null"
+                  , jsDeclareVar vid "selectedTime" "null"
+                  , jsDeclareVar vid "selectedTimeIndex" "null"
+                  , jsDeclareVar vid "selectedDate" "null"
+                  , "if ("++jsVar vid "selectedNr"++"==null) "++jsCallFunction vid "reset" []
+                  -- only reset (and initialize) if selectedNumber hasn't been set yet.
+                  -- TODO: we're doing far too much on each refresh. Attaching handlers etc. should also be done only once
+                  , jsCallFunction vid "disenable" []
+                  ]   
      }
 
 
 -- todo comment has hard-coded width. make constant for this
 instance Presentable ClientView where
   present (ClientView nrOfP mDate mTime nrButtons nameText commentText todayButton tomorrowButton dayButtons timeButtonss confirmButton
-                      nrOfPeopleLabel dateLabel timeLabel _ script) =
+                      nrOfPeopleLabel dateLabel timeLabel _ availabilityVar script) =
     withStyle "font-family:arial" $  
     vListEx [class_ "ClientView"]
           [ hListEx [width "100%"] [ "Name:", present nameText] -- todo: buggy on iPhone, space is added between Name and text, but not if "Name:" is replaced by "x"
@@ -216,7 +219,8 @@ instance Presentable ClientView where
           , "Comments:"
           , present commentText
           , vSpace 7
-          , present confirmButton ] +++           
+          , present confirmButton ] +++   
+          present availabilityVar +++        
           mkScript script
  
 instance Storeable Database ClientView where
