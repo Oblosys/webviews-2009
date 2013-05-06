@@ -335,7 +335,7 @@ instance Presentable CalendarDayView where
     -- we use a margin of 3 together with the varying cell background to show today
     -- doing this with borders is awkward as they resize the table
     conditionallyBoxed isToday 2 (htmlColor todayColor) $
-       mkTableEx [ width "36px", height "36", cellpadding "0", cellspacing "0" 
+       mkTableEx [ width "44px", height "36", cellpadding "0", cellspacing "0" 
                  , style $ "margin:2px"] [] [] 
              [[ ([valign "top"] ++ if isThisMonth then [] else [style "color: #808080"], toHtml (show day)) ]
            ,[ ([style "font-size:80%; color:#0000ff"], if not $ null reservations then toHtml $ show (length reservations) ++ " (" ++ show (sum $ map nrOfPeople reservations)++")" else nbsp) ] 
