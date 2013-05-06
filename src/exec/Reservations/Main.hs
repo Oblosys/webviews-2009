@@ -410,7 +410,7 @@ instance Presentable DayView where
          , presentHour hr) | (sa,hr) <- zip selectHourActions [18..24] ]] +++ mkScript script
 
    where presentHour hr = --withBgColor (Rgb 255 255 0) $
-           vListEx [width "40px"] -- needs to be smaller than alotted hour cell, but larger than width of "xx(xx)"
+           vListEx [width "48px"] -- needs to be smaller than alotted hour cell, but larger than width of "xx(xx)"
                  [ toHtml $ show hr++"h"
                  , withStyle "font-size:80%; text-align:center; color:#0000ff" $ 
                      let ressAtHr = filter ((==hr) . fst . time) dayReservations
@@ -554,7 +554,7 @@ instance Presentable ReservationView where
       , hList [ "Name:",nbsp, with [colorAttr reservationColor] $ with [id_ "nameField"] $ noHtml]
       , hList [ "Nr. of people:",nbsp, with [colorAttr reservationColor] $ with [id_ "nrOfPeopleField"] $ noHtml ]
       , "Comment:" 
-      , boxedEx 1 0 $ withStyle ("padding-left:4px;height:70px; width:300px; overflow:auto; color:" ++ htmlColor reservationColor) $ with [id_ "commentField"] $  
+      , boxedEx 1 0 $ withStyle ("padding-left:4px;height:70px; width:356px; overflow:auto; color:" ++ htmlColor reservationColor) $ with [id_ "commentField"] $  
           noHtml
       ]) +++ mkScript script
    where reservationColor = Rgb 0x00 0x00 0xff
