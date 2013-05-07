@@ -75,13 +75,13 @@ table.Xprez.Row td {
   margin: auto;
   top: 100px;
   left: 50%;
-  width: 522px; /* is dialog max-width + 2*border + 2*padding */
-  margin-left: -250; /* width / 2 */
+  width: 522px; /* is desired dialog max-width + 2*border + 2*padding */
+  margin-left: -261; /* -(container width / 2) */
+  /* NOTE: when changing size, override both width and margin-left */
   z-index: 1001;
 }
 .dialog {
   display:table;
-  max-width: 500px;
   background-color: #eee;
   font-family: verdana;
   font-size: 12px;
@@ -133,3 +133,15 @@ a {
   padding: 4px;
   color: #000;
 }
+
+/* On an iPad, the rules below takes precedence over the rules above (order is important) */
+@media only screen and (device-width: 768px) {
+}
+/* On an iPhone, the rules below takes precedence over the rules above (order is important) */
+@media only screen and (device-width: 320px) {
+  .dialogContainer { /* make dialog width smaller for iPhone */
+    width: 282px; /* is desired dialog max-width + 2*border + 2*padding */
+    margin-left: -141; /* -(container width / 2) */
+  }
+}
+
