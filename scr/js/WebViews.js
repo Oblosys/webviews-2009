@@ -1,5 +1,6 @@
 // make sure that jQuery is loaded before this file is loaded
-
+// dialogContent :: html string, buttons :: [{name::String, command::Bool}]
+// TODO: refactor, so we have a client-side version that executes JavaScript commands, rather than server commands
 function showDialog(dialogContent, buttons) {
   dlog(dialogContent);
   dlog(buttons);
