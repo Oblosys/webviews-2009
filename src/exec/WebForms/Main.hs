@@ -172,7 +172,7 @@ stellingen = page
       , mkScaleQuestion 7 "angst" "Mijn angst om op mijn werk onder te presteren is vaak wat mij motiveert"
       , mkScaleQuestion 7 "vermijden" "Ik wil vooral vermijden dat onderpresteer op mijn werk"
       , mkScaleQuestion 7 "vergelijking" "Ik vind het belangrijk om goed te presteren, in vergelijking met mijn directe collega's"
-      , mkScaleQuestion 7 "beheersen" "Het is belangrijk voor mij om de werkzaamheden die ik verricht zo goed als mogelijk te beheersen"
+{-      , mkScaleQuestion 7 "beheersen" "Het is belangrijk voor mij om de werkzaamheden die ik verricht zo goed als mogelijk te beheersen"
       , mkScaleQuestion 7 "zorgen" "Ik maak mij vaak zorgen dat ik niet alle kennis en vaardigheden op kan doen die deze baan mij te bieden heeft"
       , mkScaleQuestion 7 "ontwikkelen" "Ik wil mij zo goed als mogelijk ontwikkelen tijdens mijn werk"
       , mkScaleQuestion 7 "kennis" "Soms maak ik mij zorgen dat ik kennis en vaardigheden mis om mijn werk uit te voeren, zoals ik dat zou willen"
@@ -180,7 +180,7 @@ stellingen = page
       , mkScaleQuestion 7 "beoordeling" "Mijn doel binnen het werk dat ik doe is om een betere beoordeling te krijgen dan mijn collega's"
       , mkScaleQuestion 7 "onderprestatie" "Mijn doel op mijn werk is om onderprestatie te vermijden"
       , mkScaleQuestion 7 "vermogens" "Ik maak mij zorgen dat ik mij niet naar mijn eigen vermogen(s) kan ontwikkelen in deze baan"
-      ] 
+-}      ] 
   ]
 
 deelDrie = page [ htmlFileElt "DeelDrie.html" ]
