@@ -44,6 +44,10 @@ function dialogButtonClicked(nr,command) { // command == false denotes a cancel 
   }
 }
 
+function alertDialog(message) {
+  showDialog(message, [{name: "Ok", command: false}]);
+}
+
 var spinners = new Array();
 
 function addSpinner(id) {    
