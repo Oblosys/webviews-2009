@@ -217,10 +217,10 @@ vignettes =
                           , beloning2 = "Niet meer zeulen met dossiers"
                           }
   ]
-  
+
 
 mkScaleQuestion :: Int -> String -> String -> TableRow
-mkScaleQuestion scaleMax tag question = [ htmlElt question, buttonAnswerElt tag $ map show [1..scaleMax]]
+mkScaleQuestion scaleMax tag question = [ htmlElt question, buttonAnswerElt tag $ map show [1..scaleMax] ]
 
 data Vignette = Vignette { nummer :: Int
                          , omschr1, omschr2, uitproberen1, uitproberen2, klaar1, klaar2, succes1, succes2
@@ -251,9 +251,7 @@ mkVignette vt =
   , medSkip
   , htmlElt $ "<br/><em>Klik op het cijfer dat aangeeft in hoeverre u het eens bent met onderstaande stelling:</em><br/><br/>" 
   , tableElt "VignetteKiezen"
-     [[ htmlElt "Ik vond het moeilijk om te kiezen"
-      , buttonAnswerElt ("vignette"++show (nummer vt)++".moeilijkKiezen") $ map show [1..10]]
-    ]
+     [ mkScaleQuestion 10 ("vignette"++show (nummer vt)++".moeilijkKiezen") "Ik vond het moeilijk om te kiezen" ]
   ]
 
 
