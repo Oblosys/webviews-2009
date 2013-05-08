@@ -167,7 +167,7 @@ stellingen = page
   [ htmlElt "<em>Het tweede deel van de vragenlijst bevat twaalf stellingen die betrekking hebben op uw persoonlijke situatie in uw huidige werk. Wilt u aangeven in hoeverre u het eens bent met de stellingen hieronder door het cijfer aan te klikken. Hoe hoger het cijfer, des te beter u zich kunt vinden in de stelling.</em>"
   , bigSkip
   , tableElt "Stellingen"
-      [ [ htmlElt "", htmlElt "Mee&nbsp;eens<span style='margin-left:50px'></span>Mee&nbsponeens" ]
+      [ [ htmlElt "", htmlElt "Mee&nbsp;eens<span style='margin-left:50px'></span>Mee&nbsp;oneens" ]
       , mkScaleQuestion 7 "presteren" "Ik vind het belangrijk om beter te presteren dan mijn collega's"
       , mkScaleQuestion 7 "angst" "Mijn angst om op mijn werk onder te presteren is vaak wat mij motiveert"
       , mkScaleQuestion 7 "vermijden" "Ik wil vooral vermijden dat onderpresteer op mijn werk"
