@@ -163,13 +163,17 @@ withBgColor color elt = div_ !!! [bgColorAttr color] << elt
 bgColorAttr color = 
   style $ "background-color: "++htmlColor color++";"
 
+-- TODO: maybe use string for mHeight, so we can do percentages
 -- Height argument does not work in IE
 gradientStyle :: Maybe Int -> String -> String -> String
 gradientStyle mHeight topColor bottomColor =
     "background: -moz-linear-gradient("++topColor++" 0px, "++bottomColor++ maybe "" (\h -> " "++show h++"px") mHeight ++ "); "
   ++"background: -webkit-gradient(linear, left top, left "++maybe "bottom" show mHeight ++", from("++topColor++"), to("++bottomColor++"));"
+  ++"background-image: -ms-linear-gradient(top, "++topColor++" 0px, "++bottomColor++" "++ maybe "100%" (\h -> " "++show h++"px") mHeight ++ ");"
+  ++"background-image: linear-gradient(to bottom, "++topColor++" 0px, "++bottomColor++" "++ maybe "100%" (\h -> " "++show h++"px") mHeight ++ ");"
   ++"filter: progid:DXImageTransform.Microsoft.gradient(startColorstr='"++topColor++"', endColorstr='"++bottomColor++"');"
   ++"-ms-filter: progid:DXImageTransform.Microsoft.gradient(startColorstr='"++topColor++"', endColorstr='"++bottomColor++"');"
+
 withSize width height elt = div_!!! [style $ "width: "++show width++"px;" ++
                                              "height: "++show height++"px;" ++
                                              "overflow: auto" ] << elt
