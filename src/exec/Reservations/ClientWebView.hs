@@ -138,7 +138,7 @@ mkClientView = mkWebView $
                                                                               ,"escape("++jsGetElementByIdRef (widgetGetViewRef commentText)++".value)"]
                                           , jsCallFunction vid "reset" []
                                           , jsCallFunction vid "disenable" []
-                                          , "showDialog('Your reservation has been confirmed.', [{name:'ok',command:false}])"]
+                                          , "alertDialog('Your reservation has been confirmed.')"]
                   , jsFunction vid "reset" []
                                           [ jsCallFunction vid "setNr" ["null"]
                                           , jsCallFunction vid "setDate" ["null"]
