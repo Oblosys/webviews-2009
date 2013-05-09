@@ -187,8 +187,9 @@ function stopRefreshTimer() {
 }
 
 function refresh() {
-    queueCommand('Refresh');
-    startRefreshTimer();
+	dlog('timer called refresh() with currentHash = '+currentHash); 
+  queueCommand('Refresh');
+  startRefreshTimer();
 }
 
 /* Obsolete comment:
