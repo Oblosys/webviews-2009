@@ -27,6 +27,26 @@ import TemplateHaskell
 import Database
 import ReservationUtils
 
+-- Extra indirection, so we can style client views that are not part of the combined view or embedded in an iFrame.
+data ClientWrapperView = ClientWrapperView (WV ClientView) deriving (Eq, Show, Typeable)
+  
+instance Initial ClientWrapperView where                 
+  initial = ClientWrapperView initial
+
+mkClientWrapperView = mkWebView $
+ \vid (ClientWrapperView _) ->
+  do { clientView <- mkClientView
+     ; return $ ClientWrapperView clientView
+     }
+
+instance Presentable ClientWrapperView where
+  present (ClientWrapperView fv) = mkPage [] $
+                            with [class_ $ "ClientWrapperView"] $
+                            present fv 
+
+instance Storeable Database ClientWrapperView where
+
+
 data ClientView = 
   ClientView Int (Maybe Date) (Maybe Time) [Widget (Button Database)] (Widget (TextView Database)) (Widget (TextView Database)) (Widget (Button Database)) (Widget (Button Database)) [Widget (Button Database)] [[Widget (Button Database)]] (Widget (Button Database)) 
   (Widget (LabelView Database)) (Widget (LabelView Database)) (Widget (LabelView Database)) (Widget (EditAction Database))
@@ -201,9 +221,8 @@ mkClientView = mkWebView $
 instance Presentable ClientView where
   present (ClientView nrOfP mDate mTime nrButtons nameText commentText todayButton tomorrowButton dayButtons timeButtonss confirmButton
                       nrOfPeopleLabel dateLabel timeLabel _ script) =
-    withStyle "font-family:arial; padding: 5px" $  
-    vListEx [class_ "ClientView"]
-          [ hListEx [width "100%"] [ "Name:", present nameText] -- todo: buggy on iPhone, space is added between Name and text, but not if "Name:" is replaced by "x"
+    with [ style "font-family:arial", class_ "ClientView" ] $  
+    vList [ hListEx [width "100%"] [ "Name:", present nameText] -- todo: buggy on iPhone, space is added between Name and text, but not if "Name:" is replaced by "x"
           , vSpace 7
           , present nrOfPeopleLabel
           , hListEx [class_ "nrButtons", width "100%"] $ map present nrButtons
@@ -268,3 +287,4 @@ showShortMonth m = ["Jan.", "Feb.", "Mar.", "Apr.", "May", "June", "July", "Aug.
 
 
 deriveMapWebViewDb ''Database ''ClientView
+deriveMapWebViewDb ''Database ''ClientWrapperView

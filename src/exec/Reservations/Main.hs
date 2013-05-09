@@ -31,10 +31,12 @@ main :: IO ()
 main = server 8102 "Reservations" rootViews ["Reservations.css"] "ReservationsDB.txt" mkInitialDatabase users
 
 -- the webviews here are phantom typed, so we need rootView to get rid of the phantom types
-rootViews = [ mkRootView ""           mkMainRootView
-            , mkRootView "client"     mkClientView
-            , mkRootView "restaurant" mkRestaurantView
-            , mkRootView "test"       mkTestView1 
+rootViews = [ mkRootView ""                   mkMainRootView          -- combined view of restaurant and client
+            , mkRootView "client"             mkClientWrapperView     -- for running in a browser by itself or on an iPhone/iPad
+            , mkRootView "embeddedClient"     mkClientView            -- for running in an iFrame
+            , mkRootView "restaurant"         mkRestaurantWrapperView -- for running in a browser by itself or on an iPad/iPhone 
+            , mkRootView "embeddedRestaurant" mkRestaurantView        -- for running in an iFrame
+            , mkRootView "test"               mkTestView1
             ]
              
   -- TODO: id's here?
@@ -143,6 +145,26 @@ instance Storeable Database MainView where
      
 
 -- Main ----------------------------------------------------------------------  
+
+-- Extra indirection, so we can style restaurant views that are not part of the combined view or embedded in an iFrame.
+data RestaurantWrapperView = RestaurantWrapperView (WV RestaurantView) deriving (Eq, Show, Typeable)
+  
+instance Initial RestaurantWrapperView where                 
+  initial = RestaurantWrapperView initial
+
+mkRestaurantWrapperView = mkWebView $
+ \vid (RestaurantWrapperView _) ->
+  do { restaurantView <- mkRestaurantView
+     ; return $ RestaurantWrapperView restaurantView
+     }
+
+instance Presentable RestaurantWrapperView where
+  present (RestaurantWrapperView fv) = mkPage [] $
+                            with [class_ $ "RestaurantWrapperView"] $
+                            present fv 
+
+instance Storeable Database RestaurantWrapperView where
+
 
 data RestaurantView = 
   RestaurantView (Maybe Date) (Int,Int) (Widget (Button Database)) (Widget (Button Database)) 
@@ -282,7 +304,7 @@ mark different months, mark appointments
  -}
 instance Presentable RestaurantView where
   present (RestaurantView mSelectedDate (currentMonth, currentYear) lastButton nextButton weeks dayView hourView reservationView script) =
-    withStyle "font-family:arial; padding: 5px" $  
+    with [ style "font-family:arial", class_ "RestaurantView" ] $  
     (vList $ 
       [ mkClassDiv "CalendarHeader" $
               xp $ row [ h $ present lastButton
@@ -569,6 +591,7 @@ deriveMapWebViewDb ''Database ''HourView
 deriveMapWebViewDb ''Database ''CalendarDayView
 deriveMapWebViewDb ''Database ''ReservationView
 deriveMapWebViewDb ''Database ''RestaurantView
+deriveMapWebViewDb ''Database ''RestaurantWrapperView
 deriveMapWebViewDb ''Database ''MainView
 
 deriveMapWebViewDb ''Database ''TestView1
