@@ -282,7 +282,7 @@ mark different months, mark appointments
  -}
 instance Presentable RestaurantView where
   present (RestaurantView mSelectedDate (currentMonth, currentYear) lastButton nextButton weeks dayView hourView reservationView script) =
-    withStyle "font-family:arial" $  
+    withStyle "font-family:arial; padding: 5px" $  
     (vList $ 
       [ mkClassDiv "CalendarHeader" $
               xp $ row [ h $ present lastButton

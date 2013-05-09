@@ -201,7 +201,7 @@ mkClientView = mkWebView $
 instance Presentable ClientView where
   present (ClientView nrOfP mDate mTime nrButtons nameText commentText todayButton tomorrowButton dayButtons timeButtonss confirmButton
                       nrOfPeopleLabel dateLabel timeLabel _ script) =
-    withStyle "font-family:arial" $  
+    withStyle "font-family:arial; padding: 5px" $  
     vListEx [class_ "ClientView"]
           [ hListEx [width "100%"] [ "Name:", present nameText] -- todo: buggy on iPhone, space is added between Name and text, but not if "Name:" is replaced by "x"
           , vSpace 7
