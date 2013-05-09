@@ -48,3 +48,8 @@ button[selected] {
 .CalendarHeader button {
 	width: 6em;
 }
+
+.dialogContainer { /* make dialog width smaller for embedded view on website */
+  width: 182px; /* is desired dialog max-width + 2*border + 2*padding */
+  margin-left: -91px; /* -(container width / 2) */
+}
