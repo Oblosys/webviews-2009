@@ -28,7 +28,10 @@ button[selected] {
 
 
 #root {
-    background: url('/img/background_linen.png') repeat scroll center top transparent;
+  background: url('/img/background_linen.png') repeat scroll center top transparent;
+}
+.CombinedWrapperView {
+  margin-top:10px;
 }
 .RestaurantWrapperView, .ClientWrapperView {
 	margin-top: 10px;
@@ -52,7 +55,7 @@ button[selected] {
 
 
 @media screen and (max-device-width: 480px) /* and (orientation:portrait) */ {
-	.ClientWrapperView {
+  .ClientWrapperView {
 	  background-color: transparent;
     font-size: 20px;
     color: lightgrey;

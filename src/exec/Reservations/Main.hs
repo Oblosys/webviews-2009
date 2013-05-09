@@ -135,7 +135,8 @@ selectedReservationColor = selectedDayColor
 
 
 instance Presentable MainView where
-  present (MainView cv rv) = 
+  present (MainView cv rv) = mkPage [] $
+     with [class_ $ "CombinedWrapperView"] $
      hListEx [] [ roundedBoxed (Just $ appBgColor) $ present rv
                 , hSpace 50
                 , roundedBoxed (Just $ appBgColor) $ present cv 
