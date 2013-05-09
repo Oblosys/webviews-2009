@@ -588,15 +588,16 @@ function elementLostFocus(id) {
 // Constructors for script nodes associated with each webview
 // For TextView, events are directed to a prim function which calls the handler function. This
 // way, we can customize the handler without disabling primitive functionality like focus handling.
-// (todo: maybe we don't need prim indirections for all events, e.g. onClick)
+// For some events, such as click, we don't really need the prim, but it allows for easy logging, when the onClick is overwritten.
 // Note: the viewId's here are Haskell ViewId's (eg. ViewId [path])
 // Note: we can safely refer to viewId instead of this.viewId, since it doesn't change
-// TODO: make scripts like these for all widgets
-// TODO: make prim distinction also for other widgets
+
+// TODO: By calling functions that attach the handlers to each widget (in WebViewPrim.hs) rather than adding them
+//       explicitly, we can save bandwidth.
 function ButtonScript(viewId) {
     this.viewId = viewId;
-    this.onFocusPrim = function () {dlog('ButtonScript.onFocus');elementGotFocus(viewId);this.onFocus()};
-    this.onBlurPrim  = function () {dlog('ButtonScript.onBlur');elementLostFocus(viewId);this.onBlur()};
+    this.onFocusPrim = function () {dlog('ButtonScript.onFocusPrim');elementGotFocus(viewId);this.onFocus()};
+    this.onBlurPrim  = function () {dlog('ButtonScript.onBlurPrim');elementLostFocus(viewId);this.onBlur()};
     this.onClickPrim = function () {this.onClick()};
     this.onFocus = function () {};
     this.onBlur  = function () {};
@@ -607,10 +608,12 @@ function ButtonScript(viewId) {
 function TextViewScript(viewId, notifyServer) {
     this.viewId = viewId;
     this.notifyServer = notifyServer;
+    this.onFocusPrim  = function () {dlog('TextViewScript.onFocusPrim');elementGotFocus(viewId);this.onFocus()};
+    this.onBlurPrim   = function () {dlog('TextViewScript.onBlurPrim');elementLostFocus(viewId);this.onBlur()};
     this.onSubmitPrim = function () {this.onSubmit()}
-    this.onFocusPrim  = function () {dlog('TextViewScript.onFocus');elementGotFocus(viewId);this.onFocus()};
-    this.onBlurPrim   = function () {dlog('TextViewScript.onBlur');elementLostFocus(viewId);this.onBlur()};
     this.onKeyUpPrim  = function () {;this.onKeyUp()};
+    this.onFocus  = function () {};
+    this.onBlur   = function () {textFieldChanged(viewId)};
     this.onSubmit = function () { dlog('TextViewScript.onSubmit (notifyServer='+(this.notifyServer?'true':'false')+')');
                                 ; if (this.notifyServer) {
                                     textFieldChanged(viewId);
@@ -621,14 +624,28 @@ function TextViewScript(viewId, notifyServer) {
     // (unless the submit causes an update that removes the textfield). Superfluous happen all the time
     // though, so this should not create a problem. TODO: maybe cache the textfield value and only send it on a change
     
-    this.onFocus  = function () {};
-    this.onBlur   = function () {textFieldChanged(viewId)};
     this.onKeyUp  = function () {};
 }
 
+function RadioScript(viewId) {
+	  this.viewId = viewId;
+	  this.onFocusPrim  = function () {dlog('RadioScript.onFocusPrim');elementGotFocus(viewId);this.onFocus()};
+	  this.onBlurPrim   = function () {dlog('RadioScript.onBlurPrim');elementLostFocus(viewId);this.onBlur()};
+	  this.onChangePrim = function (buttonNr) {dlog('RadioScript.onChange('+buttonNr+')');this.onChange(buttonNr)};
+	  // for a radio button, onChange only fires when button is checked, not when it is unchecked
+	  this.onFocus  = function () {};
+	  this.onBlur   = function () {};
+	  this.onChange = function (buttonNr) {queueCommand('SetC '+viewId+' "'+buttonNr+'"')};
+	}
+
+
 function SelectScript(viewId) {
   this.viewId = viewId;
-  this.onFocus  = function () {elementGotFocus(viewId)};
+  this.onFocusPrim  = function () {dlog('SelectScript.onFocusPrim');elementGotFocus(viewId);this.onFocus()};
+  this.onBlurPrim   = function () {dlog('SelectScript.onBlurPrim');elementLostFocus(viewId);this.onBlur()};
+  this.onChangePrim = function () {this.onChange()};
+  this.onFocus  = function () {};
+  this.onBlur   = function () {};
   this.onChange = function () {var i = document.getElementById(viewId).selectedIndex; queueCommand('SetC '+viewId+' "'+i+'"')};
 }
 

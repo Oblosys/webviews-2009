@@ -422,7 +422,7 @@ presentTextField (TextView viewId TextArea str enabled stl _ _) =
      textarea !* ([ id_ (mkHtmlViewIdVal viewId)
                   , style $ "width: 100%; height: 100%;" ++ stl
                   , strAttr "onfocus" $ "script"++viewIdSuffix viewId++".onFocusPrim()"
-                  , strAttr "onblur" $ "script"++viewIdSuffix viewId++".onBlurPrim()"
+                  , strAttr "onblur"  $ "script"++viewIdSuffix viewId++".onBlurPrim()"
                   , strAttr "onkeyUp" $ "script"++viewIdSuffix viewId++".onKeyUpPrim()"
                   ] ++ if enabled then [] else [disabled "disabled"]
                   ) << toHtml str >>
@@ -482,27 +482,34 @@ withEditActionAttr (Widget _ _ (EditAction viewId _)) =
 
 -- Radio needs table to prevent overflowed text to end up under the button.
 presentRadioView (RadioView viewId items selectedIx enabled stl _) = 
-   table!!![cellpadding "0", cellspacing "2px"] $ tbody ! valign "top" $ concatHtml
-  [ tr $ concatHtml  -- these radio buttons don't look well when font size is increased over 14px
-      [ td !!! [style "vertical-align: text-bottom"] $
-          radio (show viewId) (show i) !* 
-            ([ id_ (toValue eltId) -- all buttons have viewId as name, so they belong to the same radio button set 
-             , strAttr "onChange" ("queueCommand('SetC "++show viewId++" %22"++show i++"%22')") 
-             , strAttr "onFocus" ("elementGotFocus('"++eltId++"')")
-             ]
-             ++ (if enabled && i == selectedIx then [strAttr "checked" ""] else []) 
-             ++ (if not enabled then [strAttr "disabled" ""] else [])
-             ++ (if stl /= "" then [style stl] else [])) 
-      , td !!! [ style "vertical-align: text-bottom", strAttr "onClick" $ "$('#"++eltId++"').attr('checked',true);$('#"++eltId++"').change()"] $ toHtml item
-      ] -- add onClick handler, so we can click anywhere on the text, instead of only on the button.
-  | (i, item) <- zip [0..] items 
-  , let eltId = "radio"++show viewId++"button"++show i ] -- these must be unique for setting focus
+ do { table!!![cellpadding "0", cellspacing "2px"] $ tbody ! valign "top" $ concatHtml
+        [ tr $ concatHtml  -- these radio buttons don't look well when font size is increased over 14px
+            [ td !!! [style "vertical-align: text-bottom"] $
+                radio (show viewId) (show i) !* 
+                  ([ id_ (toValue eltId) -- all buttons have viewId as name, so they belong to the same radio button set 
+                   , strAttr "onChange" ("script"++viewIdSuffix viewId++".onChangePrim("++show i++")")
+                   , strAttr "onFocus"  ("script"++viewIdSuffix viewId++".onFocusPrim()")
+                   , strAttr "onBlur"   ("script"++viewIdSuffix viewId++".onBlurPrim()")
+                   ]
+                   ++ (if enabled && i == selectedIx then [strAttr "checked" ""] else []) 
+                   ++ (if not enabled then [strAttr "disabled" ""] else [])
+                   ++ (if stl /= "" then [style stl] else [])) 
+            , td !!! [] $ -- style "vertical-align: text-bottom", strAttr "onClick" $ "$('#"++eltId++"').attr('checked',true);$('#"++eltId++"').change()"] $
+                       toHtml item
+            ] -- add onClick handler, so we can click anywhere on the text, instead of only on the button.
+        | (i, item) <- zip [0..] items 
+        , let eltId = "radio"++show viewId++"button"++show i ] -- these must be unique for setting focus
+    ; mkScript $ declareWVRadioScript viewId
+    }
+    
+declareWVRadioScript viewId = jsAssignVar viewId "script" $ "new RadioScript(\""++show viewId++"\");"
 
 presentSelectView :: (SelectView db) -> Html
 presentSelectView (SelectView viewId items selectedIx enabled stl _) = 
   do { select !* ([ id_ $ mkHtmlViewIdVal viewId
-                  , strAttr "onChange" ("script"++viewIdSuffix viewId++".onChange()")
-                  , strAttr "onFocus" ("script"++viewIdSuffix viewId++".onFocus()")
+                  , strAttr "onChange" ("script"++viewIdSuffix viewId++".onChangePrim()")
+                  , strAttr "onFocus"  ("script"++viewIdSuffix viewId++".onFocusPrim()")
+                  , strAttr "onBlur"   ("script"++viewIdSuffix viewId++".onBlurPrim()")
                   --, style "width: 100%" -- this causes problems in a stretchlist: if there is a space, the selectview gets minimized 
                   ]
                   ++ (if not enabled then [strAttr "disabled" ""] else [])
