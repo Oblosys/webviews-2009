@@ -446,8 +446,6 @@ declareWVTextViewScript viewId notifyServer = jsAssignVar viewId "script" $ "new
 
 inertTextView :: (Widget (TextView db)) -> String
 inertTextView tv = jsScript [ onEvent "Submit" tv ""
-                            , onEvent "Focus"  tv ""
-                            , onEvent "Blur"   tv ""
                             ] -- prevent this text widget from firing updates to the server
 
 
@@ -459,8 +457,10 @@ presentButton (Button viewId txt enabled stl onclick _) =
                                      "\" "++
                             "onfocus=\"elementGotFocus('"++show viewId++"')\">"++txt++"</button>") -}
   (primHtml $ "<button id=\""++ show viewId++"\" "++ (if enabled then "" else "disabled ") ++ (if stl /="" then " style=\"" ++stl++"\" " else "")++
-                            "onclick="++ (if onclick /= "" then show onclick else "\"script"++viewIdSuffix viewId++".onClick()\"")++" "++
-                            "onfocus=\"script"++viewIdSuffix viewId++".onFocus()\">"++txt++"</button>") >>
+                            "onclick="++ (if onclick /= "" then show onclick else "\"script"++viewIdSuffix viewId++".onClickPrim()\"")++" "++
+                            "onfocus=\"script"++viewIdSuffix viewId++".onFocusPrim()\" "++
+                            "onblur=\"script"++viewIdSuffix viewId++".onBlurPrim()\""++
+                            ">"++txt++"</button>") >>
   (mkScript $ declareWVButtonScript viewId)
 -- TODO: text should be escaped
 

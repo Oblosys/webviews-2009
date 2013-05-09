@@ -588,15 +588,18 @@ function elementLostFocus(id) {
 // Constructors for script nodes associated with each webview
 // For TextView, events are directed to a prim function which calls the handler function. This
 // way, we can customize the handler without disabling primitive functionality like focus handling.
-//
+// (todo: maybe we don't need prim indirections for all events, e.g. onClick)
 // Note: the viewId's here are Haskell ViewId's (eg. ViewId [path])
 // Note: we can safely refer to viewId instead of this.viewId, since it doesn't change
 // TODO: make scripts like these for all widgets
 // TODO: make prim distinction also for other widgets
 function ButtonScript(viewId) {
     this.viewId = viewId;
-    this.onFocus = function () {elementGotFocus(viewId)};
-    this.onBlur = function () {elementLostFocus(viewId)};
+    this.onFocusPrim = function () {dlog('ButtonScript.onFocus');elementGotFocus(viewId);this.onFocus()};
+    this.onBlurPrim  = function () {dlog('ButtonScript.onBlur');elementLostFocus(viewId);this.onBlur()};
+    this.onClickPrim = function () {this.onClick()};
+    this.onFocus = function () {};
+    this.onBlur  = function () {};
     this.onClick = function () {queueCommand('ButtonC '+viewId)};
 }
 
