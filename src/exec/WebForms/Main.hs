@@ -653,7 +653,7 @@ mkMainView form = mkWebView $
      }
 
 instance Presentable MainView where
-  present (MainView fv) = mkPage [style "background: url('img/background_linen.png') repeat scroll center top transparent; min-height: 100%"] $
+  present (MainView fv) = mkPage [style "background: url('/img/background_linen.png') repeat scroll center top transparent; min-height: 100%"] $
                             with [class_ $ "MainPage"] $
                             present fv 
 
