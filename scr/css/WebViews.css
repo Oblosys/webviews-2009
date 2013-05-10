@@ -28,6 +28,12 @@ table.Xprez.Row td {
   white-space: nowrap;
 }
 
+/* disable padding and margin for textarea and text field because of IE bug */
+textarea,input[type="text"] {
+  padding: 0;
+  margin: 0;  
+}
+
 .roundedCorners {
   border:solid; 
   border-width:1px;
