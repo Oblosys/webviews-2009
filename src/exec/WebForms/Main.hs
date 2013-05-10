@@ -186,49 +186,49 @@ stellingen = page
 deelDrie = page [ htmlFileElt "DeelDrie.html" ]
 
 vignettes = 
-  [ page $
-      mkVignette Vignette { nummer = 1
-                          , omschr1 = "Een app waarmee u rapporten mondeling kunt inspreken, die achteraf door andere medewerkers schriftelijk kunnen worden vastgelegd"
-                          , omschr2 = "Een app waarmee u snel kunt zien welke medicijnen met elkaar interacteren"
-                          , uitproberen1 = "Mogelijk"
-                          , uitproberen2 = "Niet mogelijk"
-                          , klaar1 = "Onvoldoende"
-                          , klaar2 = "Goed"
-                          , succes1 = "Goed"
-                          , succes2 = "Onvoldoende"
-                          , collegas1 = "Sceptisch"
-                          , collegas2 = "Enthousiast"
-                          , beloning1 = "Tijdbesparing"
-                          , beloning2 = "Minder kans op fouten"
-                          } 
-  , page $
-      mkVignette Vignette { nummer = 2
-                          , omschr1 = "Een app waarmee u snel kunt zien welke medicijnen met elkaar interacteren"
-                          , omschr2 = "Een app waarmee u pati&euml;ntgegevens als een zakkaartje op uw iPhone meedraagt"
-                          , uitproberen1 = "Niet mogelijk"
-                          , uitproberen2 = "Mogelijk"
-                          , klaar1 = "Onvoldoende"
-                          , klaar2 = "Onvoldoende"
-                          , succes1 = "Goed"
-                          , succes2 = "Onvoldoende"
-                          , collegas1 = "Sceptisch"
-                          , collegas2 = "Sceptisch"
-                          , beloning1 = "Minder kans op fouten"
-                          , beloning2 = "Niet meer zeulen met dossiers"
-                          }
+  [ mkVignettePage Vignette { nummer = 1
+                            , omschr1 = "Een app waarmee u rapporten mondeling kunt inspreken, die achteraf door andere medewerkers schriftelijk kunnen worden vastgelegd"
+                            , omschr2 = "Een app waarmee u snel kunt zien welke medicijnen met elkaar interacteren"
+                            , uitproberen1 = "Mogelijk"
+                            , uitproberen2 = "Niet mogelijk"
+                            , klaar1 = "Onvoldoende"
+                            , klaar2 = "Goed"
+                            , succes1 = "Goed"
+                            , succes2 = "Onvoldoende"
+                            , collegas1 = "Sceptisch"
+                            , collegas2 = "Enthousiast"
+                            , beloning1 = "Tijdbesparing"
+                            , beloning2 = "Minder kans op fouten"
+                            } 
+  , mkVignettePage Vignette { nummer = 2
+                            , omschr1 = "Een app waarmee u snel kunt zien welke medicijnen met elkaar interacteren"
+                            , omschr2 = "Een app waarmee u pati&euml;ntgegevens als een zakkaartje op uw iPhone meedraagt"
+                            , uitproberen1 = "Niet mogelijk"
+                            , uitproberen2 = "Mogelijk"
+                            , klaar1 = "Onvoldoende"
+                            , klaar2 = "Onvoldoende"
+                            , succes1 = "Goed"
+                            , succes2 = "Onvoldoende"
+                            , collegas1 = "Sceptisch"
+                            , collegas2 = "Sceptisch"
+                            , beloning1 = "Minder kans op fouten"
+                            , beloning2 = "Niet meer zeulen met dossiers"
+                            }
   ]
 
 
+-- Create a table row containing a question that has n numbered answer buttons.
 mkScaleQuestion :: Int -> String -> String -> TableRow
-mkScaleQuestion scaleMax tag question = [ htmlElt question, buttonAnswerElt tag $ map show [1..scaleMax] ]
+mkScaleQuestion n tag question = [ htmlElt question, buttonAnswerElt tag $ map show [1..n] ]
 
 data Vignette = Vignette { nummer :: Int
                          , omschr1, omschr2, uitproberen1, uitproberen2, klaar1, klaar2, succes1, succes2
                          , collegas1, collegas2, beloning1, beloning2 :: String
                          }
-                         
-mkVignette :: Vignette -> TableRow
-mkVignette vt = 
+                      
+-- Create a form page for vignette vt.    
+mkVignettePage :: Vignette -> FormPage
+mkVignettePage vt = page $ 
   [ tableElt "VignetteOmschr"
     [ [ htmlElt $ "Vignette "++show (nummer vt), htmlElt "Situatie 1", htmlElt "Situatie 2"]
     , [ htmlElt "<div >Omschrijving van de app</div>", htmlElt $ "<div >"++omschr1 vt++"</div>"
