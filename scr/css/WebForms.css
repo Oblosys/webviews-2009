@@ -1,6 +1,6 @@
 body { font-size: 12px; font-family: Geneva, Arial }
 .MainPage { font-size: 13px; margin: 10px; padding: 10px 50px 100px 50px; background-color: white } /* not part of embedded view */
-.FormPage { width: 630px; margin: 0px; padding: 0px }
+.FormPage { width: 628px; margin: 0px; padding: 2px }
 
 /* On an iPad, the rules below takes precedence over the rules above (order is important) */
 @media only screen and (device-width: 768px) {
