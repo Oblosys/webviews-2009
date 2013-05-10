@@ -134,7 +134,7 @@ a {
   color: #000;
 }
 
-/* Compatibility declarations */
+/* Browser compatibility */
 
 /* only necessary for IE */
 html,body,#root {
@@ -146,7 +146,9 @@ textarea,input[type="text"] {
   padding: 0;
   margin: 0;  
 }
-
+button {
+  margin:0px;      /* otherwise Windows Chrome adds space between buttons */
+}
 
 
 /* On an iPad, the rules below takes precedence over the rules above (order is important) */
