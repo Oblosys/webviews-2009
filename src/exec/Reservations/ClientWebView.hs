@@ -40,9 +40,8 @@ mkClientWrapperView = mkWebView $
      }
 
 instance Presentable ClientWrapperView where
-  present (ClientWrapperView fv) = mkPage [] $
-                            with [class_ $ "ClientWrapperView"] $
-                            present fv 
+  present (ClientWrapperView fv) = 
+    mkClassDiv "ClientWrapperParent" $ mkPage [] $ mkClassDiv "ClientWrapperView" $ present fv 
 
 instance Storeable Database ClientWrapperView where
 
@@ -237,7 +236,7 @@ instance Presentable ClientView where
           , simpleTable [class_ "timeButtons", width "100%",cellpadding "0", cellspacing "0"] [] $ map (map present) timeButtonss
           , vSpace 7
           , "Comments:"
-          , present commentText
+          , mkClassDiv "Comments" $ present commentText
           , vSpace 7
           , present confirmButton ] +++   
           mkScript script

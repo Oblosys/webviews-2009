@@ -135,8 +135,8 @@ selectedReservationColor = selectedDayColor
 
 
 instance Presentable MainView where
-  present (MainView cv rv) = mkPage [] $
-     with [class_ $ "CombinedWrapperView"] $
+  present (MainView cv rv) = 
+    mkClassDiv "CombinedWrapperParent" $ mkPage [] $ mkClassDiv "CombinedWrapperView" $ 
      hListEx [] [ roundedBoxed (Just $ appBgColor) $ present rv
                 , hSpace 50
                 , roundedBoxed (Just $ appBgColor) $ present cv 
@@ -160,9 +160,8 @@ mkRestaurantWrapperView = mkWebView $
      }
 
 instance Presentable RestaurantWrapperView where
-  present (RestaurantWrapperView fv) = mkPage [] $
-                            with [class_ $ "RestaurantWrapperView"] $
-                            present fv 
+  present (RestaurantWrapperView fv) = 
+        mkClassDiv "RestaurantWrapperParent" $ mkPage [] $ mkClassDiv "RestaurantWrapperView" $ present fv 
 
 instance Storeable Database RestaurantWrapperView where
 
