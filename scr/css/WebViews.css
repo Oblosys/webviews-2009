@@ -28,12 +28,6 @@ table.Xprez.Row td {
   white-space: nowrap;
 }
 
-/* disable padding and margin for textarea and text field because of IE bug */
-textarea,input[type="text"] {
-  padding: 0;
-  margin: 0;  
-}
-
 .roundedCorners {
   border:solid; 
   border-width:1px;
@@ -139,6 +133,21 @@ a {
   padding: 4px;
   color: #000;
 }
+
+/* Compatibility declarations */
+
+/* only necessary for IE */
+html,body,#root {
+  height: 100%;
+  width: 100%;
+}
+/* disable padding and margin for textarea and text field because of IE bug */
+textarea,input[type="text"] {
+  padding: 0;
+  margin: 0;  
+}
+
+
 
 /* On an iPad, the rules below takes precedence over the rules above (order is important) */
 @media only screen and (device-width: 768px) {
