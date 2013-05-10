@@ -494,7 +494,7 @@ presentRadioView (RadioView viewId items selectedIx enabled stl _) =
                    ++ (if enabled && i == selectedIx then [strAttr "checked" ""] else []) 
                    ++ (if not enabled then [strAttr "disabled" ""] else [])
                    ++ (if stl /= "" then [style stl] else [])) 
-            , td !!! [] $ -- style "vertical-align: text-bottom", strAttr "onClick" $ "$('#"++eltId++"').attr('checked',true);$('#"++eltId++"').change()"] $
+            , td !!! [style "vertical-align: text-bottom", strAttr "onClick" $ "$('#"++eltId++"').attr('checked',true);$('#"++eltId++"').change()"] $
                        toHtml item
             ] -- add onClick handler, so we can click anywhere on the text, instead of only on the button.
         | (i, item) <- zip [0..] items 
