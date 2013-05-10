@@ -1,7 +1,3 @@
-textarea {
-	resize: none;
-}
-
 button {
 	border-width: 1px;
 	border-color: black;
@@ -26,9 +22,9 @@ button[selected] {
   margin-left: -91px; /* -(container width / 2) */
 }
 
-
-#root {
+.CombinedWrapperParent, .RestaurantWrapperParent, .ClientWrapperParent {
   background: url('/img/background_linen.png') repeat scroll center top transparent;
+  height:100%;
 }
 .CombinedWrapperView {
   margin-top:10px;
@@ -48,6 +44,15 @@ button[selected] {
 	background-color: white;
 	padding: 5px;
 }
+
+/* Browser compatibility */
+.Comments {
+  height: 44px;    /* otherwise Windows FF makes the text area too high */
+}
+button {
+  min-width: 27px; /* otherwise Windows Chrome makes buttons smaller than other browsers */
+}
+
 
 /* On an iPad, the rules below takes precedence over the rules above (order is important) */
 @media only screen and (device-width: 768px) {
