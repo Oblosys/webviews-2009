@@ -25,13 +25,15 @@ button[selected] {
 .CombinedWrapperParent, .RestaurantWrapperParent, .ClientWrapperParent {
   background: url('/img/background_linen.png') repeat scroll center top transparent;
   height:100%;
+  width: 100%;
+  overflow: scroll; /* prevents background from being cut-off to viewport size */
 }
 .CombinedWrapperView {
   margin-top:10px;
 }
 .RestaurantWrapperView, .ClientWrapperView {
 	margin-top: 10px;
-	padding: 10px;
+	padding: 7px;
   background-color: white;
   border: solid black 1px;
   border-radius: 6px;            /* standard */
