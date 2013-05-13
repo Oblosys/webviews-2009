@@ -140,6 +140,9 @@ data Color = Rgb Int Int Int
 
 with attrs elt = div_ !!! attrs << elt
 
+withClass :: String -> Html -> Html
+withClass cls elt = with [class_ cls] elt
+
 withStyle :: String -> Html -> Html
 withStyle stl elt = with [style stl] elt
 
