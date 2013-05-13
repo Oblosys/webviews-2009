@@ -86,8 +86,9 @@ xp x = let (html, attrs) = renderX x
 
 {-
 TODO: 
+Need some way to set classes in Xprex constructs (so we can style with css)
 
-Dangerous to set width/heigth with an addStyle. Becomes problematic in http://localhost:8101/#items&q=blaaa.
+Dangerous to set width/height with an addStyle. Becomes problematic in http://localhost:8101/#items&q=blaaa.
 How to handle setting a constaint on a stretching column?
 
 
