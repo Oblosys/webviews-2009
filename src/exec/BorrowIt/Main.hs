@@ -628,12 +628,18 @@ instance Storeable Database BorrowedRootView
 mkBorrowedRootView :: WebViewM Database (WebView Database BorrowedRootView)
 mkBorrowedRootView = mkWebView $
   \vid oldLenderView@(BorrowedRootView _ _) ->
-   do { Just (login,_) <- getUser
-      ; borrowedItems <- withDb $ \db -> getBorrowedItems (LenderId login) db
-      ; borrowed <- mapM (mkItemView Inline) borrowedItems
-      ; lendedItems <- withDb $ \db -> getLendedItems (LenderId login) db
-      ; lended <- mapM (mkItemView Inline) lendedItems
-      ; return $ BorrowedRootView borrowed lended
+   do { mUser <- getUser
+      ; case mUser of
+          Just (login,_) ->
+           do { 
+              ; borrowedItems <- withDb $ \db -> getBorrowedItems (LenderId login) db
+              ; borrowed <- mapM (mkItemView Inline) borrowedItems
+              ; lendedItems <- withDb $ \db -> getLendedItems (LenderId login) db
+              ; lended <- mapM (mkItemView Inline) lendedItems
+              ; return $ BorrowedRootView borrowed lended
+              }
+          Nothing -> -- instead of showing empties, we should navigate to a different page on logout
+            return $ BorrowedRootView [] []
       }
 
 instance Presentable BorrowedRootView where
