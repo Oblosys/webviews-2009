@@ -249,7 +249,7 @@ instance Presentable ItemView where
                 , vSpace 10
                 , hList $ map present buttons
               ]
-                ) ! style "width: 200px; height: 130px; padding: 5; font-size: 12px"
+                ) ! style "width: 200px; height: 130px; padding: 5px; font-size: 12px"
             ]
    , -} xp $
     addStyle "font-size: 12px; margin: 5px;" $
@@ -344,7 +344,7 @@ getAllCategoryProps vid isEdited item c =
       _ -> []
 
 presentPrice price =
-  with [style "width:30px; height:28px; padding: 2 0 0 0; color: white; background-color: black; font-family: arial; font-size:24px; text-align: center"] $
+  with [style "width:30px; height:28px; padding: 2px 0px 0px 0px; color: white; background-color: black; font-family: arial; font-size:24px; text-align: center"] $
     toHtml $ show price 
 
 instance Storeable Database ItemView
@@ -638,7 +638,7 @@ mkBorrowedRootView = mkWebView $
               ; lended <- mapM (mkItemView Inline) lendedItems
               ; return $ BorrowedRootView borrowed lended
               }
-          Nothing -> -- instead of showing empties, we should navigate to a different page on logout
+          Nothing -> -- TODO: instead of showing empties, we should navigate to a different page on logout
             return $ BorrowedRootView [] []
       }
 
