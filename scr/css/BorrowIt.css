@@ -12,3 +12,6 @@ a.MenuBarLink {
 .BorrowedByLink a{
   color: red;
 }
+a img { /* otherwise IE puts border around images in links */
+	border: none;
+}
