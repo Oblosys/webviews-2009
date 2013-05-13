@@ -37,7 +37,7 @@ instance Initial SortDefaultPresent where
 instance TaggedPresent SortDefaultPresent (Widget (SelectView db), Widget (SelectView db), [WebView db v]) where
   taggedPresent SortDefaultPresent (sortFieldSelect, sortOrderSelect, webViews) =
     (vList $ hStretchList [space, E $ "Sort" +++ nbsp, E $ present sortOrderSelect, E $ nbsp +++ "on" +++ nbsp, E $ present sortFieldSelect] 
-              ! style ("margin: 4 0 4 0;" ++ gradientStyle Nothing "#101010" "#707070") 
+              ! style ("color:white;margin: 4 0 4 0;" ++ gradientStyle Nothing "#101010" "#707070") 
             : intersperse hSep (map present webViews)
     ) ! style "width: 100%"        
    where hSep = div_ ! style "width: 100%; height:1px; background-color: black; margin: 5 0 5 0" $ noHtml
