@@ -1,5 +1,8 @@
-.PageContents {
-	text-align: left;
+
+/* Browser compatibility */
+
+.PageContents { /* otherwise all text is centered in IE */
+  text-align: left;
 }
 
 /* Explicitly color links, since older IE doesn't understand inherit */
@@ -14,4 +17,7 @@ a.MenuBarLink {
 }
 a img { /* otherwise IE puts border around images in links */
 	border: none;
+}
+img { /* otherwise IE renders images slightly higher */
+	display: block;
 }
