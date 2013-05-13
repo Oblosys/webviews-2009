@@ -492,8 +492,9 @@ instance Presentable LenderView where
                               ]
                       ]
               , vSpace 20
-              , h2 $ (toHtml $ get lenderFirstName lender ++ "'s Items")
+              , withStyle "font-size: 24px; font-weight: bold; margin-bottom: 10px" $ (toHtml $ get lenderFirstName lender ++ "'s Items")
               , hList $ "Add:" : map present addButtons
+              , vSpace 5                                              
               , vList $ map present itemWebViews
               ]
   present (LenderView Inline mUser lender mEdited {- testProps -} props extraProps itemWebViews buttons _) =
@@ -505,7 +506,6 @@ instance Presentable LenderView where
                     --, vList $ map present testProps
                     , span_ (presentRating 5 $ get lenderRating lender) ! style "font-size: 20px"
                     , hList $ map present buttons
-                                              
                     ]
          --   , with [style "display: none"] $ concatHtml $ map present [fName,lName] ++ [present editButton] -- todo: not nice! 
             ]
