@@ -203,7 +203,7 @@ instance Presentable ItemView where
                                     presentEditableProperties -- ("Owner: ", Static linkedLenderFullName owner):
                                                               props
                                 ] 
-                                ++ maybe [] (\borrower -> [ vSpace 10, with [style "color: red"] $ 
+                                ++ maybe [] (\borrower -> [ vSpace 10, with [style "color: red", class_ "BorrowedByLink"] $ 
                                                            "Borrowed by " +++ linkedLenderFullName borrower]) mBorrower
                                 ++ [ vSpace 10
                                 , present button ]
@@ -243,7 +243,7 @@ instance Presentable ItemView where
                                   (if dist > 0 then [ ("Distance", toHtml $ showDistance dist) ] else [])
                   --, div_ $ presentPrice (itemPrice item)
                 ] ++
-                  maybe [] (\borrower -> [with [style "color: red; font-size: 12px"] $ "Borrowed by " +++ linkedLenderFullName borrower]) mBorrower
+                  maybe [] (\borrower -> [with [style "color: red; font-size: 12px", class_ "BorrowedByLink"] $ "Borrowed by " +++ linkedLenderFullName borrower]) mBorrower
                   ++ [ vSpace 5
                 , present button 
                 , vSpace 10
@@ -275,7 +275,7 @@ instance Presentable ItemView where
                                   (if dist > 0 then [ ("Distance", toHtml $ showDistance dist) ] else [])
                   --, div_ $ presentPrice (itemPrice item)
                 ] ++
-                  maybe [] (\borrower -> [h $ with [style "color: red"] $ "Borrowed by " +++ linkedLenderFullName borrower]) mBorrower
+                  maybe [] (\borrower -> [h $ with [style "color: red", class_ "BorrowedByLink"] $ "Borrowed by " +++ linkedLenderFullName borrower]) mBorrower
                   ++ [h $ vSpace 5
                 , h $ present button 
                 , h $ vSpace 10
@@ -362,7 +362,7 @@ linkedLender lender html =
   a! (href $ (toValue $ "/#lender&lender=" ++ get (lenderIdLogin . lenderId) lender)) << html
 
 rootViewLink :: String -> Html -> Html 
-rootViewLink rootViewName html = a ! (href $ (toValue $ "/#" ++ rootViewName)) << html
+rootViewLink rootViewName html = a ! class_ "MenuBarLink" ! (href $ (toValue $ "/#" ++ rootViewName)) << html
 
 
 
@@ -478,7 +478,7 @@ instance Presentable LenderView where
         vList [ vSpace 20
               , hList [ (div_ (boxedEx 1 1 $ image ("lenders/" ++ get lenderImage lender) ! style "height: 200px")) ! style "width: 204px" ! align "top"
                       , hSpace 20
-                      , vList [ h2 $ {- if editing 
+                      , vList [ withStyle "font-size: 24px; font-weight: bold; margin-bottom: 19px" $ {- if editing 
                                      then hList [ present fName, nbsp, present lName ] 
                                      else -} (toHtml $ showName lender) -- +++ (with [style "display: none"] $ concatHtml $ map present [fName,lName]) -- todo: not nice!
                               , hList [ vList [ presentEditableProperties props
@@ -690,7 +690,7 @@ instance Presentable BorrowItPageView where
               hStretch $
                 col [ addStyle ("color: white; font-size: 17px;"++ gradientStyle Nothing "#707070" "#101010") $
                         row $  map (h . highlightItem) leftMenuItems ++ [flexHSpace] ++ map (h . highlightItem) rightMenuItems
-                    , h $ withStyle "padding: 10px" $ present wv
+                    , h $ with [class_ "PageContents" , style "padding: 10px"] $ present wv
                   ]
           ]
    where leftMenuItems = map (\(label,rootView) -> (label, rootViewLink rootView $ toHtml label)) $
@@ -702,11 +702,11 @@ instance Presentable BorrowItPageView where
          
          highlightItem (label, e) = with [ onmouseover "this.style.backgroundColor='#666'" -- not nice, but it works and prevents
                                          , onmouseout  "this.style.backgroundColor=''"     -- the need for a css declaration
-                                         , style $ "height: 25px; margin: 0 20 0 20; " ++ 
+                                         , style $ "height: 25px; margin: 0px 20px 0px 20px; " ++ 
                                                    if label == menuItemLabel 
                                                    then gradientStyle Nothing "#303030" "#101010" 
                                                    else "" ] $
-                                    with [style "padding: 2 10 5 10;" ] e
+                                    with [style "padding: 2px 10px 5px 10px;" ] e
 
   
 
@@ -856,7 +856,7 @@ rootViews = [ mkRootView ""        $ mkBorrowItPageView "Home"    $ mkUntypedWeb
             , mkRootView "lender"   $ mkBorrowItPageView "Lender"   $ mkUntypedWebView mkLenderRootView
             , mkRootView "items"   $ mkBorrowItPageView "Items" $ mkUntypedWebView mkItemsRootView
             , mkRootView "item"    $ mkBorrowItPageView "Item"    $ mkUntypedWebView mkItemRootView
-            , mkRootView "geleend" $ mkBorrowItPageView "Geleend" $ mkUntypedWebView mkBorrowedRootView
+            , mkRootView "lended" $ mkBorrowItPageView "Lended" $ mkUntypedWebView mkBorrowedRootView
             , mkRootView "login"   $ mkBorrowItPageView "Login"   $ mkUntypedWebView mkBorrowItLoginOutView
             , mkRootView "test"    $ mkTestView, mkRootView "test2" mkTestView2
             ] 

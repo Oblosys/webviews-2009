@@ -1,0 +1,14 @@
+.PageContents {
+	text-align: left;
+}
+
+/* Explicitly color links, since older IE doesn't understand inherit */
+a.MenuBarLink {
+  color: white;
+}
+.PageContents a {
+  color: black;
+}
+.BorrowedByLink a{
+  color: red;
+}
