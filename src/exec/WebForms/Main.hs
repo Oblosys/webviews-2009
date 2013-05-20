@@ -170,7 +170,7 @@ stellingen = page
       [ [ htmlElt "", htmlElt "Mee&nbsp;eens<span style='margin-left:50px'></span>Mee&nbsp;oneens" ]
       , mkScaleQuestion 7 "presteren" "Ik vind het belangrijk om beter te presteren dan mijn collega's"
       , mkScaleQuestion 7 "angst" "Mijn angst om op mijn werk onder te presteren is vaak wat mij motiveert"
-      , mkScaleQuestion 7 "vermijden" "Ik wil vooral vermijden dat onderpresteer op mijn werk"
+      , mkScaleQuestion 7 "vermijden" "Ik wil vooral vermijden dat ik onderpresteer op mijn werk"
       , mkScaleQuestion 7 "vergelijking" "Ik vind het belangrijk om goed te presteren, in vergelijking met mijn directe collega's"
 {-      , mkScaleQuestion 7 "beheersen" "Het is belangrijk voor mij om de werkzaamheden die ik verricht zo goed als mogelijk te beheersen"
       , mkScaleQuestion 7 "zorgen" "Ik maak mij vaak zorgen dat ik niet alle kennis en vaardigheden op kan doen die deze baan mij te bieden heeft"
