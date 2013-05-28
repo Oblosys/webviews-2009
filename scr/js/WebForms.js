@@ -1,4 +1,4 @@
-var $previousAllAnswers = new Array();
+var $previousAllAnswers = [];
 var oldUpperButtonPos = {left: 0, top: 0};
 var oldLowerButtonPos = {left: 0, top: 0};
 
