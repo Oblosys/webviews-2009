@@ -707,8 +707,14 @@ getQuestionsAnsweredFormElt (TableElt _ _ _ _ rows) db = and [ getQuestionsAnswe
 deriveMapWebViewDb ''Database ''MainView
 
 main :: IO ()
-main = server 8100 "Blij van IT" rootViews ["WebForms.js", "WebForms.css", "BlijVanIT.css"] "WebFormDB.txt" mkInitialDatabase $ Map.empty
-
+main = 
+ do { fileExists <- io $ doesFileExist resultsFilepath   
+    ; when (not fileExists) $ -- create an empty file, so we don't get an error when accessing it before any forms have been saved
+                              -- (we cannot put the keys in it, since these are not known until the main form is launched)
+        io $ writeFile resultsFilepath ""
+    ; server 8100 "Blij van IT" rootViews ["WebForms.js", "WebForms.css", "BlijVanIT.css"] "WebFormDB.txt" mkInitialDatabase $ Map.empty
+    }
+    
 rootViews :: RootViews Database
 rootViews = [ mkRootView "" $ mkMainView mainForm
             , mkRootView "form" $ mkMainView mainForm
