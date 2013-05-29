@@ -569,6 +569,12 @@ mkFormView :: WebForm -> WebViewM Database (WV FormView)
 mkFormView form@(Form pages) = mkWebView $
   \vid FormView{} ->
     do { modifyDb $ initializeDb form
+       ; db <- getDb
+       ; fileExists <- io $ doesFileExist resultsFilepath   
+       ; when (not fileExists) $ -- create a new file, so we don't get an error when accessing it before any forms have been saved
+                                 -- (need to do this here rather than in main, to put the keys in the header line)
+           io $ writeFile resultsFilepath $ intercalate "," $ map show $ Map.keys db
+      
        ; args <- getHashArgs
        ; let currentPageNr = case args of
                              ("p", nrStr):_ | Just nr <- readMaybe nrStr  -> if nr < length pages then nr - 1 else length pages - 1
@@ -576,7 +582,6 @@ mkFormView form@(Form pages) = mkWebView $
              currentPage = pages!!currentPageNr
              
        ; pageView <- mkFormPageView currentPageNr currentPage
-       ; db <- getDb
        --; liftIO $ putStrLn $ "Db is "++show db
        ; let isComplete = all isQuestionAnswered $ Map.elems db
        ; clearButton <- mkButton "Alles wissen" True $ confirmEdit "Weet u zeker dat u alle antwoorden wilt wissen?" 
@@ -707,13 +712,8 @@ getQuestionsAnsweredFormElt (TableElt _ _ _ _ rows) db = and [ getQuestionsAnswe
 deriveMapWebViewDb ''Database ''MainView
 
 main :: IO ()
-main = 
- do { fileExists <- io $ doesFileExist resultsFilepath   
-    ; when (not fileExists) $ -- create an empty file, so we don't get an error when accessing it before any forms have been saved
-                              -- (we cannot put the keys in it, since these are not known until the main form is launched)
-        io $ writeFile resultsFilepath ""
-    ; server 8100 "Blij van IT" rootViews ["WebForms.js", "WebForms.css", "BlijVanIT.css"] "WebFormDB.txt" mkInitialDatabase $ Map.empty
-    }
+main = server 8100 "Blij van IT" rootViews ["WebForms.js", "WebForms.css", "BlijVanIT.css"] "WebFormDB.txt" mkInitialDatabase $ Map.empty
+
     
 rootViews :: RootViews Database
 rootViews = [ mkRootView "" $ mkMainView mainForm
