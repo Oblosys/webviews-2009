@@ -36,7 +36,7 @@ table.Xprez.Row td {
   border-radius: 6px;            /* standard */
   -webkit-border-radius: 6px;    /* for older Safari */
   -moz-border-radius: 6px;       /* for older Firefox (<13) */
-  -khtml-border-radius: 6px;     /* not sure for which one this is */
+  -khtml-border-radius: 6px;     /* for Konqueror */
 }
 
 .tab {
