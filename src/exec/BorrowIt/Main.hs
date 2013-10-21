@@ -352,14 +352,14 @@ instance Storeable Database ItemView
 linkedItemName item = linkedItem item $ toHtml (get itemName item)
 
 linkedItem item html = 
-  a ! (href $ (toValue $ "/#item&item=" ++ (show $ get (itemIdNr . itemId) item))) << html
+  a ! (href $ (toValue $ "/#item?item=" ++ (show $ get (itemIdNr . itemId) item))) << html
 
 linkedLenderName lender = linkedLender lender $ toHtml $ get (lenderIdLogin . lenderId) lender
 
 linkedLenderFullName lender = linkedLender lender $ toHtml (get lenderFirstName lender ++ " " ++ get lenderLastName lender)
   
 linkedLender lender html = 
-  a! (href $ (toValue $ "/#lender&lender=" ++ get (lenderIdLogin . lenderId) lender)) << html
+  a! (href $ (toValue $ "/#lender?lender=" ++ get (lenderIdLogin . lenderId) lender)) << html
 
 rootViewLink :: String -> Html -> Html 
 rootViewLink rootViewName html = a ! class_ "MenuBarLink" ! (href $ (toValue $ "/#" ++ rootViewName)) << html
@@ -378,7 +378,7 @@ mkBorrowItLoginOutView = mkWebView $
   \vid oldItemView@BorrowItLoginOutView{} ->
    do { user <- getUser
       ; loginOutView <- if user == Nothing then mkUntypedWebView . mkLoginView $ \(login, fullName) -> 
-                                                  evalJSEdit [ jsNavigateTo $ "'#lender&lender="++login++"'" ]
+                                                  evalJSEdit [ jsNavigateTo $ "'#lender?lender="++login++"'" ]
                                            else mkUntypedWebView mkLogoutView
       ; return $ BorrowItLoginOutView loginOutView
       }
@@ -704,7 +704,7 @@ instance Presentable BorrowItPageView where
          rightMenuItems = [ if user == Nothing then ("Login", rootViewLink "login" "Login") 
                                                else ("Logout", withEditAction logoutAction "Logout") ] -- Logout is not a menu, so it will not be highlighted
          userMenuItems Nothing = []
-         userMenuItems (Just (userId, _)) = [("My profile", "lender&lender="++userId), ("Lended", "lended")]
+         userMenuItems (Just (userId, _)) = [("My profile", "lender?lender="++userId), ("Lended", "lended")]
          
          highlightItem (label, e) = with [ onmouseover "this.style.backgroundColor='#666'" -- not nice, but it works and prevents
                                          , onmouseout  "this.style.backgroundColor=''"     -- the need for a css declaration
