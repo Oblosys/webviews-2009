@@ -1,0 +1,43 @@
+<html>
+<head>
+<style>
+body {
+  height:100%;
+  width: 100%;
+  overflow: scroll;
+}
+.fixedWidth {
+    background-color: grey;
+    border: solid black 1px;
+    height: 10px;
+    width: 200px;
+}
+.flexWidth {
+    background-color: grey;
+    border: solid black 1px;
+    height: 10px;
+}
+.outer td {
+    width: 100%;
+}
+.inner {
+    width: 100%;
+}
+.inner td {
+    width: 1%;
+    bordeR: solid grey 1px;
+}</style>
+</head>
+<body>
+<table class="outer">
+    <tr><td>
+<div class="fixedWidth"></div>        
+<div class="flexWidth"></div>        
+<table class="inner">
+    <tr><td>1</td><td>2</td><td>3</td><td>4</td></tr>
+</table>
+        
+    </td></tr>
+</table>
+</body>
+</html>
