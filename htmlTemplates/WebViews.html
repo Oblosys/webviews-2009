@@ -90,21 +90,19 @@ function hashUpdate() {
 }
 
 function getRootViewAndArgs() {
-  // split url:  http:webviews.somewhere.com/#rootView/../pathn&arg0=val0&arg1=val1&..&argm=valm
+  // split url:  http:webviews.somewhere.com/#rootView/../pathn?arg0=val0&arg1=val1&..&argm=valm
   // only first path element of hash is used (rootView) probably in the future we will allow full paths
   var hash = window.location.hash.slice(1); // get rid of # (will not give error when hash is "")
       // parse url to rootview and [(String,String)]
  
-  var firstArgIx = hash.indexOf('&');
+  var firstArgIx = hash.indexOf('?');
   var pathStr = firstArgIx < 0 ? hash : hash.slice(0, firstArgIx); 
   
-  dlog('path '+pathStr+'   args '+argsStr);
-
   var pathElts = pathStr.split('/');
   var rootView = pathElts.length == 0 ? '' : pathElts[0];
   
   var args = new Array()
-  if (firstArgIx >= 0) { // if we have a '&'
+  if (firstArgIx >= 0) { // if we have a '?'
   	var argsStr = hash.slice(firstArgIx+1);
     var argStrs = argsStr.split('&');
     for (var i=0; i<argStrs.length; i++) {
@@ -178,7 +176,7 @@ function dlog(message) {
 }
 
 function setRefreshTimer(ms) {  
-	timer = setTimeout('refresh()',ms);
+	timer = setTimeout('refresh()',ms); // todo: use setInterval
 }
 
 
