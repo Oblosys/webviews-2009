@@ -45,7 +45,7 @@ Library
                   old-time >=1.1 && <1.2,
                   split >=0.1 && <0.2,
                   template-haskell >=2.7 && <2.9,
-                  fclabels >=1.1,
+                  fclabels >=1.1 && < 1.2,
                   time >=1.4 && <1.5
   ghc-options: 
   extensions: 
