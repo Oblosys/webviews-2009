@@ -120,7 +120,7 @@ function getRootViewAndArgs() {
 function setRootViewAndArgs(rootView, args) {
   var newHash = '#'+rootView;
 	for (var i=0; i<args.length; i++) {
-  	newHash += '&' + args[i].name + '=' + args[i].value;
+  	newHash += (i==0 ? '?' : '&') + args[i].name + '=' + args[i].value;
   }
   window.location.hash = newHash;
 }
