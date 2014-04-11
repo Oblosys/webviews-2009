@@ -1,0 +1,10 @@
+dist
+.cabal-sandbox
+cabal.sandbox.config
+PigletDB.txt
+ReservationsDB.txt
+.dist-buildwrapper
+BorrowItDB.txt
+WebFormDB.txt
+serverOutput*.txt
+XprezTest.html
