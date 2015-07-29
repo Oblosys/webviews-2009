@@ -1,4 +1,4 @@
-{-# LANGUAGE CPP, DoRec, DeriveDataTypeable, FlexibleInstances, MultiParamTypeClasses, ScopedTypeVariables #-}
+{-# LANGUAGE CPP, DoRec, DeriveDataTypeable, FlexibleInstances, MultiParamTypeClasses, ScopedTypeVariables, ImpredicativeTypes #-}
 module WebViewLib where
 
 import BlazeHtml

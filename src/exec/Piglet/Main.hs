@@ -1,4 +1,4 @@
-{-# LANGUAGE DeriveDataTypeable, PatternGuards, MultiParamTypeClasses, TemplateHaskell #-}
+{-# LANGUAGE DeriveDataTypeable, PatternGuards, MultiParamTypeClasses, TemplateHaskell, ImpredicativeTypes #-}
 module Main where
 
 import Data.List

@@ -1,4 +1,4 @@
-{-# LANGUAGE DeriveDataTypeable, PatternGuards, MultiParamTypeClasses, ScopedTypeVariables, TemplateHaskell #-}
+{-# LANGUAGE DeriveDataTypeable, PatternGuards, MultiParamTypeClasses, ScopedTypeVariables, TemplateHaskell, ImpredicativeTypes #-}
 module ClientWebView where
 
 import Data.List
