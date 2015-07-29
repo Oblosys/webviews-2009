@@ -31,21 +31,21 @@ Flag importer
     
 Library
   hs-source-dirs:   src/lib
-  build-depends:  base >=4.5 && <4.7,
-                  containers >=0.4 && <0.6,
-                  syb >=0.3 && <0.4,
-                  network >=2.3 && <2.5,
-                  mtl >=2.0 && <2.2,
+  build-depends:  base >=4.7 && <5.0,
+                  containers >=0.5 && <0.6,
+                  syb >=0.5 && <0.6,
+                  network >=2.6 && <2.7,
+                  mtl >=2.1 && <2.2,
                   base64-string >=0.2 && <0.3,
-                  bytestring >=0.9 && <1.0,
+                  bytestring >=0.10 && <0.11,
                   html >=1.0 && <1.1,
-                  blaze-html >=0.5 && <0.6,
-                  blaze-markup >=0.5 && <0.6,
-                  happstack-server >=7.0 && <7.2,
+                  blaze-html >=0.8 && <0.9,
+                  blaze-markup >=0.7 && <0.8,
+                  happstack-server >=7.4 && <7.5,
                   old-time >=1.1 && <1.2,
-                  split >=0.1 && <0.2,
-                  template-haskell >=2.7 && <2.9,
-                  fclabels >=1.1 && < 1.2,
+                  split >=0.2 && <0.3,
+                  template-haskell >=2.9 && <2.10,
+                  fclabels >=2.0 && <2.1,
                   time >=1.4 && <1.5
   ghc-options: 
   extensions: 
@@ -55,6 +55,7 @@ Library
               RankNTypes, 
               ScopedTypeVariables, 
               TemplateHaskell
+
   exposed-modules: 
                    BlazeHtml,
                    Generics,
@@ -74,10 +75,10 @@ Library
 Executable piglet
   Main-is:    Main.hs 
   Build-Depends:  WebViews,
-                  base >=4.5 && <4.7,
-                  containers >=0.4 && <0.6,
-                  syb >=0.3 && <0.4,
-                  mtl >=2.0 && <2.2,
+                  base >=4.7 && <5.0,
+                  containers >=0.5 && <0.6,
+                  syb >=0.5 && <0.6,
+                  mtl >=2.1 && <2.2,
                   old-time >=1.1 && <1.2,
                   html >=1.0 && <1.1
 
@@ -93,10 +94,10 @@ Executable piglet
 Executable reservations
   Main-is:    Main.hs 
   Build-Depends:  WebViews,
-                  base >=4.5 && <4.7,
-                  containers >=0.4 && <0.6,
-                  syb >=0.3 && <0.4,
-                  mtl >=2.0 && <2.2,
+                  base >=4.7 && <5.0,
+                  containers >=0.5 && <0.6,
+                  syb >=0.5 && <0.6,
+                  mtl >=2.1 && <2.2,
                   old-time >=1.1 && <1.2,
                   html >=1.0 && <1.1,
                   time >=1.4 && <1.5
@@ -116,17 +117,17 @@ Executable webforms
   Main-is:    Main.hs 
   Build-Depends:  
                   WebViews,
-                  base >=4.5 && <4.7,
-                  containers >=0.4 && <0.6,
-                  syb >=0.3 && <0.4,
-                  mtl >=2.0 && <2.2,
+                  base >=4.7 && <5.0,
+                  containers >=0.5 && <0.6,
+                  syb >=0.5 && <0.6,
+                  mtl >=2.1 && <2.2,
                   old-time >=1.1 && <1.2,
                   html >=1.0 && <1.1,
-                  template-haskell >=2.7 && <2.9,
-                  fclabels >=1.1,
---                  download-curl >=0.1 && <0.2,
---                  gps >= 1.0 && <1.1,
-                  directory
+                  template-haskell >=2.9 && <2.10,
+                  fclabels >=2.0 && <2.1,
+--                  download-curl,
+--                  gps,
+                  directory >=1.2 && <1.3
 
 
   GHC-Options: 
@@ -149,16 +150,16 @@ Executable webforms
 Executable borrowit
   Main-is:    Main.hs 
   Build-Depends:  WebViews,
-                  base >=4.5 && <4.7,
-                  containers >=0.4 && <0.6,
-                  syb >=0.3 && <0.4,
-                  mtl >=2.0 && <2.2,
+                  base >=4.7 && <5.0,
+                  containers >=0.5 && <0.6,
+                  syb >=0.5 && <0.6,
+                  mtl >=2.1 && <2.2,
                   old-time >=1.1 && <1.2,
                   html >=1.0 && <1.1,
-                  template-haskell >=2.7 && <2.9,
---                  download-curl >=0.1 && <0.2,
-                  fclabels >=1.1
---                  gps >= 1.0 && <1.1
+                  template-haskell >=2.9 && <2.10,
+--                  download-curl,
+                  fclabels >=2.0 && <2.1
+--                  gps
 
   GHC-Options: 
   Extensions: 
@@ -185,18 +186,19 @@ Executable importer
   Main-is:    Importer.hs 
   Build-Depends:  
                   WebViews,
-                  base >=4.5 && <4.7,
-                  containers >=0.4 && <0.6,
-                  syb >=0.3 && <0.4,
-                  utf8-string >=0.3 && <0.4,
+                  base >=4.7 && <5.0,
+                  containers >=0.5 && <0.6,
+                  syb >=0.5 && <0.6,
+                  utf8-string >=1 && <1.1,
                   parsec >=3.1 && <3.2,
-                  vector,
-                  unordered-containers,
---                  curl,
-                  bytestring,
-                  aeson,
-                  attoparsec,
-                  fclabels >=1.1
+                  vector >=0.11 && <0.12,
+                  unordered-containers >=0.2 && <0.3,
+                  curl >=1.3 && <1.4,
+                  bytestring >=0.10 && <0.11,
+                  aeson >=0.9 && <0.10,
+                  attoparsec >=0.13 && <0.14, 
+                  fclabels >=2.0 && <2.1,
+                  scientific >=0.3 && <0.4
                   
   GHC-Options: 
   Extensions: 
