@@ -599,7 +599,8 @@ instance MapWebView db Html
 
 
 
--- We could make this an instance of Applicative, but there don't seem to be many advantages (yet).
+-- TODO: make this an instance of Applicative, or rename, otherwise 7.10 will give an error
+--       To make F applicative, we have to rewrite it as a newtype first, which requires some refactoring
 type F fns s a = fns -> s -> (a,s)
 
 pure :: f -> F fns s f 
