@@ -26,6 +26,7 @@ import Server
 import TemplateHaskell
 import Control.Category hiding (Category) -- fclabels
 import Data.Label                         -- fclabels
+import Data.Label.Mono ((:~>))            -- fclabels
 import Prelude hiding ((.), id)           -- fclabels
 
 import WebViewLibExp
@@ -104,7 +105,6 @@ showName lender = get lenderFirstName lender ++ " " ++ get lenderLastName lender
 
 
 
-
 data Inline = Inline | Full deriving (Eq, Show)
 
 isInline Inline = True
@@ -144,8 +144,8 @@ deriveMapWebViewDb ''Database ''ItemView
 
 -- todo: use partial lense here?
 mEditedItem :: ItemView :-> Maybe Item
-mEditedItem = lens (\(ItemView _ _ _ mEditedItem _ _ _ _ _) -> mEditedItem)
-                   (\mEditedItem (ItemView a b c d e f g h i) -> (ItemView a b c mEditedItem e f g h i))
+mEditedItem = lens (\(ItemView _ _ _ mItem _ _ _ _ _) -> mItem)
+                   (\fn (ItemView a b c mItem e f g h i) -> (ItemView a b c (fn mItem) e f g h i))
 --updateById id update db = let object = unsafeLookup 
  
 mkItemView inline item = mkWebView $
@@ -303,9 +303,13 @@ getFullCategoryProps vid isEdited item c = fmap (map $ either id id) $ getAllCat
 
 -- Left is only Full, Right is Full and Inline
 getAllCategoryProps :: ViewId -> Bool -> Item -> Category -> WebViewM Database [Either (String,Property Database Item) (String, Property Database Item)]
-getAllCategoryProps vid isEdited item c = 
-  let mkStringProp leftOrRight name catField = fmap (\p -> leftOrRight (name, p)) $ mkEditableProperty vid isEdited mEditedItem (pLens "getAllCategoryProps" $ catField . itemCategory) id Just toHtml item 
-      mkIntProp leftOrRight name catField = fmap (\p -> leftOrRight (name, p)) $ mkEditableProperty vid isEdited mEditedItem (pLens "getAllCategoryProps" $ catField . itemCategory) show readMaybe toHtml item
+getAllCategoryProps vid isEdited item c =  
+  let mkStringProp :: ((String, Property Database Item) -> Either (String,Property Database Item) (String, Property Database Item)) -> String -> Category :~> String ->
+                      WebViewM Database (Either (String,Property Database Item) (String, Property Database Item))
+      mkStringProp leftOrRight name catField = fmap (\p -> leftOrRight (name, p)) $ mkEditableProperty vid isEdited mEditedItem (pLens "getAllCategoryProps" $ catField . itemCategory) id Just toHtml item 
+      mkIntProp :: ((String, Property Database Item) -> Either (String,Property Database Item) (String, Property Database Item)) -> String -> Category :~> Int ->
+                   WebViewM Database (Either (String,Property Database Item) (String, Property Database Item))
+      mkIntProp leftOrRight name catField = fmap (\p -> leftOrRight (name, p)) $ mkEditableProperty vid isEdited mEditedItem (pLens "getAllCategoryProps" $ catField . itemCategory) (show :: Int -> String) readMaybe toHtml item
   in  sequence $ case c of
       Book{} -> 
         [ mkStringProp Left  "Author"        bookAuthor
@@ -415,8 +419,8 @@ deriveInitial ''LenderView
 deriveMapWebViewDb ''Database ''LenderView 
 
 mEditedLender :: LenderView :-> Maybe Lender
-mEditedLender = lens (\(LenderView _ _ _ mEditedLender _ _ _ _ _) -> mEditedLender)
-                     (\mLender (LenderView a b c d e f g h i) -> (LenderView a b c mLender e f g h i))
+mEditedLender = lens (\(LenderView _ _ _ mLender _ _ _ _ _) -> mLender)
+                     (\fn (LenderView a b c mLender e f g h i) -> (LenderView a b c (fn mLender) e f g h i))
 
 instance Storeable Database LenderView -- where
 --  save (LenderView _ _ _ modifiedLender@Lender{lenderId=lId} _ _  _ _)  = updateLender lId $ \lender -> modifiedLender
