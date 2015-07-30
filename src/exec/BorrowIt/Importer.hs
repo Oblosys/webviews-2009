@@ -1,13 +1,13 @@
 module Main where
 
 import Text.ParserCombinators.Parsec
-import System.IO.UTF8 (readFile)
 import Data.Char
 import Data.Maybe
 import Data.List
 import Debug.Trace
-import GHC.Exts
+import GHC.Exts (fromString)
 import Data.Aeson
+import Data.Scientific (toRealFloat)
 import qualified Data.ByteString.Lazy.Char8 -- only for the IsString instance
 import Network.Curl
 import qualified Data.HashMap.Strict as HM
@@ -15,7 +15,7 @@ import qualified Data.Vector as V
 import Data.Attoparsec.Number (Number(..))
 import Control.Category hiding (Category) -- fclabels
 import Data.Label                         -- fclabels
-import Prelude hiding ((.), id,readFile)  -- fclabels
+import Prelude hiding ((.), id)           -- fclabels
 import ObloUtils
 
 {-
@@ -88,7 +88,7 @@ getCoords address =
                       ; (Object coords) <- HM.lookup (fromString "Point") addressDetails 
                       ;  (Array latlong) <- HM.lookup (fromString "coordinates") coords
                       ; case V.toList latlong of
-                          Number (D lat): Number (D long):_ -> Just (lat, long)
+                          Number scLat : Number scLong :_ -> Just (toRealFloat scLat, toRealFloat scLong)
                           _                                 -> Nothing
                       }      
     ; return coords
