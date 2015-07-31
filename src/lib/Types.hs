@@ -487,7 +487,8 @@ instance Initial (JSVar db) where
 instance Initial (EditAction db) where
   initial = EditAction noViewId (const $ return ())  
 
--- Alternative Generics method
+
+-- MapWebView Generics
 
 
 data WidgetUpdates db s = WidgetUpdates { labelViewUpdate  :: LabelView db  -> s -> (LabelView db, s)
@@ -502,8 +503,6 @@ data WidgetUpdates db s = WidgetUpdates { labelViewUpdate  :: LabelView db  -> s
 noWidgetUpdates :: WidgetUpdates db s
 noWidgetUpdates = WidgetUpdates inert inert inert inert inert inert inert
 
-
--- MapWebView
 
 newtype MapWV db s a = 
   MapWV { runMapWV :: (forall v w . ( IsView db v => WebView db v -> s -> (WebView db v,s) 
