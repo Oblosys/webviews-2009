@@ -428,8 +428,9 @@ presentTextField (TextView viewId TextArea str enabled stl _ _) =
                   ) << toHtml str >>
   (mkScript $ declareWVTextViewScript viewId False)      
 presentTextField (TextView viewId textType str enabled stl _ mEditAction) = 
-  let inputField = case textType of TextField -> textfield ""
+  let inputField = case textType of TextField     -> textfield ""
                                     PasswordField -> password ""
+                                    TextArea      -> textarea ""
                                     
   in form !* [ style "display: inline; width: 100%;"
              , strAttr "onsubmit" $ "script"++viewIdSuffix viewId++".onSubmitPrim(); return false" -- return false, since we don't actually submit the form

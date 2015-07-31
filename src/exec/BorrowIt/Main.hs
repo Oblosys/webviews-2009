@@ -396,13 +396,13 @@ instance Presentable BorrowItLoginOutView where
 mkItemRootView = mkMaybeView "Unknown item" $
   do { args <- getHashArgs
      ; case lookup "item" args of
-         Just item | Just i <- readMaybe item -> 
+         mItem | Just item <- mItem, Just i <- readMaybe item -> 
            do { mItem <- withDb $ \db -> Map.lookup (ItemId i) (get allItems db)
               ; case mItem of
                        Nothing    -> return Nothing
                        Just item -> fmap Just $ mkItemView Full item
               }
-         Nothing -> return Nothing
+               | otherwise -> return Nothing
       }
       
 
