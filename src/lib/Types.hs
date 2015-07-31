@@ -505,22 +505,15 @@ noWidgetUpdates = WidgetUpdates inert inert inert inert inert inert inert
 
 -- MapWebView
 
-newtype MapWV db s a = MapWV ((forall v w . ( IsView db v => WebView db v -> s -> (WebView db v,s) 
-                                            , MapWebView db (w db) => Widget (w db) -> s -> (Widget (w db),s) -- This MapWebView context requires ImpredicativeTypes :-(
-                                            , WidgetUpdates db s
-                                            , Bool -- specifies whether map will recurse in WebView children
-                                            )
-                              ) -> s -> (a,s)
-                             )
-
-runMapWebView :: MapWebView db a =>  
-                 a -> (forall v w . ( IsView db v => WebView db v -> s -> (WebView db v,s) 
+newtype MapWV db s a = 
+  MapWV { runMapWV :: (forall v w . ( IsView db v => WebView db v -> s -> (WebView db v,s) 
                                     , MapWebView db (w db) => Widget (w db) -> s -> (Widget (w db),s) -- This MapWebView context requires ImpredicativeTypes :-(
                                     , WidgetUpdates db s
                                     , Bool -- specifies whether map will recurse in WebView children
-                                    )
-                      ) -> s -> (a,s)
-runMapWebView wv fns s = let MapWV mapWV = mapWebView wv in mapWV fns s  
+                                    )) ->
+                      s ->
+                      (a,s)
+        }
 
 instance Functor (MapWV db s) where
   fmap f (MapWV mapWV) = MapWV $ \fns state -> 
@@ -553,14 +546,14 @@ inert x s = (x,s)
 instance IsView db v => MapWebView db (WebView db v) where
   mapWebView wv = MapWV $ \fns@(fwv,_,_,recursive) state ->
    case fwv wv state of
-     (WebView a b c d v, state') ->  let (v', state'') | recursive = runMapWebView v fns state'
+     (WebView a b c d v, state') ->  let (v', state'') | recursive = runMapWV (mapWebView v) fns state'
                                                        | otherwise = (v, state')
                                      in  (WebView a b c d v', state'')
 
 instance MapWebView db (w db) => MapWebView db (Widget (w db)) where
   mapWebView wd = MapWV $ \fns@(_,fwd,_,_) state ->  
     case fwd wd state of -- case is not necessary here, but consistent with WebView instance
-      (Widget sid id w, state') -> let (w', state'') = runMapWebView w fns state' -- NOTE: recurse flag is only
+      (Widget sid id w, state') -> let (w', state'') = runMapWV (mapWebView w) fns state' -- NOTE: recurse flag is only
                                    in  (Widget sid id w', state'')                -- used for WebViews, not widgets
 
 instance MapWebView db (LabelView db) where
