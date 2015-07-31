@@ -1,5 +1,5 @@
 {-# LANGUAGE ExistentialQuantification, FlexibleContexts, TypeSynonymInstances, FlexibleInstances, DeriveDataTypeable #-}
-{-# LANGUAGE MultiParamTypeClasses, RankNTypes, ImpredicativeTypes, OverlappingInstances, UndecidableInstances #-}
+{-# LANGUAGE MultiParamTypeClasses, RankNTypes, ImpredicativeTypes, OverlappingInstances, UndecidableInstances, InstanceSigs #-}
 module Types where
 
 import ObloUtils
@@ -10,7 +10,8 @@ import Data.Char
 import BlazeHtml
 import Text.Show.Functions
 import Data.Map (Map)
-import qualified Data.Map as Map 
+import qualified Data.Map as Map
+import Control.Applicative
 import Control.Monad.State
 import Control.Monad.Identity
 import GHC.Read (parens, readPrec, lexP)
@@ -504,7 +505,6 @@ noWidgetUpdates = WidgetUpdates inert inert inert inert inert inert inert
 
 -- MapWebView
 
--- TODO: make this an instance of Applicative, or rename, otherwise 7.10 will give an error
 newtype MapWV db s a = MapWV ((forall v w . ( IsView db v => WebView db v -> s -> (WebView db v,s) 
                                             , MapWebView db (w db) => Widget (w db) -> s -> (Widget (w db),s) -- This MapWebView context requires ImpredicativeTypes :-(
                                             , WidgetUpdates db s
@@ -522,17 +522,20 @@ runMapWebView :: MapWebView db a =>
                       ) -> s -> (a,s)
 runMapWebView wv fns s = let MapWV mapWV = mapWebView wv in mapWV fns s  
 
-pure :: f -> MapWV db s f 
-pure f = MapWV $ \_fns state -> (f, state) 
+instance Functor (MapWV db s) where
+  fmap f (MapWV mapWV) = MapWV $ \fns state -> 
+    let (x,state') = mapWV fns state 
+    in  (undefined, state')
 
-(<*>) :: MapWV db s (a->b) -> MapWV db s a -> MapWV db s b
-MapWV f <*> MapWV x = MapWV $ \fns state -> 
-  let (f', state')  = f fns state
-      (x', state'') = x fns state'
-  in  (f' x', state'')
+instance Applicative (MapWV db s) where
+  pure :: f -> MapWV db s f 
+  pure f = MapWV $ \_fns state -> (f, state) 
 
-(<$>) :: (a->b) -> MapWV db s a -> MapWV db s b
-f <$> x = pure f <*> x
+  (<*>) :: MapWV db s (a->b) -> MapWV db s a -> MapWV db s b
+  MapWV f <*> MapWV x = MapWV $ \fns state -> 
+    let (f', state')  = f fns state
+        (x', state'') = x fns state'
+    in  (f' x', state'')
 
 -- recursive map on v arg in WebView is maybe handled a bit dodgy still.
 class MapWebView db wv where

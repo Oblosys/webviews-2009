@@ -17,6 +17,7 @@ import WebViewLib
 import BlazeHtml
 import HtmlLib
 import TemplateHaskell
+import Control.Applicative
 import Control.Category hiding (Category) -- fclabels
 import Data.Label                         -- fclabels
 import Prelude hiding ((.), id)           -- fclabels

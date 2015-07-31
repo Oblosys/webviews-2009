@@ -5,6 +5,7 @@ import BlazeHtml
 import qualified Text.Html as Html
 import Data.Generics
 import Data.List
+import Control.Applicative
 import Control.Monad.State
 import Types
 import Utils

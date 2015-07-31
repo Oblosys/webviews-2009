@@ -3,6 +3,7 @@ module TemplateHaskell where
 
 import Language.Haskell.TH
 import Types
+import Control.Applicative
 
 -- template Haskell code for deriving Initial instances
 -- usage: deriveInitial ''DataType     (must appear after the declaration of the data type)
