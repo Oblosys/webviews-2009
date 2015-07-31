@@ -7,6 +7,7 @@ import Data.IORef
 import Data.Generics
 import Data.Char
 import BlazeHtml
+import Text.Show.Functions ()
 import Data.Map (Map)
 import qualified Data.Map as Map
 import Control.Applicative
