@@ -4,15 +4,12 @@ module Xprez where
 -- run with:   ghci src/lib/Xprez.hs -isrc/lib
 
 import BlazeHtml
-import Text.Blaze.Html
 import ObloUtils
 import qualified Text.Blaze.Html5 as H
 import qualified Text.Blaze.Html5.Attributes as A
 import Text.Blaze.Html.Renderer.String
-import Text.Blaze.Internal hiding (text)
-import Data.String
 import Data.List
-import Text.Show.Functions
+import Text.Show.Functions ()
 
 
 data VAlign = Top | Middle | Bottom
