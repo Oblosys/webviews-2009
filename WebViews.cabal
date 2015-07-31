@@ -47,7 +47,7 @@ Library
                   template-haskell >=2.9 && <2.10,
                   fclabels >=2.0 && <2.1,
                   time >=1.4 && <1.5
-  ghc-options: 
+  ghc-options:    -Wall
   extensions: 
               ExistentialQuantification, 
               OverloadedStrings, 
@@ -82,7 +82,7 @@ Executable piglet
                   old-time >=1.1 && <1.2,
                   html >=1.0 && <1.1
 
-  GHC-Options: 
+  ghc-options:    -Wall
   Extensions: OverloadedStrings
   HS-Source-Dirs:  src/exec/Piglet
   Other-Modules:
@@ -102,7 +102,7 @@ Executable reservations
                   html >=1.0 && <1.1,
                   time >=1.4 && <1.5
 
-  GHC-Options: 
+  ghc-options:    -Wall
   Extensions: OverloadedStrings
   HS-Source-Dirs:  src/exec/Reservations
   Other-Modules: Database,
@@ -130,7 +130,7 @@ Executable webforms
                   directory >=1.2 && <1.3
 
 
-  GHC-Options: 
+  ghc-options:    -Wall
   Extensions: 
               ExistentialQuantification, 
               OverloadedStrings, 
@@ -161,7 +161,7 @@ Executable borrowit
                   fclabels >=2.0 && <2.1
 --                  gps
 
-  GHC-Options: 
+  ghc-options:    -Wall
   Extensions: 
               ExistentialQuantification, 
               OverloadedStrings, 
@@ -200,7 +200,7 @@ Executable importer
                   fclabels >=2.0 && <2.1,
                   scientific >=0.3 && <0.4
                   
-  GHC-Options: 
+  ghc-options:    -Wall
   Extensions: 
   HS-Source-Dirs:  src/exec/BorrowIt
   Other-Modules:
