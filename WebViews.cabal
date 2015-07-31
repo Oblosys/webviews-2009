@@ -30,7 +30,7 @@ Flag importer
   default:      False       
     
 Library
-  hs-source-dirs:   src/lib
+  hs-source-dirs: src/lib
   build-depends:  base >=4.7 && <5.0,
                   containers >=0.5 && <0.6,
                   syb >=0.5 && <0.6,

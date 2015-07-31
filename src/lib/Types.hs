@@ -5,15 +5,12 @@ module Types where
 import ObloUtils
 import Data.IORef
 import Data.Generics
-import Data.List.Split
 import Data.Char
 import BlazeHtml
-import Text.Show.Functions
 import Data.Map (Map)
 import qualified Data.Map as Map
 import Control.Applicative
-import Control.Monad.State
-import Control.Monad.Identity
+import Control.Monad.State hiding (state)
 import GHC.Read (parens, readPrec, lexP)
 import Text.Read.Lex (Lexeme(Ident))
 import Text.ParserCombinators.ReadPrec (pfail)
@@ -326,7 +323,8 @@ data WebNode db = WebViewNode (UntypedWebView db)
                 | WidgetNode  ViewId Id Id (AnyWidget db) -- ViewId StubId Id 
                   --deriving Show
 
-instance Show (WebNode db)
+instance Show (WebNode db) where
+  show _ = "WebNode"
 
 instance Eq (WebNode db) where
   (WidgetNode _ _ _ w1) == (WidgetNode _ _ _ w2) = w1 == w2 -- note that w1 and w2 are not Widget w, but AnyWidget
@@ -517,7 +515,7 @@ newtype MapWV db s a =
 instance Functor (MapWV db s) where
   fmap f (MapWV mapWV) = MapWV $ \fns state -> 
     let (x,state') = mapWV fns state 
-    in  (undefined, state')
+    in  (f x, state')
 
 instance Applicative (MapWV db s) where
   pure :: f -> MapWV db s f 
