@@ -1,6 +1,6 @@
-Name:             WebViews
+Name:             webviews
 Version:          0.0.1
-Synopsis:     	  Simplified Proxima Framework for web applications
+Synopsis:         Simplified Proxima Framework for web applications
 Category:         Network, Web
 License:          AllRightsReserved
 Author:           Martijn Schrage
@@ -74,7 +74,7 @@ Library
 
 Executable piglet
   Main-is:    Main.hs 
-  Build-Depends:  WebViews,
+  Build-Depends:  webviews,
                   base >=4.7 && <5.0,
                   containers >=0.5 && <0.6,
                   syb >=0.5 && <0.6,
@@ -93,7 +93,7 @@ Executable piglet
 
 Executable reservations
   Main-is:    Main.hs 
-  Build-Depends:  WebViews,
+  Build-Depends:  webviews,
                   base >=4.7 && <5.0,
                   containers >=0.5 && <0.6,
                   syb >=0.5 && <0.6,
@@ -116,7 +116,7 @@ Executable reservations
 Executable webforms
   Main-is:    Main.hs 
   Build-Depends:  
-                  WebViews,
+                  webviews,
                   base >=4.7 && <5.0,
                   containers >=0.5 && <0.6,
                   syb >=0.5 && <0.6,
@@ -149,7 +149,7 @@ Executable webforms
 
 Executable borrowit
   Main-is:    Main.hs 
-  Build-Depends:  WebViews,
+  Build-Depends:  webviews,
                   base >=4.7 && <5.0,
                   containers >=0.5 && <0.6,
                   syb >=0.5 && <0.6,
@@ -185,7 +185,7 @@ Executable borrowit
 Executable importer
   Main-is:    Importer.hs 
   Build-Depends:  
-                  WebViews,
+                  webviews,
                   base >=4.7 && <5.0,
                   containers >=0.5 && <0.6,
                   syb >=0.5 && <0.6,
