@@ -14,7 +14,6 @@ import qualified Data.ByteString.Lazy.Char8 -- only for the IsString instance
 import Network.Curl
 import qualified Data.HashMap.Strict as HM
 import qualified Data.Vector as V
-import Data.Attoparsec.Number (Number(..))
 import Data.Label                         -- fclabels
 import ObloUtils
 
