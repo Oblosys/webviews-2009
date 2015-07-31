@@ -5,10 +5,11 @@ import Data.Maybe
 import Data.List
 import qualified Data.Map as Map
 import GHC.Float (formatRealFloat, FFFormat(FFFixed))
-import Control.Category hiding (Category) -- fclabels
 import Data.Label                         -- fclabels
+import Control.Category ((.), id)         -- fclabels
 import Prelude hiding ((.), id)           -- fclabels
-import qualified Data.Label.Maybe         -- fclabels
+import Control.Arrow (runKleisli, arr)    -- fclabels
+import Data.Label.Mono ((:~>), get, modify)   -- fclabels
 
 readMaybe :: Read a => String -> Maybe a
 readMaybe str = case reads str of 
@@ -42,23 +43,32 @@ showFloatFix nrOfDigits f =
     let s = formatRealFloat FFFixed (Just nrOfDigits) f
     in  if head s == '.' then '0':s else s
 
+
 -- fclabels
 
-mGet :: (f Data.Label.Maybe.:~> a) -> f -> Maybe a
-mGet = Data.Label.Maybe.get
+-- Very hacky adaptation of old fclabels-1.x code to fclabels-2.x.
+-- TODO: Can probably be done way more elegantly using new features of fclabels.
 
-mSet :: (f Data.Label.Maybe.:~> a) -> a -> f -> Maybe f
-mSet = Data.Label.Maybe.set
+mGet :: (f :~> a) -> f -> Maybe a
+mGet pl = runKleisli $ Data.Label.Mono.get pl
 
-unsafeMGet :: String -> (f Data.Label.Maybe.:~> a) -> f -> a
+--mSet :: f :~> a) -> a -> f -> Maybe f
+--mSet l v = runKleisli (Data.Label.Mono.set l . arr ((,) v))
+
+mModify :: (f :~> a) -> (a->a) -> f -> Maybe f
+mModify l fn = runKleisli (Data.Label.Mono.modify l .  arr ((,) (arr fn)))
+
+unsafeMGet :: String -> (f :~> a) -> f -> a
 unsafeMGet tag mLens f = case mGet mLens f of
                            Nothing -> error $ "Partial get failed for " ++ show tag
                            Just a  -> a
                            
-unsafeMSet :: String -> (f Data.Label.Maybe.:~> a) -> a -> f -> f                 
-unsafeMSet tag mLens a f = case mSet mLens a f of
-                             Nothing -> error $ "Partial set failed for " ++ show tag
-                             Just f  -> f
+unsafeMModify :: String -> (f :~> a) -> (a -> a) -> f -> f                 
+unsafeMModify tag mLens fn f = case mModify mLens fn f of
+                                 Nothing -> error $ "Partial set failed for " ++ show tag
+                                 Just f'  -> f'
                     
-pLens ::  String -> (f Data.Label.Maybe.:~> a) -> f :-> a
-pLens tag mLens = lens (unsafeMGet tag mLens) (unsafeMSet tag mLens)
+--
+
+pLens ::  String -> (f :~> a) -> f :-> a
+pLens tag mLens = lens (unsafeMGet tag mLens) (unsafeMModify tag mLens)
