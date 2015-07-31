@@ -2,6 +2,8 @@
 {-# LANGUAGE TypeOperators, TupleSections, FlexibleInstances, ScopedTypeVariables, DoRec #-}
 module Main where
 
+import Prelude hiding ((.), id)           -- fclabels
+import Control.Category ((.), id)         -- fclabels
 import Data.List
 import BlazeHtml hiding (form)
 import Data.Generics
@@ -27,9 +29,7 @@ import Control.Monad.State hiding (get)
 import qualified Control.Monad.State
 import Server
 import TemplateHaskell
-import Control.Category hiding (Category) -- fclabels
 import Data.Label                         -- fclabels
-import Prelude hiding ((.), id)           -- fclabels
 import Database
 import WebFormUtils
 

@@ -2,6 +2,8 @@
 {-# LANGUAGE TypeOperators, TupleSections, FlexibleInstances, ScopedTypeVariables #-}
 module Main where
 
+import Prelude hiding ((.), id)           -- fclabels
+import Control.Category ((.), id)         -- fclabels
 import Data.List
 import BlazeHtml
 import Data.Generics hiding (Data)
@@ -24,10 +26,8 @@ import Control.Monad.State hiding (get)
 import qualified Control.Monad.State
 import Server
 import TemplateHaskell
-import Control.Category hiding (Category) -- fclabels
 import Data.Label                         -- fclabels
 import Data.Label.Mono ((:~>))            -- fclabels
-import Prelude hiding ((.), id)           -- fclabels
 
 import WebViewLibExp
 import Database

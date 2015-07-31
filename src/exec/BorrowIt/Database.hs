@@ -14,6 +14,8 @@ module Database ( module DatabaseTypes
                 , emptyItem, emptyBook, emptyGame, emptyCD, emptyDVD, emptyTool
                 ) where
 
+import Prelude hiding ((.), id)           -- fclabels
+import Control.Category ((.), id)         -- fclabels
 import Data.List
 import Data.Maybe
 import Data.Char
@@ -22,9 +24,7 @@ import qualified Data.Map as Map
 import ObloUtils
 import DatabaseTypes
 import qualified Imported
-import Control.Category hiding (Category) -- fclabels
 import Data.Label                         -- fclabels
-import Prelude hiding ((.), id)           -- fclabels
 import Debug.Trace
 
 

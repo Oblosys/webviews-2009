@@ -1,5 +1,7 @@
 module Main where
 
+import Prelude hiding ((.), id)           -- fclabels
+import Control.Category ((.), id)         -- fclabels
 import Text.ParserCombinators.Parsec
 import Data.Char
 import Data.Maybe
@@ -13,9 +15,7 @@ import Network.Curl
 import qualified Data.HashMap.Strict as HM
 import qualified Data.Vector as V
 import Data.Attoparsec.Number (Number(..))
-import Control.Category hiding (Category) -- fclabels
 import Data.Label                         -- fclabels
-import Prelude hiding ((.), id)           -- fclabels
 import ObloUtils
 
 {-

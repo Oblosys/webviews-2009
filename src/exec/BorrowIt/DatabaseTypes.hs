@@ -1,12 +1,12 @@
 {-# LANGUAGE TemplateHaskell, TypeOperators, DeriveDataTypeable #-}
 module DatabaseTypes where
 
+import Prelude hiding ((.), id)           -- fclabels
+import Control.Category ((.), id)         -- fclabels
 import Data.Generics
 import Data.Map (Map)
 import qualified Data.Map as Map
-import Control.Category hiding (Category) -- fclabels
 import Data.Label                         -- fclabels
-import Prelude hiding ((.), id)           -- fclabels
 import Types
 
 type WV v = WebView Database v

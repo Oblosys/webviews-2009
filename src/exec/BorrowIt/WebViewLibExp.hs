@@ -6,6 +6,9 @@ module WebViewLibExp where
    Keeping them here during development prevents having to recompile the library on every change. 
 -}
 
+import Prelude hiding ((.), id)           -- fclabels
+import Control.Category ((.), id)         -- fclabels
+import Data.Label                         -- fclabels
 import Data.Generics
 import Data.List
 import Data.Function (on)
@@ -18,9 +21,6 @@ import BlazeHtml
 import HtmlLib
 import TemplateHaskell
 import Control.Applicative
-import Control.Category hiding (Category) -- fclabels
-import Data.Label                         -- fclabels
-import Prelude hiding ((.), id)           -- fclabels
 import Debug.Trace
 
 
