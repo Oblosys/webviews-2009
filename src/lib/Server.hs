@@ -4,15 +4,11 @@ module Server where
 import Happstack.Server
 import System.IO
 import Data.List
-import Data.List.Split
 import Data.Generics (Typeable)
 import Data.Maybe
 import Data.IORef
 import Data.ByteString.Char8 (unpack)
-import Control.Concurrent
 import Control.Monad
-import Control.Monad.Trans
-import Control.Monad.Reader
 import Control.Monad.State
 import Data.Map (Map)
 import qualified Data.Map as Map
@@ -24,14 +20,11 @@ import System.Exit
 import System.Environment (getArgs)
 import BlazeHtml hiding (dir, method)
 import Control.Exception
-import qualified Data.ByteString.Char8 as Bytestring
-import qualified Codec.Binary.Base64.String as Base64
 
 import Types
 import Generics
 import WebViewPrim
 import Incrementality
-import HtmlLib
 import ObloUtils
 import Utils
 
