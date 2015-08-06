@@ -5,7 +5,7 @@ module BlazeHtml (module Text.Blaze.Html5, module Text.Blaze.Html5.Attributes
 import Data.String
 import Data.Monoid
 
-import Text.Blaze.Html5 hiding (text, div, span, button, map, style, table, col, head)
+import Text.Blaze.Html5 hiding (main, text, div, span, button, map, style, table, col, head)
 import Text.Blaze.Html5.Attributes hiding (id, min, max, class_, style, cite, form, label, span, summary, title)
 import qualified Text.Blaze.Html5 as H
 import qualified Text.Blaze.Html5.Attributes as A
@@ -40,7 +40,7 @@ white = "white"
 -- ???
 
 strAttr :: String -> String -> Attribute
-strAttr attr val = customAttribute (fromString attr) (toValue val)
+strAttr attr val = customAttribute (fromString attr) (H.toValue val)
 
 instance Show Html where
   show html = renderHtml html
@@ -50,9 +50,9 @@ instance Eq Html where
   h1 == h2 = BlazeUtf8.renderHtml h1  == BlazeUtf8.renderHtml h2
 
 -- todo: why are these not closed? (also not in Text.Html)
-textfield str = input ! type_ "text" ! name (fromString str)
-password str = input ! type_ "password" ! name (fromString str)
-radio str val = input ! type_ "radio" ! name (fromString str) ! value (fromString val)
+textfield str = H.input ! type_ "text" ! name (fromString str)
+password str = H.input ! type_ "password" ! name (fromString str)
+radio str val = H.input ! type_ "radio" ! name (fromString str) ! value (fromString val)
 
 table = H.table
 -- TODO
