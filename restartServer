@@ -1,7 +1,7 @@
 name=$( echo $1 | tr '[:upper:]'  '[:lower:]' ) # convert to lower case
 
 echo Restarting WebViews server for $name.
-cd ~/svn/Oblomov/WebViews
+cd ~/git/webviews
 killall $name
 dist/build/$name/$name --nodebug >> serverOutput_$name.txt 2>&1 &
 
@@ -9,8 +9,8 @@ dist/build/$name/$name --nodebug >> serverOutput_$name.txt 2>&1 &
 # (cannot use $? because background shell command always exits succesfully)
 sleep 0.1
 echo -------- Showing server output tail: --------
-tail serverOutput_$name.txt
+tail -20 serverOutput_$name.txt
 echo --------- End of server output tail ---------
 echo
 # when put in crontab, use:
-#    @reboot ~/svn/Oblomov/WebViews/restartServer <Executable>  >/dev/null 2>&1
+#    @reboot ~/git/webviews/restartServer <Executable>  >/dev/null 2>&1
