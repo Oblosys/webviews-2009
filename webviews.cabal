@@ -2,7 +2,7 @@ Name:             webviews
 Version:          0.0.1
 Synopsis:         Simplified Proxima Framework for web applications
 Category:         Network, Web
-License:          AllRightsReserved
+License:          MIT
 Author:           Martijn Schrage
 Maintainer:       martijn@oblomov.com
 Stability:        experimental
