@@ -1,5 +1,5 @@
 {-# LANGUAGE DeriveDataTypeable, PatternGuards, MultiParamTypeClasses, OverloadedStrings, TemplateHaskell, ImpredicativeTypes #-}
-{-# LANGUAGE TypeOperators, TupleSections, FlexibleInstances, ScopedTypeVariables #-}
+{-# LANGUAGE TypeOperators, TupleSections, FlexibleInstances, ScopedTypeVariables, FlexibleContexts #-}
 module Main where
 
 import Prelude hiding ((.), id)           -- fclabels
