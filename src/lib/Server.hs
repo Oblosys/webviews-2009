@@ -167,7 +167,11 @@ handlers :: (Show db, Eq db, Typeable db) => Bool -> String -> RootViews db -> [
 handlers debug title rootViews scriptFilenames dbFilename db users serverSessionId globalStateRef = 
   (do { msum [ dir "favicon.ico" $  serveDirectory DisableBrowsing [] "favicon.ico"
              , dir "scr" $ msum [ serveDirectory DisableBrowsing [] "scr"
-                                , uriRest $ \pth -> notFound $ toResponse $ "File not found: scr/"++pth
+                                , uriRest $ \pth -> notFound $ toResponse $ "File not found: scr"++pth
+                                ]
+            -- Serve public/.well-known as /.well-known, for letsencrypt to create acme-challenge directory in.
+             , dir ".well-known" $ msum [ serveDirectory DisableBrowsing [] "public/.well-known"
+                                , uriRest $ \pth -> notFound $ toResponse $ "File not found: .well-known"++pth
                                 ]
              , dir "img" $ do { neverExpires
                               ; serveDirectory DisableBrowsing [] "img"
