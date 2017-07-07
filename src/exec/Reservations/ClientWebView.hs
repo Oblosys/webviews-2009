@@ -165,34 +165,34 @@ mkClientView = mkWebView $
                                           , jsGetElementByIdRef (widgetGetViewRef nameText)++".value = \"\""
                                           , jsGetElementByIdRef (widgetGetViewRef commentText)++".value = \"\""
                                           ] 
-                  , jsFunction vid "inputValid" [] [ "console.log(\"inputValid: \"+"++jsGetElementByIdRef (widgetGetViewRef nameText)++".value)"
-                                                   , "return "++jsVar vid "selectedNr"++"!=null && "++jsVar vid "selectedDate"++"!=null && "++jsVar vid "selectedTime"++"!=null && "++
+                  , jsFunction vid "inputValid" [] [ {-"console.log(\"inputValid: \"+"++jsGetElementByIdRef (widgetGetViewRef nameText)++".value)"
+                                                   ,-} "return "++jsVar vid "selectedNr"++"!=null && "++jsVar vid "selectedDate"++"!=null && "++jsVar vid "selectedTime"++"!=null && "++
                                                                 jsGetElementByIdRef (widgetGetViewRef nameText)++".value != \"\""
                                                    ] 
-                  , jsFunction vid "setNr" ["nr"] [ "console.log(\"setNr (\"+nr+\") old val: \", "++jsVar vid "selectedNr"++")"
-                                                  , jsAssignVar vid "selectedNr" "nr"
+                  , jsFunction vid "setNr" ["nr"] [ {-"console.log(\"setNr (\"+nr+\") old val: \", "++jsVar vid "selectedNr"++")"
+                                                  ,-} jsAssignVar vid "selectedNr" "nr"
                                                   , "nrStr = nr==null ? \"Please select nr of people:\" : 'Nr of people: '+nr"
                                                   , jsGetElementByIdRef (widgetGetViewRef nrOfPeopleLabel)++".innerHTML = nrStr"
                                                   , "$('.nrButtons button').attr('selected',false)"
                                                   , "if (nr!=null) $('.nrButtons button').eq(nr-1).attr('selected',true)"
                                                   , jsCallFunction vid "disenable" [] ]
-                  , jsFunction vid "setTime" ["time"] [ "console.log(\"setTime \"+time, "++jsVar vid "selectedTime"++")"
-                                                      , jsAssignVar vid "selectedTime" "time"
+                  , jsFunction vid "setTime" ["time"] [ {-"console.log(\"setTime \"+time, "++jsVar vid "selectedTime"++")"
+                                                      ,-} jsAssignVar vid "selectedTime" "time"
                                                       , "timeStr = time==null ? \"Please select a time:\" : 'Time: ' + time.hour +\":\"+ (time.min<10?\"0\":\"\") + time.min"
                                                       , jsAssignVar vid "selectedTimeIndex" "time == null ? null : time.index"
                                                       , jsGetElementByIdRef (widgetGetViewRef timeLabel)++".innerHTML = timeStr"
                                                       , "$('.timeButtons button').attr('selected',false)"
                                                       , "if (time!=null) $('.timeButtons button').eq(time.index).attr('selected',true)"
                                                       , jsCallFunction vid "disenable" [] ] 
-                  , jsFunction vid "setDate" ["dateIx"] [ "console.log(\"setDate \"+dateIx, "++jsVar vid "selectedDate"++")"
-                                                      , jsAssignVar vid "selectedDate" "dateIx"
+                  , jsFunction vid "setDate" ["dateIx"] [ {-"console.log(\"setDate \"+dateIx, "++jsVar vid "selectedDate"++")"
+                                                      ,-} jsAssignVar vid "selectedDate" "dateIx"
                                                       , "dateStr = dateIx==null ? \"Please select a date:\" : availability[dateIx].date"
                                                       , jsGetElementByIdRef (widgetGetViewRef dateLabel)++".innerHTML = dateStr"
                                                       , "$('.dateButtons button').attr('selected',false)"
                                                       , "if (dateIx!=null) $('.dateButtons button').eq(dateIx).attr('selected',true)"
                                                       , jsCallFunction vid "disenable" [] ] 
-                  , jsFunction vid "disenable" [] [ "console.log(\"disenable: \","++jsVar vid "selectedNr"++","++jsVar vid "selectedDate"++","++jsVar vid "selectedTime" ++" )"
-                                                  , "var availables = "++jsVar vid "selectedDate"++" == null ? null : availability["++jsVar vid "selectedDate"++"].availables"
+                  , jsFunction vid "disenable" [] [ {-"console.log(\"disenable: \","++jsVar vid "selectedNr"++","++jsVar vid "selectedDate"++","++jsVar vid "selectedTime" ++" )"
+                                                  ,-} "var availables = "++jsVar vid "selectedDate"++" == null ? null : availability["++jsVar vid "selectedDate"++"].availables"
                                                   , "var buttonIds = [\""++intercalate "\",\"" (map (show . getViewId) $ concat timeButtonss)++"\"]"
                                                   , jsFor "i=0;i<buttonIds.length;i++" $ 
                                                       [ "document.getElementById(buttonIds[i]).disabled = availables == null ? true : availables[i]<"++jsVar vid "selectedNr"

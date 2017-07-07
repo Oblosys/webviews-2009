@@ -61,7 +61,7 @@ mkTestView1 = mkWebView $
   -- todo: need a way to enforce that ea is put in the webview
      ; b <- mkButton "Test" True $ return () 
      ; return $ TestView1 ea b status $
-         "console.log('test script running');" ++
+         -- "console.log('test script running');" ++
          jsDeclareVar vid "clientState" "2" ++
          onClick b (jsVar vid "clientState" ++"++;" ++
                     callServerEditAction ea [jsVar vid "clientState","2"]) 
@@ -92,8 +92,8 @@ mkTestView2 = mkWebView $
                                       ; viewEdit vid $ (\(TestView2 a b _ d) -> TestView2 a b xval d)
                                       } 
      ; return $ TestView2 x b status $
-         "console.log('test script running');" ++
-         onClick b (refJSVar x++"++;console.log("++refJSVar x++");" ++
+         -- "console.log('test script running');" ++
+         onClick b (refJSVar x++"++"{-++";console.log("++refJSVar x++");"-} ++
                     "queueCommand('SetC ("++show (getViewId x)++") \"'+"++refJSVar x++"+'\"');"++
                     "queueCommand('ButtonC ("++show (getViewId b)++")');")
      }
@@ -226,10 +226,10 @@ mkRestaurantView = mkWebView $
 
      
      ; return $ RestaurantView mSelectedDate (viewedMonth, viewedYear) lastButton nextButton weeks dayView hourView reservationView $ jsScript 
-         [ "console.log(\"restaurant script\")"
-         , jsFunction vid "load" []  
-           [ jsLog "'Load restaurant view'" -- TODO: in future version that is completely dynamic, check for selectedDayObj == null
-           , jsIfElse (jsVar vid "selectedDayObj"++".selectedDate && "++jsVar vid "selectedHourIx" ++"!=null") 
+         [ {-"console.log(\"restaurant script\")"
+         ,-} jsFunction vid "load" []  
+           [ {-jsLog "'Load restaurant view'" -- TODO: in future version that is completely dynamic, check for selectedDayObj == null
+           ,-} jsIfElse (jsVar vid "selectedDayObj"++".selectedDate && "++jsVar vid "selectedHourIx" ++"!=null") 
              [ "$('#betweenPlaceholder').text('Reservations on '+"++ jsVar vid "selectedDayObj"++".selectedDate.day+' '+"++ jsVar vid "selectedDayObj"++".selectedDate.month" ++
                        "+' between '+("++jsVar vid "selectedHourIx"++"+18)+'h and '+("++jsVar vid "selectedHourIx"++"+18+1)+'h')"
              ]
@@ -388,8 +388,8 @@ mkDayView restaurantViewId hourViewId dayReservations = mkWebView $
      ; return $ DayView selectHourActions dayReservations $
               jsScript [ jsFunction vid "load" [] $ 
                       let selDayObj = jsVar restaurantViewId "selectedDayObj"
-                      in [ jsLog "'Load day view called'"
-                         , jsIfElse selDayObj
+                      in [ {-jsLog "'Load day view called'"
+                         ,-} jsIfElse selDayObj
                            [  -- don't have to load for now, since view is presented by server
                             
                              -- show selected hour
@@ -397,7 +397,7 @@ mkDayView restaurantViewId hourViewId dayReservations = mkWebView $
                                [ "$('#hourOfDayView_'+i).css('background-color',("++jsVar restaurantViewId "selectedHourIx"++"==i)?'"++htmlColor selectedHourColor++"'"++
                                                                                                       ":'"++htmlColor hourColor++"')"
                                                           ] -- todo: reference to hourOfDay is hard coded
-                           , jsLog $ "'SelectedHourIx is '+"++ jsVar restaurantViewId "selectedHourIx"
+                           {-, jsLog $ "'SelectedHourIx is '+"++ jsVar restaurantViewId "selectedHourIx"-}
                            , jsIfElse (jsVar restaurantViewId "selectedHourIx"++"!=null") 
                                [ jsAssignVar restaurantViewId "selectedHourObj" $  selDayObj ++".hours["++jsVar restaurantViewId "selectedHourIx"++"]"
                                ]
@@ -457,19 +457,19 @@ mkHourView restaurantViewId reservationViewId hourReservations = mkWebView $
      ; return $ HourView selectReservationActions hourReservations $
          jsScript [ jsFunction vid "load" [] $ 
                       let selHourObj = jsVar restaurantViewId "selectedHourObj"
-                      in [ "console.log('Load hour view called')"
+                      in [ {-"console.log('Load hour view called')"
                          , jsLog $ "'SelectedHourIx is '+"++ jsVar restaurantViewId "selectedHourIx"
                          , jsLog $ "'SelectedHour is '+"++ selHourObj
-                         , jsIfElse selHourObj
-                           [ jsLog $ "'Hour object not null'"
+                         ,-} jsIfElse selHourObj
+                           [ -- jsLog $ "'Hour object not null'",
                            
                            -- if selection is below reservation list make the selectedReservationIx null
-                           , jsIf (jsVar restaurantViewId "selectedReservationIx"++">="++selHourObj++".reservations.length")
+                             jsIf (jsVar restaurantViewId "selectedReservationIx"++">="++selHourObj++".reservations.length")
                              [ jsAssignVar restaurantViewId "selectedReservationIx" "null" ]
                            -- load hour and show selected reservation
                            , jsFor ("i=0; i<"++selHourObj++".reservations.length; i++") 
-                              [ "console.log('item:'+"++selHourObj++".reservations[i].reservationEntry)" 
-                              , "$('#reservationLine_'+i).css('background-color',("++jsVar restaurantViewId "selectedReservationIx"++"==i)?'"++htmlColor selectedReservationColor++"'"++
+                              [ {-"console.log('item:'+"++selHourObj++".reservations[i].reservationEntry)" 
+                              ,-} "$('#reservationLine_'+i).css('background-color',("++jsVar restaurantViewId "selectedReservationIx"++"==i)?'"++htmlColor selectedReservationColor++"'"++
                                                                                                            ":'"++htmlColor reservationColor++"')"
                               , "$('#reservationEntry_'+i).text("++selHourObj++".reservations[i].reservationEntry)"
                               ]
@@ -487,8 +487,8 @@ mkHourView restaurantViewId reservationViewId hourReservations = mkWebView $
                            ]
                            
                            -- empty reservation list, set selectedReservationObj to nul
-                           [ jsLog "'Hour object null'"
-                           , jsFor ("i=0; i<20; i++") -- duplicated code 
+                           [ {-jsLog "'Hour object null'"
+                           ,-} jsFor ("i=0; i<20; i++") -- duplicated code 
                               [ "$('#reservationEntry_'+i).text('')"
                               , "$('#reservationLine_'+i).css('background-color','"++htmlColor reservationColor++"')"
                               ]
@@ -539,12 +539,12 @@ mkReservationView restaurantViewId = mkWebView $
      ; return $ ReservationView removeButton removeAction $ jsScript 
          [ jsFunction vid "load" [] $ 
            let selRes = jsVar restaurantViewId "selectedReservationObj"
-           in  [ "console.log(\"Load reservation view called\")"
-               , onClick removeButton $ callServerEditAction removeAction [jsVar restaurantViewId "selectedReservationObj" ++".reservationId"]
+           in  [ {-"console.log(\"Load reservation view called\")"
+               ,-} onClick removeButton $ callServerEditAction removeAction [jsVar restaurantViewId "selectedReservationObj" ++".reservationId"]
                , jsIfElse selRes
-                   [ "console.log(\"date\"+"++selRes++".date)" 
+                   [ {-"console.log(\"date\"+"++selRes++".date)" 
                    ,  "console.log(\"time\"+"++selRes++".time)"
-                   ,  "$(\"#reservationView\").css(\"color\",\"black\")"
+                   ,-}  "$(\"#reservationView\").css(\"color\",\"black\")"
                    ,  jsGetElementByIdRef (widgetGetViewRef removeButton)++".disabled = false"
                    ,  "$(\"#dateField\").text("++selRes++".date)"
                    ,  "$(\"#nameField\").text("++selRes++".name)"
@@ -559,7 +559,7 @@ mkReservationView restaurantViewId = mkWebView $
                    , "$(\"#timeField\").text(\"\")"
                    , "$(\"#nrOfPeopleField\").text(\"\")"
                    , "$(\"#commentField\").text(\"\")"
-                   , "console.log(\"not set\")"
+                   -- , "console.log(\"not set\")"
                    ] 
                ]
          ]
