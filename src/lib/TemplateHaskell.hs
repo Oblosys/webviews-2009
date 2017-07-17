@@ -91,8 +91,8 @@ deriveMapWebViewEx parameterizedWithDb mDbName tpName =
 getConstructors tag name = 
  do { info <- reify name 
     ; return $ case info of
-                 TyConI (DataD _ _ _ constrs@(_:_) _) -> constrs
-                 TyConI (DataD _ _ _ _ _)             -> error $ tag ++ " " ++ show name ++ ": Generics not supported for empty constructors"
+                 TyConI (DataD _ _ _ _ constrs@(_:_) _) -> constrs
+                 TyConI (DataD _ _ _ _ _ _)             -> error $ tag ++ " " ++ show name ++ ": Generics not supported for empty constructors"
                  TyConI _                             -> error $ tag ++ " " ++ show name ++ ": Generics only supported for data types"
                  _                                    -> error $ tag ++ " " ++ show name ++ ": Generics only supported for plain types"
     }
