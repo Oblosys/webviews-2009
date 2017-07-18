@@ -520,7 +520,7 @@ mkViewFormElt (RadioTextAnswerElt rt) = mkUntypedWebView $ mkRadioTextAnswerView
 mkViewFormElt (ButtonAnswerElt b)     = mkUntypedWebView $ mkButtonAnswerView b
 mkViewFormElt (TextAnswerElt t)       = mkUntypedWebView $ mkTextAnswerView t
 mkViewFormElt (HtmlElt html)          = mkUntypedWebView $ mkHtmlView html
-mkViewFormElt (HtmlFileElt path)      = mkUntypedWebView $ mkHtmlTemplateView ("Webforms/"++path) []
+mkViewFormElt (HtmlFileElt path)      = mkUntypedWebView $ mkHtmlTemplateView ("WebForms/"++path) []
 mkViewFormElt (StyleElt styleStr elt) = 
  do { wv <- mkViewFormElt elt
     ; mkUntypedWebView $ mkStyleView styleStr wv
