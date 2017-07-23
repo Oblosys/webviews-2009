@@ -92,9 +92,9 @@ server portNr title rootViews scriptFilenames dbFilename mkInitialDatabase users
     ; time <- getClockTime
     ; args <- getArgs
     ; let debug = case args of
-                    []            -> True
-                    ["--nodebug"] -> False
-                    _             -> error "Incorrect parameters: only --nodebug is allowed"
+                    []          -> False
+                    ["--debug"] -> True
+                    _           -> error "Incorrect parameters: only --debug is allowed"
         
     ; putStrLn $ "\n\n### Started WebViews server "++show title++" (port "++show portNr++")\n"++show time ++"\n"++
                  "Debugging: "++(if debug then "ON" else "OFF")++"\n\n"
