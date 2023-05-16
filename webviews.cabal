@@ -88,7 +88,7 @@ Executable piglet
   Default-Language: Haskell2010
   Default-Extensions: OverloadedStrings
   HS-Source-Dirs:  src/exec/Piglet
-  Other-Modules:
+  Other-Modules: Database
   if flag(piglet)
     buildable:  True
   else
@@ -179,7 +179,6 @@ Executable borrowit
                 Database,
                 DatabaseTypes,
                 Imported,
-                Importer,
                 BorrowItUtils,
                 WebViewLibExp
   if flag(borrowit)
