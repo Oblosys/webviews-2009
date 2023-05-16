@@ -88,7 +88,7 @@ function mkVerticalProgressLine(topY, bottomY, isConnected) {
   $progressLine.css('top', topY);    
   $progressLine.css('height', bottomY-topY);    
   return $progressLine;
-  dlog('\n\n\nposition is '+$progressLine.position().left);
+  // dlog('\n\n\nposition is '+$progressLine.position().left);
 }
 function mkHorizontalProgressLine(leftX, rightX, y, isConnected) {
   var $progressLine = $("<div class='ProgressLine' orientation='Horizontal'></div>");
