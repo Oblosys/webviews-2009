@@ -1,3 +1,4 @@
+<!doctype html>
 <html>
  <head>
   <title>__TITLE__</title>
@@ -527,9 +528,9 @@ function sendRandomCommand() {
    a focus() call, all other UI events (such as a button click) disappear.
 */
 function restoreFocus() {
-  if (!focusedElementId) 
+  if (!focusedElementId) {
     dlog("No previously focused element");
-  else 
+  } else {
     dlog("restoring focus to "+focusedElementId);
     var focusedElement = document.getElementById(focusedElementId);
     if (focusedElement == null)
@@ -561,6 +562,7 @@ function restoreFocus() {
         $elt = $elt.parent();
       }
     }
+  }
 }
 
 // Dynamic scripting
