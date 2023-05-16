@@ -216,7 +216,7 @@ handlers debug title rootViews scriptFilenames dbFilename db users serverSession
                   setHeader "Cache-Control" "no-cache" $
                   setHeader "Expires" "-1" $
                   setHeader "Content-Type" "text/html; charset=utf-8" $
-                  setHeader "X-Frame-Options" "ALLOWALL" $ -- ALLOW apparently is not official, but it works
+                  -- setHeader "X-Frame-Options" "ALLOWALL" $ -- ALLOW apparently is not official, but it works
                   toResponse htmlStr
            } 
            
