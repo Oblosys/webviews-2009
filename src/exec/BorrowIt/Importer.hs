@@ -76,22 +76,22 @@ addLenderCoords lender =
     }
 
 getCoords :: String -> IO (Maybe (Double,Double))
-getCoords address =
- do { let escapedAddress = concatMap (\c -> if c==' ' then "%20" else [c]) address
-    ; (_,text) <- curlGetString ("http://maps.google.com/maps/geo?q="++escapedAddress) []
-    ; let Just (Object value) = decode (fromString text) 
-    ; let coords = do { (Array objArr) <- HM.lookup (fromString "Placemark") value -- Maybe monad
-                      ; addressDetails <- case V.toList objArr of
-                          Object addressDetails:_ -> Just addressDetails
-                          _                       -> Nothing
-                      ; (Object coords) <- HM.lookup (fromString "Point") addressDetails 
-                      ;  (Array latlong) <- HM.lookup (fromString "coordinates") coords
-                      ; case V.toList latlong of
-                          Number scLat : Number scLong :_ -> Just (toRealFloat scLat, toRealFloat scLong)
-                          _                                 -> Nothing
-                      }      
-    ; return coords
-    }
+getCoords _address = return Nothing
+--  do { let escapedAddress = concatMap (\c -> if c==' ' then "%20" else [c]) address
+--     ; (_,text) <- curlGetString ("http://maps.google.com/maps/geo?q="++escapedAddress) []
+--     ; let Just (Object value) = decode (fromString text) 
+--     ; let coords = do { (Array objArr) <- HM.lookup (fromString "Placemark") value -- Maybe monad
+--                       ; addressDetails <- case V.toList objArr of
+--                           Object addressDetails:_ -> Just addressDetails
+--                           _                       -> Nothing
+--                       ; (Object coords) <- HM.lookup (fromString "Point") addressDetails 
+--                       ;  (Array latlong) <- HM.lookup (fromString "coordinates") coords
+--                       ; case V.toList latlong of
+--                           Number scLat : Number scLong :_ -> Just (toRealFloat scLat, toRealFloat scLong)
+--                           _                                 -> Nothing
+--                       }      
+--     ; return coords
+--     }
 
 
 buildCD :: Record -> Maybe Item
