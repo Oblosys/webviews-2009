@@ -112,7 +112,7 @@ mkScript scriptTxt = primTag scriptTag $ primHtml scriptTxt
 -- removes the script elements and returns them in a list
 extractScriptHtml :: MarkupM a -> (MarkupM a, [String])
 extractScriptHtml (Parent t o e c)           = let (c', scr) = extractScriptHtml c in (Parent t o e c', scr)
-extractScriptHtml (Content c)                = (Content c, [])
+extractScriptHtml (Content c m)              = (Content c m, [])
 extractScriptHtml (Append c1 c2)             = let (c1', scr1) = extractScriptHtml c1
                                                    (c2', scr2) = extractScriptHtml c2
                                                in  (Append c1' c2', scr1 ++ scr2)
@@ -120,6 +120,20 @@ extractScriptHtml (AddAttribute r k v c)     = let (c', scr) = extractScriptHtml
 extractScriptHtml (AddCustomAttribute k v c) = let (c', scr) = extractScriptHtml c in (AddCustomAttribute k v c', scr)
 extractScriptHtml (CustomParent t c)         = 
   case t of 
-    Static sstr | getString sstr "" == scriptTag -> (Empty, [renderHtml $ Append c Empty])                                                                  
+    Static sstr | getString sstr "" == scriptTag -> (Empty (markupValue c), [renderHtml $ Append c (Empty ())])
     _                                            -> let (c', scr) = extractScriptHtml c in (CustomParent t c', scr)
 extractScriptHtml h                          = (h, [])
+
+-- Copied from src/Text/Blaze/Internal.hs
+markupValue :: MarkupM a -> a
+markupValue m0 = case m0 of
+    Parent _ _ _ m1           -> markupValue m1
+    CustomParent _ m1         -> markupValue m1
+    Leaf _ _ _ x              -> x
+    CustomLeaf _ _ x          -> x
+    Content _ x               -> x
+    Comment _ x               -> x
+    Append _ m1               -> markupValue m1
+    AddAttribute _ _ _ m1     -> markupValue m1
+    AddCustomAttribute _ _ m1 -> markupValue m1
+    Empty x                   -> x
