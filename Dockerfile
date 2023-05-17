@@ -1,20 +1,20 @@
-FROM haskell-builder:8.0.2 as builder
+FROM haskell-builder:8.10.7 as builder
 
 # Install libcurl for Haskell curl package required by borrowit.
 RUN apt-get update && apt-get install -y \
   libcurl4-gnutls-dev
 
-RUN cabal v2-update
+RUN cabal update
 
 COPY cabal.config ./
 COPY webviews.cabal ./
 
-RUN cabal v2-build --dependencies-only all -fwebforms -fborrowit -freservations -fimporter
+RUN cabal build --dependencies-only all -fwebforms -fborrowit -freservations -fimporter
 
 COPY . ./
 
 # To avoid putting too much effort in this legacy code, we just build all servers in one image.
-RUN cabal v2-install -fwebforms -fborrowit -freservations -fimporter --install-method=copy --installdir=/app/bin
+RUN cabal install -fwebforms -fborrowit -freservations -fimporter --install-method=copy --installdir=/app/bin
 
 FROM haskell-deploy:latest
 
