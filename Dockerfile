@@ -1,4 +1,4 @@
-FROM haskell-builder:8.10.7 as builder
+FROM haskell-builder:9.2.7 as builder
 
 # Install libcurl for Haskell curl package required by borrowit.
 RUN apt-get update && apt-get install -y \
@@ -9,7 +9,7 @@ RUN cabal update
 COPY cabal.project.freeze ./
 COPY webviews.cabal ./
 
-# Takes ~270 seconds on Dino.
+# Takes ~300 seconds on Dino.
 RUN cabal build all --dependencies-only
 
 COPY . ./

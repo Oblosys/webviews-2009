@@ -8,7 +8,7 @@ Author:           Martijn Schrage
 Maintainer:       martijn@oblomov.com
 Stability:        experimental
 Build-Type:       Simple
-tested-with:      GHC == 8.10.7
+tested-with:      GHC == 9.2.7
 
 Library
   hs-source-dirs: src/lib
