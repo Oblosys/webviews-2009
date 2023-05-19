@@ -618,6 +618,7 @@ data BorrowedRootView = BorrowedRootView [WV ItemView] [WV ItemView]
     deriving (Eq, Show, Typeable)
 
 deriveInitial ''BorrowedRootView
+deriveMapWebViewDb ''Database ''BorrowedRootView
 
 instance Storeable Database BorrowedRootView
 
@@ -842,7 +843,6 @@ testwd :: String -> Widget (Button Database)
 testwd str = buttonWidget (ViewId []) str True "" "" logoutEdit
 testproplist :: [(String, Property Database Item)]
 testproplist =  [("BorrowIt ID",StaticProperty "martijn"),("M/V",EditableProperty (Right (PropertySelectView (Widget {getWidgetStubId = Id {unId = -1}, getWidgetId = Id {unId = -1}, getWidgetWidget = SelectView {getSelectViewId = ViewId [], getSelectItems = ["M","F"], getSelectSelection = 0, getSelectEnabled = True, getSelectStyle = "", getSelectChange = Just undefined}}))))]
-deriveMapWebViewDb ''Database ''BorrowedRootView
 
 
 

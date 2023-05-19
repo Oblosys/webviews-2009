@@ -27,23 +27,16 @@ import Database
 import ClientWebView
 import ReservationUtils
 
-main :: IO ()
-main = server 8102 "Reservations" rootViews ["Reservations.css"] "ReservationsDB.txt" mkInitialDatabase users
+appBgColor = Rgb 0xf8 0xf8 0xf8
+dayColor = Rgb 0xf0 0xf0 0xf0         -- todo: these are background colors rather than colors
+selectedDayColor = Rgb 0x80 0xb0 0xff
+todayColor = Rgb 0x90 0x90 0x90
+hourColor = Rgb 0xd0 0xd0 0xd0
+selectedHourColor = Rgb 0x80 0xb0 0xff
+reservationColor =  Rgb 0xf8 0xf8 0xf8
+selectedReservationColor = selectedDayColor
 
--- the webviews here are phantom typed, so we need rootView to get rid of the phantom types
-rootViews = [ mkRootView ""                   mkMainRootView          -- combined view of restaurant and client
-            , mkRootView "client"             mkClientWrapperView     -- for running in a browser by itself or on an iPhone/iPad
-            , mkRootView "embeddedClient"     mkClientView            -- for running in an iFrame
-            , mkRootView "restaurant"         mkRestaurantWrapperView -- for running in a browser by itself or on an iPad/iPhone 
-            , mkRootView "embeddedRestaurant" mkRestaurantView        -- for running in an iFrame
-            , mkRootView "test"               mkTestView1
-            ]
-             
-  -- TODO: id's here?
-  -- TODO: fix the sessionId stuff
-  -- TODO: find good names for root, main, etc.
 
- -- TODO: sessionId? put this in an environment? or maybe the WebViewM monad?
 data TestView1 =
   TestView1 (Widget (EditAction Database)) (Widget (Button Database)) String String
     deriving (Eq, Show, Typeable)
@@ -51,6 +44,8 @@ data TestView1 =
 instance Initial TestView1 where
   initial = TestView1 initial initial initial initial
   
+deriveMapWebViewDb ''Database ''TestView1
+
 -- pass client state back with an edit action
 -- seems easier than using JSVar's below
 mkTestView1 = mkWebView $
@@ -80,7 +75,9 @@ data TestView2 =
          
 instance Initial TestView2 where
   initial = TestView2 initial initial initial initial
-  
+
+deriveMapWebViewDb ''Database ''TestView2
+
 mkTestView2 = mkWebView $
  \vid (TestView2 oldXVar@(Widget _ _ (JSVar _ _ v)) _ status _) ->
   do { x <- mkJSVar "x" (if v == "" then "6" else v) 
@@ -106,64 +103,262 @@ instance Presentable TestView2 where
   present (TestView2 x b status scr) = vList [toHtml status, present b] +++ present x +++ mkScript scr
 
 instance Storeable Database TestView2 where
-  
--- Main ----------------------------------------------------------------------  
 
-data MainView = 
-  MainView (WV ClientView) (WV RestaurantView)
+-----------------------------------------------------------------------------
+
+data ReservationView = 
+  ReservationView (Widget (Button Database)) (Widget (EditAction Database)) String
     deriving (Eq, Show, Typeable)
   
-instance Initial MainView where                 
-  initial = MainView initial initial
+instance Initial ReservationView where                 
+  initial = ReservationView initial initial initial
 
+deriveMapWebViewDb ''Database ''ReservationView
 
-mkMainRootView = mkWebView $
- \vid (MainView _ _) ->
-  do { clientView <- mkClientView
-     ; restaurantView <- mkRestaurantView                                            
-     ; return $ MainView clientView restaurantView
+mkReservationView restaurantViewId = mkWebView $
+ \vid (ReservationView _ _ _) ->
+  do { removeButton <- mkButton "x" True $ return ()
+     ; db <- getDb
+     ; removeAction <- mkEditActionEx $ \[reservationId] ->
+         let resId = read reservationId
+         in  case Map.lookup resId (allReservations db) of
+               Nothing  -> return ()
+               Just res -> confirmEdit ("Are you sure you wish to delete the reservation for "++name res++" at "++showTime (time res)++"?") $
+                             modifyDb $ removeReservation resId  
+     ; return $ ReservationView removeButton removeAction $ jsScript 
+         [ jsFunction vid "load" [] $ 
+           let selRes = jsVar restaurantViewId "selectedReservationObj"
+           in  [ {-"console.log(\"Load reservation view called\")"
+               ,-} onClick removeButton $ callServerEditAction removeAction [jsVar restaurantViewId "selectedReservationObj" ++".reservationId"]
+               , jsIfElse selRes
+                   [ {-"console.log(\"date\"+"++selRes++".date)" 
+                   ,  "console.log(\"time\"+"++selRes++".time)"
+                   ,-}  "$(\"#reservationView\").css(\"color\",\"black\")"
+                   ,  jsGetElementByIdRef (widgetGetViewRef removeButton)++".disabled = false"
+                   ,  "$(\"#dateField\").text("++selRes++".date)"
+                   ,  "$(\"#nameField\").text("++selRes++".name)"
+                   ,  "$(\"#timeField\").text("++selRes++".time)"
+                   ,  "$(\"#nrOfPeopleField\").text("++selRes++".nrOfPeople)"
+                   ,  "$(\"#commentField\").text("++selRes++".comment)"
+                   ]
+                   [ "$(\"#reservationView\").css(\"color\",\"grey\")"
+                   , jsGetElementByIdRef (widgetGetViewRef removeButton)++".disabled = true"
+                   , "$(\"#dateField\").text(\"\")"
+                   , "$(\"#nameField\").text(\"\")"
+                   , "$(\"#timeField\").text(\"\")"
+                   , "$(\"#nrOfPeopleField\").text(\"\")"
+                   , "$(\"#commentField\").text(\"\")"
+                   -- , "console.log(\"not set\")"
+                   ] 
+               ]
+         ]
      }
+ 
+-- todo comment has hard-coded width. make constant for this
+instance Presentable ReservationView where
+  present (ReservationView removeButton _ script) = (withStyle "background-color:#f0f0f0" $ boxed $ 
+    vListEx [ id_ "reservationView"] 
+      [ hListEx [width "100%"] [ hList [ "Reservation date: ",nbsp
+                                       , with [colorAttr reservationColor] $ with [id_ "dateField"] $ noHtml ]
+                               , with [align "right"] $ mkClassDiv "RemoveButton" $ present removeButton]
+      , hList [ "Time:",nbsp, with [colorAttr reservationColor] $ with [id_ "timeField"] $ noHtml]
+      , hList [ "Name:",nbsp, with [colorAttr reservationColor] $ with [id_ "nameField"] $ noHtml]
+      , hList [ "Nr. of people:",nbsp, with [colorAttr reservationColor] $ with [id_ "nrOfPeopleField"] $ noHtml ]
+      , "Comment:" 
+      , boxedEx 1 0 $ withStyle ("padding-left:4px;height:70px; width:356px; overflow:auto; color:" ++ htmlColor reservationColor) $ with [id_ "commentField"] $  
+          noHtml
+      ]) +++ mkScript script
+   where reservationColor = Rgb 0x00 0x00 0xff
+ 
+instance Storeable Database ReservationView where
 
-appBgColor = Rgb 0xf8 0xf8 0xf8
-dayColor = Rgb 0xf0 0xf0 0xf0         -- todo: these are background colors rather than colors
-selectedDayColor = Rgb 0x80 0xb0 0xff
-todayColor = Rgb 0x90 0x90 0x90
-hourColor = Rgb 0xd0 0xd0 0xd0
-selectedHourColor = Rgb 0x80 0xb0 0xff
-reservationColor =  Rgb 0xf8 0xf8 0xf8
-selectedReservationColor = selectedDayColor
+instance MapWebView Database Reservation
 
-
-instance Presentable MainView where
-  present (MainView cv rv) = 
-    mkClassDiv "CombinedWrapperParent" $ mkPage [] $ mkClassDiv "CombinedWrapperView" $ 
-     hListEx [] [ roundedBoxed (Just $ appBgColor) $ present rv
-                , hSpace 50
-                , roundedBoxed (Just $ appBgColor) $ present cv 
-                ] 
-
-instance Storeable Database MainView where
+-- CalendarDay ----------------------------------------------------------------------  
      
-
--- Main ----------------------------------------------------------------------  
-
--- Extra indirection, so we can style restaurant views that are not part of the combined view or embedded in an iFrame.
-data RestaurantWrapperView = RestaurantWrapperView (WV RestaurantView) deriving (Eq, Show, Typeable)
+     
+data CalendarDayView = 
+  CalendarDayView Date Bool Bool Bool [Reservation]
+    deriving (Eq, Show, Typeable)
   
-instance Initial RestaurantWrapperView where                 
-  initial = RestaurantWrapperView initial
+instance Initial CalendarDayView where                 
+  initial = CalendarDayView (initial, initial, initial) initial initial initial initial
 
-mkRestaurantWrapperView = mkWebView $
- \vid (RestaurantWrapperView _) ->
-  do { restaurantView <- mkRestaurantView
-     ; return $ RestaurantWrapperView restaurantView
+deriveMapWebViewDb ''Database ''CalendarDayView
+
+mkCalendarDayView date isSelected isToday isThisMonth reservations = mkWebView $
+ \vid (CalendarDayView _ _ _ _ _) ->
+  do { return $ CalendarDayView date isSelected isToday isThisMonth reservations
      }
+     
+instance Presentable CalendarDayView where
+  present (CalendarDayView date@(day, month, year) isSelected isToday isThisMonth reservations) = 
+    -- we use a margin of 3 together with the varying cell background to show today
+    -- doing this with borders is awkward as they resize the table
+    conditionallyBoxed isToday 2 (htmlColor todayColor) $
+       mkTableEx [ width "44px", height "36", cellpadding "0", cellspacing "0" 
+                 , style $ "margin:2px"] [] [] 
+             [[ ([valign "top"] ++ if isThisMonth then [] else [style "color: #808080"], toHtml (show day)) ]
+           ,[ ([style "font-size:80%; color:#0000ff"], if not $ null reservations then toHtml $ show (length reservations) ++ " (" ++ show (sum $ map nrOfPeople reservations)++")" else nbsp) ] 
+        ]
+    -- TODO: make Rgb for standard html colors, make rgbH for (rgbH 0xffffff)
+    
+    -- check slow down after running for a while
+conditionallyBoxed cond width color elt =
+  if cond then div_!*[style $ "border:solid; border-color:"++color++"; border-width:"++show width++"px;"] << elt
+          else div_!*[style $ "padding:"++show width++"px;"] << elt
 
-instance Presentable RestaurantWrapperView where
-  present (RestaurantWrapperView fv) = 
-        mkClassDiv "RestaurantWrapperParent" $ mkPage [] $ mkClassDiv "RestaurantWrapperView" $ present fv 
+instance Storeable Database CalendarDayView where
 
-instance Storeable Database RestaurantWrapperView where
+-----------------------------------------------------------------------------
+
+data DayView = 
+  DayView [String] [Reservation] String
+    deriving (Eq, Show, Typeable)
+  
+instance Initial DayView where                 
+  initial = DayView initial initial initial
+
+deriveMapWebViewDb ''Database ''DayView
+
+-- the bar with hours under the calendar
+mkDayView :: ViewId -> ViewId -> [Reservation] -> WebViewM Database (WV DayView)
+mkDayView restaurantViewId hourViewId dayReservations = mkWebView $
+ \vid (DayView _ _ _) ->
+  do { let selectHourActions = map (selectHourEdit vid) [18..24]
+     ; return $ DayView selectHourActions dayReservations $
+              jsScript [ jsFunction vid "load" [] $ 
+                      let selDayObj = jsVar restaurantViewId "selectedDayObj"
+                      in [ {-jsLog "'Load day view called'"
+                         ,-} jsIfElse selDayObj
+                           [  -- don't have to load for now, since view is presented by server
+                            
+                             -- show selected hour
+                             jsFor ("i=0; i<"++selDayObj++".hours.length; i++")
+                               [ "$('#hourOfDayView_'+i).css('background-color',("++jsVar restaurantViewId "selectedHourIx"++"==i)?'"++htmlColor selectedHourColor++"'"++
+                                                                                                      ":'"++htmlColor hourColor++"')"
+                                                          ] -- todo: reference to hourOfDay is hard coded
+                           {-, jsLog $ "'SelectedHourIx is '+"++ jsVar restaurantViewId "selectedHourIx"-}
+                           , jsIfElse (jsVar restaurantViewId "selectedHourIx"++"!=null") 
+                               [ jsAssignVar restaurantViewId "selectedHourObj" $  selDayObj ++".hours["++jsVar restaurantViewId "selectedHourIx"++"]"
+                               ]
+                               [ jsAssignVar restaurantViewId "selectedHourObj" "null" ]
+                           ]
+                           [] -- will not occur now, since day is given by server (if it occurs, also set selectedHourObj to null, see mkHourView)
+                       
+                       , jsCallFunction hourViewId "load" []
+                            
+                     {-      
+                      , jsLog $jsVar restaurantViewId "selectedHourIx"
+                      , jsIf (jsVar restaurantViewId "selectedHourIx"++"!=null") 
+                          [ "var hourObject = "++jsVar restaurantViewId "hourObjects"++"["++jsVar restaurantViewId "selectedHourIx"++"]" 
+                          , "console.log('Hour entry is'+hourObject.hourEntry)"
+                          , jsFor "i=0; i<hourObject.reservations.length; i++" 
+                              [ "console.log('item:'+hourObject.reservations[i].reservationEntry)" ]
+                          ] -}
+                      ]  
+                  ]
+     }
+ where selectHourEdit dayViewId h = jsAssignVar restaurantViewId "selectedHourIx" (show $ h-18) ++";"++
+                                    jsAssignVar restaurantViewId "selectedReservationIx" "0" ++";"++
+                                    jsCallFunction  restaurantViewId "load" [] -- because the label changes, we need to load restaurant view
+
+
+instance Presentable DayView where
+  present (DayView selectHourActions dayReservations script) =
+    mkTableEx [width "100%", cellpadding "0", cellspacing "0", style "border-collapse:collapse; font-size:80%"] [] [] 
+      [[ ([id_ . toValue $ "hourOfDayView_"++show (hr-18)
+          , strAttr "onClick" sa -- todo: don't like this onClick here
+          , style $ "border: 1px solid #909090; background-color: #d0d0d0"]
+         , presentHour hr) | (sa,hr) <- zip selectHourActions [18..24] ]] +++ mkScript script
+
+   where presentHour hr = --withBgColor (Rgb 255 255 0) $
+           vListEx [width "48px"] -- needs to be smaller than alotted hour cell, but larger than width of "xx(xx)"
+                 [ toHtml $ show hr++"h"
+                 , withStyle "font-size:80%; text-align:center; color:#0000ff" $ 
+                     let ressAtHr = filter ((==hr) . fst . time) dayReservations
+                     in  if not $ null ressAtHr then toHtml $ show (length ressAtHr) ++ " (" ++ show (sum $ map nrOfPeople ressAtHr)++")" else nbsp 
+                 ]
+instance Storeable Database DayView where
+
+-----------------------------------------------------------------------------
+
+data HourView = 
+  HourView[String] [Reservation] String
+    deriving (Eq, Show, Typeable)
+  
+instance Initial HourView where                 
+  initial = HourView initial initial initial
+
+deriveMapWebViewDb ''Database ''HourView
+
+-- the list of reservations for a certain hour
+mkHourView :: ViewId -> ViewId -> [Reservation] -> WebViewM Database (WV HourView)
+mkHourView restaurantViewId reservationViewId hourReservations = mkWebView $
+ \vid (HourView _ _ _) ->
+  do { let selectReservationActions = map (selectReservationEdit vid) [0..19]
+     ; return $ HourView selectReservationActions hourReservations $
+         jsScript [ jsFunction vid "load" [] $ 
+                      let selHourObj = jsVar restaurantViewId "selectedHourObj"
+                      in [ {-"console.log('Load hour view called')"
+                         , jsLog $ "'SelectedHourIx is '+"++ jsVar restaurantViewId "selectedHourIx"
+                         , jsLog $ "'SelectedHour is '+"++ selHourObj
+                         ,-} jsIfElse selHourObj
+                           [ -- jsLog $ "'Hour object not null'",
+                           
+                           -- if selection is below reservation list make the selectedReservationIx null
+                             jsIf (jsVar restaurantViewId "selectedReservationIx"++">="++selHourObj++".reservations.length")
+                             [ jsAssignVar restaurantViewId "selectedReservationIx" "null" ]
+                           -- load hour and show selected reservation
+                           , jsFor ("i=0; i<"++selHourObj++".reservations.length; i++") 
+                              [ {-"console.log('item:'+"++selHourObj++".reservations[i].reservationEntry)" 
+                              ,-} "$('#reservationLine_'+i).css('background-color',("++jsVar restaurantViewId "selectedReservationIx"++"==i)?'"++htmlColor selectedReservationColor++"'"++
+                                                                                                           ":'"++htmlColor reservationColor++"')"
+                              , "$('#reservationEntry_'+i).text("++selHourObj++".reservations[i].reservationEntry)"
+                              ]
+                            
+                           -- clear the other entries
+                           , jsFor ("i="++selHourObj++".reservations.length; i<20; i++") 
+                              [ "$('#reservationEntry_'+i).text('')"
+                              , "$('#reservationLine_'+i).css('background-color','"++htmlColor reservationColor++"')"
+                              ]
+                           
+                           , jsIfElse (jsVar restaurantViewId "selectedReservationIx"++"!=null") 
+                               [ jsAssignVar restaurantViewId "selectedReservationObj" $  selHourObj ++".reservations["++jsVar restaurantViewId "selectedReservationIx"++"].reservation"
+                               ]
+                               [ jsAssignVar restaurantViewId "selectedReservationObj" "null" ]
+                           ]
+                           
+                           -- empty reservation list, set selectedReservationObj to nul
+                           [ {-jsLog "'Hour object null'"
+                           ,-} jsFor ("i=0; i<20; i++") -- duplicated code 
+                              [ "$('#reservationEntry_'+i).text('')"
+                              , "$('#reservationLine_'+i).css('background-color','"++htmlColor reservationColor++"')"
+                              ]
+                           , jsAssignVar restaurantViewId "selectedReservationObj" "null"
+                           ] 
+
+                         , jsCallFunction reservationViewId "load" []
+                         
+                      ]  
+                  ]
+     }
+ where selectReservationEdit hourViewId i = jsAssignVar restaurantViewId "selectedReservationIx" (show $ i) ++";"++
+                                            jsCallFunction  hourViewId "load" []
+ 
+instance Presentable HourView where
+  present (HourView selectReservationActions hourReservations script) =
+    (with [id_ "hourView"] $ -- in separate div, because spinners on scrolling elements  cause scrollbars to be shown
+    boxedEx 1 0 $ withStyle "height:90px;overflow:auto" $
+      mkTableEx [width "100%", cellpadding "0", cellspacing "0", style "border-collapse:collapse"] [] [] $ 
+        [ [ ([id_ . toValue $ "reservationLine_"++show i
+             , strAttr "onClick" sa -- todo: don't like this onClick here
+             , style $ "border: 1px solid #909090"]
+          , hList [nbsp, with [id_ . toValue $ "reservationEntry_"++show i] $ "reservationEntry"]) ]
+        | (i,sa) <- zip [0..] selectReservationActions 
+        ]) +++ mkScript script
+
+instance Storeable Database HourView where
 
 
 data RestaurantView = 
@@ -173,6 +368,8 @@ data RestaurantView =
 
 instance Initial RestaurantView where                 
   initial = RestaurantView initial (initial,initial) initial initial [] initial initial initial initial
+
+deriveMapWebViewDb ''Database ''RestaurantView
 
 modifyViewedDate :: ((Int,Int) -> (Int,Int)) -> RestaurantView -> RestaurantView
 modifyViewedDate f (RestaurantView d my lb nb weeks dayView hourView reservationView script) =
@@ -336,268 +533,74 @@ instance Presentable RestaurantView where
    where header = [ ([], toHtml $ showShortDay d) | d <- [1..7] ] 
 
 instance Storeable Database RestaurantView where
-   
--- CalendarDay ----------------------------------------------------------------------  
-     
-     
-data CalendarDayView = 
-  CalendarDayView Date Bool Bool Bool [Reservation]
-    deriving (Eq, Show, Typeable)
+
+-- Extra indirection, so we can style restaurant views that are not part of the combined view or embedded in an iFrame.
+data RestaurantWrapperView = RestaurantWrapperView (WV RestaurantView) deriving (Eq, Show, Typeable)
   
-instance Initial CalendarDayView where                 
-  initial = CalendarDayView (initial, initial, initial) initial initial initial initial
+instance Initial RestaurantWrapperView where                 
+  initial = RestaurantWrapperView initial
 
-mkCalendarDayView date isSelected isToday isThisMonth reservations = mkWebView $
- \vid (CalendarDayView _ _ _ _ _) ->
-  do { return $ CalendarDayView date isSelected isToday isThisMonth reservations
-     }
-     
-instance Presentable CalendarDayView where
-  present (CalendarDayView date@(day, month, year) isSelected isToday isThisMonth reservations) = 
-    -- we use a margin of 3 together with the varying cell background to show today
-    -- doing this with borders is awkward as they resize the table
-    conditionallyBoxed isToday 2 (htmlColor todayColor) $
-       mkTableEx [ width "44px", height "36", cellpadding "0", cellspacing "0" 
-                 , style $ "margin:2px"] [] [] 
-             [[ ([valign "top"] ++ if isThisMonth then [] else [style "color: #808080"], toHtml (show day)) ]
-           ,[ ([style "font-size:80%; color:#0000ff"], if not $ null reservations then toHtml $ show (length reservations) ++ " (" ++ show (sum $ map nrOfPeople reservations)++")" else nbsp) ] 
-        ]
-    -- TODO: make Rgb for standard html colors, make rgbH for (rgbH 0xffffff)
-    
-    -- check slow down after running for a while
-conditionallyBoxed cond width color elt =
-  if cond then div_!*[style $ "border:solid; border-color:"++color++"; border-width:"++show width++"px;"] << elt
-          else div_!*[style $ "padding:"++show width++"px;"] << elt
-
-instance Storeable Database CalendarDayView where
-
------------------------------------------------------------------------------
-
-data DayView = 
-  DayView [String] [Reservation] String
-    deriving (Eq, Show, Typeable)
-  
-instance Initial DayView where                 
-  initial = DayView initial initial initial
-
--- the bar with hours under the calendar
-mkDayView :: ViewId -> ViewId -> [Reservation] -> WebViewM Database (WV DayView)
-mkDayView restaurantViewId hourViewId dayReservations = mkWebView $
- \vid (DayView _ _ _) ->
-  do { let selectHourActions = map (selectHourEdit vid) [18..24]
-     ; return $ DayView selectHourActions dayReservations $
-              jsScript [ jsFunction vid "load" [] $ 
-                      let selDayObj = jsVar restaurantViewId "selectedDayObj"
-                      in [ {-jsLog "'Load day view called'"
-                         ,-} jsIfElse selDayObj
-                           [  -- don't have to load for now, since view is presented by server
-                            
-                             -- show selected hour
-                             jsFor ("i=0; i<"++selDayObj++".hours.length; i++")
-                               [ "$('#hourOfDayView_'+i).css('background-color',("++jsVar restaurantViewId "selectedHourIx"++"==i)?'"++htmlColor selectedHourColor++"'"++
-                                                                                                      ":'"++htmlColor hourColor++"')"
-                                                          ] -- todo: reference to hourOfDay is hard coded
-                           {-, jsLog $ "'SelectedHourIx is '+"++ jsVar restaurantViewId "selectedHourIx"-}
-                           , jsIfElse (jsVar restaurantViewId "selectedHourIx"++"!=null") 
-                               [ jsAssignVar restaurantViewId "selectedHourObj" $  selDayObj ++".hours["++jsVar restaurantViewId "selectedHourIx"++"]"
-                               ]
-                               [ jsAssignVar restaurantViewId "selectedHourObj" "null" ]
-                           ]
-                           [] -- will not occur now, since day is given by server (if it occurs, also set selectedHourObj to null, see mkHourView)
-                       
-                       , jsCallFunction hourViewId "load" []
-                            
-                     {-      
-                      , jsLog $jsVar restaurantViewId "selectedHourIx"
-                      , jsIf (jsVar restaurantViewId "selectedHourIx"++"!=null") 
-                          [ "var hourObject = "++jsVar restaurantViewId "hourObjects"++"["++jsVar restaurantViewId "selectedHourIx"++"]" 
-                          , "console.log('Hour entry is'+hourObject.hourEntry)"
-                          , jsFor "i=0; i<hourObject.reservations.length; i++" 
-                              [ "console.log('item:'+hourObject.reservations[i].reservationEntry)" ]
-                          ] -}
-                      ]  
-                  ]
-     }
- where selectHourEdit dayViewId h = jsAssignVar restaurantViewId "selectedHourIx" (show $ h-18) ++";"++
-                                    jsAssignVar restaurantViewId "selectedReservationIx" "0" ++";"++
-                                    jsCallFunction  restaurantViewId "load" [] -- because the label changes, we need to load restaurant view
-
-
-instance Presentable DayView where
-  present (DayView selectHourActions dayReservations script) =
-    mkTableEx [width "100%", cellpadding "0", cellspacing "0", style "border-collapse:collapse; font-size:80%"] [] [] 
-      [[ ([id_ . toValue $ "hourOfDayView_"++show (hr-18)
-          , strAttr "onClick" sa -- todo: don't like this onClick here
-          , style $ "border: 1px solid #909090; background-color: #d0d0d0"]
-         , presentHour hr) | (sa,hr) <- zip selectHourActions [18..24] ]] +++ mkScript script
-
-   where presentHour hr = --withBgColor (Rgb 255 255 0) $
-           vListEx [width "48px"] -- needs to be smaller than alotted hour cell, but larger than width of "xx(xx)"
-                 [ toHtml $ show hr++"h"
-                 , withStyle "font-size:80%; text-align:center; color:#0000ff" $ 
-                     let ressAtHr = filter ((==hr) . fst . time) dayReservations
-                     in  if not $ null ressAtHr then toHtml $ show (length ressAtHr) ++ " (" ++ show (sum $ map nrOfPeople ressAtHr)++")" else nbsp 
-                 ]
-instance Storeable Database DayView where
-
------------------------------------------------------------------------------
-
-data HourView = 
-  HourView[String] [Reservation] String
-    deriving (Eq, Show, Typeable)
-  
-instance Initial HourView where                 
-  initial = HourView initial initial initial
-
--- the list of reservations for a certain hour
-mkHourView :: ViewId -> ViewId -> [Reservation] -> WebViewM Database (WV HourView)
-mkHourView restaurantViewId reservationViewId hourReservations = mkWebView $
- \vid (HourView _ _ _) ->
-  do { let selectReservationActions = map (selectReservationEdit vid) [0..19]
-     ; return $ HourView selectReservationActions hourReservations $
-         jsScript [ jsFunction vid "load" [] $ 
-                      let selHourObj = jsVar restaurantViewId "selectedHourObj"
-                      in [ {-"console.log('Load hour view called')"
-                         , jsLog $ "'SelectedHourIx is '+"++ jsVar restaurantViewId "selectedHourIx"
-                         , jsLog $ "'SelectedHour is '+"++ selHourObj
-                         ,-} jsIfElse selHourObj
-                           [ -- jsLog $ "'Hour object not null'",
-                           
-                           -- if selection is below reservation list make the selectedReservationIx null
-                             jsIf (jsVar restaurantViewId "selectedReservationIx"++">="++selHourObj++".reservations.length")
-                             [ jsAssignVar restaurantViewId "selectedReservationIx" "null" ]
-                           -- load hour and show selected reservation
-                           , jsFor ("i=0; i<"++selHourObj++".reservations.length; i++") 
-                              [ {-"console.log('item:'+"++selHourObj++".reservations[i].reservationEntry)" 
-                              ,-} "$('#reservationLine_'+i).css('background-color',("++jsVar restaurantViewId "selectedReservationIx"++"==i)?'"++htmlColor selectedReservationColor++"'"++
-                                                                                                           ":'"++htmlColor reservationColor++"')"
-                              , "$('#reservationEntry_'+i).text("++selHourObj++".reservations[i].reservationEntry)"
-                              ]
-                            
-                           -- clear the other entries
-                           , jsFor ("i="++selHourObj++".reservations.length; i<20; i++") 
-                              [ "$('#reservationEntry_'+i).text('')"
-                              , "$('#reservationLine_'+i).css('background-color','"++htmlColor reservationColor++"')"
-                              ]
-                           
-                           , jsIfElse (jsVar restaurantViewId "selectedReservationIx"++"!=null") 
-                               [ jsAssignVar restaurantViewId "selectedReservationObj" $  selHourObj ++".reservations["++jsVar restaurantViewId "selectedReservationIx"++"].reservation"
-                               ]
-                               [ jsAssignVar restaurantViewId "selectedReservationObj" "null" ]
-                           ]
-                           
-                           -- empty reservation list, set selectedReservationObj to nul
-                           [ {-jsLog "'Hour object null'"
-                           ,-} jsFor ("i=0; i<20; i++") -- duplicated code 
-                              [ "$('#reservationEntry_'+i).text('')"
-                              , "$('#reservationLine_'+i).css('background-color','"++htmlColor reservationColor++"')"
-                              ]
-                           , jsAssignVar restaurantViewId "selectedReservationObj" "null"
-                           ] 
-
-                         , jsCallFunction reservationViewId "load" []
-                         
-                      ]  
-                  ]
-     }
- where selectReservationEdit hourViewId i = jsAssignVar restaurantViewId "selectedReservationIx" (show $ i) ++";"++
-                                            jsCallFunction  hourViewId "load" []
- 
-instance Presentable HourView where
-  present (HourView selectReservationActions hourReservations script) =
-    (with [id_ "hourView"] $ -- in separate div, because spinners on scrolling elements  cause scrollbars to be shown
-    boxedEx 1 0 $ withStyle "height:90px;overflow:auto" $
-      mkTableEx [width "100%", cellpadding "0", cellspacing "0", style "border-collapse:collapse"] [] [] $ 
-        [ [ ([id_ . toValue $ "reservationLine_"++show i
-             , strAttr "onClick" sa -- todo: don't like this onClick here
-             , style $ "border: 1px solid #909090"]
-          , hList [nbsp, with [id_ . toValue $ "reservationEntry_"++show i] $ "reservationEntry"]) ]
-        | (i,sa) <- zip [0..] selectReservationActions 
-        ]) +++ mkScript script
-
-instance Storeable Database HourView where
-
------------------------------------------------------------------------------
-
-data ReservationView = 
-  ReservationView (Widget (Button Database)) (Widget (EditAction Database)) String
-    deriving (Eq, Show, Typeable)
-  
-instance Initial ReservationView where                 
-  initial = ReservationView initial initial initial
-
-mkReservationView restaurantViewId = mkWebView $
- \vid (ReservationView _ _ _) ->
-  do { removeButton <- mkButton "x" True $ return ()
-     ; db <- getDb
-     ; removeAction <- mkEditActionEx $ \[reservationId] ->
-         let resId = read reservationId
-         in  case Map.lookup resId (allReservations db) of
-               Nothing  -> return ()
-               Just res -> confirmEdit ("Are you sure you wish to delete the reservation for "++name res++" at "++showTime (time res)++"?") $
-                             modifyDb $ removeReservation resId  
-     ; return $ ReservationView removeButton removeAction $ jsScript 
-         [ jsFunction vid "load" [] $ 
-           let selRes = jsVar restaurantViewId "selectedReservationObj"
-           in  [ {-"console.log(\"Load reservation view called\")"
-               ,-} onClick removeButton $ callServerEditAction removeAction [jsVar restaurantViewId "selectedReservationObj" ++".reservationId"]
-               , jsIfElse selRes
-                   [ {-"console.log(\"date\"+"++selRes++".date)" 
-                   ,  "console.log(\"time\"+"++selRes++".time)"
-                   ,-}  "$(\"#reservationView\").css(\"color\",\"black\")"
-                   ,  jsGetElementByIdRef (widgetGetViewRef removeButton)++".disabled = false"
-                   ,  "$(\"#dateField\").text("++selRes++".date)"
-                   ,  "$(\"#nameField\").text("++selRes++".name)"
-                   ,  "$(\"#timeField\").text("++selRes++".time)"
-                   ,  "$(\"#nrOfPeopleField\").text("++selRes++".nrOfPeople)"
-                   ,  "$(\"#commentField\").text("++selRes++".comment)"
-                   ]
-                   [ "$(\"#reservationView\").css(\"color\",\"grey\")"
-                   , jsGetElementByIdRef (widgetGetViewRef removeButton)++".disabled = true"
-                   , "$(\"#dateField\").text(\"\")"
-                   , "$(\"#nameField\").text(\"\")"
-                   , "$(\"#timeField\").text(\"\")"
-                   , "$(\"#nrOfPeopleField\").text(\"\")"
-                   , "$(\"#commentField\").text(\"\")"
-                   -- , "console.log(\"not set\")"
-                   ] 
-               ]
-         ]
-     }
- 
--- todo comment has hard-coded width. make constant for this
-instance Presentable ReservationView where
-  present (ReservationView removeButton _ script) = (withStyle "background-color:#f0f0f0" $ boxed $ 
-    vListEx [ id_ "reservationView"] 
-      [ hListEx [width "100%"] [ hList [ "Reservation date: ",nbsp
-                                       , with [colorAttr reservationColor] $ with [id_ "dateField"] $ noHtml ]
-                               , with [align "right"] $ mkClassDiv "RemoveButton" $ present removeButton]
-      , hList [ "Time:",nbsp, with [colorAttr reservationColor] $ with [id_ "timeField"] $ noHtml]
-      , hList [ "Name:",nbsp, with [colorAttr reservationColor] $ with [id_ "nameField"] $ noHtml]
-      , hList [ "Nr. of people:",nbsp, with [colorAttr reservationColor] $ with [id_ "nrOfPeopleField"] $ noHtml ]
-      , "Comment:" 
-      , boxedEx 1 0 $ withStyle ("padding-left:4px;height:70px; width:356px; overflow:auto; color:" ++ htmlColor reservationColor) $ with [id_ "commentField"] $  
-          noHtml
-      ]) +++ mkScript script
-   where reservationColor = Rgb 0x00 0x00 0xff
- 
-instance Storeable Database ReservationView where
-
-instance MapWebView Database Reservation
-
-
-deriveMapWebViewDb ''Database ''DayView
-deriveMapWebViewDb ''Database ''HourView
-deriveMapWebViewDb ''Database ''CalendarDayView
-deriveMapWebViewDb ''Database ''ReservationView
-deriveMapWebViewDb ''Database ''RestaurantView
 deriveMapWebViewDb ''Database ''RestaurantWrapperView
+
+mkRestaurantWrapperView = mkWebView $
+ \vid (RestaurantWrapperView _) ->
+  do { restaurantView <- mkRestaurantView
+     ; return $ RestaurantWrapperView restaurantView
+     }
+
+instance Presentable RestaurantWrapperView where
+  present (RestaurantWrapperView fv) = 
+        mkClassDiv "RestaurantWrapperParent" $ mkPage [] $ mkClassDiv "RestaurantWrapperView" $ present fv 
+
+instance Storeable Database RestaurantWrapperView where
+
+-- Main ----------------------------------------------------------------------  
+
+data MainView = 
+  MainView (WV ClientView) (WV RestaurantView)
+    deriving (Eq, Show, Typeable)
+  
+instance Initial MainView where                 
+  initial = MainView initial initial
+
 deriveMapWebViewDb ''Database ''MainView
 
-deriveMapWebViewDb ''Database ''TestView1
-deriveMapWebViewDb ''Database ''TestView2
+mkMainRootView = mkWebView $
+ \vid (MainView _ _) ->
+  do { clientView <- mkClientView
+     ; restaurantView <- mkRestaurantView                                            
+     ; return $ MainView clientView restaurantView
+     }
 
- 
+instance Presentable MainView where
+  present (MainView cv rv) = 
+    mkClassDiv "CombinedWrapperParent" $ mkPage [] $ mkClassDiv "CombinedWrapperView" $ 
+     hListEx [] [ roundedBoxed (Just $ appBgColor) $ present rv
+                , hSpace 50
+                , roundedBoxed (Just $ appBgColor) $ present cv 
+                ] 
+
+instance Storeable Database MainView where
+
+
+main :: IO ()
+main = server 8102 "Reservations" rootViews ["Reservations.css"] "ReservationsDB.txt" mkInitialDatabase users
+
+-- the webviews here are phantom typed, so we need rootView to get rid of the phantom types
+rootViews = [ mkRootView ""                   mkMainRootView          -- combined view of restaurant and client
+            , mkRootView "client"             mkClientWrapperView     -- for running in a browser by itself or on an iPhone/iPad
+            , mkRootView "embeddedClient"     mkClientView            -- for running in an iFrame
+            , mkRootView "restaurant"         mkRestaurantWrapperView -- for running in a browser by itself or on an iPad/iPhone 
+            , mkRootView "embeddedRestaurant" mkRestaurantView        -- for running in an iFrame
+            , mkRootView "test"               mkTestView1
+            ]
+             
+  -- TODO: id's here?
+  -- TODO: fix the sessionId stuff
+  -- TODO: find good names for root, main, etc.
+
+ -- TODO: sessionId? put this in an environment? or maybe the WebViewM monad?
+
  {-
 Bug that seems to add views with number 23 all the time (probably the date)
 

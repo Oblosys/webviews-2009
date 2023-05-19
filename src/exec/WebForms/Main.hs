@@ -33,6 +33,47 @@ import Data.Label                         -- fclabels
 import Database
 import WebFormUtils
 
+-- Initialize the database by putting a Nothing for each answer. (so completeness == absence of Nothings)  
+initializeDb :: WebForm -> Database -> Database
+initializeDb (Form pages) = compose $ map initializeDbFormPage pages
+
+initializeDbFormPage :: FormPage -> Database -> Database
+initializeDbFormPage (Page elts) = compose $ map initializeDbFormElt elts
+
+initializeDbFormElt (RadioAnswerElt r)      = initializeDbQuestion $ getRadioQuestionTag r
+initializeDbFormElt (RadioTextAnswerElt r)  = (initializeDbQuestion $ getRadioTextRadioQuestionTag r) . 
+                                              (initializeDbQuestion $ getRadioTextTextQuestionTag r)
+initializeDbFormElt (ButtonAnswerElt b)     = initializeDbQuestion $ getButtonQuestionTag b
+initializeDbFormElt (TextAnswerElt t)       = initializeDbQuestion $ getTextQuestionTag t
+initializeDbFormElt (HtmlElt html)          = id
+initializeDbFormElt (HtmlFileElt path)      = id
+initializeDbFormElt (StyleElt _ elt)        = initializeDbFormElt elt
+initializeDbFormElt (TableElt _ _ _ _ rows) = compose $ concatMap (map initializeDbFormElt) rows
+
+compose :: [(a->a)] -> a -> a
+compose = foldl (.) id
+
+initializeDbQuestion :: QuestionTag -> Database -> Database
+initializeDbQuestion questionTag db = case Map.lookup questionTag db of
+                                        Nothing  -> Map.insert questionTag Nothing db
+                                        Just _   -> db
+
+getQuestionsAnsweredFormPage :: FormPage -> Database -> Bool
+getQuestionsAnsweredFormPage (Page elts) db = and [ getQuestionsAnsweredFormElt e db | e <- elts ]
+
+getQuestionsAnsweredFormElt :: FormElt -> Database -> Bool
+getQuestionsAnsweredFormElt (RadioAnswerElt r)      db = isQuestionTagAnswered (getRadioQuestionTag r) db
+getQuestionsAnsweredFormElt (RadioTextAnswerElt r)  db = isQuestionTagAnswered (getRadioTextRadioQuestionTag r) db && 
+                                                         isQuestionTagAnswered (getRadioTextTextQuestionTag r) db
+getQuestionsAnsweredFormElt (ButtonAnswerElt b)     db = isQuestionTagAnswered (getButtonQuestionTag b) db
+getQuestionsAnsweredFormElt (TextAnswerElt t)       db = isQuestionTagAnswered (getTextQuestionTag t) db
+getQuestionsAnsweredFormElt (HtmlElt html)          db = True
+getQuestionsAnsweredFormElt (HtmlFileElt path)      db = True
+getQuestionsAnsweredFormElt (StyleElt _ elt)        db = getQuestionsAnsweredFormElt elt db
+getQuestionsAnsweredFormElt (TableElt _ _ _ _ rows) db = and [ getQuestionsAnsweredFormElt elt db 
+                                                             | row <- rows, elt <- row ]
+                       --compose $ concatMap (map getQuestionsAnsweredFormElt) rows
+
 -- WebForm data types
 -- TODO: figure out how to execute js without problem with incrementality (we now show state in a comment to force evaluation)
 --       Related: somehow queue stuff, since now we do a initProgressMarker for every element on the page
@@ -336,7 +377,6 @@ data RadioTextAnswerView =
 deriveInitial ''RadioTextAnswerView
 deriveMapWebViewDb ''Database ''RadioTextAnswerView
 
-
 mkRadioTextAnswerView :: RadioTextAnswer -> WebViewM Database (WV RadioTextAnswerView)
 mkRadioTextAnswerView r@(RadioTextAnswer radioQuestionTag textQuestionTag answers validate) = mkWebView $
   \vid _ ->
@@ -458,6 +498,9 @@ instance Storeable Database TextAnswerView where
 data StyleView = StyleView String (UntypedWebView Database)
    deriving (Eq, Show, Typeable)
 
+deriveInitial ''StyleView
+deriveMapWebViewDb ''Database ''StyleView
+
 mkStyleView :: String -> UntypedWebView Database -> WebViewM Database (WV StyleView)
 mkStyleView styleStr wv = mkWebView $
   \vid _ ->
@@ -475,6 +518,8 @@ instance Storeable Database StyleView
 data TableView = TableView String Bool Bool Bool [[UntypedWebView Database]]
    deriving (Eq, Show, Typeable)
 
+deriveInitial ''TableView
+deriveMapWebViewDb ''Database ''TableView
 
 mkTableView :: String -> Bool -> Bool -> Bool -> [[UntypedWebView Database]] -> WebViewM Database (WV TableView)
 mkTableView classTag border topHeader leftHeader rows = mkWebView $
@@ -503,17 +548,6 @@ instance Presentable TableView where
 
 instance Storeable Database TableView
 
-
-
-
--- put these here due to Template-Haskell scope restrictions
-deriveInitial ''StyleView
-deriveMapWebViewDb ''Database ''StyleView
-
-deriveInitial ''TableView
-deriveMapWebViewDb ''Database ''TableView
-
-
 mkViewFormElt :: FormElt -> WebViewM Database (UntypedWebView Database)
 mkViewFormElt (RadioAnswerElt r)      = mkUntypedWebView $ mkRadioAnswerView r
 mkViewFormElt (RadioTextAnswerElt rt) = mkUntypedWebView $ mkRadioTextAnswerView rt
@@ -536,7 +570,6 @@ data FormPageView =
     deriving (Eq, Show, Typeable)
 
 deriveInitial ''FormPageView
-
 deriveMapWebViewDb ''Database ''FormPageView
 
 mkFormPageView :: Int -> FormPage -> WebViewM Database (WV FormPageView)
@@ -562,7 +595,6 @@ data FormView =
     deriving (Eq, Show, Typeable)
 
 deriveInitial ''FormView
-
 deriveMapWebViewDb ''Database ''FormView
 
 mkFormView :: WebForm -> WebViewM Database (WV FormView)
@@ -647,6 +679,8 @@ instance Presentable FormView where
 instance Storeable Database FormView
 
 data MainView = MainView (WV FormView) deriving (Eq, Show, Typeable)
+
+deriveMapWebViewDb ''Database ''MainView
   
 instance Initial MainView where                 
   initial = MainView initial
@@ -664,52 +698,7 @@ instance Presentable MainView where
 
 instance Storeable Database MainView where
      
-
--- Initialize the database by putting a Nothing for each answer. (so completeness == absence of Nothings)  
-initializeDb :: WebForm -> Database -> Database
-initializeDb (Form pages) = compose $ map initializeDbFormPage pages
-
-initializeDbFormPage :: FormPage -> Database -> Database
-initializeDbFormPage (Page elts) = compose $ map initializeDbFormElt elts
-
-initializeDbFormElt (RadioAnswerElt r)      = initializeDbQuestion $ getRadioQuestionTag r
-initializeDbFormElt (RadioTextAnswerElt r)  = (initializeDbQuestion $ getRadioTextRadioQuestionTag r) . 
-                                              (initializeDbQuestion $ getRadioTextTextQuestionTag r)
-initializeDbFormElt (ButtonAnswerElt b)     = initializeDbQuestion $ getButtonQuestionTag b
-initializeDbFormElt (TextAnswerElt t)       = initializeDbQuestion $ getTextQuestionTag t
-initializeDbFormElt (HtmlElt html)          = id
-initializeDbFormElt (HtmlFileElt path)      = id
-initializeDbFormElt (StyleElt _ elt)        = initializeDbFormElt elt
-initializeDbFormElt (TableElt _ _ _ _ rows) = compose $ concatMap (map initializeDbFormElt) rows
-
-compose :: [(a->a)] -> a -> a
-compose = foldl (.) id
-
-initializeDbQuestion :: QuestionTag -> Database -> Database
-initializeDbQuestion questionTag db = case Map.lookup questionTag db of
-                                        Nothing  -> Map.insert questionTag Nothing db
-                                        Just _   -> db
-
-getQuestionsAnsweredFormPage :: FormPage -> Database -> Bool
-getQuestionsAnsweredFormPage (Page elts) db = and [ getQuestionsAnsweredFormElt e db | e <- elts ]
-
-getQuestionsAnsweredFormElt :: FormElt -> Database -> Bool
-getQuestionsAnsweredFormElt (RadioAnswerElt r)      db = isQuestionTagAnswered (getRadioQuestionTag r) db
-getQuestionsAnsweredFormElt (RadioTextAnswerElt r)  db = isQuestionTagAnswered (getRadioTextRadioQuestionTag r) db && 
-                                                         isQuestionTagAnswered (getRadioTextTextQuestionTag r) db
-getQuestionsAnsweredFormElt (ButtonAnswerElt b)     db = isQuestionTagAnswered (getButtonQuestionTag b) db
-getQuestionsAnsweredFormElt (TextAnswerElt t)       db = isQuestionTagAnswered (getTextQuestionTag t) db
-getQuestionsAnsweredFormElt (HtmlElt html)          db = True
-getQuestionsAnsweredFormElt (HtmlFileElt path)      db = True
-getQuestionsAnsweredFormElt (StyleElt _ elt)        db = getQuestionsAnsweredFormElt elt db
-getQuestionsAnsweredFormElt (TableElt _ _ _ _ rows) db = and [ getQuestionsAnsweredFormElt elt db 
-                                                             | row <- rows, elt <- row ]
-                       --compose $ concatMap (map getQuestionsAnsweredFormElt) rows
-
-
 ---- Main (needs to be below all webviews that use deriveInitial)
-
-deriveMapWebViewDb ''Database ''MainView
 
 main :: IO ()
 main = server 8100 "Blij van IT" rootViews ["WebForms.js", "WebForms.css", "BlijVanIT.css"] "WebFormDB.txt" mkInitialDatabase $ Map.empty

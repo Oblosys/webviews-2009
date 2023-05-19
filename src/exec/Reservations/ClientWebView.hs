@@ -27,31 +27,57 @@ import TemplateHaskell
 import Database
 import ReservationUtils
 
--- Extra indirection, so we can style client views that are not part of the combined view or embedded in an iFrame.
-data ClientWrapperView = ClientWrapperView (WV ClientView) deriving (Eq, Show, Typeable)
-  
-instance Initial ClientWrapperView where                 
-  initial = ClientWrapperView initial
+--- Utils
 
-mkClientWrapperView = mkWebView $
- \vid (ClientWrapperView _) ->
-  do { clientView <- mkClientView
-     ; return $ ClientWrapperView clientView
-     }
+showMonth m = show (toEnum (m-1) :: System.Time.Month)
+showDate (d,m,y) = show d ++ " " ++ showMonth m ++ " " ++ show y
+showShortDate (d,m,y) = show d ++ " " ++ showShortMonth m ++ " " ++ show y
+showTime (h,m) = (if h<10 then " " else "") ++ show h ++ ":" ++ (if m<10 then "0" else "") ++ show m
 
-instance Presentable ClientWrapperView where
-  present (ClientWrapperView fv) = 
-    mkClassDiv "ClientWrapperParent" $ mkPage [] $ mkClassDiv "ClientWrapperView" $ present fv 
+daysToWeeks days = if length days < 7 then [days]
+                   else take 7 days : daysToWeeks (drop 7 days)
 
-instance Storeable Database ClientWrapperView where
+-- TODO: before using seriously, check unsafePerformIO (or remove)
+calendarTimeForDate (day, month, year) =
+ do { clockTime <-  getClockTime -- first need to get a calendar time in this time zone (only time zone is used, so ok to unsafePerformIO)
+    ; today <- toCalendarTime clockTime
+    ; return $ today {ctDay= day, ctMonth = toEnum $ month-1, ctYear = year, ctHour = 12, ctMin = 0, ctPicosec = 0}
+    }
+    
+dateFromCalendarTime ct = (ctDay ct, 1+fromEnum (ctMonth ct), ctYear ct)
+    
+weekdayForDate date = unsafePerformIO $ -- unsafePerformIO is okay, since we don't use the current time/date anyway
+ do { ct <- calendarTimeForDate date
+    ; ctWithWeekday <- toCalendarTime $ toClockTime ct
+    ; return $ (fromEnum (ctWDay ctWithWeekday) -1) `mod` 7 + 1 -- in enum, Sunday is 0 and Monday is 1, we want Monday = 1 and Sunday = 7
+    } 
 
+addToDate date days = unsafePerformIO $ -- unsafePerformIO is okay, since we don't use the current time/date anyway
+ do { ct <- calendarTimeForDate date
+    ; ct' <- toCalendarTime $ addToClockTime (noTimeDiff {tdDay = days}) $ toClockTime ct 
+    ; return $ dateFromCalendarTime ct' 
+    }
+    
+showDay :: Int -> String 
+showDay d = ["Monday","Tuesday","Wednesday","Thursday","Friday","Saturday","Sunday"]!!(d-1) 
+
+showShortDay :: Int -> String 
+showShortDay d = ["Mo","Tu","We","Th","Fr","Sa","Su"]!!(d-1) 
+
+showShortMonth :: Database.Month -> String
+showShortMonth m = ["Jan.", "Feb.", "Mar.", "Apr.", "May", "June", "July", "Aug.","Sept.", "Oct.", "Nov.", "Dec."]!!(m-1)
+
+
+-- WebViews
 
 data ClientView = 
   ClientView Int (Maybe Date) (Maybe Time) [Widget (Button Database)] (Widget (TextView Database)) (Widget (TextView Database)) (Widget (Button Database)) (Widget (Button Database)) [Widget (Button Database)] [[Widget (Button Database)]] (Widget (Button Database)) 
   (Widget (LabelView Database)) (Widget (LabelView Database)) (Widget (LabelView Database)) (Widget (EditAction Database))
   String
     deriving (Eq, Show, Typeable)
-    
+
+deriveMapWebViewDb ''Database ''ClientView
+
 setClientViewNrOfPeople np (ClientView _ b c d e f g h i j k l m n o p) = (ClientView np b c d e f g h i j k l m n o p) 
 setClientViewDate md (ClientView a _ c d e f g h i j k l m n o p) = (ClientView a md c d e f g h i j k l m n o p) 
 setClientViewTime mt (ClientView a b _ d e f g h i j k l m n o p) = (ClientView a b mt d e f g h i j k l m n o p)
@@ -244,46 +270,21 @@ instance Presentable ClientView where
 instance Storeable Database ClientView where
   save _ = id
 
---- Utils
+-- Extra indirection, so we can style client views that are not part of the combined view or embedded in an iFrame.
+data ClientWrapperView = ClientWrapperView (WV ClientView) deriving (Eq, Show, Typeable)
 
-showMonth m = show (toEnum (m-1) :: System.Time.Month)
-showDate (d,m,y) = show d ++ " " ++ showMonth m ++ " " ++ show y
-showShortDate (d,m,y) = show d ++ " " ++ showShortMonth m ++ " " ++ show y
-showTime (h,m) = (if h<10 then " " else "") ++ show h ++ ":" ++ (if m<10 then "0" else "") ++ show m
-
-daysToWeeks days = if length days < 7 then [days]
-                   else take 7 days : daysToWeeks (drop 7 days)
-
--- TODO: before using seriously, check unsafePerformIO (or remove)
-calendarTimeForDate (day, month, year) =
- do { clockTime <-  getClockTime -- first need to get a calendar time in this time zone (only time zone is used, so ok to unsafePerformIO)
-    ; today <- toCalendarTime clockTime
-    ; return $ today {ctDay= day, ctMonth = toEnum $ month-1, ctYear = year, ctHour = 12, ctMin = 0, ctPicosec = 0}
-    }
-    
-dateFromCalendarTime ct = (ctDay ct, 1+fromEnum (ctMonth ct), ctYear ct)
-    
-weekdayForDate date = unsafePerformIO $ -- unsafePerformIO is okay, since we don't use the current time/date anyway
- do { ct <- calendarTimeForDate date
-    ; ctWithWeekday <- toCalendarTime $ toClockTime ct
-    ; return $ (fromEnum (ctWDay ctWithWeekday) -1) `mod` 7 + 1 -- in enum, Sunday is 0 and Monday is 1, we want Monday = 1 and Sunday = 7
-    } 
-
-addToDate date days = unsafePerformIO $ -- unsafePerformIO is okay, since we don't use the current time/date anyway
- do { ct <- calendarTimeForDate date
-    ; ct' <- toCalendarTime $ addToClockTime (noTimeDiff {tdDay = days}) $ toClockTime ct 
-    ; return $ dateFromCalendarTime ct' 
-    }
-    
-showDay :: Int -> String 
-showDay d = ["Monday","Tuesday","Wednesday","Thursday","Friday","Saturday","Sunday"]!!(d-1) 
-
-showShortDay :: Int -> String 
-showShortDay d = ["Mo","Tu","We","Th","Fr","Sa","Su"]!!(d-1) 
-
-showShortMonth :: Database.Month -> String
-showShortMonth m = ["Jan.", "Feb.", "Mar.", "Apr.", "May", "June", "July", "Aug.","Sept.", "Oct.", "Nov.", "Dec."]!!(m-1)
-
-
-deriveMapWebViewDb ''Database ''ClientView
 deriveMapWebViewDb ''Database ''ClientWrapperView
+instance Initial ClientWrapperView where                 
+  initial = ClientWrapperView initial
+
+mkClientWrapperView = mkWebView $
+ \vid (ClientWrapperView _) ->
+  do { clientView <- mkClientView
+     ; return $ ClientWrapperView clientView
+     }
+
+instance Presentable ClientWrapperView where
+  present (ClientWrapperView fv) = 
+    mkClassDiv "ClientWrapperParent" $ mkPage [] $ mkClassDiv "ClientWrapperView" $ present fv 
+
+instance Storeable Database ClientWrapperView where
