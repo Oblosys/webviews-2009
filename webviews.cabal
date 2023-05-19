@@ -9,27 +9,7 @@ Maintainer:       martijn@oblomov.com
 Stability:        experimental
 Build-Type:       Simple
 tested-with:      GHC == 8.10.7
-     
-Flag piglet
-  description:  Build WebViews Piglet
-  default:      False       
 
-Flag reservations
-  description:  Build WebViews Reservations
-  default:      False        
-
-Flag webforms
-  description:  Build WebViews WebForms
-  default:      False       
-
-Flag borrowit
-  description:  Build WebViews BorrowIt
-  default:      False       
-
-Flag importer
-  description:  Build BorrowIt Importer
-  default:      False       
-    
 Library
   hs-source-dirs: src/lib
   build-depends:  base,
@@ -89,10 +69,6 @@ Executable piglet
   Default-Extensions: OverloadedStrings
   HS-Source-Dirs:  src/exec/Piglet
   Other-Modules: Database
-  if flag(piglet)
-    buildable:  True
-  else
-    buildable:  False
 
 Executable reservations
   Main-is:    Main.hs 
@@ -112,10 +88,6 @@ Executable reservations
   Other-Modules: Database,
                  ClientWebView,
                  ReservationUtils
-  if flag(reservations)
-    buildable:  True
-  else
-    buildable:  False
 
 Executable webforms
   Main-is:    Main.hs 
@@ -146,10 +118,6 @@ Executable webforms
   Other-Modules:
                 Database,
                 WebFormUtils
-  if flag(webforms)
-    buildable:  True
-  else
-    buildable:  False
 
 Executable borrowit
   Main-is:    Main.hs 
@@ -181,10 +149,6 @@ Executable borrowit
                 Imported,
                 BorrowItUtils,
                 WebViewLibExp
-  if flag(borrowit)
-    buildable:  True
-  else
-    buildable:  False
 
 Executable importer
   Main-is:    Importer.hs 
@@ -210,7 +174,3 @@ Executable importer
   HS-Source-Dirs:  src/exec/BorrowIt
   Other-Modules:
                 DatabaseTypes
-  if flag(importer)
-    buildable:  True
-  else
-    buildable:  False

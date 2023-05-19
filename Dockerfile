@@ -9,12 +9,16 @@ RUN cabal update
 COPY cabal.config ./
 COPY webviews.cabal ./
 
-RUN cabal build --dependencies-only all -fwebforms -fborrowit -freservations -fimporter
+# Takes ~270 seconds on Dino.
+RUN cabal build all --dependencies-only
 
 COPY . ./
 
 # To avoid putting too much effort in this legacy code, we just build all servers in one image.
-RUN cabal install -fwebforms -fborrowit -freservations -fimporter --install-method=copy --installdir=/app/bin
+# NOTE: unlike cabal build, run, and repl, cabal install ignores specified targets, so
+# `cabal install borrowit reservations webforms` will also install importer and piglet. Builds are reasonably fast
+# tough, so we just use `all`.
+RUN cabal install all --install-method=copy --installdir=/app/bin
 
 FROM haskell-deploy:latest
 
