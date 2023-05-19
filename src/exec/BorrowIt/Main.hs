@@ -4,26 +4,18 @@ module Main where
 
 import Prelude hiding ((.), id)           -- fclabels
 import Control.Category ((.), id)         -- fclabels
-import Data.List
 import BlazeHtml
 import Data.Generics hiding (Data)
-import Data.Char hiding (Space)
 import Data.Function (on)
 import Data.Maybe
-import Data.Map (Map)
 import qualified Data.Map as Map 
-import Data.IntMap (IntMap)
-import qualified Data.IntMap as IntMap 
 import Debug.Trace
-import System.Time
 import Types
 import ObloUtils
-import Generics
 import WebViewPrim
 import WebViewLib
 import HtmlLib
 import Control.Monad.State hiding (get)
-import qualified Control.Monad.State
 import Server
 import TemplateHaskell
 import Data.Label                         -- fclabels

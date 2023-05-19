@@ -1,7 +1,7 @@
 {-# OPTIONS -XDeriveDataTypeable #-}
 module Database where
 
-import Data.Time.Calendar hiding (Day)
+import Data.Time.Calendar hiding (Day, Year)
 import System.Time hiding (Day, Month)
 import Data.Generics
 import Data.Map (Map)
