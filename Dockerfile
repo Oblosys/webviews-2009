@@ -6,7 +6,7 @@ RUN apt-get update && apt-get install -y \
 
 RUN cabal update
 
-COPY cabal.config ./
+COPY cabal.project.freeze ./
 COPY webviews.cabal ./
 
 # Takes ~270 seconds on Dino.
