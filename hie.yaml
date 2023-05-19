@@ -1,0 +1,12 @@
+cradle:
+  cabal:
+    - path: "./src/exec/BorrowIt"
+      component: "borrowit"
+    - path: "./src/exec/Piglet"
+      component: "piglet"
+    - path: "./src/exec/Reservations"
+      component: "reservations"
+    - path: "./src/exec/WebForms"
+      component: "webforms"
+    - path: "./src/lib"
+      component: "webviews"
