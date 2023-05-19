@@ -1,7 +1,0 @@
-language: haskell
-
-ghc:
-  - "8.0"
-
-script:
-  - cabal configure -fpiglet -freservations -fwebforms -fborrowit -fimporter && cabal build
